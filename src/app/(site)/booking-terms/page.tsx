@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero } from "@/components/ui/Section";
-import { DEFAULT_BOOKING_TERMS } from "@/lib/defaults";
+import { getBookingTerms } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Booking Terms",
@@ -9,8 +9,8 @@ export const metadata: Metadata = {
     "Booking terms for ÉLEVÉ Visuals — deposits, turnaround, usage rights, and cancellation policy.",
 };
 
-export default function BookingTermsPage() {
-  const terms = DEFAULT_BOOKING_TERMS;
+export default async function BookingTermsPage() {
+  const terms = await getBookingTerms();
 
   return (
     <>

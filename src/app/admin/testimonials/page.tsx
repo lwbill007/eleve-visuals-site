@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminField, AdminInput, AdminTextarea } from "@/components/admin/AdminForm";
 import type { TestimonialDTO } from "@/lib/types";
@@ -10,9 +11,11 @@ export default function AdminTestimonialsPage() {
   const [editing, setEditing] = useState<Partial<TestimonialDTO> | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [message, setMessage] = useState("");
+
   async function load() {
-    const res = await fetch("/api/admin/testimonials");
-    setItems(await res.json());
+    const res = await adminFetch("/api/admin/testimonials");
+    if (res.ok) setItems(await res.json());
   }
 
   useEffect(() => {
@@ -22,22 +25,24 @@ export default function AdminTestimonialsPage() {
   async function save() {
     if (!editing?.quote || !editing.name) return;
     setSaving(true);
+    setMessage("");
     const isNew = !editing.id;
     const url = isNew ? "/api/admin/testimonials" : `/api/admin/testimonials/${editing.id}`;
     const method = isNew ? "POST" : "PUT";
-    await fetch(url, {
+    const res = await adminFetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(editing),
     });
-    setEditing(null);
+    setMessage(res.ok ? "Saved." : "Save failed.");
+    if (res.ok) setEditing(null);
     setSaving(false);
     load();
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this testimonial?")) return;
-    await fetch(`/api/admin/testimonials/${id}`, { method: "DELETE" });
+    await adminFetch(`/api/admin/testimonials/${id}`, { method: "DELETE" });
     load();
   }
 
@@ -135,6 +140,7 @@ export default function AdminTestimonialsPage() {
           <p className="py-12 text-center text-fog">No testimonials yet.</p>
         )}
       </div>
+      {message && <p className="mt-6 text-sm text-accent">{message}</p>}
     </AdminShell>
   );
 }

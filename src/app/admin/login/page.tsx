@@ -1,13 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "config") {
+      setError(
+        "Admin login is not configured on the server. Set AUTH_SECRET and ADMIN_PASSWORD in your environment variables."
+      );
+    }
+
+    fetch("/api/auth/session")
+      .then((res) => res.json())
+      .then((data: { authenticated?: boolean; configured?: boolean }) => {
+        if (data.authenticated) {
+          router.replace("/admin");
+          return;
+        }
+        if (data.configured === false && params.get("error") !== "config") {
+          setError(
+            "Admin login is not configured. Set AUTH_SECRET (32+ chars) and ADMIN_PASSWORD in your .env file."
+          );
+        }
+      })
+      .finally(() => setCheckingSession(false));
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,8 +45,9 @@ export default function AdminLoginPage() {
       body: JSON.stringify({ password }),
     });
 
+    const data = await res.json().catch(() => ({}));
+
     if (!res.ok) {
-      const data = await res.json();
       setError(data.error || "Login failed");
       setLoading(false);
       return;
@@ -29,6 +55,14 @@ export default function AdminLoginPage() {
 
     router.push("/admin");
     router.refresh();
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-5">
+        <p className="text-sm text-fog">Checking session...</p>
+      </div>
+    );
   }
 
   return (
@@ -51,6 +85,7 @@ export default function AdminLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               autoFocus
               required
+              autoComplete="current-password"
             />
           </div>
 

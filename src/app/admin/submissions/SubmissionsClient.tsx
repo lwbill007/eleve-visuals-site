@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 
 interface Submission {
@@ -74,6 +75,80 @@ function BookingSubmissionDetail({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+function ContactSubmissionDetail({ data }: { data: Record<string, unknown> }) {
+  return (
+    <dl className="mt-4 grid gap-3 text-sm text-fog sm:grid-cols-2">
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Subject</dt>
+        <dd className="text-cream">{asString(data.subject) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Email</dt>
+        <dd className="text-cream">{asString(data.email) ?? "—"}</dd>
+      </div>
+      <div className="sm:col-span-2">
+        <dt className="text-xs uppercase tracking-wide text-muted">Message</dt>
+        <dd className="mt-1 whitespace-pre-wrap text-cream">{asString(data.message) ?? "—"}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function SessionSubmissionDetail({ data }: { data: Record<string, unknown> }) {
+  return (
+    <dl className="mt-4 grid gap-3 text-sm text-fog sm:grid-cols-2">
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Role</dt>
+        <dd className="text-cream">{asString(data.role) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Experience</dt>
+        <dd className="text-cream">{asString(data.experienceLevel) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Phone</dt>
+        <dd className="text-cream">{asString(data.phone) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Instagram</dt>
+        <dd className="text-cream">{asString(data.instagram) ?? "—"}</dd>
+      </div>
+      <div className="sm:col-span-2">
+        <dt className="text-xs uppercase tracking-wide text-muted">Portfolio</dt>
+        <dd className="text-cream break-all">{asString(data.portfolioLink) ?? "—"}</dd>
+      </div>
+      <div className="sm:col-span-2">
+        <dt className="text-xs uppercase tracking-wide text-muted">Why participate</dt>
+        <dd className="mt-1 whitespace-pre-wrap text-cream">
+          {asString(data.whyParticipate) ?? "—"}
+        </dd>
+      </div>
+      <div className="sm:col-span-2">
+        <dt className="text-xs uppercase tracking-wide text-muted">Theme fit</dt>
+        <dd className="mt-1 whitespace-pre-wrap text-cream">{asString(data.themeFit) ?? "—"}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function SubmissionDetail({ type, data }: { type: string; data: Record<string, unknown> }) {
+  if (data._parseError) {
+    return (
+      <pre className="mt-4 overflow-x-auto border border-stone/20 bg-ink p-4 text-xs text-fog">
+        {String(data._raw ?? "Invalid submission data")}
+      </pre>
+    );
+  }
+  if (type === "booking") return <BookingSubmissionDetail data={data} />;
+  if (type === "contact") return <ContactSubmissionDetail data={data} />;
+  if (type === "session") return <SessionSubmissionDetail data={data} />;
+  return (
+    <pre className="mt-4 overflow-x-auto border border-stone/20 bg-ink p-4 text-xs text-fog">
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
+}
+
 export default function AdminSubmissionsClient() {
   const searchParams = useSearchParams();
   const typeFilter = searchParams.get("type");
@@ -84,8 +159,8 @@ export default function AdminSubmissionsClient() {
     const url = typeFilter
       ? `/api/admin/submissions?type=${typeFilter}`
       : "/api/admin/submissions";
-    const res = await fetch(url);
-    setItems(await res.json());
+    const res = await adminFetch(url);
+    if (res.ok) setItems(await res.json());
   }, [typeFilter]);
 
   useEffect(() => {
@@ -93,7 +168,7 @@ export default function AdminSubmissionsClient() {
   }, [load]);
 
   async function markRead(id: string, read: boolean) {
-    await fetch("/api/admin/submissions", {
+    await adminFetch("/api/admin/submissions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, read }),
@@ -103,7 +178,7 @@ export default function AdminSubmissionsClient() {
 
   async function remove(id: string) {
     if (!confirm("Delete this submission?")) return;
-    await fetch("/api/admin/submissions", {
+    await adminFetch("/api/admin/submissions", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
@@ -190,14 +265,9 @@ export default function AdminSubmissionsClient() {
                 </button>
               </div>
             </div>
-            {expanded === item.id &&
-              (item.type === "booking" ? (
-                <BookingSubmissionDetail data={item.data} />
-              ) : (
-                <pre className="mt-4 overflow-x-auto border border-stone/20 bg-ink p-4 text-xs text-fog">
-                  {JSON.stringify(item.data, null, 2)}
-                </pre>
-              ))}
+            {expanded === item.id && (
+              <SubmissionDetail type={item.type} data={item.data} />
+            )}
           </div>
         ))}
         {items.length === 0 && (

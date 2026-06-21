@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface Stats {
   submissions: {
@@ -38,14 +39,35 @@ interface AnalyticsSummary {
 export function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/stats")
-      .then((r) => r.json())
-      .then(setStats);
-    fetch("/api/admin/analytics?days=30")
-      .then((r) => r.json())
-      .then(setAnalytics);
+    async function load() {
+      try {
+        const [statsRes, analyticsRes] = await Promise.all([
+          adminFetch("/api/admin/stats"),
+          adminFetch("/api/admin/analytics?days=30"),
+        ]);
+
+        if (!statsRes.ok) {
+          setError("Could not load dashboard stats.");
+          setStats({
+            submissions: { booking: 0, session: 0, contact: 0, unread: 0 },
+            content: { portfolio: 0, services: 0, testimonials: 0 },
+          });
+          return;
+        }
+
+        setStats(await statsRes.json());
+        if (analyticsRes.ok) {
+          setAnalytics(await analyticsRes.json());
+        }
+      } catch {
+        setError("Could not load dashboard.");
+      }
+    }
+
+    load();
   }, []);
 
   if (!stats) {
@@ -79,6 +101,8 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-10">
+      {error && <p className="text-sm text-red-400">{error}</p>}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <Link

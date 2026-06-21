@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 import Image from "next/image";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
@@ -9,7 +10,6 @@ import {
   AdminSelect,
   AdminTextarea,
   ImageUpload,
-  SaveBar,
 } from "@/components/admin/AdminForm";
 import { PORTFOLIO_CATEGORIES, type AspectRatio, type PortfolioItemDTO } from "@/lib/types";
 
@@ -37,8 +37,8 @@ export default function AdminPortfolioPage() {
   const [message, setMessage] = useState("");
 
   async function load() {
-    const res = await fetch("/api/admin/portfolio");
-    setItems(await res.json());
+    const res = await adminFetch("/api/admin/portfolio");
+    if (res.ok) setItems(await res.json());
   }
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function AdminPortfolioPage() {
     const url = isNew ? "/api/admin/portfolio" : `/api/admin/portfolio/${editing.id}`;
     const method = isNew ? "POST" : "PUT";
 
-    const res = await fetch(url, {
+    const res = await adminFetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(editing),
@@ -72,7 +72,7 @@ export default function AdminPortfolioPage() {
 
   async function remove(id: string) {
     if (!confirm("Delete this portfolio item?")) return;
-    await fetch(`/api/admin/portfolio/${id}`, { method: "DELETE" });
+    await adminFetch(`/api/admin/portfolio/${id}`, { method: "DELETE" });
     load();
   }
 
@@ -248,7 +248,7 @@ export default function AdminPortfolioPage() {
         )}
       </div>
 
-      {message && <SaveBar onSave={() => {}} saving={false} message={message} />}
+      {message && <p className="mt-6 text-sm text-accent">{message}</p>}
     </AdminShell>
   );
 }

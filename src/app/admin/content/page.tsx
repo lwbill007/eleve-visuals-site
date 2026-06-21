@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
   AdminField,
@@ -13,23 +14,29 @@ import {
 import type {
   AboutContent,
   BookingOptions,
+  BookingTermsContent,
   BrandStory,
   ContactPageContent,
+  FaqItem,
   HeroContent,
   PageCopy,
   ServicesPageIntro,
+  SessionsApplicationContent,
   SessionsContent,
   SiteConfig,
 } from "@/lib/types";
 import {
   DEFAULT_ABOUT,
   DEFAULT_BOOKING_OPTIONS,
+  DEFAULT_BOOKING_TERMS,
   DEFAULT_BRAND_STORY,
   DEFAULT_CONTACT_PAGE,
+  DEFAULT_FAQ,
   DEFAULT_HERO,
   DEFAULT_PAGE_COPY,
   DEFAULT_SERVICES_INTRO,
   DEFAULT_SESSIONS,
+  DEFAULT_SESSIONS_APPLICATION,
   DEFAULT_SITE_CONFIG,
 } from "@/lib/defaults";
 
@@ -41,13 +48,14 @@ const TABS = [
   { id: "sessions", label: "ÉLEVÉ Sessions" },
   { id: "booking", label: "Booking" },
   { id: "contact", label: "Contact" },
+  { id: "faq", label: "FAQ" },
   { id: "pages", label: "Page Copy" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
 async function saveContent(key: string, value: unknown) {
-  const res = await fetch("/api/admin/content", {
+  const res = await adminFetch("/api/admin/content", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key, value }),
@@ -69,9 +77,14 @@ export default function AdminContentPage() {
   const [servicesIntro, setServicesIntro] = useState<ServicesPageIntro>(DEFAULT_SERVICES_INTRO);
   const [pageCopy, setPageCopy] = useState<PageCopy>(DEFAULT_PAGE_COPY);
   const [bookingOptions, setBookingOptions] = useState<BookingOptions>(DEFAULT_BOOKING_OPTIONS);
+  const [bookingTerms, setBookingTerms] = useState<BookingTermsContent>(DEFAULT_BOOKING_TERMS);
+  const [faq, setFaq] = useState<FaqItem[]>(DEFAULT_FAQ);
+  const [sessionsApplication, setSessionsApplication] = useState<SessionsApplicationContent>(
+    DEFAULT_SESSIONS_APPLICATION
+  );
 
   useEffect(() => {
-    fetch("/api/admin/content")
+    adminFetch("/api/admin/content")
       .then((r) => r.json())
       .then((all: { key: string; value: unknown }[]) => {
         for (const item of all) {
@@ -103,6 +116,15 @@ export default function AdminContentPage() {
             case "bookingOptions":
               setBookingOptions(item.value as BookingOptions);
               break;
+            case "bookingTerms":
+              setBookingTerms(item.value as BookingTermsContent);
+              break;
+            case "faq":
+              setFaq(item.value as FaqItem[]);
+              break;
+            case "sessionsApplication":
+              setSessionsApplication(item.value as SessionsApplicationContent);
+              break;
           }
         }
       });
@@ -119,6 +141,7 @@ export default function AdminContentPage() {
       sessions: ["sessions", sessions],
       booking: ["bookingOptions", bookingOptions],
       contact: ["contactPage", contact],
+      faq: ["faq", faq],
       pages: ["pageCopy", pageCopy],
     };
 
@@ -135,6 +158,11 @@ export default function AdminContentPage() {
       };
       const ok1 = await saveContent("bookingOptions", cleanedOptions);
       const ok2 = await saveContent("pageCopy", pageCopy);
+      const ok3 = await saveContent("bookingTerms", bookingTerms);
+      setMessage(ok1 && ok2 && ok3 ? "Saved." : "Save failed.");
+    } else if (tab === "sessions") {
+      const ok1 = await saveContent("sessions", sessions);
+      const ok2 = await saveContent("sessionsApplication", sessionsApplication);
       setMessage(ok1 && ok2 ? "Saved." : "Save failed.");
     } else {
       const [key, value] = map[tab];
@@ -273,6 +301,42 @@ export default function AdminContentPage() {
               <AdminInput value={sessions.eventDetails.capacity} onChange={(e) => setSessions({ ...sessions, eventDetails: { ...sessions.eventDetails, capacity: e.target.value } })} />
             </AdminField>
           </div>
+
+          <div className="space-y-4 border-t border-stone/30 pt-8">
+            <h3 className="font-display text-lg">Application Form</h3>
+            <AdminField label="Headline">
+              <AdminInput
+                value={sessionsApplication.headline}
+                onChange={(e) =>
+                  setSessionsApplication({ ...sessionsApplication, headline: e.target.value })
+                }
+              />
+            </AdminField>
+            <AdminField label="Subheadline">
+              <AdminTextarea
+                value={sessionsApplication.subheadline}
+                onChange={(e) =>
+                  setSessionsApplication({ ...sessionsApplication, subheadline: e.target.value })
+                }
+              />
+            </AdminField>
+            <AdminField label="Success title">
+              <AdminInput
+                value={sessionsApplication.successTitle}
+                onChange={(e) =>
+                  setSessionsApplication({ ...sessionsApplication, successTitle: e.target.value })
+                }
+              />
+            </AdminField>
+            <AdminField label="Success message">
+              <AdminTextarea
+                value={sessionsApplication.successMessage}
+                onChange={(e) =>
+                  setSessionsApplication({ ...sessionsApplication, successMessage: e.target.value })
+                }
+              />
+            </AdminField>
+          </div>
         </div>
       )}
 
@@ -397,6 +461,75 @@ export default function AdminContentPage() {
               onChange={(deliverables) => setBookingOptions({ ...bookingOptions, deliverables })}
             />
           </div>
+
+          <div className="space-y-4 border-t border-stone/30 pt-8">
+            <h3 className="font-display text-lg">Booking Terms Page</h3>
+            <AdminField label="Headline">
+              <AdminInput
+                value={bookingTerms.headline}
+                onChange={(e) => setBookingTerms({ ...bookingTerms, headline: e.target.value })}
+              />
+            </AdminField>
+            <AdminField label="Intro">
+              <AdminTextarea
+                value={bookingTerms.intro}
+                onChange={(e) => setBookingTerms({ ...bookingTerms, intro: e.target.value })}
+              />
+            </AdminField>
+            {bookingTerms.sections.map((section, index) => (
+              <div key={index} className="space-y-3 border border-stone/20 p-4">
+                <AdminField label={`Section ${index + 1} title`}>
+                  <AdminInput
+                    value={section.title}
+                    onChange={(e) => {
+                      const sections = [...bookingTerms.sections];
+                      sections[index] = { ...sections[index], title: e.target.value };
+                      setBookingTerms({ ...bookingTerms, sections });
+                    }}
+                  />
+                </AdminField>
+                <AdminField label="Body">
+                  <AdminTextarea
+                    value={section.body}
+                    onChange={(e) => {
+                      const sections = [...bookingTerms.sections];
+                      sections[index] = { ...sections[index], body: e.target.value };
+                      setBookingTerms({ ...bookingTerms, sections });
+                    }}
+                  />
+                </AdminField>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "faq" && (
+        <div className="space-y-6">
+          {faq.map((item, index) => (
+            <div key={index} className="space-y-3 border border-stone/20 p-4">
+              <AdminField label={`Question ${index + 1}`}>
+                <AdminInput
+                  value={item.question}
+                  onChange={(e) => {
+                    const next = [...faq];
+                    next[index] = { ...next[index], question: e.target.value };
+                    setFaq(next);
+                  }}
+                />
+              </AdminField>
+              <AdminField label="Answer">
+                <AdminTextarea
+                  value={item.answer}
+                  onChange={(e) => {
+                    const next = [...faq];
+                    next[index] = { ...next[index], answer: e.target.value };
+                    setFaq(next);
+                  }}
+                />
+              </AdminField>
+            </div>
+          ))}
         </div>
       )}
 

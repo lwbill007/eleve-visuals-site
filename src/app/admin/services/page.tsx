@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
   AdminField,
@@ -16,9 +17,11 @@ export default function AdminServicesPage() {
   const [includesText, setIncludesText] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [message, setMessage] = useState("");
+
   async function load() {
-    const res = await fetch("/api/admin/services");
-    setItems(await res.json());
+    const res = await adminFetch("/api/admin/services");
+    if (res.ok) setItems(await res.json());
   }
 
   useEffect(() => {
@@ -33,16 +36,18 @@ export default function AdminServicesPage() {
   async function save() {
     if (!editing) return;
     setSaving(true);
+    setMessage("");
     const payload = {
       ...editing,
       includes: includesText.split("\n").map((s) => s.trim()).filter(Boolean),
     };
-    await fetch(`/api/admin/services/${editing.id}`, {
+    const res = await adminFetch(`/api/admin/services/${editing.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    setEditing(null);
+    setMessage(res.ok ? "Saved." : "Save failed.");
+    if (res.ok) setEditing(null);
     setSaving(false);
     load();
   }
@@ -128,6 +133,7 @@ export default function AdminServicesPage() {
           </div>
         )}
       </div>
+      {message && <p className="mt-6 text-sm text-accent">{message}</p>}
     </AdminShell>
   );
 }

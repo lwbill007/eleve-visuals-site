@@ -1,36 +1,68 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { ADMIN_COOKIE_NAME } from "@/lib/auth-secret";
+import { getJwtSecretKey, isAuthConfigured } from "@/lib/auth-secret";
 
-const COOKIE_NAME = "eleve-admin-session";
-
-function getSecret() {
-  return new TextEncoder().encode(process.env.AUTH_SECRET || "fallback-dev-secret");
+async function verifyAdminToken(token: string) {
+  const { payload } = await jwtVerify(token, getJwtSecretKey());
+  if (payload.role !== "admin") throw new Error("Invalid role");
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+
+  if (pathname.startsWith("/api/admin")) {
+    if (!isAuthConfigured()) {
+      return NextResponse.json(
+        { error: "Server auth is not configured. Set AUTH_SECRET in environment variables." },
+        { status: 503 }
+      );
+    }
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    try {
+      await verifyAdminToken(token);
+      return NextResponse.next();
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
 
   if (!pathname.startsWith("/admin")) return NextResponse.next();
 
-  if (pathname === "/admin/login") return NextResponse.next();
+  if (pathname === "/admin/login") {
+    if (token && isAuthConfigured()) {
+      try {
+        await verifyAdminToken(token);
+        return NextResponse.redirect(new URL("/admin", request.url));
+      } catch {
+        // Invalid token — show login form
+      }
+    }
+    return NextResponse.next();
+  }
 
-  const token = request.cookies.get(COOKIE_NAME)?.value;
+  if (!isAuthConfigured()) {
+    return NextResponse.redirect(new URL("/admin/login?error=config", request.url));
+  }
+
   if (!token) {
     return NextResponse.redirect(new URL("/admin/login", request.url));
   }
 
   try {
-    const { payload } = await jwtVerify(token, getSecret());
-    if (payload.role !== "admin") throw new Error("Invalid role");
+    await verifyAdminToken(token);
     return NextResponse.next();
   } catch {
     const response = NextResponse.redirect(new URL("/admin/login", request.url));
-    response.cookies.delete(COOKIE_NAME);
+    response.cookies.set(ADMIN_COOKIE_NAME, "", { path: "/", maxAge: 0 });
     return response;
   }
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/api/admin/:path*"],
 };

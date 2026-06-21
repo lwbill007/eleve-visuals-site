@@ -1,17 +1,10 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
+import { getJwtSecretKey, ADMIN_COOKIE_NAME } from "./auth-secret";
 
-const COOKIE_NAME = "eleve-admin-session";
+const COOKIE_NAME = ADMIN_COOKIE_NAME;
 const SESSION_DURATION = 60 * 60 * 24 * 7; // 7 days
-
-function getSecret() {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret || secret.length < 16) {
-    throw new Error("AUTH_SECRET must be set and at least 16 characters");
-  }
-  return new TextEncoder().encode(secret);
-}
 
 export async function verifyPassword(password: string): Promise<boolean> {
   const adminPassword = process.env.ADMIN_PASSWORD;
@@ -29,7 +22,7 @@ export async function createSession(): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_DURATION}s`)
-    .sign(getSecret());
+    .sign(getJwtSecretKey());
 
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
@@ -45,7 +38,13 @@ export async function createSession(): Promise<string> {
 
 export async function destroySession() {
   const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
+  cookieStore.set(COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
 }
 
 export async function getSession(): Promise<{ role: string } | null> {
@@ -54,7 +53,7 @@ export async function getSession(): Promise<{ role: string } | null> {
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, getSecret());
+    const { payload } = await jwtVerify(token, getJwtSecretKey());
     if (payload.role !== "admin") return null;
     return { role: "admin" };
   } catch {

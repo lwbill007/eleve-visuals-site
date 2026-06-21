@@ -3,6 +3,7 @@ import {
   CONTENT_KEYS,
   DEFAULT_ABOUT,
   DEFAULT_BOOKING_OPTIONS,
+  DEFAULT_BOOKING_TERMS,
   DEFAULT_BRAND_STORY,
   DEFAULT_CONTACT_PAGE,
   DEFAULT_FAQ,
@@ -17,6 +18,7 @@ import type {
   AboutContent,
   AspectRatio,
   BookingOptions,
+  BookingTermsContent,
   BrandStory,
   ContactPageContent,
   FaqItem,
@@ -174,6 +176,10 @@ export async function getBookingOptions(): Promise<BookingOptions> {
   return getJsonContent(CONTENT_KEYS.bookingOptions, DEFAULT_BOOKING_OPTIONS);
 }
 
+export async function getBookingTerms(): Promise<BookingTermsContent> {
+  return getJsonContent(CONTENT_KEYS.bookingTerms, DEFAULT_BOOKING_TERMS);
+}
+
 export async function getPageCopy(): Promise<PageCopy> {
   return getJsonContent(CONTENT_KEYS.pageCopy, DEFAULT_PAGE_COPY);
 }
@@ -246,6 +252,7 @@ export const contentSetters = {
     setJsonContent(CONTENT_KEYS.sessionsApplication, v),
   servicesIntro: (v: ServicesPageIntro) => setJsonContent(CONTENT_KEYS.servicesIntro, v),
   bookingOptions: (v: BookingOptions) => setJsonContent(CONTENT_KEYS.bookingOptions, v),
+  bookingTerms: (v: BookingTermsContent) => setJsonContent(CONTENT_KEYS.bookingTerms, v),
   pageCopy: (v: PageCopy) => setJsonContent(CONTENT_KEYS.pageCopy, v),
 };
 

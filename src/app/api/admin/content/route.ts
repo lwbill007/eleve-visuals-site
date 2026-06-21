@@ -12,6 +12,7 @@ import {
   getSessionsApplicationContent,
   getServicesIntro,
   getBookingOptions,
+  getBookingTerms,
   getPageCopy,
 } from "@/lib/content";
 
@@ -26,6 +27,7 @@ const GETTERS = {
   sessionsApplication: getSessionsApplicationContent,
   servicesIntro: getServicesIntro,
   bookingOptions: getBookingOptions,
+  bookingTerms: getBookingTerms,
   pageCopy: getPageCopy,
 } as const;
 

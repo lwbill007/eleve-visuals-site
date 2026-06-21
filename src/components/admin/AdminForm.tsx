@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface ImageUploadProps {
   value: string | null;
@@ -23,7 +24,7 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
+      const res = await adminFetch("/api/admin/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
       onChange(data.url);

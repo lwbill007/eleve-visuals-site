@@ -515,5 +515,6 @@ export const CONTENT_KEYS = {
   sessionsApplication: "sessions-application",
   servicesIntro: "services-intro",
   bookingOptions: "booking-options",
+  bookingTerms: "booking-terms",
   pageCopy: "page-copy",
 } as const;
