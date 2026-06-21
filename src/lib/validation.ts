@@ -4,8 +4,8 @@ import { EXPERIENCE_LEVELS, SESSIONS_APPLICANT_ROLES } from "./types";
 const email = z.string().trim().email().max(254);
 const phone = z
   .string()
-  .trim()
   .max(30)
+  .trim()
   .refine((v) => v.replace(/\D/g, "").length >= 10, "Invalid phone number");
 
 export const bookingSchema = z.object({
@@ -14,8 +14,8 @@ export const bookingSchema = z.object({
   phone,
   instagram: z
     .string()
-    .trim()
     .max(31)
+    .trim()
     .refine((v) => !v || /^@?[a-zA-Z0-9._]{1,30}$/.test(v), "Invalid Instagram handle"),
   serviceType: z.string().trim().min(1).max(80),
   shootType: z.string().trim().min(1).max(80),
@@ -42,10 +42,12 @@ export const sessionSchema = z.object({
   phone,
   instagram: z
     .string()
-    .trim()
-    .min(1)
     .max(31)
-    .refine((v) => /^@?[a-zA-Z0-9._]{1,30}$/.test(v), "Invalid Instagram handle"),
+    .trim()
+    .refine(
+      (v) => v.length >= 1 && /^@?[a-zA-Z0-9._]{1,30}$/.test(v),
+      "Invalid Instagram handle"
+    ),
   ageConfirm: z.literal(true),
   role: z.enum(SESSIONS_APPLICANT_ROLES as unknown as [string, ...string[]]),
   portfolioLink: z.string().trim().url().max(500),
