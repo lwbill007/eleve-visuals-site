@@ -29,15 +29,13 @@ Set in `.env`:
 
 ```env
 DATABASE_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
-DIRECT_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
 ```
 
 ### Neon / Vercel Postgres
 
 1. Create a Postgres database in [Neon](https://neon.tech) or Vercel Storage.
-2. Set `DATABASE_URL` to the **pooled** connection string (runtime).
-3. Set `DIRECT_URL` to the **direct** connection string (migrations).
-4. Deploy — `npm run build` runs `prisma migrate deploy` automatically.
+2. Set `DATABASE_URL` to your PostgreSQL connection string (use the **direct** URL if using Neon’s pooler).
+3. Deploy — `npm run build` runs `prisma migrate deploy` automatically.
 
 **Production builds never seed the database.** Run `npm run db:seed` manually only for fresh dev/staging setups.
 
@@ -46,7 +44,6 @@ DIRECT_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `DIRECT_URL` | Yes* | Direct connection for migrations (*same as `DATABASE_URL` if not using a pooler) |
 | `AUTH_SECRET` | Yes | Random secret, **32+ characters** |
 | `ADMIN_PASSWORD` | Yes | Admin login password, **8+ characters** |
 | `BLOB_READ_WRITE_TOKEN` | Prod uploads | Vercel Blob token for admin image uploads |
@@ -97,7 +94,7 @@ npm run test:e2e
 ## Production deployment (Vercel)
 
 1. Add a **Neon** or **Vercel Postgres** database.
-2. Set environment variables: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `ADMIN_PASSWORD`.
+2. Set environment variables: `DATABASE_URL`, `AUTH_SECRET`, `ADMIN_PASSWORD`.
 3. Add **Vercel Blob** and set `BLOB_READ_WRITE_TOKEN`.
 4. Deploy — migrations run during build; content is **not** overwritten.
 
