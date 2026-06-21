@@ -1,0 +1,188 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+
+interface FormFieldProps {
+  label: string;
+  name: string;
+  error?: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function FormField({
+  label,
+  name,
+  error,
+  required,
+  hint,
+  children,
+  className,
+}: FormFieldProps) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      <label htmlFor={name} className="block text-sm text-cream-dim">
+        {label}
+        {required && <span className="ml-1 text-accent">*</span>}
+      </label>
+      {children}
+      {hint && !error && (
+        <p className="text-xs text-muted">{hint}</p>
+      )}
+      {error && <p className="field-error">{error}</p>}
+    </div>
+  );
+}
+
+interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  error?: boolean;
+}
+
+export function TextInput({ error, className, ...props }: TextInputProps) {
+  return (
+    <input
+      className={cn(error && "error", className)}
+      {...props}
+    />
+  );
+}
+
+interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  error?: boolean;
+}
+
+export function TextArea({ error, className, ...props }: TextAreaProps) {
+  return (
+    <textarea
+      className={cn("min-h-[120px] resize-y", error && "error", className)}
+      {...props}
+    />
+  );
+}
+
+interface SelectInputProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  error?: boolean;
+  placeholder?: string;
+  options: string[];
+}
+
+export function SelectInput({
+  error,
+  placeholder,
+  options,
+  className,
+  ...props
+}: SelectInputProps) {
+  return (
+    <select
+      className={cn(error && "error", className)}
+      defaultValue=""
+      {...props}
+    >
+      {placeholder && (
+        <option value="" disabled>
+          {placeholder}
+        </option>
+      )}
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+interface CheckboxFieldProps {
+  name: string;
+  label: React.ReactNode;
+  error?: string;
+  checked?: boolean;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+}
+
+export function CheckboxField({
+  name,
+  label,
+  error,
+  checked,
+  onChange,
+  required,
+}: CheckboxFieldProps) {
+  return (
+    <div>
+      <div className="checkbox-row">
+        <input
+          type="checkbox"
+          id={name}
+          name={name}
+          checked={checked}
+          onChange={onChange}
+          required={required}
+        />
+        <label htmlFor={name} className="text-sm leading-relaxed text-fog">
+          {label}
+        </label>
+      </div>
+      {error && <p className="field-error mt-1.5">{error}</p>}
+    </div>
+  );
+}
+
+interface FormSuccessProps {
+  title: string;
+  message: string;
+  nextSteps?: string[];
+  actionLabel?: string;
+  actionHref?: string;
+}
+
+export function FormSuccess({
+  title,
+  message,
+  nextSteps,
+  actionLabel,
+  actionHref,
+}: FormSuccessProps) {
+  return (
+    <div className="mx-auto max-w-xl text-center">
+      <div className="mb-6 inline-flex h-16 w-16 items-center justify-center border border-accent/30">
+        <svg
+          className="h-7 w-7 text-accent"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <h2 className="headline-md mb-4">{title}</h2>
+      <p className="body-lg mb-8">{message}</p>
+      {nextSteps && nextSteps.length > 0 && (
+        <div className="mb-8 text-left">
+          <p className="label-caps mb-4">What happens next</p>
+          <ol className="space-y-3">
+            {nextSteps.map((step, i) => (
+              <li key={i} className="flex gap-3 text-sm text-fog">
+                <span className="text-accent">{String(i + 1).padStart(2, "0")}</span>
+                {step}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+      {actionLabel && actionHref && (
+        <a
+          href={actionHref}
+          className="label-caps link-underline text-accent hover:text-cream"
+        >
+          {actionLabel}
+        </a>
+      )}
+    </div>
+  );
+}

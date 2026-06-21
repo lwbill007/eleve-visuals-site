@@ -1,0 +1,46 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { recordPageView } from "@/lib/analytics-server";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
+const pageViewSchema = z.object({
+  path: z.string().trim().min(1).max(500),
+  referrer: z.string().max(500).nullable().optional(),
+  utmSource: z.string().max(200).nullable().optional(),
+  utmMedium: z.string().max(200).nullable().optional(),
+  utmCampaign: z.string().max(200).nullable().optional(),
+  sessionId: z.string().max(64).nullable().optional(),
+});
+
+export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  const rateLimit = await checkRateLimit(ip, "analytics:pageview");
+  if (!rateLimit.ok) {
+    return NextResponse.json({ ok: false }, { status: 429 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  const parsed = pageViewSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  // Skip admin routes and API routes
+  if (parsed.data.path.startsWith("/admin") || parsed.data.path.startsWith("/api")) {
+    return NextResponse.json({ ok: true });
+  }
+
+  try {
+    await recordPageView(parsed.data);
+  } catch {
+    return NextResponse.json({ error: "Failed to record" }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

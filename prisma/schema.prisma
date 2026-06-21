@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model PortfolioItem {
+  id          String   @id @default(cuid())
+  title       String
+  category    String
+  client      String?
+  year        String
+  description String
+  image       String?
+  imageAlt    String   @default("")
+  aspectRatio String   @default("landscape")
+  featured    Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  gallery     String   @default("[]")
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Service {
+  id            String  @id @default(cuid())
+  slug          String  @unique
+  title         String
+  tagline       String
+  description   String
+  forWhom       String
+  includes      String  @default("[]")
+  startingPrice String
+  image         String?
+  imageAlt      String  @default("")
+  sortOrder     Int     @default(0)
+  published     Boolean @default(true)
+}
+
+model Testimonial {
+  id        String  @id @default(cuid())
+  quote     String
+  name      String
+  role      String
+  featured  Boolean @default(false)
+  sortOrder Int     @default(0)
+  published Boolean @default(true)
+}
+
+model SiteContent {
+  key   String @id
+  value String
+}
+
+model Submission {
+  id        String   @id @default(cuid())
+  type      String
+  data      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model RateLimitEntry {
+  id        String   @id @default(cuid())
+  ip        String
+  route     String
+  createdAt DateTime @default(now())
+
+  @@index([ip, route, createdAt])
+}
+
+model AnalyticsEvent {
+  id             String   @id @default(cuid())
+  type           String
+  path           String   @default("")
+  referrer       String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  conversionType String?
+  sessionId      String?
+  createdAt      DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([path, createdAt])
+}
