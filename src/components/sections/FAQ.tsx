@@ -23,13 +23,18 @@ export function FAQ({ items }: FAQProps) {
           </div>
           <div className="lg:col-span-8">
             <div className="divide-y divide-stone/30 border-y border-stone/30">
-              {items.map((item, i) => (
+              {items.map((item, i) => {
+                const panelId = `faq-panel-${i}`;
+                const buttonId = `faq-button-${i}`;
+                return (
                 <div key={i}>
                   <button
+                    id={buttonId}
                     type="button"
                     className="flex w-full items-start justify-between gap-4 py-6 text-left"
                     onClick={() => setOpenIndex(openIndex === i ? null : i)}
                     aria-expanded={openIndex === i}
+                    aria-controls={panelId}
                   >
                     <span className="text-sm text-cream md:text-base">{item.question}</span>
                     <span
@@ -42,16 +47,20 @@ export function FAQ({ items }: FAQProps) {
                     </span>
                   </button>
                   <div
+                    id={panelId}
+                    role="region"
+                    aria-labelledby={buttonId}
                     className={cn(
                       "overflow-hidden transition-all duration-500",
-                      openIndex === i ? "max-h-48 pb-6" : "max-h-0"
+                      openIndex === i ? "max-h-[800px] overflow-y-auto pb-6" : "max-h-0"
                     )}
                     style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
                   >
                     <p className="text-sm leading-relaxed text-fog">{item.answer}</p>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
         </div>

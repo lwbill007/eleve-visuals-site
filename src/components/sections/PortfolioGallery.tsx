@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { PORTFOLIO_CATEGORIES, type PortfolioCategory, type PortfolioItemDTO } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface PortfolioGalleryProps {
   items: PortfolioItemDTO[];
@@ -34,7 +35,11 @@ export function PortfolioGallery({ items, initialProjectId }: PortfolioGalleryPr
   useEffect(() => {
     if (initialProjectId) {
       const item = items.find((p) => p.id === initialProjectId);
-      if (item) openProject(item);
+      if (item) {
+        openProject(item);
+      } else {
+        window.history.replaceState(null, "", "/portfolio");
+      }
     }
   }, [initialProjectId, items, openProject]);
 
@@ -150,14 +155,16 @@ function ProjectModal({
   onClose: () => void;
 }) {
   const images = item.gallery.length > 0 ? item.gallery : item.image ? [item.image] : [];
+  const trapRef = useFocusTrap(true, onClose);
 
   return (
     <div
+      ref={trapRef}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/95 p-4 md:p-8"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={item.title}
+      aria-labelledby="project-modal-title"
     >
       <div className="relative my-8 w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
         <button
@@ -189,7 +196,7 @@ function ProjectModal({
 
         <div className="mt-8 border-t border-stone/30 pt-8">
           <p className="label-caps">{item.category}</p>
-          <h2 className="headline-md mt-2">{item.title}</h2>
+          <h2 id="project-modal-title" className="headline-md mt-2">{item.title}</h2>
           <div className="mt-3 flex gap-4 text-xs text-muted">
             {item.client && <span>{item.client}</span>}
             <span>{item.year}</span>

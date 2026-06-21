@@ -365,7 +365,11 @@ export function BookingForm({
           label={
             <>
               I agree to ÉLEVÉ Visuals&apos;{" "}
-              <Link href="/booking-terms" className="text-accent underline underline-offset-2">
+              <Link
+                href="/booking-terms"
+                className="text-accent underline underline-offset-2"
+                onClick={(e) => e.stopPropagation()}
+              >
                 booking terms
               </Link>
               , including turnaround timelines, usage rights, and cancellation policy.

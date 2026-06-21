@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSession, verifyPassword } from "@/lib/auth";
-import { isAuthConfigured } from "@/lib/auth-secret";
+import { isAuthConfigured, getAuthConfigError } from "@/lib/auth-secret";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
@@ -8,7 +8,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Admin login is not configured. Set AUTH_SECRET (32+ chars) and ADMIN_PASSWORD in environment variables.",
+          getAuthConfigError() ??
+          "Admin login is not configured. Set AUTH_SECRET (32+ chars) and ADMIN_PASSWORD (8+ chars) in environment variables.",
       },
       { status: 503 }
     );

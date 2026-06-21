@@ -29,7 +29,16 @@ export default async function ServicesPage() {
 
       <section className="section-padding pt-0">
         <div className="container-wide space-y-24 md:space-y-32">
-          {services.map((service, index) => (
+          {services.length === 0 ? (
+            <p className="py-12 text-center text-fog">
+              Services are being updated. Please check back soon or{" "}
+              <Link href="/contact" className="text-accent underline underline-offset-2">
+                get in touch
+              </Link>
+              .
+            </p>
+          ) : (
+          services.map((service, index) => (
             <article
               key={service.id}
               id={service.slug}
@@ -98,7 +107,7 @@ export default async function ServicesPage() {
                 </div>
               </div>
             </article>
-          ))}
+          )))}
         </div>
       </section>
 

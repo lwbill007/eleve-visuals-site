@@ -42,7 +42,11 @@ export default function AdminTestimonialsPage() {
 
   async function remove(id: string) {
     if (!confirm("Delete this testimonial?")) return;
-    await adminFetch(`/api/admin/testimonials/${id}`, { method: "DELETE" });
+    const res = await adminFetch(`/api/admin/testimonials/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setMessage("Delete failed.");
+      return;
+    }
     load();
   }
 

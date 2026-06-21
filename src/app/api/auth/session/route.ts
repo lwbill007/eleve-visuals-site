@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { isAuthConfigured } from "@/lib/auth-secret";
+import { isAuthConfigured, getAuthConfigError } from "@/lib/auth-secret";
 
 export async function GET() {
-  const configured = isAuthConfigured() && !!process.env.ADMIN_PASSWORD;
+  const configured = isAuthConfigured();
 
   if (!configured) {
     return NextResponse.json({
       authenticated: false,
       configured: false,
+      error: getAuthConfigError(),
     });
   }
 

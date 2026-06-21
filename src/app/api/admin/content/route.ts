@@ -61,12 +61,17 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { key, value } = await request.json();
-  if (!(key in contentSetters)) {
-    return NextResponse.json({ error: "Invalid content key" }, { status: 400 });
-  }
+  try {
+    const body = await request.json();
+    const { key, value } = body as { key?: string; value?: unknown };
+    if (!key || !(key in contentSetters)) {
+      return NextResponse.json({ error: "Invalid content key" }, { status: 400 });
+    }
 
-  const setter = contentSetters[key as keyof typeof contentSetters];
-  await setter(value);
-  return NextResponse.json({ ok: true });
+    const setter = contentSetters[key as keyof typeof contentSetters];
+    await (setter as (v: unknown) => Promise<void>)(value);
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Failed to save content" }, { status: 500 });
+  }
 }

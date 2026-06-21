@@ -2,24 +2,62 @@
 
 Premium creative studio website with a built-in admin CMS.
 
-## Quick Start
+## Quick Start (local)
 
 ```bash
 npm install
-cp .env.example .env   # set ADMIN_PASSWORD and AUTH_SECRET
-npm run db:push
-npm run db:seed
+cp .env.example .env   # configure Postgres + auth secrets (see below)
+docker compose up -d   # optional: local PostgreSQL
+npm run db:setup       # migrate + seed (development only)
 npm run dev
 ```
 
 - **Site:** [http://localhost:3000](http://localhost:3000)
 - **Admin:** [http://localhost:3000/admin/login](http://localhost:3000/admin/login)
 
-Default admin password is set in `.env` as `ADMIN_PASSWORD`.
+## Database (PostgreSQL)
+
+This project uses **PostgreSQL** for persistent storage (Neon, Vercel Postgres, or local Docker).
+
+### Local Docker Postgres
+
+```bash
+docker compose up -d
+```
+
+Set in `.env`:
+
+```env
+DATABASE_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
+DIRECT_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
+```
+
+### Neon / Vercel Postgres
+
+1. Create a Postgres database in [Neon](https://neon.tech) or Vercel Storage.
+2. Set `DATABASE_URL` to the **pooled** connection string (runtime).
+3. Set `DIRECT_URL` to the **direct** connection string (migrations).
+4. Deploy — `npm run build` runs `prisma migrate deploy` automatically.
+
+**Production builds never seed the database.** Run `npm run db:seed` manually only for fresh dev/staging setups.
+
+## Environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `DIRECT_URL` | Yes* | Direct connection for migrations (*same as `DATABASE_URL` if not using a pooler) |
+| `AUTH_SECRET` | Yes | Random secret, **32+ characters** |
+| `ADMIN_PASSWORD` | Yes | Admin login password, **8+ characters** |
+| `BLOB_READ_WRITE_TOKEN` | Prod uploads | Vercel Blob token for admin image uploads |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Optional | Cloudflare Turnstile (pair with secret) |
+| `TURNSTILE_SECRET_KEY` | Optional | Cloudflare Turnstile secret |
+
+Generate a secret: `openssl rand -base64 32`
 
 ## Admin CMS
 
-Sign in at `/admin/login` to manage everything:
+Sign in at `/admin/login` to manage:
 
 | Section | What you can edit |
 |---------|-------------------|
@@ -32,41 +70,36 @@ Sign in at `/admin/login` to manage everything:
 
 ### Uploading images
 
-In admin, use the image upload fields on Portfolio, Services, and Site Content. Files save to `public/uploads/` and are served automatically.
-
-## What's changed from the static version
-
-- **No mock data** — no Unsplash placeholders, fake portfolio, or fabricated testimonials
-- **SQLite database** — all content and form submissions persist locally
-- **Real forms** — booking, contact, and session applications save to the database
-- **Admin auth** — password-protected CMS at `/admin`
-
-## Environment variables
-
-```env
-DATABASE_URL="file:./dev.db"
-ADMIN_PASSWORD="your-secure-password"
-AUTH_SECRET="random-32-char-secret"
-```
-
-Generate a secret: `openssl rand -base64 32`
-
-## Production deployment
-
-1. Set strong `ADMIN_PASSWORD` and `AUTH_SECRET`
-2. For production, consider PostgreSQL (update `DATABASE_URL` in Prisma schema)
-3. Run `npm run db:push && npm run db:seed` on first deploy
-4. Ensure `public/uploads/` is writable or use cloud storage (S3, Cloudinary)
+In admin, use the image upload fields. With `BLOB_READ_WRITE_TOKEN` set, files upload to Vercel Blob. Locally, files save to `public/uploads/`.
 
 ## Scripts
 
 ```bash
-npm run dev        # Development server
-npm run build      # Production build
-npm run db:push    # Apply database schema
-npm run db:seed    # Seed default content + services
-npm run db:studio  # Prisma database browser
+npm run dev              # Development server
+npm run build            # Production build (migrate deploy + next build)
+npm run db:migrate       # Create/apply migrations (dev)
+npm run db:migrate:deploy # Apply migrations (CI/production)
+npm run db:seed          # Seed default content (manual, dev only)
+npm run db:setup         # migrate deploy + seed (fresh local setup)
+npm run db:studio        # Prisma database browser
+npm run test:e2e         # Playwright end-to-end tests
 ```
+
+## Testing
+
+E2E tests require Postgres and auth env vars. CI uses a Postgres service container automatically.
+
+```bash
+npm run db:setup
+npm run test:e2e
+```
+
+## Production deployment (Vercel)
+
+1. Add a **Neon** or **Vercel Postgres** database.
+2. Set environment variables: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `ADMIN_PASSWORD`.
+3. Add **Vercel Blob** and set `BLOB_READ_WRITE_TOKEN`.
+4. Deploy — migrations run during build; content is **not** overwritten.
 
 ## Site routes
 

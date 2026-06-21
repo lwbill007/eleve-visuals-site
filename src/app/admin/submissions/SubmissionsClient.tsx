@@ -168,22 +168,22 @@ export default function AdminSubmissionsClient() {
   }, [load]);
 
   async function markRead(id: string, read: boolean) {
-    await adminFetch("/api/admin/submissions", {
+    const res = await adminFetch("/api/admin/submissions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, read }),
     });
-    load();
+    if (res.ok) load();
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this submission?")) return;
-    await adminFetch("/api/admin/submissions", {
+    const res = await adminFetch("/api/admin/submissions", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    load();
+    if (res.ok) load();
   }
 
   async function toggleExpanded(item: Submission) {

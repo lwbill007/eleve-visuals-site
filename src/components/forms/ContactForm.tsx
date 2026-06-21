@@ -10,7 +10,7 @@ import {
 import { SubmitButton } from "@/components/ui/Button";
 import { FormSpamFields, useFormSpam } from "@/components/forms/FormSpamFields";
 import { trackConversion } from "@/lib/analytics-client";
-import { isValidEmail, type FormErrors } from "@/lib/utils";
+import { isValidEmail, mapApiErrorsToForm, type FormErrors } from "@/lib/utils";
 
 interface ContactFormData {
   name: string;
@@ -45,6 +45,8 @@ export function ContactForm() {
     else if (!isValidEmail(data.email)) next.email = "Enter a valid email";
     if (!data.subject.trim()) next.subject = "Subject is required";
     if (!data.message.trim()) next.message = "Message is required";
+    else if (data.message.trim().length < 10)
+      next.message = "Please write at least 10 characters";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -63,12 +65,9 @@ export function ContactForm() {
     setLoading(false);
     if (!res.ok) {
       const payload = await res.json().catch(() => ({}));
-      setErrors({
-        name:
-          res.status === 429
-            ? "Too many attempts. Please wait and try again."
-            : payload.error || "Something went wrong. Please try again.",
-      });
+      setErrors(
+        mapApiErrorsToForm<ContactFormData>(payload, "name", res.status === 429)
+      );
       return;
     }
     trackConversion("contact");

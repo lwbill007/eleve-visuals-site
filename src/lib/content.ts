@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { parseJsonArray } from "./utils";
 import {
   CONTENT_KEYS,
   DEFAULT_ABOUT,
@@ -80,7 +81,7 @@ function mapPortfolioItem(item: {
     aspectRatio: item.aspectRatio as AspectRatio,
     featured: item.featured,
     sortOrder: item.sortOrder,
-    gallery: JSON.parse(item.gallery || "[]") as string[],
+    gallery: parseJsonArray(item.gallery),
     published: item.published,
   };
 }
@@ -106,7 +107,7 @@ function mapService(item: {
     tagline: item.tagline,
     description: item.description,
     forWhom: item.forWhom,
-    includes: JSON.parse(item.includes || "[]") as string[],
+    includes: parseJsonArray(item.includes),
     startingPrice: item.startingPrice,
     image: item.image,
     imageAlt: item.imageAlt,

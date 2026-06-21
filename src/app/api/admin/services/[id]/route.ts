@@ -16,24 +16,28 @@ export async function PUT(
   const { id } = await params;
   const body = await request.json();
 
-  const item = await prisma.service.update({
-    where: { id },
-    data: {
-      slug: body.slug,
-      title: body.title,
-      tagline: body.tagline,
-      description: body.description,
-      forWhom: body.forWhom,
-      includes: JSON.stringify(body.includes || []),
-      startingPrice: body.startingPrice,
-      image: body.image,
-      imageAlt: body.imageAlt,
-      sortOrder: body.sortOrder ?? 0,
-      published: body.published !== false,
-    },
-  });
+  try {
+    const item = await prisma.service.update({
+      where: { id },
+      data: {
+        slug: body.slug,
+        title: body.title,
+        tagline: body.tagline,
+        description: body.description,
+        forWhom: body.forWhom,
+        includes: JSON.stringify(body.includes || []),
+        startingPrice: body.startingPrice,
+        image: body.image,
+        imageAlt: body.imageAlt,
+        sortOrder: body.sortOrder ?? 0,
+        published: body.published !== false,
+      },
+    });
 
-  return NextResponse.json(mapService(item));
+    return NextResponse.json(mapService(item));
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }
 
 export async function DELETE(
@@ -47,6 +51,10 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  await prisma.service.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    await prisma.service.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }

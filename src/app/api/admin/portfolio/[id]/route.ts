@@ -33,25 +33,29 @@ export async function PUT(
   const { id } = await params;
   const body = await request.json();
 
-  const item = await prisma.portfolioItem.update({
-    where: { id },
-    data: {
-      title: body.title,
-      category: body.category as PortfolioCategory,
-      client: body.client || null,
-      year: body.year,
-      description: body.description,
-      image: body.image,
-      imageAlt: body.imageAlt,
-      aspectRatio: body.aspectRatio as AspectRatio,
-      featured: !!body.featured,
-      sortOrder: body.sortOrder ?? 0,
-      gallery: JSON.stringify(body.gallery || []),
-      published: body.published !== false,
-    },
-  });
+  try {
+    const item = await prisma.portfolioItem.update({
+      where: { id },
+      data: {
+        title: body.title,
+        category: body.category as PortfolioCategory,
+        client: body.client || null,
+        year: body.year,
+        description: body.description,
+        image: body.image,
+        imageAlt: body.imageAlt,
+        aspectRatio: body.aspectRatio as AspectRatio,
+        featured: !!body.featured,
+        sortOrder: body.sortOrder ?? 0,
+        gallery: JSON.stringify(body.gallery || []),
+        published: body.published !== false,
+      },
+    });
 
-  return NextResponse.json(mapPortfolioItem(item));
+    return NextResponse.json(mapPortfolioItem(item));
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }
 
 export async function DELETE(
@@ -65,6 +69,10 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  await prisma.portfolioItem.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    await prisma.portfolioItem.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }

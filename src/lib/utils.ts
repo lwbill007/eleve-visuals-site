@@ -31,6 +31,16 @@ export function getTodayDateString(): string {
   return `${year}-${month}-${day}`;
 }
 
+export function parseJsonArray(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function mapApiErrorsToForm<T extends object>(
   payload: { error?: string; details?: Record<string, string[] | undefined> },
   fallbackField: keyof T,

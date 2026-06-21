@@ -48,13 +48,17 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id, read } = await request.json();
-  if (!id || typeof id !== "string") {
-    return NextResponse.json({ error: "Invalid submission id" }, { status: 400 });
-  }
+  try {
+    const { id, read } = await request.json();
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Invalid submission id" }, { status: 400 });
+    }
 
-  await prisma.submission.update({ where: { id }, data: { read: !!read } });
-  return NextResponse.json({ ok: true });
+    await prisma.submission.update({ where: { id }, data: { read: !!read } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }
 
 export async function DELETE(request: Request) {
@@ -64,11 +68,15 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await request.json();
-  if (!id || typeof id !== "string") {
-    return NextResponse.json({ error: "Invalid submission id" }, { status: 400 });
-  }
+  try {
+    const { id } = await request.json();
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Invalid submission id" }, { status: 400 });
+    }
 
-  await prisma.submission.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+    await prisma.submission.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }

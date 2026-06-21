@@ -72,7 +72,11 @@ export default function AdminPortfolioPage() {
 
   async function remove(id: string) {
     if (!confirm("Delete this portfolio item?")) return;
-    await adminFetch(`/api/admin/portfolio/${id}`, { method: "DELETE" });
+    const res = await adminFetch(`/api/admin/portfolio/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setMessage("Delete failed.");
+      return;
+    }
     load();
   }
 

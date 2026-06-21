@@ -28,8 +28,10 @@ export function HeroSection({ hero, siteConfig }: HeroSectionProps) {
             <h1 className="headline-xl text-balance">{siteConfig.name}</h1>
 
             <p className="mt-5 font-display text-2xl leading-snug text-cream md:text-3xl text-balance">
-              {siteConfig.tagline}
+              {hero.headline}
             </p>
+
+            <p className="mt-3 text-sm tracking-wide text-fog">{siteConfig.tagline}</p>
 
             <p className="mt-4 text-sm tracking-wide text-fog">
               By {siteConfig.creator} · {siteConfig.serviceArea}
@@ -44,7 +46,7 @@ export function HeroSection({ hero, siteConfig }: HeroSectionProps) {
                 href={hero.primaryCta.href}
                 className="min-w-[240px] px-12 py-5 text-sm tracking-[0.2em]"
               >
-                Book a Shoot
+                {hero.primaryCta.label}
               </Button>
               <Button variant="ghost" size="sm" href={hero.secondaryCta.href}>
                 {hero.secondaryCta.label} →

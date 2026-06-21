@@ -16,19 +16,23 @@ export async function PUT(
   const { id } = await params;
   const body = await request.json();
 
-  const item = await prisma.testimonial.update({
-    where: { id },
-    data: {
-      quote: body.quote,
-      name: body.name,
-      role: body.role,
-      featured: !!body.featured,
-      sortOrder: body.sortOrder ?? 0,
-      published: body.published !== false,
-    },
-  });
+  try {
+    const item = await prisma.testimonial.update({
+      where: { id },
+      data: {
+        quote: body.quote,
+        name: body.name,
+        role: body.role,
+        featured: !!body.featured,
+        sortOrder: body.sortOrder ?? 0,
+        published: body.published !== false,
+      },
+    });
 
-  return NextResponse.json(mapTestimonial(item));
+    return NextResponse.json(mapTestimonial(item));
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }
 
 export async function DELETE(
@@ -42,6 +46,10 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  await prisma.testimonial.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    await prisma.testimonial.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }

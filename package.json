@@ -4,12 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push --skip-generate && prisma db seed && next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
-    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:setup": "prisma migrate deploy && prisma db seed",
     "db:studio": "prisma studio",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:smoke": "playwright test e2e/manual-smoke.spec.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -28,6 +33,7 @@
     "zod": "^3.25.51"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4.1.8",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.15.29",

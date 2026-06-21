@@ -85,8 +85,16 @@ export default function AdminContentPage() {
 
   useEffect(() => {
     adminFetch("/api/admin/content")
-      .then((r) => r.json())
-      .then((all: { key: string; value: unknown }[]) => {
+      .then(async (r) => {
+        if (!r.ok) {
+          setMessage("Failed to load site content.");
+          return;
+        }
+        const all = (await r.json()) as { key: string; value: unknown }[];
+        if (!Array.isArray(all)) {
+          setMessage("Failed to load site content.");
+          return;
+        }
         for (const item of all) {
           switch (item.key) {
             case "siteConfig":
@@ -127,7 +135,8 @@ export default function AdminContentPage() {
               break;
           }
         }
-      });
+      })
+      .catch(() => setMessage("Failed to load site content."));
   }, []);
 
   async function handleSave() {

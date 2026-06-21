@@ -21,6 +21,7 @@ import {
   isValidEmail,
   isValidInstagram,
   formatPhone,
+  mapApiErrorsToForm,
   type FormErrors,
 } from "@/lib/utils";
 
@@ -98,8 +99,12 @@ export function SessionsApplicationForm({
       next.experienceLevel = "Select your experience level";
     if (!data.whyParticipate.trim())
       next.whyParticipate = "Tell us why you want to participate";
+    else if (data.whyParticipate.trim().length < 10)
+      next.whyParticipate = "Please share at least 10 characters";
     if (!data.themeFit.trim())
       next.themeFit = "Explain how you fit the session theme";
+    else if (data.themeFit.trim().length < 10)
+      next.themeFit = "Please share at least 10 characters";
     if (!data.availabilityConfirm)
       next.availabilityConfirm = "Availability confirmation is required";
     if (!data.mediaRelease)
@@ -124,12 +129,9 @@ export function SessionsApplicationForm({
     setLoading(false);
     if (!res.ok) {
       const payload = await res.json().catch(() => ({}));
-      setErrors({
-        fullName:
-          res.status === 429
-            ? "Too many attempts. Please wait and try again."
-            : payload.error || "Something went wrong. Please try again.",
-      });
+      setErrors(
+        mapApiErrorsToForm<ApplicationFormData>(payload, "fullName", res.status === 429)
+      );
       return;
     }
     trackConversion("session");

@@ -7,6 +7,10 @@ interface ServicesOverviewProps {
 }
 
 export function ServicesOverview({ services }: ServicesOverviewProps) {
+  if (services.length === 0) {
+    return null;
+  }
+
   return (
     <section className="section-padding border-y border-stone/30 bg-ink-soft">
       <div className="container-wide">
