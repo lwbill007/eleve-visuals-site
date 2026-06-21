@@ -5,8 +5,8 @@ const email = z.string().trim().email().max(254);
 const phone = z
   .string()
   .trim()
-  .refine((v) => v.replace(/\D/g, "").length >= 10, "Invalid phone number")
-  .max(30);
+  .max(30)
+  .refine((v) => v.replace(/\D/g, "").length >= 10, "Invalid phone number");
 
 export const bookingSchema = z.object({
   fullName: z.string().trim().min(1).max(120),

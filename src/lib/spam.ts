@@ -70,6 +70,10 @@ export async function runSpamChecks(body: Record<string, unknown>): Promise<Spam
 }
 
 export function stripSpamFields(body: Record<string, unknown>): Record<string, unknown> {
-  const { _hp, _ts, turnstileToken, _sessionId, ...rest } = body;
+  const rest = { ...body };
+  delete rest._hp;
+  delete rest._ts;
+  delete rest.turnstileToken;
+  delete rest._sessionId;
   return rest;
 }

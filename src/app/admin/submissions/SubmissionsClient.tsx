@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 
@@ -18,17 +18,17 @@ export default function AdminSubmissionsClient() {
   const [items, setItems] = useState<Submission[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     const url = typeFilter
       ? `/api/admin/submissions?type=${typeFilter}`
       : "/api/admin/submissions";
     const res = await fetch(url);
     setItems(await res.json());
-  }
+  }, [typeFilter]);
 
   useEffect(() => {
     load();
-  }, [typeFilter]);
+  }, [load]);
 
   async function markRead(id: string, read: boolean) {
     await fetch("/api/admin/submissions", {

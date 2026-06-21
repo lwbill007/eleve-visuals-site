@@ -52,8 +52,6 @@ export async function GET(request: Request) {
   return NextResponse.json(all);
 }
 
-type ContentKey = keyof typeof contentSetters;
-
 export async function PUT(request: Request) {
   try {
     await requireAdmin();
