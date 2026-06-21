@@ -32,7 +32,7 @@ export default async function BookPage() {
             </ul>
           </div>
 
-          <BookingForm bookingOptions={bookingOptions} />
+          <BookingForm bookingOptions={bookingOptions} bookPage={pageCopy.bookPage} />
         </div>
       </section>
     </>

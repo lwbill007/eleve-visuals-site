@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import type { BookingOptions } from "@/lib/types";
+import type { BookingOptions, PageCopy } from "@/lib/types";
 import {
   FormField,
   TextInput,
@@ -17,6 +18,8 @@ import {
   isValidEmail,
   isValidInstagram,
   formatPhone,
+  getTodayDateString,
+  mapApiErrorsToForm,
   type FormErrors,
 } from "@/lib/utils";
 
@@ -54,12 +57,24 @@ const initialData: BookingFormData = {
   termsAck: false,
 };
 
-export function BookingForm({ bookingOptions }: { bookingOptions: BookingOptions }) {
+function isFutureDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  return value >= getTodayDateString();
+}
+
+export function BookingForm({
+  bookingOptions,
+  bookPage,
+}: {
+  bookingOptions: BookingOptions;
+  bookPage: PageCopy["bookPage"];
+}) {
   const [data, setData] = useState<BookingFormData>(initialData);
   const [errors, setErrors] = useState<FormErrors<BookingFormData>>({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const spam = useFormSpam();
+  const minDate = getTodayDateString();
 
   const update = <K extends keyof BookingFormData>(
     key: K,
@@ -92,10 +107,16 @@ export function BookingForm({ bookingOptions }: { bookingOptions: BookingOptions
     if (!data.serviceType) next.serviceType = "Select a service type";
     if (!data.shootType) next.shootType = "Select a shoot type";
     if (!data.preferredDate) next.preferredDate = "Preferred date is required";
+    else if (!isFutureDate(data.preferredDate))
+      next.preferredDate = "Preferred date must be today or in the future";
+    if (data.alternateDate && !isFutureDate(data.alternateDate))
+      next.alternateDate = "Alternate date must be today or in the future";
     if (!data.location.trim()) next.location = "Location is required";
     if (!data.budgetRange) next.budgetRange = "Select a budget range";
     if (!data.projectDetails.trim())
       next.projectDetails = "Tell us about your project";
+    else if (data.projectDetails.trim().length < 10)
+      next.projectDetails = "Please share at least 10 characters about your project";
     if (data.deliverables.length === 0)
       next.deliverables = "Select at least one deliverable";
     if (!data.depositAck)
@@ -121,12 +142,13 @@ export function BookingForm({ bookingOptions }: { bookingOptions: BookingOptions
     setLoading(false);
     if (!res.ok) {
       const payload = await res.json().catch(() => ({}));
-      setErrors({
-        fullName:
+      setErrors(
+        mapApiErrorsToForm<BookingFormData>(
+          payload,
+          "fullName",
           res.status === 429
-            ? "Too many attempts. Please wait and try again."
-            : payload.error || "Something went wrong. Please try again.",
-      });
+        )
+      );
       return;
     }
     trackConversion("booking");
@@ -137,14 +159,9 @@ export function BookingForm({ bookingOptions }: { bookingOptions: BookingOptions
   if (submitted) {
     return (
       <FormSuccess
-        title="Booking request received."
-        message="Thank you for reaching out. I'll review your project details and respond within 24–48 hours with availability, next steps, and any follow-up questions."
-        nextSteps={[
-          "Personal review of your project scope and dates",
-          "Direct email response with availability and quote",
-          "Deposit invoice sent upon confirmation to lock your date",
-          "Pre-production call scheduled before shoot day",
-        ]}
+        title={bookPage.successTitle}
+        message={bookPage.successMessage}
+        nextSteps={bookPage.nextSteps}
         actionLabel="Back to home"
         actionHref="/"
       />
@@ -243,6 +260,7 @@ export function BookingForm({ bookingOptions }: { bookingOptions: BookingOptions
               id="preferredDate"
               name="preferredDate"
               type="date"
+              min={minDate}
               value={data.preferredDate}
               onChange={(e) => update("preferredDate", e.target.value)}
               error={!!errors.preferredDate}
@@ -252,14 +270,17 @@ export function BookingForm({ bookingOptions }: { bookingOptions: BookingOptions
           <FormField
             label="Alternate Date"
             name="alternateDate"
+            error={errors.alternateDate}
             hint="Optional backup date"
           >
             <TextInput
               id="alternateDate"
               name="alternateDate"
               type="date"
+              min={minDate}
               value={data.alternateDate}
               onChange={(e) => update("alternateDate", e.target.value)}
+              error={!!errors.alternateDate}
             />
           </FormField>
 
@@ -292,7 +313,7 @@ export function BookingForm({ bookingOptions }: { bookingOptions: BookingOptions
           name="projectDetails"
           required
           error={errors.projectDetails}
-          hint="Vision, references, goals, timeline — the more detail, the better"
+          hint="Vision, references, goals, timeline — at least 10 characters"
         >
           <TextArea
             id="projectDetails"
@@ -341,7 +362,15 @@ export function BookingForm({ bookingOptions }: { bookingOptions: BookingOptions
           name="termsAck"
           checked={data.termsAck}
           onChange={(e) => update("termsAck", e.target.checked)}
-          label="I agree to ÉLEVÉ Visuals' booking terms, including turnaround timelines, usage rights, and cancellation policy."
+          label={
+            <>
+              I agree to ÉLEVÉ Visuals&apos;{" "}
+              <Link href="/booking-terms" className="text-accent underline underline-offset-2">
+                booking terms
+              </Link>
+              , including turnaround timelines, usage rights, and cancellation policy.
+            </>
+          }
         />
         {errors.termsAck && <p className="field-error">{errors.termsAck}</p>}
       </fieldset>

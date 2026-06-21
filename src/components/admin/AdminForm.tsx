@@ -114,6 +114,51 @@ export function AdminTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaEl
   return <textarea className="min-h-[100px] resize-y" {...props} />;
 }
 
+export function StringListEditor({
+  label,
+  items,
+  onChange,
+  addLabel = "Add item",
+}: {
+  label: string;
+  items: string[];
+  onChange: (items: string[]) => void;
+  addLabel?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-cream-dim">{label}</p>
+      {items.map((item, index) => (
+        <div key={`${label}-${index}`} className="flex gap-2">
+          <AdminInput
+            value={item}
+            onChange={(e) => {
+              const next = [...items];
+              next[index] = e.target.value;
+              onChange(next);
+            }}
+            className="flex-1"
+          />
+          <button
+            type="button"
+            onClick={() => onChange(items.filter((_, i) => i !== index))}
+            className="border border-stone/50 px-3 text-xs text-fog"
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...items, ""])}
+        className="text-xs text-accent"
+      >
+        {addLabel}
+      </button>
+    </div>
+  );
+}
+
 export function AdminSelect({
   options,
   ...props

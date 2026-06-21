@@ -10,6 +10,7 @@ interface SubmitOptions<T extends z.ZodType> {
   route: string;
   conversionType: ConversionType;
   schema: T;
+  analyticsPath?: string;
 }
 
 export async function handleFormSubmit<T extends z.ZodType>({
@@ -17,6 +18,7 @@ export async function handleFormSubmit<T extends z.ZodType>({
   route,
   conversionType,
   schema,
+  analyticsPath,
 }: SubmitOptions<T>) {
   const ip = getClientIp(request);
 
@@ -54,15 +56,21 @@ export async function handleFormSubmit<T extends z.ZodType>({
     await prisma.submission.create({
       data: { type: conversionType, data: JSON.stringify(parsed.data) },
     });
+  } catch {
+    return NextResponse.json({ error: "Submission failed" }, { status: 500 });
+  }
 
+  try {
     const referer = request.headers.get("referer") ?? undefined;
     const sessionId =
       typeof body._sessionId === "string" ? body._sessionId : undefined;
-    const path = referer ? new URL(referer).pathname : `/${conversionType}`;
+    const path =
+      analyticsPath ??
+      (referer ? new URL(referer).pathname : `/${conversionType}`);
 
     await recordConversion(conversionType, path, referer ?? null, sessionId);
-  } catch {
-    return NextResponse.json({ error: "Submission failed" }, { status: 500 });
+  } catch (error) {
+    console.error("Conversion tracking failed:", error);
   }
 
   return NextResponse.json({ ok: true });

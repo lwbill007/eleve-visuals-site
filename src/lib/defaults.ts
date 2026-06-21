@@ -1,6 +1,7 @@
 import type {
   AboutContent,
   BookingOptions,
+  BookingTermsContent,
   BrandStory,
   ContactPageContent,
   HeroContent,
@@ -341,7 +342,49 @@ export const DEFAULT_PAGE_COPY: PageCopy = {
       "A 50% deposit secures your date upon confirmation",
       "Rush projects considered based on availability",
     ],
+    successTitle: "Booking request received.",
+    successMessage:
+      "Thank you for reaching out. I'll review your project details and respond within 24–48 hours with availability, next steps, and any follow-up questions.",
+    nextSteps: [
+      "Personal review of your project scope and dates",
+      "Direct email response with availability and quote",
+      "Deposit invoice sent upon confirmation to lock your date",
+      "Pre-production call scheduled before shoot day",
+    ],
   },
+};
+
+export const DEFAULT_BOOKING_TERMS: BookingTermsContent = {
+  headline: "Booking Terms",
+  intro:
+    "These terms apply to all photography, videography, and creative direction bookings with ÉLEVÉ Visuals. By submitting the booking form, you agree to the policies below.",
+  sections: [
+    {
+      title: "Deposits & payment",
+      body:
+        "A 50% deposit is required to secure your shoot date. The remaining balance is due upon delivery of final assets unless otherwise agreed in writing. Deposits are non-refundable but may be rescheduled with at least 72 hours notice, subject to availability.",
+    },
+    {
+      title: "Turnaround & delivery",
+      body:
+        "Standard turnaround is 7–14 business days after the shoot unless a different timeline is confirmed in your quote. Rush delivery may be available for an additional fee. Final file formats and deliverables are defined in your project scope before booking.",
+    },
+    {
+      title: "Usage rights",
+      body:
+        "Unless otherwise specified in your agreement, you receive a license to use delivered assets for the agreed project scope. ÉLEVÉ Visuals retains copyright and may use work for portfolio and marketing purposes unless a private-usage agreement is arranged in advance.",
+    },
+    {
+      title: "Cancellation & rescheduling",
+      body:
+        "Client cancellations with less than 72 hours notice forfeit the deposit. Weather, venue, or force-majeure reschedules will be handled in good faith with priority rebooking where possible. ÉLEVÉ Visuals reserves the right to reschedule if safety or production conditions require it.",
+    },
+    {
+      title: "Revisions & scope",
+      body:
+        "Each project includes a defined number of revision rounds as outlined in your quote. Additional revisions or scope changes may incur extra fees. Reference materials, shot lists, and creative direction should be shared before shoot day to keep production efficient.",
+    },
+  ],
 };
 
 export const DEFAULT_SERVICES = [

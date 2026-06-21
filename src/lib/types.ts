@@ -202,7 +202,16 @@ export interface PageCopy {
     headline: string;
     subheadline: string;
     notes: string[];
+    successTitle: string;
+    successMessage: string;
+    nextSteps: string[];
   };
+}
+
+export interface BookingTermsContent {
+  headline: string;
+  intro: string;
+  sections: { title: string; body: string }[];
 }
 
 export const SESSIONS_APPLICANT_ROLES = [

@@ -8,9 +8,11 @@ import {
   AdminTextarea,
   ImageUpload,
   SaveBar,
+  StringListEditor,
 } from "@/components/admin/AdminForm";
 import type {
   AboutContent,
+  BookingOptions,
   BrandStory,
   ContactPageContent,
   HeroContent,
@@ -21,6 +23,7 @@ import type {
 } from "@/lib/types";
 import {
   DEFAULT_ABOUT,
+  DEFAULT_BOOKING_OPTIONS,
   DEFAULT_BRAND_STORY,
   DEFAULT_CONTACT_PAGE,
   DEFAULT_HERO,
@@ -36,6 +39,7 @@ const TABS = [
   { id: "brand", label: "Brand Story" },
   { id: "about", label: "About" },
   { id: "sessions", label: "ÉLEVÉ Sessions" },
+  { id: "booking", label: "Booking" },
   { id: "contact", label: "Contact" },
   { id: "pages", label: "Page Copy" },
 ] as const;
@@ -64,6 +68,7 @@ export default function AdminContentPage() {
   const [contact, setContact] = useState<ContactPageContent>(DEFAULT_CONTACT_PAGE);
   const [servicesIntro, setServicesIntro] = useState<ServicesPageIntro>(DEFAULT_SERVICES_INTRO);
   const [pageCopy, setPageCopy] = useState<PageCopy>(DEFAULT_PAGE_COPY);
+  const [bookingOptions, setBookingOptions] = useState<BookingOptions>(DEFAULT_BOOKING_OPTIONS);
 
   useEffect(() => {
     fetch("/api/admin/content")
@@ -95,6 +100,9 @@ export default function AdminContentPage() {
             case "pageCopy":
               setPageCopy(item.value as PageCopy);
               break;
+            case "bookingOptions":
+              setBookingOptions(item.value as BookingOptions);
+              break;
           }
         }
       });
@@ -109,12 +117,23 @@ export default function AdminContentPage() {
       brand: ["brandStory", brandStory],
       about: ["about", about],
       sessions: ["sessions", sessions],
+      booking: ["bookingOptions", bookingOptions],
       contact: ["contactPage", contact],
       pages: ["pageCopy", pageCopy],
     };
 
     if (tab === "pages") {
       const ok1 = await saveContent("servicesIntro", servicesIntro);
+      const ok2 = await saveContent("pageCopy", pageCopy);
+      setMessage(ok1 && ok2 ? "Saved." : "Save failed.");
+    } else if (tab === "booking") {
+      const cleanedOptions = {
+        serviceTypes: bookingOptions.serviceTypes.filter(Boolean),
+        shootTypes: bookingOptions.shootTypes.filter(Boolean),
+        budgetRanges: bookingOptions.budgetRanges.filter(Boolean),
+        deliverables: bookingOptions.deliverables.filter(Boolean),
+      };
+      const ok1 = await saveContent("bookingOptions", cleanedOptions);
       const ok2 = await saveContent("pageCopy", pageCopy);
       setMessage(ok1 && ok2 ? "Saved." : "Save failed.");
     } else {
@@ -268,6 +287,116 @@ export default function AdminContentPage() {
           <AdminField label="Calendar URL (Calendly, etc.)" hint="Leave empty to hide">
             <AdminInput value={contact.calendarUrl || ""} onChange={(e) => setContact({ ...contact, calendarUrl: e.target.value || null })} />
           </AdminField>
+        </div>
+      )}
+
+      {tab === "booking" && (
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <h3 className="font-display text-lg">Book Page</h3>
+            <AdminField label="Headline">
+              <AdminInput
+                value={pageCopy.bookPage.headline}
+                onChange={(e) =>
+                  setPageCopy({
+                    ...pageCopy,
+                    bookPage: { ...pageCopy.bookPage, headline: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+            <AdminField label="Subheadline">
+              <AdminTextarea
+                value={pageCopy.bookPage.subheadline}
+                onChange={(e) =>
+                  setPageCopy({
+                    ...pageCopy,
+                    bookPage: { ...pageCopy.bookPage, subheadline: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+            {pageCopy.bookPage.notes.map((note, index) => (
+              <AdminField key={index} label={`Pre-submit note ${index + 1}`}>
+                <AdminInput
+                  value={note}
+                  onChange={(e) => {
+                    const notes = [...pageCopy.bookPage.notes];
+                    notes[index] = e.target.value;
+                    setPageCopy({
+                      ...pageCopy,
+                      bookPage: { ...pageCopy.bookPage, notes },
+                    });
+                  }}
+                />
+              </AdminField>
+            ))}
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="font-display text-lg">Success Message</h3>
+            <AdminField label="Title">
+              <AdminInput
+                value={pageCopy.bookPage.successTitle}
+                onChange={(e) =>
+                  setPageCopy({
+                    ...pageCopy,
+                    bookPage: { ...pageCopy.bookPage, successTitle: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+            <AdminField label="Message">
+              <AdminTextarea
+                value={pageCopy.bookPage.successMessage}
+                onChange={(e) =>
+                  setPageCopy({
+                    ...pageCopy,
+                    bookPage: { ...pageCopy.bookPage, successMessage: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+            {pageCopy.bookPage.nextSteps.map((step, index) => (
+              <AdminField key={index} label={`Next step ${index + 1}`}>
+                <AdminInput
+                  value={step}
+                  onChange={(e) => {
+                    const nextSteps = [...pageCopy.bookPage.nextSteps];
+                    nextSteps[index] = e.target.value;
+                    setPageCopy({
+                      ...pageCopy,
+                      bookPage: { ...pageCopy.bookPage, nextSteps },
+                    });
+                  }}
+                />
+              </AdminField>
+            ))}
+          </div>
+
+          <div className="space-y-6">
+            <h3 className="font-display text-lg">Form Options</h3>
+            <StringListEditor
+              label="Service types"
+              items={bookingOptions.serviceTypes}
+              onChange={(serviceTypes) => setBookingOptions({ ...bookingOptions, serviceTypes })}
+            />
+            <StringListEditor
+              label="Shoot types"
+              items={bookingOptions.shootTypes}
+              onChange={(shootTypes) => setBookingOptions({ ...bookingOptions, shootTypes })}
+            />
+            <StringListEditor
+              label="Budget ranges"
+              items={bookingOptions.budgetRanges}
+              onChange={(budgetRanges) => setBookingOptions({ ...bookingOptions, budgetRanges })}
+            />
+            <StringListEditor
+              label="Deliverables"
+              items={bookingOptions.deliverables}
+              onChange={(deliverables) => setBookingOptions({ ...bookingOptions, deliverables })}
+            />
+          </div>
         </div>
       )}
 

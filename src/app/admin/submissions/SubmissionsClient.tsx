@@ -12,6 +12,68 @@ interface Submission {
   createdAt: string;
 }
 
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function BookingSubmissionDetail({ data }: { data: Record<string, unknown> }) {
+  const deliverables = asStringArray(data.deliverables);
+
+  return (
+    <dl className="mt-4 grid gap-3 text-sm text-fog sm:grid-cols-2">
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Service</dt>
+        <dd className="text-cream">{asString(data.serviceType) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Shoot type</dt>
+        <dd className="text-cream">{asString(data.shootType) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Preferred date</dt>
+        <dd className="text-cream">{asString(data.preferredDate) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Alternate date</dt>
+        <dd className="text-cream">{asString(data.alternateDate) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Location</dt>
+        <dd className="text-cream">{asString(data.location) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Budget</dt>
+        <dd className="text-cream">{asString(data.budgetRange) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Phone</dt>
+        <dd className="text-cream">{asString(data.phone) ?? "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-xs uppercase tracking-wide text-muted">Instagram</dt>
+        <dd className="text-cream">{asString(data.instagram) ?? "—"}</dd>
+      </div>
+      <div className="sm:col-span-2">
+        <dt className="text-xs uppercase tracking-wide text-muted">Project details</dt>
+        <dd className="mt-1 whitespace-pre-wrap text-cream">
+          {asString(data.projectDetails) ?? "—"}
+        </dd>
+      </div>
+      <div className="sm:col-span-2">
+        <dt className="text-xs uppercase tracking-wide text-muted">Deliverables</dt>
+        <dd className="mt-1 text-cream">
+          {deliverables.length > 0 ? deliverables.join(", ") : "—"}
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
 export default function AdminSubmissionsClient() {
   const searchParams = useSearchParams();
   const typeFilter = searchParams.get("type");
@@ -47,6 +109,14 @@ export default function AdminSubmissionsClient() {
       body: JSON.stringify({ id }),
     });
     load();
+  }
+
+  async function toggleExpanded(item: Submission) {
+    const next = expanded === item.id ? null : item.id;
+    setExpanded(next);
+    if (next && !item.read) {
+      await markRead(item.id, true);
+    }
   }
 
   const typeLabel = (type: string) => {
@@ -90,12 +160,14 @@ export default function AdminSubmissionsClient() {
                   {typeof item.data.fullName === "string" && ` · ${item.data.fullName}`}
                   {typeof item.data.name === "string" && ` · ${item.data.name}`}
                   {typeof item.data.email === "string" && ` · ${item.data.email}`}
+                  {item.type === "booking" && typeof item.data.serviceType === "string" &&
+                    ` · ${item.data.serviceType}`}
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
                 <button
                   type="button"
-                  onClick={() => setExpanded(expanded === item.id ? null : item.id)}
+                  onClick={() => toggleExpanded(item)}
                   className="text-xs text-accent"
                 >
                   {expanded === item.id ? "Hide" : "View"}
@@ -118,11 +190,14 @@ export default function AdminSubmissionsClient() {
                 </button>
               </div>
             </div>
-            {expanded === item.id && (
-              <pre className="mt-4 overflow-x-auto border border-stone/20 bg-ink p-4 text-xs text-fog">
-                {JSON.stringify(item.data, null, 2)}
-              </pre>
-            )}
+            {expanded === item.id &&
+              (item.type === "booking" ? (
+                <BookingSubmissionDetail data={item.data} />
+              ) : (
+                <pre className="mt-4 overflow-x-auto border border-stone/20 bg-ink p-4 text-xs text-fog">
+                  {JSON.stringify(item.data, null, 2)}
+                </pre>
+              ))}
           </div>
         ))}
         {items.length === 0 && (
