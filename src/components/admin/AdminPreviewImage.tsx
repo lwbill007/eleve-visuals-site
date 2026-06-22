@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { isRenderableImageSrc } from "@/lib/image-url";
 import { cn } from "@/lib/utils";
 
@@ -12,12 +11,12 @@ interface AdminPreviewImageProps {
   sizes?: string;
 }
 
+/** Admin-only preview — native img avoids next/image URL parsing errors on Blob URLs. */
 export function AdminPreviewImage({
   src,
   alt = "",
   fill,
   className,
-  sizes = "200px",
 }: AdminPreviewImageProps) {
   if (!isRenderableImageSrc(src)) {
     return (
@@ -35,18 +34,25 @@ export function AdminPreviewImage({
 
   if (fill) {
     return (
-      <Image src={src} alt={alt} fill className={className} sizes={sizes} />
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={alt}
+        className={cn("absolute inset-0 h-full w-full object-cover", className)}
+        loading="lazy"
+        decoding="async"
+      />
     );
   }
 
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src={src}
       alt={alt}
-      width={400}
-      height={300}
-      className={className}
-      sizes={sizes}
+      className={cn("h-auto max-w-full", className)}
+      loading="lazy"
+      decoding="async"
     />
   );
 }

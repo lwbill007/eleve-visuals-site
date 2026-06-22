@@ -27,17 +27,22 @@ export function inferMimeType(file: File): string {
   return map[ext || ""] || "application/octet-stream";
 }
 
-export function isAbsoluteHttpsUrl(value: string): boolean {
-  if (!value.startsWith("https://")) return false;
+/** Parse URL without leaking browser-native validation messages. */
+export function tryParseHttpUrl(value: string): URL | null {
   try {
-    new URL(value);
-    return true;
+    return new URL(value);
   } catch {
-    return false;
+    return null;
   }
 }
 
-/** Safe for next/image `src` — absolute https or local /uploads/ path only. */
+export function isAbsoluteHttpsUrl(value: string): boolean {
+  if (!value.startsWith("https://")) return false;
+  const parsed = tryParseHttpUrl(value);
+  return parsed?.protocol === "https:";
+}
+
+/** Safe for admin preview `src` — absolute https or local /uploads/ path only. */
 export function isRenderableImageSrc(src: string | null | undefined): src is string {
   if (!src || typeof src !== "string") return false;
   const trimmed = src.trim();
@@ -56,16 +61,21 @@ function assertValidStoredUrl(url: string, label: string): void {
     return;
   }
 
-  if (!trimmed.startsWith("https://")) {
+  // Reject bare pathnames (common Blob mistake) before URL parsing.
+  if (!trimmed.includes("://")) {
     throw new Error(
-      `Invalid uploaded ${label} URL: must start with https:// (received: ${trimmed.slice(0, 80)})`
+      `Invalid uploaded ${label} URL: expected https:// URL, received pathname "${trimmed.slice(0, 80)}"`
     );
   }
 
-  try {
-    new URL(trimmed);
-  } catch {
-    throw new Error(`Invalid uploaded ${label} URL: malformed URL`);
+  if (!trimmed.startsWith("https://")) {
+    throw new Error(
+      `Invalid uploaded ${label} URL: must use https:// (received: ${trimmed.slice(0, 80)})`
+    );
+  }
+
+  if (!tryParseHttpUrl(trimmed)) {
+    throw new Error(`Invalid uploaded ${label} URL: malformed (${trimmed.slice(0, 80)})`);
   }
 }
 

@@ -1,5 +1,6 @@
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { tryParseHttpUrl } from "@/lib/image-url";
 
 export function sanitizeUploadFilename(originalName: string, mimeType: string): string {
   const extFromMime = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "bin";
@@ -12,22 +13,29 @@ export function sanitizeUploadFilename(originalName: string, mimeType: string): 
   return safeBase ? `${safeBase}-${suffix}.${extFromMime}` : `${suffix}.${extFromMime}`;
 }
 
-export function assertBlobHttpsUrl(url: string | undefined | null, context: string): string {
-  const trimmed = url?.trim();
-  if (!trimmed) {
-    throw new Error(`${context}: blob upload returned no url`);
+export function resolveBlobPutUrl(blob: {
+  url?: string | null;
+  downloadUrl?: string | null;
+  pathname?: string | null;
+}): string {
+  const candidates = [blob.url, blob.downloadUrl].filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0
+  );
+
+  for (const candidate of candidates) {
+    const trimmed = candidate.trim();
+    if (trimmed.startsWith("https://") && tryParseHttpUrl(trimmed)) {
+      return trimmed;
+    }
   }
-  if (!trimmed.startsWith("https://")) {
+
+  if (blob.pathname?.trim()) {
     throw new Error(
-      `${context}: expected https:// URL, got "${trimmed.slice(0, 80)}"`
+      `Blob upload returned pathname "${blob.pathname}" without an absolute https URL`
     );
   }
-  try {
-    new URL(trimmed);
-  } catch {
-    throw new Error(`${context}: malformed blob URL "${trimmed.slice(0, 80)}"`);
-  }
-  return trimmed;
+
+  throw new Error("Blob upload returned no url");
 }
 
 function canUseBlobStorage(): boolean {
@@ -64,7 +72,7 @@ export async function putPublicBlob(
     downloadUrl: blob.downloadUrl,
   });
 
-  return assertBlobHttpsUrl(blob.url ?? blob.downloadUrl, "Blob put");
+  return resolveBlobPutUrl(blob);
 }
 
 export async function saveLocalUpload(

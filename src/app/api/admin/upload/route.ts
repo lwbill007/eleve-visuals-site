@@ -8,6 +8,8 @@ import {
   saveLocalUpload,
 } from "@/lib/upload-server";
 
+export const runtime = "nodejs";
+
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const VIDEO_TYPES = ["video/mp4", "video/webm"];
 const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES];

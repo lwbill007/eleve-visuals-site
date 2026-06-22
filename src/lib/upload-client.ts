@@ -7,6 +7,22 @@ import {
   inferMimeType,
 } from "@/lib/image-url";
 
+function humanizeUploadError(error: unknown): Error {
+  if (!(error instanceof Error)) return new Error("Upload failed");
+
+  const msg = error.message;
+  if (
+    /did not match the expected pattern/i.test(msg) ||
+    /^invalid url$/i.test(msg.trim())
+  ) {
+    return new Error(
+      "Upload failed: invalid image URL returned from storage. Confirm Vercel Blob is connected with public access."
+    );
+  }
+
+  return error;
+}
+
 function parseUploadJson(text: string, status: number): Record<string, unknown> {
   try {
     return text ? (JSON.parse(text) as Record<string, unknown>) : {};
@@ -26,7 +42,7 @@ function extractUploadUrl(data: Record<string, unknown>): string {
 
   if (typeof data.pathname === "string" && data.pathname.trim()) {
     throw new Error(
-      "Upload API returned pathname instead of absolute URL — contact support"
+      "Upload API returned pathname instead of absolute URL — storage misconfigured"
     );
   }
 
@@ -50,7 +66,8 @@ async function postUpload(
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await adminFetch(endpoint, { method: "POST", body: formData });
+    const fetcher = endpoint.startsWith("/api/admin") ? adminFetch : fetch;
+    const res = await fetcher(endpoint, { method: "POST", body: formData });
     const text = await res.text();
     const data = parseUploadJson(text, res.status);
 
@@ -74,7 +91,7 @@ async function postUpload(
       type: mimeType,
       size: file.size,
     });
-    throw error instanceof Error ? error : new Error("Upload failed");
+    throw humanizeUploadError(error);
   }
 }
 
