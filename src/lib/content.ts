@@ -11,6 +11,7 @@ import {
   DEFAULT_HERO,
   DEFAULT_PAGE_COPY,
   DEFAULT_SERVICES_INTRO,
+  DEFAULT_SERVICES_PAGE,
   DEFAULT_SESSIONS,
   DEFAULT_SESSIONS_APPLICATION,
   DEFAULT_SITE_CONFIG,
@@ -30,6 +31,7 @@ import type {
   PortfolioItemDTO,
   ServiceDTO,
   ServicesPageIntro,
+  ServicesPageContent,
   SessionsApplicationContent,
   SessionsContent,
   SiteConfig,
@@ -173,6 +175,19 @@ export async function getServicesIntro(): Promise<ServicesPageIntro> {
   return getJsonContent(CONTENT_KEYS.servicesIntro, DEFAULT_SERVICES_INTRO);
 }
 
+export async function getServicesPageContent(): Promise<ServicesPageContent> {
+  const content = await getJsonContent(CONTENT_KEYS.servicesPage, DEFAULT_SERVICES_PAGE);
+  const intro = await getServicesIntro();
+  return {
+    ...content,
+    hero: {
+      ...content.hero,
+      headline: intro.headline || content.hero.headline,
+      subheadline: intro.subheadline || content.hero.subheadline,
+    },
+  };
+}
+
 export async function getBookingOptions(): Promise<BookingOptions> {
   return getJsonContent(CONTENT_KEYS.bookingOptions, DEFAULT_BOOKING_OPTIONS);
 }
@@ -252,6 +267,7 @@ export const contentSetters = {
   sessionsApplication: (v: SessionsApplicationContent) =>
     setJsonContent(CONTENT_KEYS.sessionsApplication, v),
   servicesIntro: (v: ServicesPageIntro) => setJsonContent(CONTENT_KEYS.servicesIntro, v),
+  servicesPage: (v: ServicesPageContent) => setJsonContent(CONTENT_KEYS.servicesPage, v),
   bookingOptions: (v: BookingOptions) => setJsonContent(CONTENT_KEYS.bookingOptions, v),
   bookingTerms: (v: BookingTermsContent) => setJsonContent(CONTENT_KEYS.bookingTerms, v),
   pageCopy: (v: PageCopy) => setJsonContent(CONTENT_KEYS.pageCopy, v),

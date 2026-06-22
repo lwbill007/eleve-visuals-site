@@ -7,6 +7,7 @@ import type {
   HeroContent,
   PageCopy,
   ServicesPageIntro,
+  ServicesPageContent,
   SessionsApplicationContent,
   SessionsContent,
   SiteConfig,
@@ -246,9 +247,241 @@ export const DEFAULT_SESSIONS_APPLICATION: SessionsApplicationContent = {
 };
 
 export const DEFAULT_SERVICES_INTRO: ServicesPageIntro = {
-  headline: "Services built for people who take their image seriously.",
+  headline: "Crafting Visual Stories That Endure",
   subheadline:
-    "Every offering starts with direction and ends with deliverables you're proud to publish. No packages pulled from a template — scope is shaped around your project.",
+    "ÉLEVÉ Visuals creates premium photography, film, and creative direction for brands, artists, athletes, and campaigns that demand more than content — they demand presence.",
+};
+
+export const DEFAULT_SERVICES_PAGE: ServicesPageContent = {
+  hero: {
+    eyebrow: "Services",
+    headline: "Crafting Visual Stories That Endure",
+    subheadline:
+      "ÉLEVÉ Visuals creates premium photography, film, and creative direction for brands, artists, athletes, and campaigns that demand more than content — they demand presence.",
+    image: null,
+    imageAlt: "ÉLEVÉ Visuals production",
+    videoUrl: null,
+  },
+  sections: [
+    {
+      slug: "photography",
+      eyebrow: "Photography",
+      headline: "Images That Outlive the Moment",
+      description:
+        "Portrait sessions, brand campaigns, and editorial imagery — every frame composed with intentional light, direction, and restraint. Photography that feels cinematic, not commercial.",
+      capabilities: [
+        "Portraits",
+        "Editorials",
+        "Campaigns",
+        "Athletes",
+        "Events",
+        "Lifestyle",
+        "Product Photography",
+      ],
+      ctaLabel: "Book Photography",
+      ctaHref: "/book",
+    },
+    {
+      slug: "videography",
+      eyebrow: "Video Production",
+      headline: "Stories Designed to Move People",
+      description:
+        "Brand films, music visuals, and documentary content built for audiences who feel before they scroll. Motion with narrative weight, cinematic grade, and platform-ready delivery.",
+      capabilities: [
+        "Brand Films",
+        "Commercials",
+        "Music Visuals",
+        "Documentary Content",
+        "Event Coverage",
+        "Interviews",
+        "Social Media Campaigns",
+        "Behind-the-Scenes Productions",
+      ],
+      ctaLabel: "Book Video Production",
+      ctaHref: "/book",
+    },
+    {
+      slug: "creative-direction",
+      eyebrow: "Creative Direction",
+      headline: "From Vision to Execution",
+      description:
+        "The full arc from concept to rollout — mood boards, art direction, production planning, and brand world building for clients who need a cohesive visual identity, not just a shoot.",
+      capabilities: [
+        "Campaign Development",
+        "Art Direction",
+        "Mood Boards",
+        "Visual Identity",
+        "Story Development",
+        "Production Planning",
+        "Rollout Strategy",
+        "Brand World Building",
+      ],
+      ctaLabel: "Start a Project",
+      ctaHref: "/book",
+    },
+  ],
+  process: {
+    eyebrow: "Signature Process",
+    headline: "How every production unfolds",
+    subheadline:
+      "A refined workflow designed for clarity, creative depth, and exceptional delivery — from first conversation to final files.",
+    steps: [
+      {
+        step: "01",
+        title: "Discovery",
+        description:
+          "We define goals, audience, references, and deliverables. The right questions shape the work before production begins.",
+      },
+      {
+        step: "02",
+        title: "Strategy",
+        description:
+          "Scope, timeline, and creative approach are aligned. Every decision serves the story you need to tell.",
+      },
+      {
+        step: "03",
+        title: "Creative Development",
+        description:
+          "Mood boards, shot lists, casting, and styling direction — the visual language is built with intention.",
+      },
+      {
+        step: "04",
+        title: "Production",
+        description:
+          "On set with cinema-grade equipment, clear direction, and a calm, professional environment.",
+      },
+      {
+        step: "05",
+        title: "Post-Production",
+        description:
+          "Editing, color grading, sound design, and refinement until every frame meets the standard.",
+      },
+      {
+        step: "06",
+        title: "Delivery",
+        description:
+          "Final assets delivered in web, print, and platform-optimized formats — ready to publish.",
+      },
+    ],
+  },
+  whyEleve: {
+    eyebrow: "Why ÉLEVÉ",
+    headline: "A studio built for ambitious work",
+    items: [
+      {
+        title: "Cinematic Storytelling",
+        description:
+          "Every project is approached with narrative intent — imagery that feels editorial, not generic.",
+      },
+      {
+        title: "Luxury Visual Standards",
+        description:
+          "Refined composition, intentional lighting, and finishing that holds up at any scale.",
+      },
+      {
+        title: "Tailored Creative Direction",
+        description:
+          "No template packages. Scope and vision are shaped around your brand, not a price sheet.",
+      },
+      {
+        title: "End-to-End Production",
+        description:
+          "From concept through delivery — one team, one standard, one cohesive visual world.",
+      },
+      {
+        title: "Collaborative Process",
+        description:
+          "You are involved at every stage. Clear communication, no surprises on shoot day.",
+      },
+      {
+        title: "Attention to Detail",
+        description:
+          "The difference is in the margins — pacing, color, texture, and the edit that ties it together.",
+      },
+    ],
+  },
+  clientExperience: {
+    eyebrow: "Client Experience",
+    headline: "What working together feels like",
+    subheadline:
+      "A professional, transparent process designed to make ambitious projects feel effortless.",
+    steps: [
+      {
+        title: "Initial Consultation",
+        description:
+          "We discuss your vision, goals, timeline, and budget. Every inquiry is reviewed personally.",
+      },
+      {
+        title: "Creative Planning",
+        description:
+          "Mood boards, shot lists, and logistics are finalized before cameras roll.",
+      },
+      {
+        title: "Production Day",
+        description:
+          "A focused, well-directed shoot with clear creative leadership on set.",
+      },
+      {
+        title: "Editing & Refinement",
+        description:
+          "Professional post-production with structured revision rounds built into scope.",
+      },
+      {
+        title: "Final Delivery",
+        description:
+          "Polished assets delivered on time — web-ready, print-ready, and platform-optimized.",
+      },
+    ],
+  },
+  featuredWork: {
+    eyebrow: "Featured Work",
+    headline: "Proof in the portfolio",
+    subheadline:
+      "A curated selection of recent projects across photography, film, and creative direction.",
+  },
+  faq: {
+    eyebrow: "FAQ",
+    headline: "Common questions",
+    items: [
+      {
+        question: "How does the booking process work?",
+        answer:
+          "Submit the booking form with your project details. Every inquiry is reviewed personally — expect a response within 24–48 hours with availability, scope recommendations, and next steps. A 50% deposit secures your date upon confirmation.",
+      },
+      {
+        question: "What are typical turnaround times?",
+        answer:
+          "Standard delivery is 7–14 business days after the shoot. Rush timelines may be available for an additional fee. Exact turnaround is confirmed in your quote before booking.",
+      },
+      {
+        question: "Do you travel for projects?",
+        answer:
+          "Yes. Sacramento and the Bay Area are home base, but I regularly travel for brands, athletes, and campaigns nationwide. Travel fees are quoted based on location and production scope.",
+      },
+      {
+        question: "What usage rights are included?",
+        answer:
+          "Unless otherwise agreed, you receive a license to use delivered assets for the scoped project. ÉLEVÉ Visuals retains copyright and may use work for portfolio purposes unless a private-usage agreement is arranged in advance.",
+      },
+      {
+        question: "What deliverables can I expect?",
+        answer:
+          "Deliverables vary by project — edited photos, short-form and long-form video, social crops, print-ready files, and creative direction decks. Everything is defined in your scope before production begins.",
+      },
+      {
+        question: "How is pricing determined?",
+        answer:
+          "Every project is quoted individually based on scope, production days, deliverables, and timeline. Starting rates are listed per service, but final pricing reflects the creative and logistical requirements of your specific project.",
+      },
+    ],
+  },
+  finalCta: {
+    headline: "Create Something Worth Remembering",
+    subheadline:
+      "Whether you are launching a campaign, building a personal brand, or documenting a defining moment — let's make it unforgettable.",
+    primaryLabel: "Book a Project",
+    primaryHref: "/book",
+  },
 };
 
 export const DEFAULT_BOOKING_OPTIONS: BookingOptions = {
@@ -514,6 +747,7 @@ export const CONTENT_KEYS = {
   sessions: "sessions",
   sessionsApplication: "sessions-application",
   servicesIntro: "services-intro",
+  servicesPage: "services-page",
   bookingOptions: "booking-options",
   bookingTerms: "booking-terms",
   pageCopy: "page-copy",

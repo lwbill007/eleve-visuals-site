@@ -1,138 +1,123 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
-import { PageHero, CTABanner } from "@/components/ui/Section";
-import { Button } from "@/components/ui/Button";
-import { getPageCopy, getServices, getServicesIntro } from "@/lib/content";
+import {
+  getFeaturedPortfolio,
+  getHeroContent,
+  getPortfolioItems,
+  getServices,
+  getServicesPageContent,
+} from "@/lib/content";
+import { ServicesHero } from "@/components/services/ServicesHero";
+import { ServiceEditorialSection } from "@/components/services/ServiceEditorialSection";
+import { ServicesProcess } from "@/components/services/ServicesProcess";
+import { ServicesFeaturedWork } from "@/components/services/ServicesFeaturedWork";
+import { ServicesWhyEleve } from "@/components/services/ServicesWhyEleve";
+import { ServicesClientExperience } from "@/components/services/ServicesClientExperience";
+import { ServicesFaq } from "@/components/services/ServicesFaq";
+import { ServicesFinalCta } from "@/components/services/ServicesFinalCta";
+import {
+  mergeServiceSection,
+  pickPortfolioPreview,
+  resolveServicesHeroImage,
+} from "@/lib/services-page";
+
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Services",
   description:
-    "Photography, videography, creative direction, brand content, event coverage, and social media content by ÉLEVÉ Visuals.",
+    "Premium photography, video production, and creative direction for brands, artists, athletes, and campaigns by ÉLEVÉ Visuals.",
 };
 
 export default async function ServicesPage() {
-  const [services, intro, pageCopy] = await Promise.all([
-    getServices(),
-    getServicesIntro(),
-    getPageCopy(),
-  ]);
+  const [pageContent, services, portfolioItems, featuredWork, heroContent] =
+    await Promise.all([
+      getServicesPageContent(),
+      getServices(),
+      getPortfolioItems(),
+      getFeaturedPortfolio(),
+      getHeroContent(),
+    ]);
+
+  const hero = resolveServicesHeroImage(pageContent, services, heroContent.image);
+  const showcaseItems =
+    featuredWork.length > 0 ? featuredWork : portfolioItems.slice(0, 4);
+
+  const cmsBySlug = Object.fromEntries(services.map((s) => [s.slug, s]));
 
   return (
     <>
-      <PageHero
-        eyebrow="Services"
-        headline={intro.headline}
-        subheadline={intro.subheadline}
-        compact
+      <ServicesHero
+        eyebrow={pageContent.hero.eyebrow}
+        headline={pageContent.hero.headline}
+        subheadline={pageContent.hero.subheadline}
+        image={hero.image}
+        imageAlt={hero.imageAlt}
+        videoUrl={pageContent.hero.videoUrl}
       />
 
-      <section className="section-padding pt-0">
-        <div className="container-wide space-y-24 md:space-y-32">
-          {services.length === 0 ? (
-            <p className="py-12 text-center text-fog">
-              Services are being updated. Please check back soon or{" "}
-              <Link href="/contact" className="text-accent underline underline-offset-2">
-                get in touch
-              </Link>
-              .
-            </p>
-          ) : (
-          services.map((service, index) => (
-            <article
-              key={service.id}
-              id={service.slug}
-              className="scroll-mt-28 grid gap-8 lg:grid-cols-12 lg:gap-12"
-            >
-              <div
-                className={`relative aspect-[4/3] overflow-hidden bg-charcoal lg:aspect-auto lg:min-h-[480px] ${
-                  index % 2 === 0 ? "lg:col-span-5" : "lg:col-span-5 lg:col-start-8 lg:row-start-1"
-                }`}
-              >
-                {service.image ? (
-                  <Image
-                    src={service.image}
-                    alt={service.imageAlt || service.title}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 1024px) 100vw, 40vw"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-charcoal to-ink" />
-                )}
-              </div>
+      <div>
+        {pageContent.sections.map((section, index) => {
+          const merged = mergeServiceSection(section, cmsBySlug[section.slug]);
+          const featuredProject = pickPortfolioPreview(portfolioItems, section.slug);
 
-              <div
-                className={`flex flex-col justify-center ${
-                  index % 2 === 0 ? "lg:col-span-7" : "lg:col-span-7 lg:col-start-1 lg:row-start-1"
-                }`}
-              >
-                <p className="label-caps mb-3">{service.tagline}</p>
-                <h2 className="headline-md">{service.title}</h2>
-                <p className="body-lg mt-4">{service.description}</p>
+          return (
+            <ServiceEditorialSection
+              key={section.slug}
+              slug={merged.slug}
+              eyebrow={merged.eyebrow}
+              headline={merged.headline}
+              description={merged.description}
+              capabilities={merged.capabilities}
+              ctaLabel={merged.ctaLabel}
+              ctaHref={merged.ctaHref}
+              image={merged.image}
+              imageAlt={merged.imageAlt}
+              startingPrice={merged.startingPrice}
+              featuredProject={featuredProject}
+              reversed={index % 2 === 1}
+            />
+          );
+        })}
+      </div>
 
-                <div className="mt-8 grid gap-6 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs tracking-[0.15em] text-muted uppercase mb-2">
-                      Who it&apos;s for
-                    </p>
-                    <p className="text-sm leading-relaxed text-fog">{service.forWhom}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs tracking-[0.15em] text-muted uppercase mb-2">
-                      Starting at
-                    </p>
-                    <p className="font-display text-2xl text-accent">{service.startingPrice}</p>
-                  </div>
-                </div>
+      <ServicesProcess
+        eyebrow={pageContent.process.eyebrow}
+        headline={pageContent.process.headline}
+        subheadline={pageContent.process.subheadline}
+        steps={pageContent.process.steps}
+      />
 
-                <div className="mt-8">
-                  <p className="text-xs tracking-[0.15em] text-muted uppercase mb-3">
-                    What&apos;s included
-                  </p>
-                  <ul className="space-y-2">
-                    {service.includes.map((item) => (
-                      <li key={item} className="flex gap-3 text-sm text-fog">
-                        <span className="text-accent">—</span>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+      <ServicesFeaturedWork
+        eyebrow={pageContent.featuredWork.eyebrow}
+        headline={pageContent.featuredWork.headline}
+        subheadline={pageContent.featuredWork.subheadline}
+        items={showcaseItems}
+      />
 
-                <div className="mt-10">
-                  <Button variant="primary" href="/book">
-                    Book / Inquire
-                  </Button>
-                </div>
-              </div>
-            </article>
-          )))}
-        </div>
-      </section>
+      <ServicesWhyEleve
+        eyebrow={pageContent.whyEleve.eyebrow}
+        headline={pageContent.whyEleve.headline}
+        items={pageContent.whyEleve.items}
+      />
 
-      <section className="section-padding border-t border-stone/30 bg-ink-soft">
-        <div className="container-narrow text-center">
-          <p className="body-lg">
-            Not sure which service fits?{" "}
-            <Link href="/contact" className="text-accent link-underline hover:text-cream">
-              Send a message
-            </Link>{" "}
-            or fill out the{" "}
-            <Link href="/book" className="text-accent link-underline hover:text-cream">
-              booking form
-            </Link>{" "}
-            with your project details — I&apos;ll recommend the right scope.
-          </p>
-        </div>
-      </section>
+      <ServicesClientExperience
+        eyebrow={pageContent.clientExperience.eyebrow}
+        headline={pageContent.clientExperience.headline}
+        subheadline={pageContent.clientExperience.subheadline}
+        steps={pageContent.clientExperience.steps}
+      />
 
-      <CTABanner
-        headline={pageCopy.servicesCta.headline}
-        primaryLabel={pageCopy.servicesCta.primaryLabel}
-        primaryHref={pageCopy.servicesCta.primaryHref}
-        secondaryLabel={pageCopy.servicesCta.secondaryLabel}
-        secondaryHref={pageCopy.servicesCta.secondaryHref}
+      <ServicesFaq
+        eyebrow={pageContent.faq.eyebrow}
+        headline={pageContent.faq.headline}
+        items={pageContent.faq.items}
+      />
+
+      <ServicesFinalCta
+        headline={pageContent.finalCta.headline}
+        subheadline={pageContent.finalCta.subheadline}
+        primaryLabel={pageContent.finalCta.primaryLabel}
+        primaryHref={pageContent.finalCta.primaryHref}
       />
     </>
   );

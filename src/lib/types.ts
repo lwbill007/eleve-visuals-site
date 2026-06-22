@@ -128,6 +128,77 @@ export interface ServicesPageIntro {
   subheadline: string;
 }
 
+export interface ServiceEditorialSection {
+  slug: string;
+  eyebrow: string;
+  headline: string;
+  description: string;
+  capabilities: string[];
+  ctaLabel: string;
+  ctaHref: string;
+}
+
+export interface ServicesProcessStep {
+  step: string;
+  title: string;
+  description: string;
+}
+
+export interface ServicesPillar {
+  title: string;
+  description: string;
+}
+
+export interface ServicesClientStep {
+  title: string;
+  description: string;
+}
+
+export interface ServicesPageContent {
+  hero: {
+    eyebrow: string;
+    headline: string;
+    subheadline: string;
+    image: string | null;
+    imageAlt: string;
+    videoUrl: string | null;
+  };
+  sections: ServiceEditorialSection[];
+  process: {
+    eyebrow: string;
+    headline: string;
+    subheadline: string;
+    steps: ServicesProcessStep[];
+  };
+  whyEleve: {
+    eyebrow: string;
+    headline: string;
+    items: ServicesPillar[];
+  };
+  clientExperience: {
+    eyebrow: string;
+    headline: string;
+    subheadline: string;
+    steps: ServicesClientStep[];
+  };
+  featuredWork: {
+    eyebrow: string;
+    headline: string;
+    subheadline: string;
+  };
+  faq: {
+    eyebrow: string;
+    headline: string;
+    items: FaqItem[];
+  };
+  finalCta: {
+    headline: string;
+    subheadline: string;
+    primaryLabel: string;
+    primaryHref: string;
+  };
+}
+
 export interface BookingOptions {
   serviceTypes: string[];
   shootTypes: string[];
