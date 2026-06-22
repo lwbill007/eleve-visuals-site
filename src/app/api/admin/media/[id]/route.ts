@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { mapService } from "@/lib/content";
 
-export async function PUT(
+export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -17,29 +16,14 @@ export async function PUT(
   const body = await request.json();
 
   try {
-    const item = await prisma.service.update({
+    const item = await prisma.mediaAsset.update({
       where: { id },
       data: {
-        slug: body.slug,
-        title: body.title,
-        tagline: body.tagline,
-        description: body.description,
-        forWhom: body.forWhom,
-        includes: JSON.stringify(body.includes || []),
-        deliverables: JSON.stringify(body.deliverables || []),
-        startingPrice: body.startingPrice,
-        turnaround: body.turnaround || "",
-        image: body.image,
-        imageAlt: body.imageAlt,
-        bannerImage: body.bannerImage ?? null,
-        thumbnailImage: body.thumbnailImage ?? null,
-        sortOrder: body.sortOrder ?? 0,
-        published: body.published !== false,
-        archived: !!body.archived,
+        filename: typeof body.filename === "string" ? body.filename : undefined,
+        alt: typeof body.alt === "string" ? body.alt : undefined,
       },
     });
-
-    return NextResponse.json(mapService(item));
+    return NextResponse.json(item);
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -57,7 +41,7 @@ export async function DELETE(
 
   const { id } = await params;
   try {
-    await prisma.service.delete({ where: { id } });
+    await prisma.mediaAsset.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

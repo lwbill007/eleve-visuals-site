@@ -9,6 +9,8 @@ import {
   DEFAULT_CONTACT_PAGE,
   DEFAULT_FAQ,
   DEFAULT_HERO,
+  DEFAULT_HOMEPAGE,
+  DEFAULT_NAVIGATION,
   DEFAULT_PAGE_COPY,
   DEFAULT_SERVICES_INTRO,
   DEFAULT_SERVICES_PAGE,
@@ -24,6 +26,8 @@ import type {
   BrandStory,
   ContactPageContent,
   FaqItem,
+  HomepageContent,
+  NavigationConfig,
   HeroContent,
   HomeServiceCard,
   PageCopy,
@@ -67,6 +71,7 @@ function mapPortfolioItem(item: {
   imageAlt: string;
   aspectRatio: string;
   featured: boolean;
+  archived?: boolean;
   sortOrder: number;
   gallery: string;
   published: boolean;
@@ -82,6 +87,7 @@ function mapPortfolioItem(item: {
     imageAlt: item.imageAlt,
     aspectRatio: item.aspectRatio as AspectRatio,
     featured: item.featured,
+    archived: item.archived ?? false,
     sortOrder: item.sortOrder,
     gallery: parseJsonArray(item.gallery),
     published: item.published,
@@ -96,11 +102,16 @@ function mapService(item: {
   description: string;
   forWhom: string;
   includes: string;
+  deliverables?: string;
   startingPrice: string;
+  turnaround?: string;
   image: string | null;
   imageAlt: string;
+  bannerImage?: string | null;
+  thumbnailImage?: string | null;
   sortOrder: number;
   published: boolean;
+  archived?: boolean;
 }): ServiceDTO {
   return {
     id: item.id,
@@ -110,11 +121,16 @@ function mapService(item: {
     description: item.description,
     forWhom: item.forWhom,
     includes: parseJsonArray(item.includes),
+    deliverables: parseJsonArray(item.deliverables ?? "[]"),
     startingPrice: item.startingPrice,
+    turnaround: item.turnaround ?? "",
     image: item.image,
     imageAlt: item.imageAlt,
+    bannerImage: item.bannerImage ?? null,
+    thumbnailImage: item.thumbnailImage ?? null,
     sortOrder: item.sortOrder,
     published: item.published,
+    archived: item.archived ?? false,
   };
 }
 
@@ -140,11 +156,34 @@ function mapTestimonial(item: {
 
 // Public getters
 export async function getSiteConfig(): Promise<SiteConfig> {
-  return getJsonContent(CONTENT_KEYS.siteConfig, DEFAULT_SITE_CONFIG);
+  const stored = await getJsonContent(CONTENT_KEYS.siteConfig, DEFAULT_SITE_CONFIG);
+  return { ...DEFAULT_SITE_CONFIG, ...stored };
 }
 
 export async function getHeroContent(): Promise<HeroContent> {
-  return getJsonContent(CONTENT_KEYS.hero, DEFAULT_HERO);
+  const stored = await getJsonContent(CONTENT_KEYS.hero, DEFAULT_HERO);
+  return { ...DEFAULT_HERO, ...stored };
+}
+
+export async function getHomepageContent(): Promise<HomepageContent> {
+  const stored = await getJsonContent(CONTENT_KEYS.homepage, DEFAULT_HOMEPAGE);
+  return {
+    ...DEFAULT_HOMEPAGE,
+    ...stored,
+    sections: stored.sections?.length ? stored.sections : DEFAULT_HOMEPAGE.sections,
+  };
+}
+
+export async function getNavigationConfig(): Promise<NavigationConfig> {
+  const stored = await getJsonContent(CONTENT_KEYS.navigation, DEFAULT_NAVIGATION);
+  return {
+    ...DEFAULT_NAVIGATION,
+    ...stored,
+    navLinks: stored.navLinks?.length ? stored.navLinks : DEFAULT_NAVIGATION.navLinks,
+    footerLinks: stored.footerLinks?.length
+      ? stored.footerLinks
+      : DEFAULT_NAVIGATION.footerLinks,
+  };
 }
 
 export async function getBrandStory(): Promise<BrandStory> {
@@ -222,7 +261,7 @@ export async function getPageCopy(): Promise<PageCopy> {
 
 export async function getPortfolioItems(publishedOnly = true): Promise<PortfolioItemDTO[]> {
   const items = await prisma.portfolioItem.findMany({
-    where: publishedOnly ? { published: true } : undefined,
+    where: publishedOnly ? { published: true, archived: false } : undefined,
     orderBy: [{ featured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
   });
   return items.map(mapPortfolioItem);
@@ -230,7 +269,7 @@ export async function getPortfolioItems(publishedOnly = true): Promise<Portfolio
 
 export async function getFeaturedPortfolio(): Promise<PortfolioItemDTO[]> {
   const items = await prisma.portfolioItem.findMany({
-    where: { published: true, featured: true },
+    where: { published: true, featured: true, archived: false },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     take: 5,
   });
@@ -244,7 +283,7 @@ export async function getPortfolioItemById(id: string): Promise<PortfolioItemDTO
 
 export async function getServices(publishedOnly = true): Promise<ServiceDTO[]> {
   const items = await prisma.service.findMany({
-    where: publishedOnly ? { published: true } : undefined,
+    where: publishedOnly ? { published: true, archived: false } : undefined,
     orderBy: { sortOrder: "asc" },
   });
   return items.map(mapService);
@@ -291,6 +330,8 @@ export const contentSetters = {
   bookingOptions: (v: BookingOptions) => setJsonContent(CONTENT_KEYS.bookingOptions, v),
   bookingTerms: (v: BookingTermsContent) => setJsonContent(CONTENT_KEYS.bookingTerms, v),
   pageCopy: (v: PageCopy) => setJsonContent(CONTENT_KEYS.pageCopy, v),
+  homepage: (v: HomepageContent) => setJsonContent(CONTENT_KEYS.homepage, v),
+  navigation: (v: NavigationConfig) => setJsonContent(CONTENT_KEYS.navigation, v),
 };
 
 export { mapPortfolioItem, mapService, mapTestimonial };

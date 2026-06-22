@@ -18,6 +18,14 @@ export async function getSessionVolumeBySlug(slug: string): Promise<SessionVolum
   return volume;
 }
 
+export async function getSessionVolumeById(id: string): Promise<SessionVolumeDTO | null> {
+  const item = await prisma.sessionVolume.findUnique({ where: { id } });
+  if (!item) return null;
+  const volume = mapSessionVolume(item);
+  if (!isPublicSessionVolume(volume)) return null;
+  return volume;
+}
+
 export async function getFeaturedSessionVolume(): Promise<SessionVolumeDTO | null> {
   const featured = await prisma.sessionVolume.findFirst({
     where: { published: true, featured: true, status: { not: "draft" } },

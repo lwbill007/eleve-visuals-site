@@ -49,6 +49,7 @@ export async function PUT(
         imageAlt: body.imageAlt,
         aspectRatio: body.aspectRatio as AspectRatio,
         featured: !!body.featured,
+        archived: !!body.archived,
         sortOrder: body.sortOrder ?? 0,
         gallery: JSON.stringify(gallery),
         published: body.published !== false,

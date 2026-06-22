@@ -7,6 +7,7 @@ export const SESSION_STATUS_LABELS: Record<SessionVolumeStatus, string> = {
   applications_open: "Applications Open",
   applications_closed: "Applications Closed",
   sold_out: "Sold Out",
+  completed: "Completed",
   archived: "Archived",
 };
 
@@ -40,6 +41,8 @@ export function getSessionCtaMessage(status: SessionVolumeStatus): string {
       return "Applications Closed";
     case "sold_out":
       return "Sold Out";
+    case "completed":
+      return "Completed";
     case "archived":
       return "Archived";
     default:

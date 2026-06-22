@@ -11,14 +11,29 @@ interface HeroSectionProps {
 
 export function HeroSection({ hero, siteConfig }: HeroSectionProps) {
   return (
-    <section className="relative flex min-h-screen items-center">
-      <MediaImage
-        src={hero.image}
-        alt={hero.imageAlt || siteConfig.name}
-        className="absolute inset-0"
-        overlay
-        priority
-      />
+    <section className="relative flex min-h-screen items-center overflow-hidden">
+      {hero.videoUrl ? (
+        <video
+          src={hero.videoUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <MediaImage
+          src={hero.image}
+          alt={hero.imageAlt || siteConfig.name}
+          className="absolute inset-0"
+          overlay
+          priority
+        />
+      )}
+      {!hero.videoUrl && !hero.image && (
+        <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-ink to-ink-soft" />
+      )}
+      {hero.videoUrl && <div className="cinematic-overlay absolute inset-0 bg-ink/60" />}
 
       <div className="grain relative z-10 w-full section-padding py-32 md:py-40">
         <div className="container-wide">
@@ -38,6 +53,9 @@ export function HeroSection({ hero, siteConfig }: HeroSectionProps) {
             </p>
 
             <p className="body-lg mt-6 max-w-xl">{hero.subheadline}</p>
+            {hero.description && (
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-fog">{hero.description}</p>
+            )}
 
             <div className="mt-10 flex flex-col items-start gap-4">
               <Button

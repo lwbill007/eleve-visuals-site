@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { NAVIGATION } from "@/lib/types";
-import type { SiteConfig } from "@/lib/types";
+import type { NavigationConfig, SiteConfig } from "@/lib/types";
 
 interface FooterProps {
   siteConfig: SiteConfig;
+  navigation?: NavigationConfig;
 }
 
-export function Footer({ siteConfig }: FooterProps) {
+export function Footer({ siteConfig, navigation }: FooterProps) {
   const year = new Date().getFullYear();
+  const footerLinks = navigation?.footerLinks?.length
+    ? navigation.footerLinks
+    : NAVIGATION;
+  const footerText = navigation?.footerText || siteConfig.tagline;
+  const copyright = siteConfig.copyrightText || `© ${year} ${siteConfig.name}. All rights reserved.`;
 
   return (
     <footer className="border-t border-stone/30 bg-ink-soft">
@@ -21,9 +27,7 @@ export function Footer({ siteConfig }: FooterProps) {
                   Visuals
                 </span>
               </Link>
-              <p className="mt-4 max-w-sm text-sm leading-relaxed text-fog">
-                {siteConfig.tagline}
-              </p>
+              <p className="mt-4 max-w-sm text-sm leading-relaxed text-fog">{footerText}</p>
               <p className="mt-3 text-xs tracking-wide text-muted uppercase">
                 {siteConfig.location}
               </p>
@@ -32,7 +36,7 @@ export function Footer({ siteConfig }: FooterProps) {
             <div className="md:col-span-3">
               <p className="label-caps mb-4">Navigate</p>
               <ul className="space-y-2">
-                {NAVIGATION.map((item) => (
+                {footerLinks.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
@@ -89,9 +93,7 @@ export function Footer({ siteConfig }: FooterProps) {
           </div>
 
           <div className="mt-16 flex flex-col items-start justify-between gap-4 border-t border-stone/20 pt-8 md:flex-row md:items-center">
-            <p className="text-xs text-muted">
-              © {year} {siteConfig.name}. All rights reserved.
-            </p>
+            <p className="text-xs text-muted">{copyright}</p>
             <p className="text-xs text-muted">
               Photography & film by {siteConfig.creator}
             </p>

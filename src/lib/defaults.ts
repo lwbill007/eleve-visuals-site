@@ -10,6 +10,8 @@ import type {
   ServicesPageContent,
   SessionsApplicationContent,
   SessionsContent,
+  HomepageContent,
+  NavigationConfig,
   SiteConfig,
   FaqItem,
 } from "./types";
@@ -22,21 +24,62 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
     "Premium photography, videography, and creative direction based in Sacramento and the Bay Area. Intentional visuals for people who refuse to look ordinary.",
   url: "https://elevevisuals.com",
   email: "hello@elevevisuals.com",
+  phone: "",
   instagram: "elevevisuals",
   instagramUrl: "https://instagram.com/elevevisuals",
+  tiktok: "",
+  tiktokUrl: "",
   location: "Sacramento ↔ Bay Area",
   serviceArea: "Sacramento, San Francisco Bay Area, and select destinations",
   responseTime: "Within 24–48 hours on business days",
+  businessHours: "By appointment",
+  logo: null,
+  favicon: null,
+  seoTitle: "ÉLEVÉ Visuals — Premium Photography & Film",
+  seoDescription:
+    "Cinematic photography, video production, and creative direction for brands, artists, and athletes.",
+  copyrightText: "© ÉLEVÉ Visuals. All rights reserved.",
+};
+
+export const DEFAULT_NAVIGATION: NavigationConfig = {
+  navLinks: [
+    { label: "Work", href: "/portfolio" },
+    { label: "Services", href: "/services" },
+    { label: "Sessions", href: "/sessions" },
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
+  ],
+  footerLinks: [
+    { label: "Portfolio", href: "/portfolio" },
+    { label: "Book a Project", href: "/book" },
+    { label: "Booking Terms", href: "/booking-terms" },
+  ],
+  footerText: "Cinematic visual storytelling for brands, artists, and athletes.",
+};
+
+export const DEFAULT_HOMEPAGE: HomepageContent = {
+  sections: [
+    { id: "featured-work", label: "Featured Work", enabled: true },
+    { id: "services", label: "Services", enabled: true },
+    { id: "sessions", label: "ÉLEVÉ Sessions", enabled: true },
+    { id: "brand-story", label: "Brand Story", enabled: true },
+    { id: "testimonials", label: "Testimonials", enabled: true },
+    { id: "cta", label: "Call to Action", enabled: true },
+  ],
+  featuredSessionVolumeId: null,
+  banner: null,
 };
 
 export const DEFAULT_HERO: HeroContent = {
   headline: "Visuals that move with intention.",
   subheadline:
     "Photography, film, and creative direction for brands, artists, and athletes who demand more than content — they demand presence.",
+  description: "",
   primaryCta: { label: "Book a Shoot", href: "/book" },
   secondaryCta: { label: "View Portfolio", href: "/portfolio" },
   image: null,
   imageAlt: "",
+  videoUrl: null,
 };
 
 export const DEFAULT_BRAND_STORY: BrandStory = {
@@ -758,4 +801,6 @@ export const CONTENT_KEYS = {
   bookingOptions: "booking-options",
   bookingTerms: "booking-terms",
   pageCopy: "page-copy",
+  homepage: "homepage",
+  navigation: "navigation",
 } as const;

@@ -1,15 +1,15 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { getSiteConfig } from "@/lib/content";
+import { getSiteConfig, getNavigationConfig } from "@/lib/content";
 
 export async function generateMetadata() {
   const siteConfig = await getSiteConfig();
   return {
     title: {
-      default: `${siteConfig.name} — Cinematic Visual Storytelling`,
+      default: siteConfig.seoTitle || `${siteConfig.name} — Cinematic Visual Storytelling`,
       template: `%s — ${siteConfig.name}`,
     },
-    description: siteConfig.description,
+    description: siteConfig.seoDescription || siteConfig.description,
     keywords: [
       "photography",
       "videography",
@@ -30,13 +30,16 @@ export async function generateMetadata() {
 }
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const siteConfig = await getSiteConfig();
+  const [siteConfig, navigation] = await Promise.all([
+    getSiteConfig(),
+    getNavigationConfig(),
+  ]);
 
   return (
     <>
-      <Header siteConfig={siteConfig} />
+      <Header siteConfig={siteConfig} navLinks={navigation.navLinks} />
       <main>{children}</main>
-      <Footer siteConfig={siteConfig} />
+      <Footer siteConfig={siteConfig} navigation={navigation} />
     </>
   );
 }

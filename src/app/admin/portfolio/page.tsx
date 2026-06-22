@@ -27,6 +27,7 @@ const emptyItem = (): Partial<PortfolioItemDTO> => ({
   imageAlt: "",
   aspectRatio: "landscape",
   featured: false,
+  archived: false,
   sortOrder: 0,
   gallery: [],
   published: true,
@@ -80,6 +81,27 @@ export default function AdminPortfolioPage() {
       return;
     }
     load();
+  }
+
+  async function duplicate(id: string) {
+    const res = await adminFetch(`/api/admin/portfolio/${id}/duplicate`, { method: "POST" });
+    setMessage(res.ok ? "Duplicated as draft." : "Duplicate failed.");
+    load();
+  }
+
+  async function reorder(id: string, direction: -1 | 1) {
+    const index = items.findIndex((i) => i.id === id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= items.length) return;
+    const next = [...items];
+    [next[index], next[target]] = [next[target], next[index]];
+    const order = next.map((item, sortOrder) => ({ id: item.id, sortOrder }));
+    const res = await adminFetch("/api/admin/portfolio/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order }),
+    });
+    if (res.ok) load();
   }
 
   return (
@@ -199,6 +221,14 @@ export default function AdminPortfolioPage() {
                 />
                 Published
               </label>
+              <label className="flex items-center gap-2 text-sm text-fog">
+                <input
+                  type="checkbox"
+                  checked={!!editing.archived}
+                  onChange={(e) => setEditing({ ...editing, archived: e.target.checked })}
+                />
+                Archived (hidden from public portfolio)
+              </label>
             </div>
           </div>
           <div className="mt-6 flex gap-3">
@@ -243,22 +273,24 @@ export default function AdminPortfolioPage() {
               <p className="text-xs text-muted">
                 {item.category} · {item.year}
                 {item.featured && " · Featured"}
+                {item.archived && " · Archived"}
                 {!item.published && " · Draft"}
               </p>
             </div>
             <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                onClick={() => setEditing(item)}
-                className="text-xs text-accent"
-              >
+              <button type="button" onClick={() => reorder(item.id, -1)} className="text-xs text-fog">
+                ↑
+              </button>
+              <button type="button" onClick={() => reorder(item.id, 1)} className="text-xs text-fog">
+                ↓
+              </button>
+              <button type="button" onClick={() => setEditing(item)} className="text-xs text-accent">
                 Edit
               </button>
-              <button
-                type="button"
-                onClick={() => remove(item.id)}
-                className="text-xs text-red-400"
-              >
+              <button type="button" onClick={() => duplicate(item.id)} className="text-xs text-fog">
+                Duplicate
+              </button>
+              <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
                 Delete
               </button>
             </div>

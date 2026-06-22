@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -14,6 +14,109 @@ async function uploadImageFile(file: File): Promise<string> {
   return data.url as string;
 }
 
+interface MediaAsset {
+  id: string;
+  url: string;
+  filename: string;
+  alt: string;
+}
+
+function MediaLibraryModal({
+  open,
+  onClose,
+  onSelect,
+  multiple = false,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (urls: string[]) => void;
+  multiple?: boolean;
+}) {
+  const [items, setItems] = useState<MediaAsset[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    setPicked([]);
+    setLoading(true);
+    adminFetch("/api/admin/media")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setItems)
+      .finally(() => setLoading(false));
+  }, [open]);
+
+  if (!open) return null;
+
+  function toggle(url: string) {
+    if (multiple) {
+      setPicked((prev) =>
+        prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url]
+      );
+    } else {
+      onSelect([url]);
+      onClose();
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/90 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col border border-stone/40 bg-ink">
+        <div className="flex items-center justify-between border-b border-stone/30 px-6 py-4">
+          <h3 className="font-display text-lg text-cream">Media Library</h3>
+          <button type="button" onClick={onClose} className="text-sm text-fog hover:text-cream">
+            Close
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <p className="text-center text-fog">Loading...</p>
+          ) : items.length === 0 ? (
+            <p className="text-center text-fog">No media yet. Upload an image first.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => toggle(item.url)}
+                  className={cn(
+                    "relative aspect-square overflow-hidden border bg-charcoal text-left",
+                    picked.includes(item.url) ? "border-accent ring-1 ring-accent" : "border-stone/30"
+                  )}
+                >
+                  <Image src={item.url} alt={item.alt || item.filename} fill className="object-cover" sizes="160px" />
+                  <span className="absolute inset-x-0 bottom-0 truncate bg-ink/80 px-2 py-1 text-[10px] text-cream">
+                    {item.filename || "Untitled"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {multiple && (
+          <div className="flex justify-end gap-3 border-t border-stone/30 px-6 py-4">
+            <button type="button" onClick={onClose} className="text-sm text-fog">
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={picked.length === 0}
+              onClick={() => {
+                onSelect(picked);
+                onClose();
+              }}
+              className="bg-cream px-4 py-2 text-xs text-ink disabled:opacity-50"
+            >
+              Add {picked.length || ""} selected
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface ImageUploadProps {
   value: string | null;
   onChange: (url: string | null) => void;
@@ -25,6 +128,7 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   async function handleFile(file: File) {
     setUploading(true);
@@ -41,6 +145,23 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
   return (
     <div className={className}>
       {label && <p className="mb-2 text-sm text-cream-dim">{label}</p>}
+      <div className="mb-2 flex gap-2">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="border border-stone/50 px-3 py-1.5 text-xs text-fog hover:text-cream"
+        >
+          {uploading ? "Uploading..." : "Upload new"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setLibraryOpen(true)}
+          className="border border-stone/50 px-3 py-1.5 text-xs text-accent"
+        >
+          Choose from library
+        </button>
+      </div>
       <div
         className={cn(
           "relative border border-dashed border-stone/50 bg-charcoal/30",
@@ -53,8 +174,15 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
             <div className="absolute inset-0 flex items-end justify-end gap-2 bg-ink/40 p-3 opacity-0 transition-opacity hover:opacity-100">
               <button
                 type="button"
-                onClick={() => inputRef.current?.click()}
+                onClick={() => setLibraryOpen(true)}
                 className="bg-cream px-3 py-1.5 text-xs text-ink"
+              >
+                Library
+              </button>
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="border border-stone px-3 py-1.5 text-xs text-cream"
               >
                 Replace
               </button>
@@ -68,14 +196,7 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
             </div>
           </>
         ) : (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="text-sm text-fog hover:text-cream"
-          >
-            {uploading ? "Uploading..." : "Click to upload image"}
-          </button>
+          <p className="text-sm text-muted">No image selected</p>
         )}
       </div>
       <input
@@ -90,6 +211,11 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
         }}
       />
       {error && <p className="field-error mt-2">{error}</p>}
+      <MediaLibraryModal
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onSelect={(urls) => onChange(urls[0] ?? null)}
+      />
     </div>
   );
 }
@@ -117,6 +243,7 @@ export function GalleryUpload({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
   const [error, setError] = useState("");
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   async function handleFiles(fileList: FileList) {
     const files = Array.from(fileList);
@@ -195,14 +322,23 @@ export function GalleryUpload({
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={uploading}
-        className="flex min-h-[100px] w-full items-center justify-center border border-dashed border-stone/50 bg-charcoal/30 p-6 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50"
-      >
-        {uploading ? uploadProgress || "Uploading..." : "Add gallery images (select multiple)"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="flex min-h-[80px] flex-1 items-center justify-center border border-dashed border-stone/50 bg-charcoal/30 p-4 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50"
+        >
+          {uploading ? uploadProgress || "Uploading..." : "Upload new images"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setLibraryOpen(true)}
+          className="min-h-[80px] border border-dashed border-stone/50 bg-charcoal/30 px-6 text-sm text-accent hover:border-accent/50"
+        >
+          Add from library
+        </button>
+      </div>
 
       <input
         ref={inputRef}
@@ -216,6 +352,16 @@ export function GalleryUpload({
         }}
       />
       {error && <p className="field-error mt-2">{error}</p>}
+      <MediaLibraryModal
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        multiple
+        onSelect={(urls) => {
+          const next = [...images, ...urls.filter((u) => !images.includes(u))];
+          onChange(next);
+          if (onCoverChange && !coverImage && urls[0]) onCoverChange(urls[0]);
+        }}
+      />
     </div>
   );
 }

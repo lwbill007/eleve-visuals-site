@@ -8,6 +8,7 @@ const STATUS_STYLES: Record<SessionVolumeStatus, string> = {
   applications_open: "border-accent/60 text-accent",
   applications_closed: "border-stone/60 text-fog",
   sold_out: "border-red-400/40 text-red-300",
+  completed: "border-stone/50 text-fog",
   archived: "border-stone/40 text-muted",
 };
 

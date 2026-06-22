@@ -14,6 +14,8 @@ import {
   getBookingOptions,
   getBookingTerms,
   getPageCopy,
+  getHomepageContent,
+  getNavigationConfig,
 } from "@/lib/content";
 
 const GETTERS = {
@@ -29,6 +31,8 @@ const GETTERS = {
   bookingOptions: getBookingOptions,
   bookingTerms: getBookingTerms,
   pageCopy: getPageCopy,
+  homepage: getHomepageContent,
+  navigation: getNavigationConfig,
 } as const;
 
 const ALLOWED_KEYS = Object.keys(GETTERS) as (keyof typeof GETTERS)[];

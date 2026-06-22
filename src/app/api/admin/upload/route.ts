@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -48,14 +49,34 @@ export async function POST(request: Request) {
   try {
     const blobUrl = await uploadToBlob(filename, buffer, file.type);
     if (blobUrl) {
+      try {
+        await prisma.mediaAsset.upsert({
+          where: { url: blobUrl },
+          create: { url: blobUrl, filename: file.name },
+          update: { filename: file.name },
+        });
+      } catch {
+        /* media index optional */
+      }
       return NextResponse.json({ url: blobUrl });
     }
 
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
     await writeFile(path.join(uploadDir, filename), buffer);
+    const localUrl = `/uploads/${filename}`;
 
-    return NextResponse.json({ url: `/uploads/${filename}` });
+    try {
+      await prisma.mediaAsset.upsert({
+        where: { url: localUrl },
+        create: { url: localUrl, filename: file.name },
+        update: { filename: file.name },
+      });
+    } catch {
+      /* media index optional */
+    }
+
+    return NextResponse.json({ url: localUrl });
   } catch (error) {
     console.error("Upload failed:", error);
 

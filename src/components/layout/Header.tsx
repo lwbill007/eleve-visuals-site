@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import type { SiteConfig, NavLink } from "@/lib/types";
 import { NAVIGATION } from "@/lib/types";
-import type { SiteConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
 interface HeaderProps {
   siteConfig: SiteConfig;
+  navLinks?: NavLink[];
 }
 
-export function Header({ siteConfig }: HeaderProps) {
+export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -58,7 +59,7 @@ export function Header({ siteConfig }: HeaderProps) {
           </Link>
 
           <nav className="hidden items-center gap-8 lg:flex" aria-label="Main">
-            {NAVIGATION.map((item) => (
+            {navLinks.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -106,7 +107,7 @@ export function Header({ siteConfig }: HeaderProps) {
         aria-hidden={!menuOpen}
       >
         <nav className="flex flex-col items-center gap-8" aria-label="Mobile">
-          {NAVIGATION.map((item) => (
+          {navLinks.map((item) => (
             <Link
               key={item.href}
               href={item.href}

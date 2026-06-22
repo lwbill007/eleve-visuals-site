@@ -18,6 +18,7 @@ model PortfolioItem {
   imageAlt    String   @default("")
   aspectRatio String   @default("landscape")
   featured    Boolean  @default(false)
+  archived    Boolean  @default(false)
   sortOrder   Int      @default(0)
   gallery     String   @default("[]")
   published   Boolean  @default(true)
@@ -33,11 +34,16 @@ model Service {
   description   String
   forWhom       String
   includes      String  @default("[]")
+  deliverables  String  @default("[]")
   startingPrice String
+  turnaround    String  @default("")
   image         String?
   imageAlt      String  @default("")
+  bannerImage   String?
+  thumbnailImage String?
   sortOrder     Int     @default(0)
   published     Boolean @default(true)
+  archived      Boolean @default(false)
 }
 
 model Testimonial {
@@ -65,6 +71,16 @@ model Submission {
 
   @@index([type, status])
   @@index([type, createdAt])
+}
+
+model MediaAsset {
+  id        String   @id @default(cuid())
+  url       String   @unique
+  filename  String   @default("")
+  alt       String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model RateLimitEntry {

@@ -26,20 +26,61 @@ export interface SiteConfig {
   description: string;
   url: string;
   email: string;
+  phone: string;
   instagram: string;
   instagramUrl: string;
+  tiktok: string;
+  tiktokUrl: string;
   location: string;
   serviceArea: string;
   responseTime: string;
+  businessHours: string;
+  logo: string | null;
+  favicon: string | null;
+  seoTitle: string;
+  seoDescription: string;
+  copyrightText: string;
+}
+
+export interface NavLink {
+  label: string;
+  href: string;
+}
+
+export interface NavigationConfig {
+  navLinks: NavLink[];
+  footerLinks: NavLink[];
+  footerText: string;
+}
+
+export interface HomepageSection {
+  id: string;
+  label: string;
+  enabled: boolean;
+}
+
+export interface HomepageBanner {
+  enabled: boolean;
+  text: string;
+  href: string;
+  image: string | null;
+}
+
+export interface HomepageContent {
+  sections: HomepageSection[];
+  featuredSessionVolumeId: string | null;
+  banner: HomepageBanner | null;
 }
 
 export interface HeroContent {
   headline: string;
   subheadline: string;
+  description: string;
   primaryCta: { label: string; href: string };
   secondaryCta: { label: string; href: string };
   image: string | null;
   imageAlt: string;
+  videoUrl: string | null;
 }
 
 export interface BrandStory {
@@ -208,14 +249,15 @@ export interface BookingOptions {
   referralSources: string[];
 }
 
-export const INQUIRY_STATUSES = ["new", "contacted", "booked", "closed"] as const;
+export const INQUIRY_STATUSES = ["new", "contacted", "scheduled", "completed", "archived"] as const;
 export type InquiryStatus = (typeof INQUIRY_STATUSES)[number];
 
 export const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   new: "New",
   contacted: "Contacted",
-  booked: "Booked",
-  closed: "Closed",
+  scheduled: "Scheduled",
+  completed: "Completed",
+  archived: "Archived",
 };
 
 export interface PortfolioItemDTO {
@@ -229,6 +271,7 @@ export interface PortfolioItemDTO {
   imageAlt: string;
   aspectRatio: AspectRatio;
   featured: boolean;
+  archived: boolean;
   sortOrder: number;
   gallery: string[];
   published: boolean;
@@ -242,11 +285,16 @@ export interface ServiceDTO {
   description: string;
   forWhom: string;
   includes: string[];
+  deliverables: string[];
   startingPrice: string;
+  turnaround: string;
   image: string | null;
   imageAlt: string;
+  bannerImage: string | null;
+  thumbnailImage: string | null;
   sortOrder: number;
   published: boolean;
+  archived: boolean;
 }
 
 export interface TestimonialDTO {
@@ -328,6 +376,7 @@ export const SESSION_VOLUME_STATUSES = [
   "applications_open",
   "applications_closed",
   "sold_out",
+  "completed",
   "archived",
 ] as const;
 
