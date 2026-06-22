@@ -72,7 +72,7 @@ export function ServicesFeaturedWork({
                 className={cn("group", spans)}
               >
                 <Link
-                  href={`/portfolio?project=${item.id}`}
+                  href={`/portfolio/${item.slug}`}
                   className={cn(
                     "relative block overflow-hidden bg-charcoal",
                     index === 0

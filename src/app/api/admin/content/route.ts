@@ -16,6 +16,7 @@ import {
   getPageCopy,
   getHomepageContent,
   getNavigationConfig,
+  getPortfolioPageContent,
 } from "@/lib/content";
 
 const GETTERS = {
@@ -33,6 +34,7 @@ const GETTERS = {
   pageCopy: getPageCopy,
   homepage: getHomepageContent,
   navigation: getNavigationConfig,
+  portfolioPage: getPortfolioPageContent,
 } as const;
 
 const ALLOWED_KEYS = Object.keys(GETTERS) as (keyof typeof GETTERS)[];

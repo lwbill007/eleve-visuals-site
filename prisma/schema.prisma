@@ -8,22 +8,37 @@ datasource db {
 }
 
 model PortfolioItem {
-  id          String   @id @default(cuid())
-  title       String
-  category    String
-  client      String?
-  year        String
-  description String
-  image       String?
-  imageAlt    String   @default("")
-  aspectRatio String   @default("landscape")
-  featured    Boolean  @default(false)
-  archived    Boolean  @default(false)
-  sortOrder   Int      @default(0)
-  gallery     String   @default("[]")
-  published   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(cuid())
+  slug              String   @unique
+  title             String
+  subtitle          String   @default("")
+  category          String
+  client            String?
+  year              String
+  description       String
+  creativeProcess   String   @default("")
+  image             String?
+  imageAlt          String   @default("")
+  heroImage         String?
+  heroImageAlt      String   @default("")
+  aspectRatio       String   @default("landscape")
+  featured          Boolean  @default(false)
+  portfolioFeatured Boolean  @default(false)
+  archived          Boolean  @default(false)
+  sortOrder         Int      @default(0)
+  gallery           String   @default("[]")
+  btsGallery        String   @default("[]")
+  videos            String   @default("[]")
+  deliverables      String   @default("[]")
+  credits           String   @default("[]")
+  relatedServices   String   @default("[]")
+  seoTitle          String   @default("")
+  seoDescription    String   @default("")
+  published         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([portfolioFeatured])
 }
 
 model Service {

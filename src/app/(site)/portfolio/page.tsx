@@ -1,25 +1,21 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { PageHero, CTABanner } from "@/components/ui/Section";
-import { PortfolioGallery } from "@/components/sections/PortfolioGallery";
-import { getPageCopy, getPortfolioItems } from "@/lib/content";
+import { redirect } from "next/navigation";
+import { CTABanner } from "@/components/ui/Section";
+import { PortfolioHero } from "@/components/portfolio/PortfolioHero";
+import { PortfolioFeaturedProject } from "@/components/portfolio/PortfolioFeaturedProject";
+import { PortfolioStats } from "@/components/portfolio/PortfolioStats";
+import { PortfolioWorkGallery } from "@/components/portfolio/PortfolioWorkGallery";
+import { getPageCopy, getPortfolioItemById, getPortfolioItems, getPortfolioPageContent } from "@/lib/content";
+import { getPortfolioCategories, getPortfolioFeaturedProject } from "@/lib/portfolio";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "Portfolio",
-  description:
-    "Selected photography, videography, and creative direction work by ÉLEVÉ Visuals.",
-};
-
-function PortfolioContent({
-  items,
-  projectId,
-}: {
-  items: Awaited<ReturnType<typeof getPortfolioItems>>;
-  projectId?: string;
-}) {
-  return <PortfolioGallery items={items} initialProjectId={projectId} />;
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPortfolioPageContent();
+  return {
+    title: page.hero.headline,
+    description: page.hero.description || page.hero.subheadline,
+  };
 }
 
 export default async function PortfolioPage({
@@ -28,19 +24,30 @@ export default async function PortfolioPage({
   searchParams: Promise<{ project?: string }>;
 }) {
   const params = await searchParams;
-  const [items, pageCopy] = await Promise.all([getPortfolioItems(), getPageCopy()]);
+  if (params.project) {
+    const legacy = await getPortfolioItemById(params.project);
+    if (legacy) redirect(`/portfolio/${legacy.slug}`);
+  }
+
+  const [items, pageContent, featured, categories, pageCopy] = await Promise.all([
+    getPortfolioItems(),
+    getPortfolioPageContent(),
+    getPortfolioFeaturedProject(),
+    getPortfolioCategories(),
+    getPageCopy(),
+  ]);
 
   return (
     <>
-      <PageHero
-        eyebrow="Portfolio"
-        headline={pageCopy.portfolioHero.headline}
-        subheadline={pageCopy.portfolioHero.subheadline}
-        compact
+      <PortfolioHero content={pageContent.hero} />
+      <PortfolioStats stats={pageContent.stats} />
+      {featured && <PortfolioFeaturedProject project={featured} />}
+      <PortfolioWorkGallery
+        items={items}
+        categories={categories}
+        featuredSlug={featured?.slug}
+        emptyState={pageContent.emptyState}
       />
-      <Suspense fallback={<div className="section-padding text-center text-fog">Loading...</div>}>
-        <PortfolioContent items={items} projectId={params.project} />
-      </Suspense>
       <CTABanner
         headline={pageCopy.portfolioCta.headline}
         subheadline={pageCopy.portfolioCta.subheadline}

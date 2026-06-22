@@ -12,6 +12,7 @@ import type {
   SessionsContent,
   HomepageContent,
   NavigationConfig,
+  PortfolioPageContent,
   SiteConfig,
   FaqItem,
 } from "./types";
@@ -787,6 +788,42 @@ export const DEFAULT_SERVICES = [
   },
 ];
 
+export const DEFAULT_PORTFOLIO_PAGE: PortfolioPageContent = {
+  hero: {
+    eyebrow: "Selected Work",
+    headline: "Work that speaks before you do.",
+    subheadline: "Photography, film, and creative direction for brands, athletes, and artists.",
+    description:
+      "An archive of intentional visuals — portraits, campaigns, events, and editorial projects crafted with cinematic precision.",
+    image: null,
+    imageAlt: "ÉLEVÉ Visuals portfolio",
+    videoUrl: null,
+  },
+  stats: [
+    { label: "Projects Completed", value: "150+" },
+    { label: "Clients Served", value: "80+" },
+    { label: "Sessions Produced", value: "12" },
+    { label: "Years Creating", value: "8+" },
+  ],
+  categories: [
+    "Portraits",
+    "Brands",
+    "Athletes",
+    "Events",
+    "Creative Direction",
+    "Video",
+    "BTS",
+    "Editorial",
+    "Lifestyle",
+  ],
+  emptyState: {
+    headline: "New work is currently in production.",
+    subheadline: "Check back soon or explore another collection.",
+    ctaLabel: "Book a Project",
+    ctaHref: "/book",
+  },
+};
+
 export const CONTENT_KEYS = {
   siteConfig: "site-config",
   hero: "hero",
@@ -803,4 +840,5 @@ export const CONTENT_KEYS = {
   pageCopy: "page-copy",
   homepage: "homepage",
   navigation: "navigation",
+  portfolioPage: "portfolio-page",
 } as const;

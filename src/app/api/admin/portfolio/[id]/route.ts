@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { mapPortfolioItem } from "@/lib/content";
-import { normalizePortfolioInput } from "@/lib/portfolio-utils";
+import { buildPortfolioData } from "@/lib/portfolio-utils";
+import { clearPortfolioFeaturedFlag, uniquePortfolioSlug } from "@/lib/portfolio";
 import { revalidatePortfolioPages } from "@/lib/revalidate-public";
-import type { AspectRatio, PortfolioCategory } from "@/lib/types";
 
 export async function GET(
   _request: Request,
@@ -34,29 +34,24 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { image, gallery } = normalizePortfolioInput(body);
+  const existing = await prisma.portfolioItem.findUnique({ where: { id } });
+  const slug =
+    body.slug ||
+    (body.title ? await uniquePortfolioSlug(body.title, id) : existing?.slug) ||
+    "project";
+  const data = buildPortfolioData({ ...body, slug });
+
+  if (data.portfolioFeatured) {
+    await clearPortfolioFeaturedFlag(id);
+  }
 
   try {
     const item = await prisma.portfolioItem.update({
       where: { id },
-      data: {
-        title: body.title,
-        category: body.category as PortfolioCategory,
-        client: body.client || null,
-        year: body.year,
-        description: body.description,
-        image,
-        imageAlt: body.imageAlt,
-        aspectRatio: body.aspectRatio as AspectRatio,
-        featured: !!body.featured,
-        archived: !!body.archived,
-        sortOrder: body.sortOrder ?? 0,
-        gallery: JSON.stringify(gallery),
-        published: body.published !== false,
-      },
+      data,
     });
 
-    revalidatePortfolioPages();
+    revalidatePortfolioPages(item.slug);
     return NextResponse.json(mapPortfolioItem(item));
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -75,8 +70,9 @@ export async function DELETE(
 
   const { id } = await params;
   try {
+    const item = await prisma.portfolioItem.findUnique({ where: { id } });
     await prisma.portfolioItem.delete({ where: { id } });
-    revalidatePortfolioPages();
+    revalidatePortfolioPages(item?.slug);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

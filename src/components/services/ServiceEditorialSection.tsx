@@ -73,7 +73,7 @@ export function ServiceEditorialSection({
 
               {featuredProject && previewImage && (
                 <Link
-                  href={`/portfolio?project=${featuredProject.id}`}
+                  href={`/portfolio/${featuredProject.slug}`}
                   className="group mt-4 flex items-center gap-4 border border-stone/30 bg-charcoal/40 p-4 transition-colors hover:border-accent/40"
                 >
                   <div className="relative h-16 w-16 shrink-0 overflow-hidden bg-ink">

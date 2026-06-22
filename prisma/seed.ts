@@ -9,6 +9,7 @@ import {
   DEFAULT_FAQ,
   DEFAULT_HERO,
   DEFAULT_PAGE_COPY,
+  DEFAULT_PORTFOLIO_PAGE,
   DEFAULT_SERVICES,
   DEFAULT_SERVICES_INTRO,
   DEFAULT_SESSIONS,
@@ -32,6 +33,7 @@ async function seedContent() {
     [CONTENT_KEYS.bookingOptions, DEFAULT_BOOKING_OPTIONS],
     [CONTENT_KEYS.bookingTerms, DEFAULT_BOOKING_TERMS],
     [CONTENT_KEYS.pageCopy, DEFAULT_PAGE_COPY],
+    [CONTENT_KEYS.portfolioPage, DEFAULT_PORTFOLIO_PAGE],
   ];
 
   for (const [key, value] of entries) {

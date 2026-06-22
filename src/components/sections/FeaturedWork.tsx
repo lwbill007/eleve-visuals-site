@@ -66,7 +66,7 @@ export function FeaturedWork({ items }: FeaturedWorkProps) {
             return (
               <Link
                 key={item.id}
-                href={`/portfolio?project=${item.id}`}
+                href={`/portfolio/${item.slug}`}
                 className={cn(
                   "group relative overflow-hidden bg-charcoal",
                   spans,

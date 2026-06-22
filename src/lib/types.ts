@@ -1,20 +1,15 @@
-export type PortfolioCategory =
-  | "Portraits"
-  | "Brands"
-  | "Athletes"
-  | "Events"
-  | "Video"
-  | "BTS"
-  | "Creative Direction";
+export type PortfolioCategory = string;
 
-export const PORTFOLIO_CATEGORIES: PortfolioCategory[] = [
+export const PORTFOLIO_CATEGORIES: string[] = [
   "Portraits",
   "Brands",
   "Athletes",
   "Events",
+  "Creative Direction",
   "Video",
   "BTS",
-  "Creative Direction",
+  "Editorial",
+  "Lifestyle",
 ];
 
 export type AspectRatio = "portrait" | "landscape" | "square" | "wide";
@@ -260,21 +255,64 @@ export const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   archived: "Archived",
 };
 
+export interface PortfolioCredit {
+  role: string;
+  name: string;
+}
+
 export interface PortfolioItemDTO {
   id: string;
+  slug: string;
   title: string;
+  subtitle: string;
   category: PortfolioCategory;
   client?: string | null;
   year: string;
   description: string;
+  creativeProcess: string;
   image: string | null;
   imageAlt: string;
+  heroImage: string | null;
+  heroImageAlt: string;
   aspectRatio: AspectRatio;
   featured: boolean;
+  portfolioFeatured: boolean;
   archived: boolean;
   sortOrder: number;
   gallery: string[];
+  btsGallery: string[];
+  videos: string[];
+  deliverables: string[];
+  credits: PortfolioCredit[];
+  relatedServices: string[];
+  seoTitle: string;
+  seoDescription: string;
   published: boolean;
+}
+
+export interface PortfolioStat {
+  label: string;
+  value: string;
+}
+
+export interface PortfolioPageContent {
+  hero: {
+    eyebrow: string;
+    headline: string;
+    subheadline: string;
+    description: string;
+    image: string | null;
+    imageAlt: string;
+    videoUrl: string | null;
+  };
+  stats: PortfolioStat[];
+  categories: string[];
+  emptyState: {
+    headline: string;
+    subheadline: string;
+    ctaLabel: string;
+    ctaHref: string;
+  };
 }
 
 export interface ServiceDTO {

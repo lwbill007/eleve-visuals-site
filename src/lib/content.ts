@@ -12,12 +12,14 @@ import {
   DEFAULT_HOMEPAGE,
   DEFAULT_NAVIGATION,
   DEFAULT_PAGE_COPY,
+  DEFAULT_PORTFOLIO_PAGE,
   DEFAULT_SERVICES_INTRO,
   DEFAULT_SERVICES_PAGE,
   DEFAULT_SESSIONS,
   DEFAULT_SESSIONS_APPLICATION,
   DEFAULT_SITE_CONFIG,
 } from "./defaults";
+import { mapPortfolioCredits, normalizePortfolioGallery } from "./portfolio-utils";
 import type {
   AboutContent,
   AspectRatio,
@@ -33,6 +35,7 @@ import type {
   PageCopy,
   PortfolioCategory,
   PortfolioItemDTO,
+  PortfolioPageContent,
   ServiceDTO,
   ServicesPageIntro,
   ServicesPageContent,
@@ -62,34 +65,60 @@ async function setJsonContent<T>(key: string, value: T) {
 
 function mapPortfolioItem(item: {
   id: string;
+  slug: string;
   title: string;
+  subtitle: string;
   category: string;
   client: string | null;
   year: string;
   description: string;
+  creativeProcess: string;
   image: string | null;
   imageAlt: string;
+  heroImage: string | null;
+  heroImageAlt: string;
   aspectRatio: string;
   featured: boolean;
+  portfolioFeatured: boolean;
   archived?: boolean;
   sortOrder: number;
   gallery: string;
+  btsGallery: string;
+  videos: string;
+  deliverables: string;
+  credits: string;
+  relatedServices: string;
+  seoTitle: string;
+  seoDescription: string;
   published: boolean;
 }): PortfolioItemDTO {
   return {
     id: item.id,
+    slug: item.slug,
     title: item.title,
+    subtitle: item.subtitle,
     category: item.category as PortfolioCategory,
     client: item.client,
     year: item.year,
     description: item.description,
+    creativeProcess: item.creativeProcess,
     image: item.image,
     imageAlt: item.imageAlt,
+    heroImage: item.heroImage,
+    heroImageAlt: item.heroImageAlt,
     aspectRatio: item.aspectRatio as AspectRatio,
     featured: item.featured,
+    portfolioFeatured: item.portfolioFeatured,
     archived: item.archived ?? false,
     sortOrder: item.sortOrder,
     gallery: parseJsonArray(item.gallery),
+    btsGallery: normalizePortfolioGallery(parseJsonArray(item.btsGallery)),
+    videos: parseJsonArray(item.videos),
+    deliverables: parseJsonArray(item.deliverables),
+    credits: mapPortfolioCredits(item.credits),
+    relatedServices: parseJsonArray(item.relatedServices),
+    seoTitle: item.seoTitle,
+    seoDescription: item.seoDescription,
     published: item.published,
   };
 }
@@ -259,6 +288,18 @@ export async function getPageCopy(): Promise<PageCopy> {
   return getJsonContent(CONTENT_KEYS.pageCopy, DEFAULT_PAGE_COPY);
 }
 
+export async function getPortfolioPageContent(): Promise<PortfolioPageContent> {
+  const stored = await getJsonContent(CONTENT_KEYS.portfolioPage, DEFAULT_PORTFOLIO_PAGE);
+  return {
+    ...DEFAULT_PORTFOLIO_PAGE,
+    ...stored,
+    hero: { ...DEFAULT_PORTFOLIO_PAGE.hero, ...stored.hero },
+    emptyState: { ...DEFAULT_PORTFOLIO_PAGE.emptyState, ...stored.emptyState },
+    stats: stored.stats?.length ? stored.stats : DEFAULT_PORTFOLIO_PAGE.stats,
+    categories: stored.categories?.length ? stored.categories : DEFAULT_PORTFOLIO_PAGE.categories,
+  };
+}
+
 export async function getPortfolioItems(publishedOnly = true): Promise<PortfolioItemDTO[]> {
   const items = await prisma.portfolioItem.findMany({
     where: publishedOnly ? { published: true, archived: false } : undefined,
@@ -332,6 +373,7 @@ export const contentSetters = {
   pageCopy: (v: PageCopy) => setJsonContent(CONTENT_KEYS.pageCopy, v),
   homepage: (v: HomepageContent) => setJsonContent(CONTENT_KEYS.homepage, v),
   navigation: (v: NavigationConfig) => setJsonContent(CONTENT_KEYS.navigation, v),
+  portfolioPage: (v: PortfolioPageContent) => setJsonContent(CONTENT_KEYS.portfolioPage, v),
 };
 
 export { mapPortfolioItem, mapService, mapTestimonial };
