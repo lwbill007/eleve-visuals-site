@@ -35,7 +35,7 @@ export async function GET() {
     prisma.submission.count({ where: { type: "booking", status: "scheduled" } }),
     prisma.submission.count({ where: { type: "booking", status: "completed" } }),
     prisma.submission.count({ where: { type: "session" } }),
-    prisma.submission.count({ where: { type: "session", status: "new" } }),
+    prisma.submission.count({ where: { type: "session", status: "pending_review" } }),
     prisma.submission.count({ where: { type: "contact" } }),
     prisma.submission.count({ where: { read: false } }),
     prisma.portfolioItem.count(),

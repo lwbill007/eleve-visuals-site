@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/Button";
 import { SessionStatusBadge } from "@/components/sessions/SessionStatusBadge";
 import { SessionCountdown } from "@/components/sessions/SessionCountdown";
-import { SessionsApplicationForm } from "@/components/forms/SessionsApplicationForm";
 
 export function SessionDetailView({
   volume,
@@ -108,7 +107,7 @@ export function SessionDetailView({
               )}
               <div className="mt-8">
                 {canApply ? (
-                  <Button variant="primary" href="#apply" className="w-full">
+                  <Button href={`/sessions/${volume.slug}/apply`} className="w-full">
                     Apply for This Session
                   </Button>
                 ) : (
@@ -209,15 +208,20 @@ export function SessionDetailView({
 
       {canApply && (
         <section id="apply" className="section-padding bg-ink-soft">
-          <div className="container-narrow">
-            <h2 className="headline-md mb-2">Apply for Vol. {volume.volumeNumber}</h2>
-            <p className="body-lg mb-10 text-fog">
-              Applications for <span className="text-cream">{volume.title}</span> are now open.
+          <div className="container-narrow text-center">
+            <h2 className="headline-md mb-4">Apply for Vol. {volume.volumeNumber}</h2>
+            <p className="body-lg mx-auto mb-8 max-w-xl text-fog">
+              Applications for <span className="text-cream">{volume.title}</span> are open.
+              Complete the curated application to be considered for this production.
             </p>
-            <SessionsApplicationForm
-              applicationContent={applicationContent}
-              sessionVolume={volume}
-            />
+            {volume.applicationDeadline && (
+              <p className="mb-8 text-sm text-muted">
+                Deadline: <SessionCountdown deadline={volume.applicationDeadline} />
+              </p>
+            )}
+            <Button href={`/sessions/${volume.slug}/apply`} size="lg">
+              Begin Application
+            </Button>
           </div>
         </section>
       )}

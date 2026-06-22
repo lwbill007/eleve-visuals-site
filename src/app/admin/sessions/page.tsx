@@ -21,6 +21,7 @@ import {
   type SessionsApplicationContent,
 } from "@/lib/types";
 import { DEFAULT_SESSIONS_APPLICATION } from "@/lib/defaults";
+import { DEFAULT_SESSION_APPLICATION_SETTINGS } from "@/lib/session-application";
 import { saveAdminContent } from "@/lib/admin-save";
 import { getSessionStatusLabel, slugifySessionTitle, resolveSessionPosterImage } from "@/lib/session-volume";
 
@@ -68,6 +69,7 @@ function emptyVolume(): Partial<SessionVolumeDTO> {
     seoTitle: "",
     seoDescription: "",
     sortOrder: 0,
+    applicationSettings: { ...DEFAULT_SESSION_APPLICATION_SETTINGS },
   };
 }
 
@@ -500,6 +502,90 @@ export default function AdminSessionsPage() {
                   onChange={(e) => update("seoDescription", e.target.value)}
                 />
               </AdminField>
+            </div>
+            <div className="md:col-span-2 border-t border-stone/30 pt-6">
+              <h3 className="mb-4 font-display text-lg">Application Controls</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <AdminField label="Max capacity (accepted)">
+                  <AdminInput
+                    type="number"
+                    value={editing.applicationSettings?.maxCapacity ?? ""}
+                    onChange={(e) =>
+                      update("applicationSettings", {
+                        ...(editing.applicationSettings || DEFAULT_SESSION_APPLICATION_SETTINGS),
+                        maxCapacity: e.target.value ? parseInt(e.target.value) : null,
+                      })
+                    }
+                  />
+                </AdminField>
+                <AdminField label="Custom confirmation message">
+                  <AdminTextarea
+                    value={editing.applicationSettings?.customConfirmationMessage || ""}
+                    onChange={(e) =>
+                      update("applicationSettings", {
+                        ...(editing.applicationSettings || DEFAULT_SESSION_APPLICATION_SETTINGS),
+                        customConfirmationMessage: e.target.value,
+                      })
+                    }
+                  />
+                </AdminField>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-4">
+                {(
+                  [
+                    ["waitlistEnabled", "Waitlist enabled"],
+                    ["autoCloseOnDeadline", "Auto-close on deadline"],
+                    ["autoCloseOnCapacity", "Auto-close at capacity"],
+                    ["requirePortfolioUpload", "Require portfolio uploads"],
+                    ["notifyAdminOnSubmission", "Notify admin on submission"],
+                    ["notifyApplicantOnSubmission", "Email applicant confirmation"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 text-sm text-fog">
+                    <input
+                      type="checkbox"
+                      checked={!!editing.applicationSettings?.[key]}
+                      onChange={(e) =>
+                        update("applicationSettings", {
+                          ...(editing.applicationSettings || DEFAULT_SESSION_APPLICATION_SETTINGS),
+                          [key]: e.target.checked,
+                        })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <div className="mt-4">
+                <AdminField label="Custom questions (label|required|maxChars per line)">
+                <AdminTextarea
+                  value={(editing.applicationSettings?.questions || [])
+                    .map((q) => `${q.label}|${q.required ? "required" : "optional"}|${q.maxLength}`)
+                    .join("\n")}
+                  onChange={(e) => {
+                    const questions = e.target.value
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map((line, i) => {
+                        const [label, req, max] = line.split("|");
+                        return {
+                          id: `custom-${i}`,
+                          label: label?.trim() || "",
+                          required: req?.trim().toLowerCase() === "required",
+                          maxLength: parseInt(max || "3000") || 3000,
+                        };
+                      })
+                      .filter((q) => q.label);
+                    update("applicationSettings", {
+                      ...(editing.applicationSettings || DEFAULT_SESSION_APPLICATION_SETTINGS),
+                      questions: questions.length > 0 ? questions : DEFAULT_SESSION_APPLICATION_SETTINGS.questions,
+                    });
+                  }}
+                  rows={6}
+                />
+              </AdminField>
+              </div>
             </div>
             <div className="flex flex-wrap gap-6 md:col-span-2">
               <label className="flex items-center gap-2 text-sm text-fog">

@@ -1,4 +1,5 @@
 import { parseJsonArray } from "./utils";
+import { parseApplicationSettings } from "./session-application";
 import type { SessionTimelineStep, SessionVolumeDTO, SessionVolumeStatus } from "./types";
 
 export const SESSION_STATUS_LABELS: Record<SessionVolumeStatus, string> = {
@@ -104,6 +105,7 @@ export function mapSessionVolume(item: {
   seoTitle: string;
   seoDescription: string;
   sortOrder: number;
+  applicationSettings: string;
 }): SessionVolumeDTO {
   const status = isSessionVolumeStatus(item.status) ? item.status : "draft";
 
@@ -143,6 +145,7 @@ export function mapSessionVolume(item: {
     seoTitle: item.seoTitle,
     seoDescription: item.seoDescription,
     sortOrder: item.sortOrder,
+    applicationSettings: parseApplicationSettings(item.applicationSettings),
   };
 }
 

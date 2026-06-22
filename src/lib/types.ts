@@ -327,32 +327,52 @@ export const INQUIRY_STATUS_COLORS: Record<InquiryStatus, string> = {
 };
 
 export const APPLICATION_STATUSES = [
-  "new",
-  "contacted",
+  "pending_review",
+  "shortlisted",
+  "interview",
   "accepted",
-  "rejected",
   "waitlisted",
-  "confirmed",
+  "declined",
+  "withdrawn",
 ] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
-  new: "New",
-  contacted: "Contacted",
+  pending_review: "Pending Review",
+  shortlisted: "Shortlisted",
+  interview: "Interview",
   accepted: "Accepted",
-  rejected: "Rejected",
   waitlisted: "Waitlisted",
-  confirmed: "Confirmed",
+  declined: "Declined",
+  withdrawn: "Withdrawn",
 };
 
 export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, string> = {
-  new: "text-amber-400 border-amber-400/40",
-  contacted: "text-sky-400 border-sky-400/40",
+  pending_review: "text-amber-400 border-amber-400/40",
+  shortlisted: "text-sky-400 border-sky-400/40",
+  interview: "text-cyan-400 border-cyan-400/40",
   accepted: "text-emerald-400 border-emerald-400/40",
-  rejected: "text-red-400 border-red-400/40",
   waitlisted: "text-violet-400 border-violet-400/40",
-  confirmed: "text-accent border-accent/40",
+  declined: "text-red-400 border-red-400/40",
+  withdrawn: "text-muted border-stone/30",
 };
+
+/** Map legacy statuses stored before the workflow upgrade. */
+export const LEGACY_APPLICATION_STATUS_MAP: Record<string, ApplicationStatus> = {
+  new: "pending_review",
+  contacted: "shortlisted",
+  accepted: "accepted",
+  rejected: "declined",
+  waitlisted: "waitlisted",
+  confirmed: "accepted",
+};
+
+export function normalizeApplicationStatus(status: string): ApplicationStatus {
+  if ((APPLICATION_STATUSES as readonly string[]).includes(status)) {
+    return status as ApplicationStatus;
+  }
+  return LEGACY_APPLICATION_STATUS_MAP[status] ?? "pending_review";
+}
 
 export interface PortfolioCredit {
   role: string;
@@ -486,15 +506,20 @@ export interface BookingTermsContent {
   sections: { title: string; body: string }[];
 }
 
-export const SESSIONS_APPLICANT_ROLES = [
-  "Model",
+export const SESSION_APPLICATION_ROLES = [
   "Photographer",
+  "Model",
   "Videographer",
+  "Creative Director",
   "Stylist",
   "Makeup Artist",
-  "Creative Assistant",
+  "Hair Artist",
+  "Designer",
+  "Content Creator",
   "Other",
 ] as const;
+
+export const SESSIONS_APPLICANT_ROLES = SESSION_APPLICATION_ROLES;
 
 export const EXPERIENCE_LEVELS = [
   "Emerging (0–2 years)",
@@ -564,4 +589,65 @@ export interface SessionVolumeDTO {
   seoTitle: string;
   seoDescription: string;
   sortOrder: number;
+  applicationSettings: SessionApplicationSettings;
+}
+
+export interface SessionApplicationQuestion {
+  id: string;
+  label: string;
+  placeholder?: string;
+  maxLength: number;
+  required: boolean;
+}
+
+export interface SessionApplicationEmailTemplates {
+  submissionConfirmation: string;
+  acceptance: string;
+  waitlist: string;
+  rejection: string;
+  followUp: string;
+}
+
+export interface SessionApplicationSettings {
+  maxCapacity: number | null;
+  waitlistEnabled: boolean;
+  autoCloseOnDeadline: boolean;
+  autoCloseOnCapacity: boolean;
+  requirePortfolioUpload: boolean;
+  requireRoleSelection: boolean;
+  customConfirmationMessage: string;
+  questions: SessionApplicationQuestion[];
+  emailTemplates: SessionApplicationEmailTemplates;
+  notifyAdminOnSubmission: boolean;
+  notifyApplicantOnSubmission: boolean;
+}
+
+export interface SessionApplicationData {
+  fullName: string;
+  email: string;
+  phone: string;
+  cityState: string;
+  instagram: string;
+  portfolioWebsite?: string;
+  roles: string[];
+  experience?: string;
+  portfolioImages: string[];
+  portfolioLink?: string;
+  demoReel?: string;
+  youtube?: string;
+  vimeo?: string;
+  behance?: string;
+  driveLink?: string;
+  questionAnswers: { id: string; question: string; answer: string }[];
+  availabilityConfirm: boolean;
+  transportationConfirm: boolean;
+  creativeDirectionConfirm: boolean;
+  emergencyContact?: string;
+  agreementCurated: boolean;
+  agreementNoGuarantee: boolean;
+  agreementGuidelines: boolean;
+  agreementAccurate: boolean;
+  sessionVolumeId?: string;
+  sessionVolumeSlug?: string;
+  sessionVolumeTitle?: string;
 }

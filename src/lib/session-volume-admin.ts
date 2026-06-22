@@ -1,6 +1,7 @@
 import type { SessionTimelineStep, SessionVolumeStatus } from "@/lib/types";
 import { SESSION_VOLUME_STATUSES } from "@/lib/types";
 import { normalizePortfolioGallery } from "@/lib/portfolio-utils";
+import { DEFAULT_SESSION_APPLICATION_SETTINGS } from "@/lib/session-application";
 
 export function parseSessionVolumeBody(body: Record<string, unknown>) {
   const status = SESSION_VOLUME_STATUSES.includes(body.status as SessionVolumeStatus)
@@ -63,5 +64,8 @@ export function parseSessionVolumeBody(body: Record<string, unknown>) {
     seoTitle: String(body.seoTitle || ""),
     seoDescription: String(body.seoDescription || ""),
     sortOrder: Number(body.sortOrder) || 0,
+    applicationSettings: JSON.stringify(
+      body.applicationSettings ?? DEFAULT_SESSION_APPLICATION_SETTINGS
+    ),
   };
 }

@@ -77,7 +77,7 @@ export function FeaturedSession({ volume }: { volume: SessionVolumeDTO }) {
                 View Details
               </Button>
               {canApply && (
-                <Button variant="ghost" href={`/sessions/${volume.slug}#apply`}>
+                <Button variant="ghost" href={`/sessions/${volume.slug}/apply`}>
                   Apply Now
                 </Button>
               )}

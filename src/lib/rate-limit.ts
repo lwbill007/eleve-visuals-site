@@ -6,6 +6,7 @@ const LIMITS: Record<string, number> = {
   "submit:booking": 5,
   "submit:contact": 5,
   "submit:session": 5,
+  "submit:session-upload": 30,
   "auth:login": 10,
   "analytics:pageview": 120,
 };

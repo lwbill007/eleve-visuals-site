@@ -83,17 +83,21 @@ model SiteContent {
 }
 
 model Submission {
-  id        String   @id @default(cuid())
-  type      String
-  data      String
-  status    String   @default("new")
-  notes     String   @default("")
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  type             String
+  data             String
+  status           String   @default("new")
+  notes            String   @default("")
+  read             Boolean  @default(false)
+  starred          Boolean  @default(false)
+  sessionVolumeId  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([type, status])
   @@index([type, createdAt])
+  @@index([sessionVolumeId, type])
+  @@index([starred, type])
 }
 
 model MediaAsset {
@@ -165,6 +169,7 @@ model SessionVolume {
   published           Boolean   @default(false)
   showApplyButton     Boolean   @default(true)
   archived            Boolean   @default(false)
+  applicationSettings String    @default("{}")
   seoTitle            String    @default("")
   seoDescription      String    @default("")
   sortOrder           Int       @default(0)

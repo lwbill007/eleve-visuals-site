@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import AdminSubmissionsClient from "../submissions/SubmissionsClient";
+import ApplicationsClient from "./ApplicationsClient";
 import { AdminPageSkeleton } from "@/components/admin/AdminPageSkeleton";
 
 export default function AdminApplicationsPage() {
@@ -11,7 +11,7 @@ export default function AdminApplicationsPage() {
         </div>
       }
     >
-      <AdminSubmissionsClient forcedType="session" />
+      <ApplicationsClient />
     </Suspense>
   );
 }

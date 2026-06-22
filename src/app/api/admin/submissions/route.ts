@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import {
   APPLICATION_STATUSES,
   INQUIRY_STATUSES,
+  normalizeApplicationStatus,
   type ApplicationStatus,
   type InquiryStatus,
 } from "@/lib/types";
@@ -41,7 +42,8 @@ function submissionMatchesSearch(data: Record<string, unknown>, q: string): bool
     data.projectVision,
     data.projectDetails,
     data.serviceType,
-    ...(Array.isArray(data.serviceTypes) ? data.serviceTypes : []),
+    ...(Array.isArray(data.roles) ? data.roles : []),
+    data.role,
   ]
     .filter((v): v is string => typeof v === "string")
     .join(" ")
@@ -62,9 +64,12 @@ export async function GET(request: Request) {
   const search = searchParams.get("q")?.trim().toLowerCase();
   const volumeId = searchParams.get("volumeId");
 
+  const roleFilter = searchParams.get("role");
+
   let submissions = await prisma.submission.findMany({
     where: {
       ...(type ? { type } : {}),
+      ...(volumeId ? { sessionVolumeId: volumeId } : {}),
       ...(status && (isInquiryStatus(status) || isApplicationStatus(status))
         ? { status }
         : {}),
@@ -73,18 +78,17 @@ export async function GET(request: Request) {
     take: 500,
   });
 
-  if (search || volumeId) {
+  if (search || roleFilter) {
     submissions = submissions.filter((s) => {
       const data = parseSubmissionData(s.data);
-      if (volumeId) {
-        const sessionVolumeId =
-          typeof data === "object" &&
-          data !== null &&
-          "sessionVolumeId" in data &&
-          typeof (data as Record<string, unknown>).sessionVolumeId === "string"
-            ? (data as Record<string, unknown>).sessionVolumeId
-            : null;
-        if (sessionVolumeId !== volumeId) return false;
+      if (roleFilter) {
+        const record = data as Record<string, unknown>;
+        const roles = Array.isArray(record.roles)
+          ? (record.roles as string[])
+          : typeof record.role === "string"
+            ? [record.role]
+            : [];
+        if (!roles.some((r) => r.toLowerCase() === roleFilter.toLowerCase())) return false;
       }
       if (search && !submissionMatchesSearch(data, search)) return false;
       return true;
@@ -96,9 +100,11 @@ export async function GET(request: Request) {
       id: s.id,
       type: s.type,
       data: parseSubmissionData(s.data),
-      status: s.status,
+      status: s.type === "session" ? normalizeApplicationStatus(s.status) : s.status,
       notes: s.notes,
       read: s.read,
+      starred: s.starred,
+      sessionVolumeId: s.sessionVolumeId,
       createdAt: s.createdAt.toISOString(),
       updatedAt: s.updatedAt.toISOString(),
     }))
@@ -114,7 +120,7 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, read, status, notes } = body;
+    const { id, read, status, notes, starred } = body;
     if (!id || typeof id !== "string") {
       return NextResponse.json({ error: "Invalid submission id" }, { status: 400 });
     }
@@ -124,9 +130,10 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const data: { read?: boolean; status?: string; notes?: string } = {};
+    const data: { read?: boolean; status?: string; notes?: string; starred?: boolean } = {};
     if (typeof read === "boolean") data.read = read;
     if (typeof notes === "string") data.notes = notes.slice(0, 10000);
+    if (typeof starred === "boolean") data.starred = starred;
 
     if (typeof status === "string") {
       if (existing.type === "session" && isApplicationStatus(status)) {
