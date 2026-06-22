@@ -395,6 +395,12 @@ export default function AdminPortfolioPage() {
                     value={editing.image || null}
                     onChange={(url) => setEditing({ ...editing, image: url ?? null })}
                   />
+                  {!editing.image && (editing.gallery?.length ?? 0) > 0 && (
+                    <p className="mt-2 text-xs text-muted">
+                      No dedicated cover set — the public grid may use the first gallery image. Remove
+                      photos from the Project Gallery section below, or set a cover here.
+                    </p>
+                  )}
                 </div>
                 <div className="md:col-span-2">
                   <ImageUpload
@@ -406,6 +412,7 @@ export default function AdminPortfolioPage() {
                 <div className="md:col-span-2">
                   <GalleryUpload
                     label="Project Gallery"
+                    hint="Each image has a Remove photo button below it. Click Save Project after removing."
                     images={editing.gallery || []}
                     coverImage={editing.image || null}
                     onChange={(gallery) => setEditing({ ...editing, gallery })}
@@ -415,6 +422,7 @@ export default function AdminPortfolioPage() {
                 <div className="md:col-span-2">
                   <GalleryUpload
                     label="Behind the Scenes"
+                    hint="Each image has a Remove photo button below it. Click Save Project after removing."
                     images={editing.btsGallery || []}
                     onChange={(btsGallery) => setEditing({ ...editing, btsGallery })}
                   />

@@ -144,7 +144,7 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
   return (
     <div className={className}>
       {label && <p className="mb-2 text-sm text-cream-dim">{label}</p>}
-      <div className="mb-2 flex gap-2">
+      <div className="mb-2 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -160,15 +160,6 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
         >
           Choose from library
         </button>
-        {value && (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="border border-stone/50 px-3 py-1.5 text-xs text-red-300 hover:border-red-300/50"
-          >
-            Remove
-          </button>
-        )}
       </div>
       <div
         className={cn(
@@ -177,36 +168,36 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
         )}
       >
         {value ? (
-          <>
-            <AdminPreviewImage src={value} alt="" fill className="object-cover" sizes="400px" />
-            <div className="absolute inset-0 flex items-end justify-end gap-2 bg-ink/40 p-3 opacity-0 transition-opacity hover:opacity-100">
-              <button
-                type="button"
-                onClick={() => setLibraryOpen(true)}
-                className="bg-cream px-3 py-1.5 text-xs text-ink"
-              >
-                Library
-              </button>
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="border border-stone px-3 py-1.5 text-xs text-cream"
-              >
-                Replace
-              </button>
-              <button
-                type="button"
-                onClick={() => onChange(null)}
-                className="border border-stone px-3 py-1.5 text-xs text-cream"
-              >
-                Remove
-              </button>
-            </div>
-          </>
+          <AdminPreviewImage src={value} alt="" fill className="object-cover" sizes="400px" />
         ) : (
           <p className="text-sm text-muted">No image selected</p>
         )}
       </div>
+      {value ? (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-stone/30 pt-3">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="border border-stone/50 px-3 py-2 text-xs text-cream hover:border-fog"
+          >
+            Replace image
+          </button>
+          <button
+            type="button"
+            onClick={() => setLibraryOpen(true)}
+            className="border border-stone/50 px-3 py-2 text-xs text-accent"
+          >
+            Choose from library
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="border border-red-400/60 px-3 py-2 text-xs text-red-400 hover:bg-red-400/10"
+          >
+            Remove image
+          </button>
+        </div>
+      ) : null}
       <input
         ref={inputRef}
         type="file"
@@ -297,39 +288,40 @@ export function GalleryUpload({
       {hint && <p className="mb-3 text-xs text-muted">{hint}</p>}
 
       {images.length > 0 && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           {images.map((src, index) => (
             <div
               key={`${src}-${index}`}
               className={cn(
-                "group relative aspect-square overflow-hidden bg-charcoal",
-                coverImage === src && "ring-2 ring-accent"
+                "overflow-hidden border bg-charcoal",
+                coverImage === src ? "border-accent ring-1 ring-accent" : "border-stone/40"
               )}
             >
-              <AdminPreviewImage src={src} alt="" fill className="object-cover" sizes="160px" />
-              <button
-                type="button"
-                onClick={() => removeAt(index)}
-                className="absolute top-1.5 right-1.5 z-10 border border-stone/60 bg-ink/90 px-2 py-0.5 text-[10px] text-red-300 hover:border-red-300/60"
-                aria-label="Remove image"
-              >
-                Remove
-              </button>
-              <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-ink/60 p-2 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="relative aspect-square">
+                <AdminPreviewImage src={src} alt="" fill className="object-cover" sizes="200px" />
+                {coverImage === src && (
+                  <span className="absolute top-2 left-2 bg-accent px-2 py-0.5 text-[10px] tracking-wide text-ink uppercase">
+                    Cover
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-2 border-t border-stone/30 p-2">
                 {onCoverChange && coverImage !== src && (
                   <button
                     type="button"
                     onClick={() => onCoverChange(src)}
-                    className="w-full bg-cream px-2 py-1 text-[10px] text-ink"
+                    className="w-full border border-stone/50 px-2 py-2 text-xs text-cream hover:border-fog"
                   >
-                    Set cover
+                    Set as cover image
                   </button>
                 )}
-                {coverImage === src && (
-                  <span className="w-full bg-accent/90 px-2 py-1 text-center text-[10px] text-ink">
-                    Cover
-                  </span>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removeAt(index)}
+                  className="w-full border border-red-400/60 px-2 py-2 text-xs text-red-400 hover:bg-red-400/10"
+                >
+                  Remove photo
+                </button>
               </div>
             </div>
           ))}
