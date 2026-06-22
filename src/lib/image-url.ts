@@ -13,7 +13,13 @@ export function isVideoUrl(url: string): boolean {
 }
 
 export function inferMimeType(file: File): string {
-  if (file.type) return file.type;
+  const raw = file.type?.trim().toLowerCase();
+  if (raw) {
+    if (raw === "image/jpg" || raw === "image/pjpeg") return "image/jpeg";
+    if (raw === "image/x-png") return "image/png";
+    return raw;
+  }
+
   const ext = file.name.split(".").pop()?.toLowerCase();
   const map: Record<string, string> = {
     jpg: "image/jpeg",
@@ -23,8 +29,23 @@ export function inferMimeType(file: File): string {
     gif: "image/gif",
     mp4: "video/mp4",
     webm: "video/webm",
+    heic: "image/heic",
+    heif: "image/heif",
   };
   return map[ext || ""] || "application/octet-stream";
+}
+
+export function buildUploadPathname(file: File, folder = "uploads"): string {
+  const mimeType = inferMimeType(file);
+  const extFromMime = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "bin";
+  const safeBase = file.name
+    .replace(/\.[^.]+$/, "")
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const filename = safeBase ? `${safeBase}-${suffix}.${extFromMime}` : `${suffix}.${extFromMime}`;
+  return `${folder}/${filename}`;
 }
 
 /** Parse URL without leaking browser-native validation messages. */

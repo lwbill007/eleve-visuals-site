@@ -3,30 +3,19 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { inferMimeType } from "@/lib/image-url";
 import {
+  blobFolderForMime,
+  isAllowedUploadMime,
+  localSubdirForMime,
+  maxBytesForMime,
+  VERCEL_SERVER_MAX_BYTES,
+} from "@/lib/upload-constants";
+import {
   putPublicBlob,
   sanitizeUploadFilename,
   saveLocalUpload,
 } from "@/lib/upload-server";
 
 export const runtime = "nodejs";
-
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const VIDEO_TYPES = ["video/mp4", "video/webm"];
-const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES];
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
-
-function maxSizeForType(mimeType: string): number {
-  return VIDEO_TYPES.includes(mimeType) ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
-}
-
-function blobFolderForType(mimeType: string): string {
-  return VIDEO_TYPES.includes(mimeType) ? "uploads/videos" : "uploads";
-}
-
-function localSubdirForType(mimeType: string): string {
-  return VIDEO_TYPES.includes(mimeType) ? "videos" : "";
-}
 
 export async function POST(request: Request) {
   try {
@@ -51,18 +40,27 @@ export async function POST(request: Request) {
     size: file.size,
   });
 
-  if (!ALLOWED_TYPES.includes(mimeType)) {
+  if (!isAllowedUploadMime(mimeType)) {
+    if (mimeType === "image/heic" || mimeType === "image/heif") {
+      return NextResponse.json(
+        {
+          error:
+            "HEIC photos are not supported. Export as JPEG or PNG, or on iPhone use Settings → Camera → Most Compatible.",
+        },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM" },
       { status: 400 }
     );
   }
 
-  const maxSize = maxSizeForType(mimeType);
+  const maxSize = maxBytesForMime(mimeType);
   if (file.size > maxSize) {
     return NextResponse.json(
       {
-        error: VIDEO_TYPES.includes(mimeType)
+        error: mimeType.startsWith("video/")
           ? "Video too large (max 50MB)"
           : "File too large (max 10MB)",
       },
@@ -70,9 +68,19 @@ export async function POST(request: Request) {
     );
   }
 
+  if (process.env.VERCEL && file.size > VERCEL_SERVER_MAX_BYTES) {
+    return NextResponse.json(
+      {
+        error:
+          "File exceeds Vercel's 4.5MB server upload limit. The admin UI should upload directly to Blob — refresh and try again.",
+      },
+      { status: 413 }
+    );
+  }
+
   const filename = sanitizeUploadFilename(file.name, mimeType);
   const buffer = Buffer.from(await file.arrayBuffer());
-  const blobPath = `${blobFolderForType(mimeType)}/${filename}`;
+  const blobPath = `${blobFolderForMime(mimeType)}/${filename}`;
 
   try {
     const blobUrl = await putPublicBlob(blobPath, buffer, mimeType);
@@ -96,13 +104,13 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Uploads on Vercel require a Blob store. In Vercel → Storage, create a Public Blob store, connect it to this project, then redeploy.",
+            "Blob storage is not configured. In Vercel → Storage, create a Public Blob store, connect it to this project, then redeploy.",
         },
         { status: 500 }
       );
     }
 
-    const localUrl = await saveLocalUpload(localSubdirForType(mimeType), filename, buffer);
+    const localUrl = await saveLocalUpload(localSubdirForMime(mimeType), filename, buffer);
 
     try {
       await prisma.mediaAsset.upsert({
@@ -129,12 +137,14 @@ export async function POST(request: Request) {
       /access|public|private|BlobAccess/i.test(detail)
         ? " Ensure your Vercel Blob store access mode is Public (Storage → your store → Settings)."
         : "";
+    const tokenHint =
+      /BLOB_READ_WRITE_TOKEN|blob credentials|Invalid.*token/i.test(detail)
+        ? " Connect a Blob store in Vercel → Storage."
+        : "";
 
     return NextResponse.json(
       {
-        error: process.env.VERCEL
-          ? `Upload failed: ${detail}.${accessHint}`
-          : `Upload failed: ${detail}`,
+        error: `Upload failed: ${detail}.${accessHint}${tokenHint}`,
       },
       { status: 500 }
     );

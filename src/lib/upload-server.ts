@@ -42,6 +42,23 @@ function canUseBlobStorage(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL);
 }
 
+function formatBlobError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+
+  const msg = error.message;
+  if (/Cannot use public access on a private store/i.test(msg)) {
+    return "Your Vercel Blob store is Private. Create or connect a Public Blob store for portfolio images.";
+  }
+  if (/No blob credentials found|BLOB_READ_WRITE_TOKEN|Invalid.*token/i.test(msg)) {
+    return "Blob storage is not connected. In Vercel → Storage, create a Public Blob store and link it to this project.";
+  }
+  if (/access denied|BlobAccess/i.test(msg)) {
+    return "Blob access denied. Ensure the store is Public and linked to this project.";
+  }
+
+  return msg;
+}
+
 export async function putPublicBlob(
   blobPath: string,
   buffer: Buffer,
@@ -49,7 +66,6 @@ export async function putPublicBlob(
 ): Promise<string | null> {
   if (!canUseBlobStorage()) return null;
 
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
   const { put } = await import("@vercel/blob");
   const pathname = blobPath.replace(/^\/+/, "");
 
@@ -57,22 +73,25 @@ export async function putPublicBlob(
     pathname,
     contentType,
     size: buffer.length,
-    auth: token ? "token" : "oidc",
+    hasToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
   });
 
-  const blob = await put(pathname, buffer, {
-    access: "public",
-    contentType,
-    ...(token ? { token } : {}),
-  });
+  try {
+    const blob = await put(pathname, buffer, {
+      access: "public",
+      contentType,
+    });
 
-  console.log("[upload-server] blob response", {
-    url: blob.url,
-    pathname: blob.pathname,
-    downloadUrl: blob.downloadUrl,
-  });
+    console.log("[upload-server] blob response", {
+      url: blob.url,
+      pathname: blob.pathname,
+      downloadUrl: blob.downloadUrl,
+    });
 
-  return resolveBlobPutUrl(blob);
+    return resolveBlobPutUrl(blob);
+  } catch (error) {
+    throw new Error(formatBlobError(error));
+  }
 }
 
 export async function saveLocalUpload(
