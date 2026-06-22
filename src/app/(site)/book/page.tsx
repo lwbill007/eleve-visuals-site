@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { PageHero } from "@/components/ui/Section";
 import { BookingForm } from "@/components/forms/BookingForm";
+import { BookingHero } from "@/components/booking/BookingHero";
 import { getBookingOptions, getPageCopy } from "@/lib/content";
 
 export const metadata: Metadata = {
-  title: "Book a Shoot",
+  title: "Book a Project",
   description:
-    "Request a booking with ÉLEVÉ Visuals. Photography, videography, and creative direction in Sacramento and the Bay Area.",
+    "Submit a project inquiry with ÉLEVÉ Visuals. Premium photography, video production, and creative direction in Sacramento and beyond.",
 };
 
 export default async function BookPage() {
@@ -14,24 +14,14 @@ export default async function BookPage() {
 
   return (
     <>
-      <PageHero
-        eyebrow="Booking"
+      <BookingHero
         headline={pageCopy.bookPage.headline}
         subheadline={pageCopy.bookPage.subheadline}
-        compact
+        notes={pageCopy.bookPage.notes}
       />
 
-      <section className="section-padding pt-0">
+      <section className="section-padding">
         <div className="container-narrow">
-          <div className="mb-12 border border-stone/30 p-6 text-sm text-fog">
-            <p className="text-cream-dim mb-2">Before you submit</p>
-            <ul className="space-y-1.5">
-              {pageCopy.bookPage.notes.map((note) => (
-                <li key={note}>— {note}</li>
-              ))}
-            </ul>
-          </div>
-
           <BookingForm bookingOptions={bookingOptions} bookPage={pageCopy.bookPage} />
         </div>
       </section>

@@ -122,7 +122,10 @@ export default function AdminContentPage() {
               setPageCopy(item.value as PageCopy);
               break;
             case "bookingOptions":
-              setBookingOptions(item.value as BookingOptions);
+              setBookingOptions({
+                ...DEFAULT_BOOKING_OPTIONS,
+                ...(item.value as BookingOptions),
+              });
               break;
             case "bookingTerms":
               setBookingTerms(item.value as BookingTermsContent);
@@ -161,9 +164,11 @@ export default function AdminContentPage() {
     } else if (tab === "booking") {
       const cleanedOptions = {
         serviceTypes: bookingOptions.serviceTypes.filter(Boolean),
-        shootTypes: bookingOptions.shootTypes.filter(Boolean),
+        sessionSettings: bookingOptions.sessionSettings.filter(Boolean),
+        durations: bookingOptions.durations.filter(Boolean),
         budgetRanges: bookingOptions.budgetRanges.filter(Boolean),
         deliverables: bookingOptions.deliverables.filter(Boolean),
+        referralSources: bookingOptions.referralSources.filter(Boolean),
       };
       const ok1 = await saveContent("bookingOptions", cleanedOptions);
       const ok2 = await saveContent("pageCopy", pageCopy);
@@ -455,9 +460,16 @@ export default function AdminContentPage() {
               onChange={(serviceTypes) => setBookingOptions({ ...bookingOptions, serviceTypes })}
             />
             <StringListEditor
-              label="Shoot types"
-              items={bookingOptions.shootTypes}
-              onChange={(shootTypes) => setBookingOptions({ ...bookingOptions, shootTypes })}
+              label="Session settings"
+              items={bookingOptions.sessionSettings}
+              onChange={(sessionSettings) =>
+                setBookingOptions({ ...bookingOptions, sessionSettings })
+              }
+            />
+            <StringListEditor
+              label="Durations"
+              items={bookingOptions.durations}
+              onChange={(durations) => setBookingOptions({ ...bookingOptions, durations })}
             />
             <StringListEditor
               label="Budget ranges"
@@ -468,6 +480,13 @@ export default function AdminContentPage() {
               label="Deliverables"
               items={bookingOptions.deliverables}
               onChange={(deliverables) => setBookingOptions({ ...bookingOptions, deliverables })}
+            />
+            <StringListEditor
+              label="Referral sources"
+              items={bookingOptions.referralSources}
+              onChange={(referralSources) =>
+                setBookingOptions({ ...bookingOptions, referralSources })
+              }
             />
           </div>
 

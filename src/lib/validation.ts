@@ -27,7 +27,7 @@ const optionalDateString = z
   .or(z.literal(""))
   .refine(
     (value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value),
-    "Enter a valid alternate date"
+    "Enter a valid date"
   )
   .refine((value) => {
     if (!value) return true;
@@ -35,7 +35,15 @@ const optionalDateString = z
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return !Number.isNaN(date.getTime()) && date >= today;
-  }, "Alternate date must be today or in the future");
+  }, "Date must be today or in the future");
+
+const optionalUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .optional()
+  .or(z.literal(""))
+  .refine((value) => !value || /^https?:\/\/.+/i.test(value), "Enter a valid URL");
 
 function enumFromOptions(values: string[], label: string) {
   if (values.length === 0) {
@@ -56,27 +64,37 @@ export function createBookingSchema(options: BookingOptions) {
       .max(31)
       .trim()
       .refine((v) => !v || /^@?[a-zA-Z0-9._]{1,30}$/.test(v), "Invalid Instagram handle"),
-    serviceType: enumFromOptions(options.serviceTypes, "service type"),
-    shootType: enumFromOptions(options.shootTypes, "shoot type"),
+    website: optionalUrl,
+    serviceTypes: z
+      .array(enumFromOptions(options.serviceTypes, "service"))
+      .min(1, "Select at least one service")
+      .max(20),
     preferredDate: dateString,
-    alternateDate: optionalDateString,
+    flexibleDate: optionalDateString,
     location: z.string().trim().min(1).max(200),
-    budgetRange: enumFromOptions(options.budgetRanges, "budget range"),
-    projectDetails: z.string().trim().min(10).max(5000),
+    sessionSetting: enumFromOptions(options.sessionSettings, "session setting"),
+    duration: enumFromOptions(options.durations, "duration"),
+    projectVision: z.string().trim().min(10).max(5000),
+    pinterestLink: optionalUrl,
+    moodBoardUrl: optionalUrl,
+    inspirationInstagram: z.string().trim().max(120).optional().or(z.literal("")),
+    driveLink: optionalUrl,
     deliverables: z
       .array(enumFromOptions(options.deliverables, "deliverable"))
       .min(1, "Select at least one deliverable")
       .max(20),
-    depositAck: z.literal(true),
-    termsAck: z.literal(true),
+    budgetRange: enumFromOptions(options.budgetRanges, "budget range"),
+    referralSource: enumFromOptions(options.referralSources, "referral source"),
   });
 }
 
 export const bookingSchema = createBookingSchema({
   serviceTypes: [],
-  shootTypes: [],
+  sessionSettings: [],
+  durations: [],
   budgetRanges: [],
   deliverables: [],
+  referralSources: [],
 });
 
 export const contactSchema = z.object({

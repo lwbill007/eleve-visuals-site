@@ -189,7 +189,27 @@ export async function getServicesPageContent(): Promise<ServicesPageContent> {
 }
 
 export async function getBookingOptions(): Promise<BookingOptions> {
-  return getJsonContent(CONTENT_KEYS.bookingOptions, DEFAULT_BOOKING_OPTIONS);
+  const stored = await getJsonContent(CONTENT_KEYS.bookingOptions, DEFAULT_BOOKING_OPTIONS);
+  return {
+    ...DEFAULT_BOOKING_OPTIONS,
+    ...stored,
+    serviceTypes: stored.serviceTypes?.length
+      ? stored.serviceTypes
+      : DEFAULT_BOOKING_OPTIONS.serviceTypes,
+    sessionSettings: stored.sessionSettings?.length
+      ? stored.sessionSettings
+      : DEFAULT_BOOKING_OPTIONS.sessionSettings,
+    durations: stored.durations?.length ? stored.durations : DEFAULT_BOOKING_OPTIONS.durations,
+    budgetRanges: stored.budgetRanges?.length
+      ? stored.budgetRanges
+      : DEFAULT_BOOKING_OPTIONS.budgetRanges,
+    deliverables: stored.deliverables?.length
+      ? stored.deliverables
+      : DEFAULT_BOOKING_OPTIONS.deliverables,
+    referralSources: stored.referralSources?.length
+      ? stored.referralSources
+      : DEFAULT_BOOKING_OPTIONS.referralSources,
+  };
 }
 
 export async function getBookingTerms(): Promise<BookingTermsContent> {

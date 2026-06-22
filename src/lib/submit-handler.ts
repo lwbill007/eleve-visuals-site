@@ -52,10 +52,16 @@ export async function handleFormSubmit<T extends z.ZodType>({
     );
   }
 
+  let inquiryId: string | undefined;
   try {
-    await prisma.submission.create({
-      data: { type: conversionType, data: JSON.stringify(parsed.data) },
+    const submission = await prisma.submission.create({
+      data: {
+        type: conversionType,
+        data: JSON.stringify(parsed.data),
+        status: "new",
+      },
     });
+    inquiryId = submission.id;
   } catch {
     return NextResponse.json({ error: "Submission failed" }, { status: 500 });
   }
@@ -73,5 +79,5 @@ export async function handleFormSubmit<T extends z.ZodType>({
     console.error("Conversion tracking failed:", error);
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, inquiryId });
 }

@@ -33,20 +33,32 @@ test.describe("Public forms", () => {
     await page.locator("#fullName").fill("E2E Booking User");
     await page.locator("#email").fill("e2e-booking@example.com");
     await page.locator("#phone").fill("5551234567");
-    await page.locator("#serviceType").selectOption("Photography");
-    await page.locator("#shootType").selectOption("Portrait Session");
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.getByRole("button", { name: "Portrait Photography", exact: true }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+
     await page.locator("#preferredDate").fill(futureDate());
     await page.locator("#location").fill("Sacramento, CA");
-    await page.locator("#budgetRange").selectOption("Under $1,000");
-    await page.locator("#projectDetails").fill(
-      "Automated booking test with enough characters for validation."
-    );
-    await page.getByLabel("Edited Photos", { exact: true }).check();
-    await page.getByLabel(/deposit/i).check();
-    await page.getByLabel(/terms/i).check();
-    await page.getByRole("button", { name: "Submit Booking Request" }).click();
+    await page.getByRole("button", { name: "Outdoor", exact: true }).click();
+    await page.getByRole("button", { name: "1 Hour", exact: true }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page.getByText("Booking request received.")).toBeVisible({
+    await page.locator("#projectVision").fill(
+      "Automated booking test with enough characters describing the creative vision."
+    );
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.getByLabel("Edited Photography", { exact: true }).check();
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.getByRole("button", { name: "$300–500", exact: true }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.getByRole("button", { name: "Google", exact: true }).click();
+    await page.getByRole("button", { name: "Submit Inquiry" }).click();
+
+    await expect(page.getByText("Inquiry received.")).toBeVisible({
       timeout: 15_000,
     });
   });

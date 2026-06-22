@@ -201,10 +201,22 @@ export interface ServicesPageContent {
 
 export interface BookingOptions {
   serviceTypes: string[];
-  shootTypes: string[];
+  sessionSettings: string[];
+  durations: string[];
   budgetRanges: string[];
   deliverables: string[];
+  referralSources: string[];
 }
+
+export const INQUIRY_STATUSES = ["new", "contacted", "booked", "closed"] as const;
+export type InquiryStatus = (typeof INQUIRY_STATUSES)[number];
+
+export const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  booked: "Booked",
+  closed: "Closed",
+};
 
 export interface PortfolioItemDTO {
   id: string;

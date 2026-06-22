@@ -59,8 +59,12 @@ model Submission {
   id        String   @id @default(cuid())
   type      String
   data      String
+  status    String   @default("new")
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([type, status])
+  @@index([type, createdAt])
 }
 
 model RateLimitEntry {
