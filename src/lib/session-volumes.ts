@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { mapSessionVolume, isPublicSessionVolume } from "./session-volume";
+import { mapSessionVolume, isPublicSessionVolume, resolveSessionPosterImage } from "./session-volume";
 import type { SessionVolumeDTO } from "./types";
 
 export async function getAllSessionVolumes(admin = false): Promise<SessionVolumeDTO[]> {
@@ -44,4 +44,16 @@ export async function getOpenSessionVolume(): Promise<SessionVolumeDTO | null> {
     orderBy: { volumeNumber: "desc" },
   });
   return item ? mapSessionVolume(item) : null;
+}
+
+export function getHeroPosterFromVolumes(volumes: SessionVolumeDTO[]): {
+  poster: string | null;
+  alt: string;
+} {
+  const featured = volumes.find((v) => v.featured) || volumes[0];
+  if (!featured) return { poster: null, alt: "ÉLEVÉ Sessions" };
+  return {
+    poster: resolveSessionPosterImage(featured),
+    alt: featured.posterImageAlt || featured.title,
+  };
 }

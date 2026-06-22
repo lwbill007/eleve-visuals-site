@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import {
   getAllSessionVolumes,
   getFeaturedSessionVolume,
-} from "@/lib/session-volumes";
-import {
-  SessionsCollectionHero,
   getHeroPosterFromVolumes,
-} from "@/components/sessions/SessionsCollectionHero";
+} from "@/lib/session-volumes";
+import { SessionsCollectionHero } from "@/components/sessions/SessionsCollectionHero";
 import { FeaturedSession } from "@/components/sessions/FeaturedSession";
 import { SessionsVolumeGrid } from "@/components/sessions/SessionsVolumeGrid";
 import { CTABanner } from "@/components/ui/Section";

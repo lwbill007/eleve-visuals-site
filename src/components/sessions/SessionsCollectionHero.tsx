@@ -2,8 +2,6 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import type { SessionVolumeDTO } from "@/lib/types";
-import { resolveSessionPosterImage } from "@/lib/session-volume";
 
 export function SessionsCollectionHero({
   featuredPoster,
@@ -60,16 +58,4 @@ export function SessionsCollectionHero({
       </div>
     </section>
   );
-}
-
-export function getHeroPosterFromVolumes(volumes: SessionVolumeDTO[]): {
-  poster: string | null;
-  alt: string;
-} {
-  const featured = volumes.find((v) => v.featured) || volumes[0];
-  if (!featured) return { poster: null, alt: "ÉLEVÉ Sessions" };
-  return {
-    poster: resolveSessionPosterImage(featured),
-    alt: featured.posterImageAlt || featured.title,
-  };
 }
