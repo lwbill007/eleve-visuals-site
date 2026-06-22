@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminField, AdminInput } from "@/components/admin/AdminForm";
+import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import { adminFetch } from "@/lib/admin-fetch";
+import { uploadMediaFile } from "@/lib/upload-client";
 
 interface MediaAsset {
   id: string;
@@ -62,12 +63,17 @@ export default function AdminMediaPage() {
 
   async function handleUpload(file: File) {
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await adminFetch("/api/admin/upload", { method: "POST", body: formData });
-    setUploading(false);
-    setMessage(res.ok ? "Uploaded." : "Upload failed.");
-    load();
+    setMessage("");
+    try {
+      await uploadMediaFile(file);
+      setMessage("Uploaded.");
+      load();
+    } catch (err) {
+      console.error("Upload error:", err);
+      setMessage(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -83,7 +89,7 @@ export default function AdminMediaPage() {
           disabled={uploading}
           className="bg-cream px-4 py-2 text-xs tracking-wide text-ink uppercase disabled:opacity-50"
         >
-          {uploading ? "Uploading..." : "Upload image"}
+          {uploading ? "Uploading..." : "Upload media"}
         </button>
         <input
           ref={inputRef}
@@ -116,7 +122,7 @@ export default function AdminMediaPage() {
               {item.url.match(/\.(mp4|webm)(\?|$)/i) ? (
                 <video src={item.url} className="h-full w-full object-cover" muted playsInline />
               ) : (
-                <Image src={item.url} alt={item.alt || item.filename} fill className="object-cover" sizes="200px" />
+                <AdminPreviewImage src={item.url} alt={item.alt || item.filename} fill className="object-cover" sizes="200px" />
               )}
             </div>
             <div className="space-y-2 p-3">

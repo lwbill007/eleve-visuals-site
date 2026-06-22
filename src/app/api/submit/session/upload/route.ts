@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { runSpamChecks } from "@/lib/spam";
+import { inferMimeType } from "@/lib/image-url";
+import {
+  putPublicBlob,
+  sanitizeUploadFilename,
+  saveLocalUpload,
+} from "@/lib/upload-server";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_SIZE = 5 * 1024 * 1024;
-
-async function uploadToBlob(filename: string, buffer: Buffer, contentType: string) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) return null;
-  const { put } = await import("@vercel/blob");
-  const blob = await put(`applications/${filename}`, buffer, {
-    access: "public",
-    contentType,
-    token,
-  });
-  return blob.url;
-}
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
@@ -42,36 +33,66 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: "Only JPEG, PNG, and WebP images are allowed" }, { status: 400 });
+  const mimeType = inferMimeType(file);
+
+  console.log("[session-upload] received", {
+    name: file.name,
+    type: mimeType,
+    reportedType: file.type,
+    size: file.size,
+  });
+
+  if (!ALLOWED_TYPES.includes(mimeType)) {
+    return NextResponse.json(
+      { error: "Only JPEG, PNG, and WebP images are allowed" },
+      { status: 400 }
+    );
   }
 
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: "Image must be under 5MB" }, { status: 400 });
   }
 
-  const ext = file.type.split("/")[1].replace("jpeg", "jpg");
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const filename = sanitizeUploadFilename(file.name, mimeType);
   const buffer = Buffer.from(await file.arrayBuffer());
 
   try {
-    const blobUrl = await uploadToBlob(filename, buffer, file.type);
+    const blobUrl = await putPublicBlob(`applications/${filename}`, buffer, mimeType);
+
     if (blobUrl) {
       try {
         await prisma.mediaAsset.create({
-          data: { url: blobUrl, filename: file.name, alt: "Session application portfolio" },
+          data: {
+            url: blobUrl,
+            filename: file.name,
+            alt: "Session application portfolio",
+          },
         });
       } catch {
         /* optional index */
       }
+      console.log("[session-upload] success", { url: blobUrl });
       return NextResponse.json({ url: blobUrl });
     }
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "applications");
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), buffer);
-    return NextResponse.json({ url: `/uploads/applications/${filename}` });
-  } catch {
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    if (process.env.VERCEL) {
+      return NextResponse.json(
+        { error: "Upload storage is not configured" },
+        { status: 500 }
+      );
+    }
+
+    const localUrl = await saveLocalUpload("applications", filename, buffer);
+    console.log("[session-upload] local success", { url: localUrl });
+    return NextResponse.json({ url: localUrl });
+  } catch (error) {
+    console.error("Upload error:", error);
+    console.error("[session-upload] context", {
+      name: file.name,
+      type: mimeType,
+      size: file.size,
+    });
+    const detail = error instanceof Error ? error.message : "Upload failed";
+    return NextResponse.json({ error: detail }, { status: 500 });
   }
 }

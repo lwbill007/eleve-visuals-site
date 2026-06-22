@@ -1,8 +1,6 @@
-const BLOB_HOST_PATTERN = /\.public\.blob\.vercel-storage\.com\//i;
+import { isVercelBlobUrl } from "@/lib/image-url";
 
-export function isVercelBlobUrl(url: string): boolean {
-  return BLOB_HOST_PATTERN.test(url);
-}
+export { isVercelBlobUrl };
 
 export async function deleteBlobUrl(url: string): Promise<boolean> {
   const token = process.env.BLOB_READ_WRITE_TOKEN;

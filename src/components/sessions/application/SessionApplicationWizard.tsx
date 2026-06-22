@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
+import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import type { SessionApplicationData, SessionApplicationSettings, SessionVolumeDTO } from "@/lib/types";
 import type { SessionsApplicationContent } from "@/lib/types";
 import { SESSION_APPLICATION_ROLES } from "@/lib/types";
@@ -23,6 +23,7 @@ import {
 import { SelectableGrid } from "@/components/booking/SelectableCard";
 import { FormSpamFields, useFormSpam } from "@/components/forms/FormSpamFields";
 import { trackConversion } from "@/lib/analytics-client";
+import { uploadImageFile } from "@/lib/upload-client";
 import {
   formatPhone,
   isValidEmail,
@@ -207,20 +208,35 @@ export function SessionApplicationWizard({
 
     setUploading(true);
     const uploads = Array.from(files).slice(0, remaining);
+    const added: string[] = [];
 
-    for (const file of uploads) {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/submit/session/upload", { method: "POST", body: formData });
-      const payload = await res.json().catch(() => ({}));
-      if (res.ok && payload.url) {
+    try {
+      for (const file of uploads) {
+        const url = await uploadImageFile(file, "/api/submit/session/upload");
+        added.push(url);
+      }
+      if (added.length > 0) {
         setData((prev) => ({
           ...prev,
-          portfolioImages: [...prev.portfolioImages, payload.url as string],
+          portfolioImages: [...prev.portfolioImages, ...added],
         }));
       }
+    } catch (err) {
+      console.error("Upload error:", err);
+      setErrors((prev) => ({
+        ...prev,
+        portfolioImages:
+          err instanceof Error ? err.message : "Image upload failed. Please try again.",
+      }));
+      if (added.length > 0) {
+        setData((prev) => ({
+          ...prev,
+          portfolioImages: [...prev.portfolioImages, ...added],
+        }));
+      }
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   }
 
   async function handleSubmit() {
@@ -353,7 +369,7 @@ export function SessionApplicationWizard({
                   <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
                     {data.portfolioImages.map((url) => (
                       <div key={url} className="relative aspect-square border border-stone/30">
-                        <Image src={url} alt="" fill className="object-cover" sizes="120px" />
+                        <AdminPreviewImage src={url} alt="" fill className="object-cover" sizes="120px" />
                         <button
                           type="button"
                           onClick={() => update("portfolioImages", data.portfolioImages.filter((u) => u !== url))}

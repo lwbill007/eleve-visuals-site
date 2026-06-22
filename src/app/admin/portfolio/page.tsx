@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
-import Image from "next/image";
+import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
   AdminField,
@@ -544,7 +544,7 @@ export default function AdminPortfolioPage() {
                 <div key={item.id} className="flex items-center gap-4 border border-stone/30 p-4">
                   <div className="relative h-16 w-24 shrink-0 bg-charcoal">
                     {coverImage ? (
-                      <Image src={coverImage} alt="" fill className="object-cover" sizes="96px" />
+                      <AdminPreviewImage src={coverImage} alt="" fill className="object-cover" sizes="96px" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-xs text-muted">
                         No img

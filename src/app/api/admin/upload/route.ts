@@ -1,23 +1,29 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { inferMimeType } from "@/lib/image-url";
+import {
+  putPublicBlob,
+  sanitizeUploadFilename,
+  saveLocalUpload,
+} from "@/lib/upload-server";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_SIZE = 10 * 1024 * 1024;
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const VIDEO_TYPES = ["video/mp4", "video/webm"];
+const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES];
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 
-async function uploadToBlob(filename: string, buffer: Buffer, contentType: string) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) return null;
+function maxSizeForType(mimeType: string): number {
+  return VIDEO_TYPES.includes(mimeType) ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+}
 
-  const { put } = await import("@vercel/blob");
-  const blob = await put(`uploads/${filename}`, buffer, {
-    access: "public",
-    contentType,
-    token,
-  });
-  return blob.url;
+function blobFolderForType(mimeType: string): string {
+  return VIDEO_TYPES.includes(mimeType) ? "uploads/videos" : "uploads";
+}
+
+function localSubdirForType(mimeType: string): string {
+  return VIDEO_TYPES.includes(mimeType) ? "videos" : "";
 }
 
 export async function POST(request: Request) {
@@ -34,20 +40,41 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
+  const mimeType = inferMimeType(file);
+
+  console.log("[upload-api] received", {
+    name: file.name,
+    type: mimeType,
+    reportedType: file.type,
+    size: file.size,
+  });
+
+  if (!ALLOWED_TYPES.includes(mimeType)) {
+    return NextResponse.json(
+      { error: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM" },
+      { status: 400 }
+    );
   }
 
-  if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 });
+  const maxSize = maxSizeForType(mimeType);
+  if (file.size > maxSize) {
+    return NextResponse.json(
+      {
+        error: VIDEO_TYPES.includes(mimeType)
+          ? "Video too large (max 50MB)"
+          : "File too large (max 10MB)",
+      },
+      { status: 400 }
+    );
   }
 
-  const ext = file.type.split("/")[1].replace("jpeg", "jpg");
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const filename = sanitizeUploadFilename(file.name, mimeType);
   const buffer = Buffer.from(await file.arrayBuffer());
+  const blobPath = `${blobFolderForType(mimeType)}/${filename}`;
 
   try {
-    const blobUrl = await uploadToBlob(filename, buffer, file.type);
+    const blobUrl = await putPublicBlob(blobPath, buffer, mimeType);
+
     if (blobUrl) {
       try {
         await prisma.mediaAsset.upsert({
@@ -55,16 +82,25 @@ export async function POST(request: Request) {
           create: { url: blobUrl, filename: file.name },
           update: { filename: file.name },
         });
-      } catch {
-        /* media index optional */
+      } catch (dbError) {
+        console.error("[upload-api] media index failed:", dbError);
       }
+
+      console.log("[upload-api] success", { url: blobUrl });
       return NextResponse.json({ url: blobUrl });
     }
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), buffer);
-    const localUrl = `/uploads/${filename}`;
+    if (process.env.VERCEL) {
+      return NextResponse.json(
+        {
+          error:
+            "Uploads on Vercel require a Blob store. In Vercel → Storage, create a Public Blob store, connect it to this project, then redeploy.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const localUrl = await saveLocalUpload(localSubdirForType(mimeType), filename, buffer);
 
     try {
       await prisma.mediaAsset.upsert({
@@ -72,23 +108,19 @@ export async function POST(request: Request) {
         create: { url: localUrl, filename: file.name },
         update: { filename: file.name },
       });
-    } catch {
-      /* media index optional */
+    } catch (dbError) {
+      console.error("[upload-api] media index failed:", dbError);
     }
 
+    console.log("[upload-api] local success", { url: localUrl });
     return NextResponse.json({ url: localUrl });
   } catch (error) {
-    console.error("Upload failed:", error);
-
-    if (process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN) {
-      return NextResponse.json(
-        {
-          error:
-            "Image uploads on Vercel require a Blob store. In Vercel → Storage, create a Public Blob store, connect it to this project, then redeploy.",
-        },
-        { status: 500 }
-      );
-    }
+    console.error("Upload error:", error);
+    console.error("[upload-api] context", {
+      name: file.name,
+      type: mimeType,
+      size: file.size,
+    });
 
     const detail = error instanceof Error ? error.message : String(error);
     const accessHint =
@@ -98,10 +130,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        error:
-          process.env.VERCEL
-            ? `Upload failed.${accessHint} Check that BLOB_READ_WRITE_TOKEN matches a Public Blob store linked to this project.`
-            : "Upload failed. For local dev, set BLOB_READ_WRITE_TOKEN or ensure public/uploads is writable.",
+        error: process.env.VERCEL
+          ? `Upload failed: ${detail}.${accessHint}`
+          : `Upload failed: ${detail}`,
       },
       { status: 500 }
     );

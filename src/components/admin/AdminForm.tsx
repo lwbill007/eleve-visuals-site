@@ -1,18 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
-
-async function uploadImageFile(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append("file", file);
-  const res = await adminFetch("/api/admin/upload", { method: "POST", body: formData });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Upload failed");
-  return data.url as string;
-}
+import { uploadImageFile } from "@/lib/upload-client";
+import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
+import { isVideoUrl } from "@/lib/image-url";
 
 interface MediaAsset {
   id: string;
@@ -26,11 +19,13 @@ function MediaLibraryModal({
   onClose,
   onSelect,
   multiple = false,
+  imagesOnly = true,
 }: {
   open: boolean;
   onClose: () => void;
   onSelect: (urls: string[]) => void;
   multiple?: boolean;
+  imagesOnly?: boolean;
 }) {
   const [items, setItems] = useState<MediaAsset[]>([]);
   const [loading, setLoading] = useState(false);
@@ -47,6 +42,8 @@ function MediaLibraryModal({
   }, [open]);
 
   if (!open) return null;
+
+  const visibleItems = imagesOnly ? items.filter((item) => !isVideoUrl(item.url)) : items;
 
   function toggle(url: string) {
     if (multiple) {
@@ -71,11 +68,13 @@ function MediaLibraryModal({
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <p className="text-center text-fog">Loading...</p>
-          ) : items.length === 0 ? (
-            <p className="text-center text-fog">No media yet. Upload an image first.</p>
+          ) : visibleItems.length === 0 ? (
+            <p className="text-center text-fog">
+              {imagesOnly ? "No images in the library yet." : "No media yet. Upload a file first."}
+            </p>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {items.map((item) => (
+              {visibleItems.map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -85,7 +84,7 @@ function MediaLibraryModal({
                     picked.includes(item.url) ? "border-accent ring-1 ring-accent" : "border-stone/30"
                   )}
                 >
-                  <Image src={item.url} alt={item.alt || item.filename} fill className="object-cover" sizes="160px" />
+                  <AdminPreviewImage src={item.url} alt={item.alt || item.filename} fill className="object-cover" sizes="160px" />
                   <span className="absolute inset-x-0 bottom-0 truncate bg-ink/80 px-2 py-1 text-[10px] text-cream">
                     {item.filename || "Untitled"}
                   </span>
@@ -170,7 +169,7 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
       >
         {value ? (
           <>
-            <Image src={value} alt="" fill className="object-cover" sizes="400px" />
+            <AdminPreviewImage src={value} alt="" fill className="object-cover" sizes="400px" />
             <div className="absolute inset-0 flex items-end justify-end gap-2 bg-ink/40 p-3 opacity-0 transition-opacity hover:opacity-100">
               <button
                 type="button"
@@ -293,7 +292,7 @@ export function GalleryUpload({
                 coverImage === src && "ring-2 ring-accent"
               )}
             >
-              <Image src={src} alt="" fill className="object-cover" sizes="160px" />
+              <AdminPreviewImage src={src} alt="" fill className="object-cover" sizes="160px" />
               <div className="absolute inset-0 flex flex-col items-end justify-end gap-1 bg-ink/50 p-2 opacity-0 transition-opacity hover:opacity-100">
                 {onCoverChange && coverImage !== src && (
                   <button
