@@ -38,6 +38,18 @@ export function normalizePortfolioCredits(credits: unknown): PortfolioCredit[] {
     .filter((item): item is PortfolioCredit => !!item?.role && !!item?.name);
 }
 
+export function normalizePortfolioImage(
+  value: string | null | undefined,
+  fallback: string | null
+): string | null {
+  if (value === null || value === "") return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || fallback;
+  }
+  return fallback;
+}
+
 export function normalizePortfolioInput(body: {
   image?: string | null;
   heroImage?: string | null;
@@ -46,8 +58,15 @@ export function normalizePortfolioInput(body: {
 }) {
   const gallery = normalizePortfolioGallery(body.gallery);
   const btsGallery = normalizePortfolioGallery(body.btsGallery);
-  const image = body.image || gallery[0] || null;
-  const heroImage = body.heroImage || image;
+
+  const image = "image" in body
+    ? normalizePortfolioImage(body.image, null)
+    : gallery[0] ?? null;
+
+  const heroImage = "heroImage" in body
+    ? normalizePortfolioImage(body.heroImage, null)
+    : image;
+
   return { gallery, btsGallery, image, heroImage };
 }
 

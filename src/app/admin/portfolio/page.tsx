@@ -393,14 +393,14 @@ export default function AdminPortfolioPage() {
                   <ImageUpload
                     label="Cover Image (grid card)"
                     value={editing.image || null}
-                    onChange={(url) => setEditing({ ...editing, image: url })}
+                    onChange={(url) => setEditing({ ...editing, image: url ?? null })}
                   />
                 </div>
                 <div className="md:col-span-2">
                   <ImageUpload
                     label="Hero Image (case study page)"
                     value={editing.heroImage || null}
-                    onChange={(url) => setEditing({ ...editing, heroImage: url })}
+                    onChange={(url) => setEditing({ ...editing, heroImage: url ?? null })}
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -409,7 +409,7 @@ export default function AdminPortfolioPage() {
                     images={editing.gallery || []}
                     coverImage={editing.image || null}
                     onChange={(gallery) => setEditing({ ...editing, gallery })}
-                    onCoverChange={(url) => setEditing({ ...editing, image: url })}
+                    onCoverChange={(url) => setEditing({ ...editing, image: url ?? null })}
                   />
                 </div>
                 <div className="md:col-span-2">

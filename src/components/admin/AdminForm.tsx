@@ -160,6 +160,15 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
         >
           Choose from library
         </button>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="border border-stone/50 px-3 py-1.5 text-xs text-red-300 hover:border-red-300/50"
+          >
+            Remove
+          </button>
+        )}
       </div>
       <div
         className={cn(
@@ -223,7 +232,7 @@ interface GalleryUploadProps {
   images: string[];
   onChange: (images: string[]) => void;
   coverImage?: string | null;
-  onCoverChange?: (url: string) => void;
+  onCoverChange?: (url: string | null) => void;
   label?: string;
   hint?: string;
   className?: string;
@@ -274,7 +283,12 @@ export function GalleryUpload({
   }
 
   function removeAt(index: number) {
-    onChange(images.filter((_, i) => i !== index));
+    const removed = images[index];
+    const next = images.filter((_, i) => i !== index);
+    onChange(next);
+    if (onCoverChange && coverImage === removed) {
+      onCoverChange(null);
+    }
   }
 
   return (
@@ -288,12 +302,20 @@ export function GalleryUpload({
             <div
               key={`${src}-${index}`}
               className={cn(
-                "relative aspect-square overflow-hidden bg-charcoal",
+                "group relative aspect-square overflow-hidden bg-charcoal",
                 coverImage === src && "ring-2 ring-accent"
               )}
             >
               <AdminPreviewImage src={src} alt="" fill className="object-cover" sizes="160px" />
-              <div className="absolute inset-0 flex flex-col items-end justify-end gap-1 bg-ink/50 p-2 opacity-0 transition-opacity hover:opacity-100">
+              <button
+                type="button"
+                onClick={() => removeAt(index)}
+                className="absolute top-1.5 right-1.5 z-10 border border-stone/60 bg-ink/90 px-2 py-0.5 text-[10px] text-red-300 hover:border-red-300/60"
+                aria-label="Remove image"
+              >
+                Remove
+              </button>
+              <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-ink/60 p-2 opacity-0 transition-opacity group-hover:opacity-100">
                 {onCoverChange && coverImage !== src && (
                   <button
                     type="button"
@@ -308,13 +330,6 @@ export function GalleryUpload({
                     Cover
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={() => removeAt(index)}
-                  className="w-full border border-stone px-2 py-1 text-[10px] text-cream"
-                >
-                  Remove
-                </button>
               </div>
             </div>
           ))}
