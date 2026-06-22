@@ -139,13 +139,13 @@ export default function AdminPortfolioPage() {
 
   return (
     <AdminShell title="Portfolio">
-      <div className="mb-6 flex gap-2 border-b border-stone/30">
+      <div className="mb-6 -mx-4 flex gap-2 overflow-x-auto border-b border-stone/30 px-4 pb-px sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
         {TABS.map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm ${tab === t ? "border-b-2 border-accent text-cream" : "text-fog"}`}
+            className={`shrink-0 px-4 py-3 text-sm sm:py-2 ${tab === t ? "border-b-2 border-accent text-cream" : "text-fog"}`}
           >
             {t === "projects" ? "Projects" : "Page Settings"}
           </button>
@@ -154,7 +154,7 @@ export default function AdminPortfolioPage() {
 
       {tab === "page" ? (
         <div className="space-y-10">
-          <section className="border border-stone/30 p-6">
+          <section className="border border-stone/30 p-4 sm:p-6">
             <h2 className="mb-6 font-display text-xl">Portfolio Hero</h2>
             <div className="grid gap-4 md:grid-cols-2">
               <AdminField label="Eyebrow">
@@ -229,7 +229,7 @@ export default function AdminPortfolioPage() {
             </div>
           </section>
 
-          <section className="border border-stone/30 p-6">
+          <section className="border border-stone/30 p-4 sm:p-6">
             <h2 className="mb-6 font-display text-xl">Statistics</h2>
             <StringListEditor
               label="Stats (label|value per line)"
@@ -249,7 +249,7 @@ export default function AdminPortfolioPage() {
             />
           </section>
 
-          <section className="border border-stone/30 p-6">
+          <section className="border border-stone/30 p-4 sm:p-6">
             <h2 className="mb-6 font-display text-xl">Categories & Empty State</h2>
             <StringListEditor
               label="Filter categories (one per line — custom categories appear in project editor)"
@@ -299,19 +299,19 @@ export default function AdminPortfolioPage() {
         </div>
       ) : (
         <>
-          <div className="mb-6 flex justify-between">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-fog">{items.length} projects</p>
             <button
               type="button"
               onClick={() => setEditing(emptyItem())}
-              className="bg-cream px-4 py-2 text-xs tracking-[0.15em] text-ink uppercase"
+              className="admin-touch-btn bg-cream tracking-[0.15em] text-ink uppercase sm:w-auto"
             >
               Add Project
             </button>
           </div>
 
           {editing && (
-            <div className="mb-10 border border-stone/30 p-6">
+            <div className="mb-10 border border-stone/30 p-4 sm:p-6">
               <h2 className="mb-6 font-display text-xl">
                 {editing.id ? "Edit Project" : "New Project"}
               </h2>
@@ -525,19 +525,19 @@ export default function AdminPortfolioPage() {
                   </label>
                 </div>
               </div>
-              <div className="mt-6 flex gap-3">
+              <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:gap-3">
                 <button
                   type="button"
                   onClick={saveProject}
                   disabled={saving}
-                  className="bg-cream px-5 py-2 text-xs text-ink uppercase disabled:opacity-50"
+                  className="admin-touch-btn bg-cream text-ink uppercase disabled:opacity-50 sm:w-auto"
                 >
                   {saving ? "Saving..." : "Save Project"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditing(null)}
-                  className="border border-stone px-5 py-2 text-xs text-fog uppercase"
+                  className="admin-touch-btn border border-stone text-fog uppercase sm:w-auto"
                 >
                   Cancel
                 </button>
@@ -549,40 +549,62 @@ export default function AdminPortfolioPage() {
             {items.map((item) => {
               const coverImage = resolvePortfolioCoverImage(item.image, item.gallery);
               return (
-                <div key={item.id} className="flex items-center gap-4 border border-stone/30 p-4">
-                  <div className="relative h-16 w-24 shrink-0 bg-charcoal">
-                    {coverImage ? (
-                      <AdminPreviewImage src={coverImage} alt="" fill className="object-cover" sizes="96px" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-muted">
-                        No img
-                      </div>
-                    )}
+                <div key={item.id} className="flex flex-col gap-4 border border-stone/30 p-4 sm:flex-row sm:items-center">
+                  <div className="flex min-w-0 flex-1 gap-4">
+                    <div className="relative h-20 w-28 shrink-0 bg-charcoal sm:h-16 sm:w-24">
+                      {coverImage ? (
+                        <AdminPreviewImage src={coverImage} alt="" fill className="object-cover" sizes="(max-width: 640px) 112px, 96px" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-xs text-muted">
+                          No img
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-cream sm:truncate">{item.title}</p>
+                      <p className="text-xs text-muted">
+                        {item.category} · {item.year}
+                        {item.portfolioFeatured && " · Portfolio Featured"}
+                        {item.featured && " · Homepage"}
+                        {item.archived && " · Archived"}
+                        {!item.published && " · Draft"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-cream">{item.title}</p>
-                    <p className="text-xs text-muted">
-                      {item.category} · {item.year}
-                      {item.portfolioFeatured && " · Portfolio Featured"}
-                      {item.featured && " · Homepage"}
-                      {item.archived && " · Archived"}
-                      {!item.published && " · Draft"}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button type="button" onClick={() => reorder(item.id, -1)} className="text-xs text-fog">
+                  <div className="flex flex-wrap gap-2 border-t border-stone/20 pt-3 sm:shrink-0 sm:border-0 sm:pt-0">
+                    <button
+                      type="button"
+                      onClick={() => reorder(item.id, -1)}
+                      className="admin-touch-btn-compact min-w-10 border border-stone/40 text-fog sm:w-auto"
+                    >
                       ↑
                     </button>
-                    <button type="button" onClick={() => reorder(item.id, 1)} className="text-xs text-fog">
+                    <button
+                      type="button"
+                      onClick={() => reorder(item.id, 1)}
+                      className="admin-touch-btn-compact min-w-10 border border-stone/40 text-fog sm:w-auto"
+                    >
                       ↓
                     </button>
-                    <button type="button" onClick={() => setEditing(item)} className="text-xs text-accent">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(item)}
+                      className="admin-touch-btn-compact border border-accent/40 text-accent sm:flex-1"
+                    >
                       Edit
                     </button>
-                    <button type="button" onClick={() => duplicate(item.id)} className="text-xs text-fog">
+                    <button
+                      type="button"
+                      onClick={() => duplicate(item.id)}
+                      className="admin-touch-btn-compact border border-stone/40 text-fog sm:flex-1"
+                    >
                       Duplicate
                     </button>
-                    <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
+                    <button
+                      type="button"
+                      onClick={() => remove(item.id)}
+                      className="admin-touch-btn-compact border border-red-400/40 text-red-400 sm:flex-1"
+                    >
                       Delete
                     </button>
                   </div>

@@ -57,15 +57,19 @@ function MediaLibraryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/90 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col border border-stone/40 bg-ink">
-        <div className="flex items-center justify-between border-b border-stone/30 px-6 py-4">
-          <h3 className="font-display text-lg text-cream">Media Library</h3>
-          <button type="button" onClick={onClose} className="text-sm text-fog hover:text-cream">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/90 p-0 sm:items-center sm:p-4">
+      <div className="flex max-h-[100dvh] w-full max-w-4xl flex-col border border-stone/40 bg-ink sm:max-h-[90vh]">
+        <div className="flex items-center justify-between border-b border-stone/30 px-4 py-3 sm:px-6 sm:py-4">
+          <h3 className="font-display text-base text-cream sm:text-lg">Media Library</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="admin-touch-btn-compact min-w-16 border border-stone/40 text-fog hover:text-cream"
+          >
             Close
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {loading ? (
             <p className="text-center text-fog">Loading...</p>
           ) : visibleItems.length === 0 ? (
@@ -94,8 +98,12 @@ function MediaLibraryModal({
           )}
         </div>
         {multiple && (
-          <div className="flex justify-end gap-3 border-t border-stone/30 px-6 py-4">
-            <button type="button" onClick={onClose} className="text-sm text-fog">
+          <div className="flex flex-col gap-2 border-t border-stone/30 p-4 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="admin-touch-btn border border-stone/50 text-fog"
+            >
               Cancel
             </button>
             <button
@@ -105,7 +113,7 @@ function MediaLibraryModal({
                 onSelect(picked);
                 onClose();
               }}
-              className="bg-cream px-4 py-2 text-xs text-ink disabled:opacity-50"
+              className="admin-touch-btn bg-cream text-ink disabled:opacity-50"
             >
               Add {picked.length || ""} selected
             </button>
@@ -144,55 +152,59 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
   return (
     <div className={className}>
       {label && <p className="mb-2 text-sm text-cream-dim">{label}</p>}
-      <div className="mb-2 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          className="border border-stone/50 px-3 py-1.5 text-xs text-fog hover:text-cream"
-        >
-          {uploading ? "Uploading..." : "Upload new"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setLibraryOpen(true)}
-          className="border border-stone/50 px-3 py-1.5 text-xs text-accent"
-        >
-          Choose from library
-        </button>
-      </div>
+      {!value ? (
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="admin-touch-btn border border-stone/50 text-fog hover:text-cream disabled:opacity-50"
+          >
+            {uploading ? "Uploading..." : "Upload new"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLibraryOpen(true)}
+            className="admin-touch-btn border border-stone/50 text-accent"
+          >
+            Choose from library
+          </button>
+        </div>
+      ) : null}
       <div
         className={cn(
-          "relative border border-dashed border-stone/50 bg-charcoal/30",
-          value ? "aspect-video" : "flex min-h-[120px] items-center justify-center p-6"
+          "relative overflow-hidden border border-dashed border-stone/50 bg-charcoal/30",
+          value
+            ? "aspect-video max-h-[min(50vh,320px)] w-full sm:max-h-none"
+            : "flex min-h-[120px] items-center justify-center p-6"
         )}
       >
         {value ? (
-          <AdminPreviewImage src={value} alt="" fill className="object-cover" sizes="400px" />
+          <AdminPreviewImage src={value} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 400px" />
         ) : (
           <p className="text-sm text-muted">No image selected</p>
         )}
       </div>
       {value ? (
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-stone/30 pt-3">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="border border-stone/50 px-3 py-2 text-xs text-cream hover:border-fog"
+            className="admin-touch-btn border border-stone/50 text-cream hover:border-fog"
           >
             Replace image
           </button>
           <button
             type="button"
             onClick={() => setLibraryOpen(true)}
-            className="border border-stone/50 px-3 py-2 text-xs text-accent"
+            className="admin-touch-btn border border-stone/50 text-accent"
           >
             Choose from library
           </button>
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="border border-red-400/60 px-3 py-2 text-xs text-red-400 hover:bg-red-400/10"
+            className="admin-touch-btn border border-red-400/60 text-red-400 hover:bg-red-400/10"
           >
             Remove image
           </button>
@@ -288,7 +300,7 @@ export function GalleryUpload({
       {hint && <p className="mb-3 text-xs text-muted">{hint}</p>}
 
       {images.length > 0 && (
-        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {images.map((src, index) => (
             <div
               key={`${src}-${index}`}
@@ -297,20 +309,26 @@ export function GalleryUpload({
                 coverImage === src ? "border-accent ring-1 ring-accent" : "border-stone/40"
               )}
             >
-              <div className="relative aspect-square">
-                <AdminPreviewImage src={src} alt="" fill className="object-cover" sizes="200px" />
+              <div className="relative aspect-square max-h-72 w-full sm:max-h-none">
+                <AdminPreviewImage
+                  src={src}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 200px"
+                />
                 {coverImage === src && (
-                  <span className="absolute top-2 left-2 bg-accent px-2 py-0.5 text-[10px] tracking-wide text-ink uppercase">
+                  <span className="absolute top-2 left-2 bg-accent px-2 py-1 text-[10px] tracking-wide text-ink uppercase">
                     Cover
                   </span>
                 )}
               </div>
-              <div className="flex flex-col gap-2 border-t border-stone/30 p-2">
+              <div className="flex flex-col gap-2 border-t border-stone/30 p-2 sm:p-3">
                 {onCoverChange && coverImage !== src && (
                   <button
                     type="button"
                     onClick={() => onCoverChange(src)}
-                    className="w-full border border-stone/50 px-2 py-2 text-xs text-cream hover:border-fog"
+                    className="admin-touch-btn border border-stone/50 text-cream hover:border-fog"
                   >
                     Set as cover image
                   </button>
@@ -318,7 +336,7 @@ export function GalleryUpload({
                 <button
                   type="button"
                   onClick={() => removeAt(index)}
-                  className="w-full border border-red-400/60 px-2 py-2 text-xs text-red-400 hover:bg-red-400/10"
+                  className="admin-touch-btn border border-red-400/60 text-red-400 hover:bg-red-400/10"
                 >
                   Remove photo
                 </button>
@@ -328,19 +346,19 @@ export function GalleryUpload({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex min-h-[80px] flex-1 items-center justify-center border border-dashed border-stone/50 bg-charcoal/30 p-4 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50"
+          className="admin-touch-btn min-h-[4.5rem] flex-1 border border-dashed border-stone/50 bg-charcoal/30 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50 sm:min-h-20"
         >
           {uploading ? uploadProgress || "Uploading..." : "Upload new images"}
         </button>
         <button
           type="button"
           onClick={() => setLibraryOpen(true)}
-          className="min-h-[80px] border border-dashed border-stone/50 bg-charcoal/30 px-6 text-sm text-accent hover:border-accent/50"
+          className="admin-touch-btn min-h-[4.5rem] border border-dashed border-stone/50 bg-charcoal/30 text-sm text-accent hover:border-accent/50 sm:min-h-20 sm:px-8"
         >
           Add from library
         </button>
@@ -411,7 +429,7 @@ export function StringListEditor({
     <div className="space-y-3">
       <p className="text-sm text-cream-dim">{label}</p>
       {items.map((item, index) => (
-        <div key={`${label}-${index}`} className="flex gap-2">
+        <div key={`${label}-${index}`} className="flex flex-col gap-2 sm:flex-row">
           <AdminInput
             value={item}
             onChange={(e) => {
@@ -424,7 +442,7 @@ export function StringListEditor({
           <button
             type="button"
             onClick={() => onChange(items.filter((_, i) => i !== index))}
-            className="border border-stone/50 px-3 text-xs text-fog"
+            className="admin-touch-btn shrink-0 border border-stone/50 text-fog sm:w-auto"
           >
             Remove
           </button>
@@ -468,7 +486,7 @@ export function SaveBar({
   autosaveNote?: string;
 }) {
   return (
-    <div className="sticky bottom-0 -mx-6 mt-8 flex items-center justify-between border-t border-stone/30 bg-ink/95 px-6 py-4 backdrop-blur md:-mx-10 md:px-10">
+    <div className="sticky bottom-0 -mx-4 mt-8 flex flex-col gap-4 border-t border-stone/30 bg-ink/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 md:-mx-10 md:px-10">
       <div className="text-sm">
         {message && <p className="text-accent">{message}</p>}
         {autosaveNote && !message && <p className="text-muted">{autosaveNote}</p>}
@@ -477,7 +495,7 @@ export function SaveBar({
         type="button"
         onClick={onSave}
         disabled={saving}
-        className="bg-cream px-6 py-2.5 text-xs tracking-[0.15em] text-ink uppercase disabled:opacity-50"
+        className="admin-touch-btn bg-cream tracking-[0.15em] text-ink uppercase disabled:opacity-50 sm:px-6"
       >
         {saving ? "Saving..." : "Save Changes"}
       </button>

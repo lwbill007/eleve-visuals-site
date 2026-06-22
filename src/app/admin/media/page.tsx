@@ -78,7 +78,7 @@ export default function AdminMediaPage() {
 
   return (
     <AdminShell title="Media Library">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <p className="text-sm text-fog">
           Centralized media for the entire site. Upload here or from any image field — all assets
           are indexed for reuse.
@@ -87,7 +87,7 @@ export default function AdminMediaPage() {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="bg-cream px-4 py-2 text-xs tracking-wide text-ink uppercase disabled:opacity-50"
+          className="admin-touch-btn shrink-0 bg-cream tracking-wide text-ink uppercase disabled:opacity-50 sm:w-auto"
         >
           {uploading ? "Uploading..." : "Upload media"}
         </button>
@@ -115,7 +115,7 @@ export default function AdminMediaPage() {
 
       {message && <p className="mb-4 text-sm text-accent">{message}</p>}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {items.map((item) => (
           <div key={item.id} className="border border-stone/30 bg-charcoal/20">
             <div className="relative aspect-square bg-ink">
@@ -142,16 +142,20 @@ export default function AdminMediaPage() {
                 </>
               )}
               <p className="truncate text-[0.65rem] text-muted">{item.url}</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <button
                   type="button"
                   onClick={() => copyUrl(item.url)}
-                  className="text-xs text-accent"
+                  className="admin-touch-btn border border-accent/40 text-accent sm:w-auto"
                 >
                   Copy URL
                 </button>
                 {editingId === item.id ? (
-                  <button type="button" onClick={() => saveMeta(item.id)} className="text-xs text-fog">
+                  <button
+                    type="button"
+                    onClick={() => saveMeta(item.id)}
+                    className="admin-touch-btn border border-stone/40 text-fog sm:w-auto"
+                  >
                     Save
                   </button>
                 ) : (
@@ -162,12 +166,16 @@ export default function AdminMediaPage() {
                       setEditName(item.filename);
                       setEditAlt(item.alt);
                     }}
-                    className="text-xs text-fog"
+                    className="admin-touch-btn border border-stone/40 text-fog sm:w-auto"
                   >
                     Edit
                   </button>
                 )}
-                <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
+                <button
+                  type="button"
+                  onClick={() => remove(item.id)}
+                  className="admin-touch-btn border border-red-400/40 text-red-400 sm:w-auto"
+                >
                   Delete
                 </button>
               </div>

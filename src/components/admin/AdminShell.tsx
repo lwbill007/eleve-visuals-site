@@ -112,18 +112,18 @@ export function AdminShell({
       </aside>
 
       <div className="flex-1">
-        <header className="flex items-center justify-between border-b border-stone/30 px-6 py-5 lg:px-10">
-          <h1 className="font-display text-2xl text-cream">{title || "Dashboard"}</h1>
-          <div className="flex items-center gap-4 lg:hidden">
-            <Link href="/" className="text-xs text-fog">
+        <header className="flex items-center justify-between gap-4 border-b border-stone/30 px-4 py-4 sm:px-6 sm:py-5 lg:px-10">
+          <h1 className="font-display text-xl text-cream sm:text-2xl">{title || "Dashboard"}</h1>
+          <div className="flex shrink-0 items-center gap-3 sm:gap-4 lg:hidden">
+            <Link href="/" className="admin-touch-btn-compact text-fog">
               View site
             </Link>
-            <button type="button" onClick={logout} className="text-xs text-muted">
+            <button type="button" onClick={logout} className="admin-touch-btn-compact text-muted">
               Sign out
             </button>
           </div>
         </header>
-        <div className="p-6 lg:p-10">{children}</div>
+        <div className="p-4 sm:p-6 lg:p-10">{children}</div>
       </div>
     </div>
   );
