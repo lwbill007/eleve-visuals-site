@@ -42,23 +42,27 @@ model PortfolioItem {
 }
 
 model Service {
-  id            String  @id @default(cuid())
-  slug          String  @unique
-  title         String
-  tagline       String
-  description   String
-  forWhom       String
-  includes      String  @default("[]")
-  deliverables  String  @default("[]")
-  startingPrice String
-  turnaround    String  @default("")
-  image         String?
-  imageAlt      String  @default("")
-  bannerImage   String?
+  id             String  @id @default(cuid())
+  slug           String  @unique
+  title          String
+  tagline        String
+  description    String
+  forWhom        String
+  includes       String  @default("[]")
+  deliverables   String  @default("[]")
+  faqs           String  @default("[]")
+  startingPrice  String
+  turnaround     String  @default("")
+  image          String?
+  imageAlt       String  @default("")
+  bannerImage    String?
   thumbnailImage String?
-  sortOrder     Int     @default(0)
-  published     Boolean @default(true)
-  archived      Boolean @default(false)
+  featured       Boolean @default(false)
+  sortOrder      Int     @default(0)
+  published      Boolean @default(true)
+  archived       Boolean @default(false)
+
+  @@index([featured])
 }
 
 model Testimonial {
@@ -66,6 +70,8 @@ model Testimonial {
   quote     String
   name      String
   role      String
+  image     String?
+  imageAlt  String  @default("")
   featured  Boolean @default(false)
   sortOrder Int     @default(0)
   published Boolean @default(true)
@@ -81,8 +87,10 @@ model Submission {
   type      String
   data      String
   status    String   @default("new")
+  notes     String   @default("")
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([type, status])
   @@index([type, createdAt])
@@ -156,6 +164,7 @@ model SessionVolume {
   featured            Boolean   @default(false)
   published           Boolean   @default(false)
   showApplyButton     Boolean   @default(true)
+  archived            Boolean   @default(false)
   seoTitle            String    @default("")
   seoDescription      String    @default("")
   sortOrder           Int       @default(0)

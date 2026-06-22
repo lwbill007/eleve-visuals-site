@@ -4,11 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useAdminToast } from "@/components/admin/AdminToast";
 import {
+  APPLICATION_STATUSES,
+  APPLICATION_STATUS_LABELS,
+  APPLICATION_STATUS_COLORS,
   INQUIRY_STATUSES,
   INQUIRY_STATUS_LABELS,
+  INQUIRY_STATUS_COLORS,
+  type ApplicationStatus,
   type InquiryStatus,
 } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { formatInquiryId } from "@/lib/booking";
 
 interface Submission {
@@ -16,8 +23,10 @@ interface Submission {
   type: string;
   data: Record<string, unknown>;
   status: string;
+  notes: string;
   read: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 function asString(value: unknown): string | undefined {
@@ -140,10 +149,13 @@ function SubmissionDetail({ type, data }: { type: string; data: Record<string, u
   );
 }
 
-function exportBookingsCsv(items: Submission[]) {
-  const rows = items
-    .filter((i) => i.type === "booking")
-    .map((item) => {
+function exportCsv(items: Submission[], type: "booking" | "session" | "contact") {
+  let header: string[] = [];
+  let rows: string[][] = [];
+
+  if (type === "booking") {
+    header = ["Inquiry ID", "Submitted", "Status", "Name", "Email", "Phone", "Services", "Budget", "Date", "Location", "Vision", "Notes"];
+    rows = items.filter((i) => i.type === "booking").map((item) => {
       const d = item.data;
       const services = asStringArray(d.serviceTypes).join("; ") || asString(d.serviceType) || "";
       return [
@@ -158,22 +170,41 @@ function exportBookingsCsv(items: Submission[]) {
         asString(d.preferredDate) ?? "",
         asString(d.location) ?? "",
         (asString(d.projectVision) ?? asString(d.projectDetails) ?? "").replace(/\n/g, " "),
+        item.notes,
       ];
     });
-
-  const header = [
-    "Inquiry ID",
-    "Submitted",
-    "Status",
-    "Name",
-    "Email",
-    "Phone",
-    "Services",
-    "Budget",
-    "Preferred Date",
-    "Location",
-    "Vision",
-  ];
+  } else if (type === "session") {
+    header = ["ID", "Submitted", "Status", "Name", "Email", "Volume", "Role", "Instagram", "Notes"];
+    rows = items.filter((i) => i.type === "session").map((item) => {
+      const d = item.data;
+      return [
+        item.id,
+        item.createdAt,
+        item.status,
+        asString(d.fullName) ?? asString(d.name) ?? "",
+        asString(d.email) ?? "",
+        asString(d.sessionVolumeTitle) ?? "",
+        asString(d.role) ?? "",
+        asString(d.instagram) ?? "",
+        item.notes,
+      ];
+    });
+  } else {
+    header = ["ID", "Submitted", "Status", "Name", "Email", "Subject", "Message", "Notes"];
+    rows = items.filter((i) => i.type === "contact").map((item) => {
+      const d = item.data;
+      return [
+        item.id,
+        item.createdAt,
+        item.status,
+        asString(d.name) ?? "",
+        asString(d.email) ?? "",
+        asString(d.subject) ?? "",
+        (asString(d.message) ?? "").replace(/\n/g, " "),
+        item.notes,
+      ];
+    });
+  }
 
   const csv = [header, ...rows]
     .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
@@ -183,31 +214,44 @@ function exportBookingsCsv(items: Submission[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `eleve-inquiries-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `eleve-${type}-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }
 
-export default function AdminSubmissionsClient() {
+export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "booking" | "session" | "contact" } = {}) {
   const searchParams = useSearchParams();
-  const typeFilter = searchParams.get("type");
+  const typeFilter = forcedType ?? searchParams.get("type");
   const statusFilter = searchParams.get("status");
+  const { toast } = useAdminToast();
   const [items, setItems] = useState<Submission[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
     if (typeFilter) params.set("type", typeFilter);
     if (statusFilter) params.set("status", statusFilter);
+    if (search.trim()) params.set("q", search.trim());
     const qs = params.toString();
     const url = qs ? `/api/admin/submissions?${qs}` : "/api/admin/submissions";
     const res = await adminFetch(url);
-    if (res.ok) setItems(await res.json());
-  }, [typeFilter, statusFilter]);
+    if (res.ok) {
+      const data = (await res.json()) as Submission[];
+      setItems(data);
+      setNoteDrafts(
+        Object.fromEntries(data.map((item) => [item.id, item.notes || ""]))
+      );
+    }
+  }, [typeFilter, statusFilter, search]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    const timer = setTimeout(() => {
+      load();
+    }, search ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [load, search]);
 
   async function markRead(id: string, read: boolean) {
     const res = await adminFetch("/api/admin/submissions", {
@@ -218,23 +262,43 @@ export default function AdminSubmissionsClient() {
     if (res.ok) load();
   }
 
-  async function updateStatus(id: string, status: InquiryStatus) {
+  async function updateStatus(id: string, status: InquiryStatus | ApplicationStatus) {
     const res = await adminFetch("/api/admin/submissions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
     });
-    if (res.ok) load();
+    if (res.ok) {
+      toast("Status updated.");
+      load();
+    } else {
+      toast("Status update failed.", "error");
+    }
+  }
+
+  async function saveNotes(id: string) {
+    const res = await adminFetch("/api/admin/submissions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, notes: noteDrafts[id] ?? "" }),
+    });
+    if (res.ok) toast("Notes saved.");
+    else toast("Could not save notes.", "error");
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this submission?")) return;
+    if (!confirm("Delete this submission permanently?")) return;
     const res = await adminFetch("/api/admin/submissions", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    if (res.ok) load();
+    if (res.ok) {
+      toast("Submission deleted.");
+      load();
+    } else {
+      toast("Delete failed.", "error");
+    }
   }
 
   async function toggleExpanded(item: Submission) {
@@ -257,10 +321,30 @@ export default function AdminSubmissionsClient() {
     return asString(data.serviceType);
   };
 
+  const pageTitle =
+    typeFilter === "booking"
+      ? "Booking CRM"
+      : typeFilter === "session"
+        ? "Session Applications"
+        : typeFilter === "contact"
+          ? "Contact Messages"
+          : "All Submissions";
+
   return (
-    <AdminShell title="Submissions">
+    <AdminShell title={pageTitle}>
+      <div className="mb-6">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, email, message..."
+          className="mb-4 w-full max-w-md border border-stone/50 bg-charcoal px-4 py-2.5 text-sm text-cream"
+          aria-label="Search submissions"
+        />
+      </div>
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        {["all", "booking", "session", "contact"].map((t) => (
+        {!forcedType &&
+          ["all", "booking", "session", "contact"].map((t) => (
           <a
             key={t}
             href={
@@ -277,7 +361,7 @@ export default function AdminSubmissionsClient() {
             {t === "booking" ? "inquiries" : t}
           </a>
         ))}
-        {(!typeFilter || typeFilter === "booking") && (
+        {(!forcedType && (typeFilter === "booking" || typeFilter === "contact" || !typeFilter)) && (
           <>
             <span className="mx-1 text-stone/50">|</span>
             {["all", ...INQUIRY_STATUSES].map((s) => (
@@ -299,10 +383,40 @@ export default function AdminSubmissionsClient() {
             ))}
           </>
         )}
-        {items.some((i) => i.type === "booking") && (
+        {(typeFilter === "session" || forcedType === "session") && (
+          <>
+            <span className="mx-1 text-stone/50">|</span>
+            {["all", ...APPLICATION_STATUSES].map((s) => (
+              <a
+                key={s}
+                href={
+                  s === "all"
+                    ? `/admin/applications`
+                    : `/admin/applications?status=${s}`
+                }
+                className={`px-3 py-1.5 text-xs uppercase ${
+                  (s === "all" && !statusFilter) || statusFilter === s
+                    ? "border border-accent/50 text-accent"
+                    : "border border-stone/50 text-fog"
+                }`}
+              >
+                {s === "all" ? "all status" : APPLICATION_STATUS_LABELS[s as ApplicationStatus]}
+              </a>
+            ))}
+          </>
+        )}
+        {items.length > 0 && (
           <button
             type="button"
-            onClick={() => exportBookingsCsv(items)}
+            onClick={() => {
+              const exportType =
+                typeFilter === "session"
+                  ? "session"
+                  : typeFilter === "contact"
+                    ? "contact"
+                    : "booking";
+              exportCsv(items, exportType);
+            }}
             className="ml-auto border border-stone/50 px-3 py-1.5 text-xs text-fog uppercase hover:border-cream/40"
           >
             Export CSV
@@ -337,16 +451,38 @@ export default function AdminSubmissionsClient() {
                   {item.type === "booking" && typeof item.data.budgetRange === "string" &&
                     ` · ${item.data.budgetRange}`}
                 </p>
-                {item.type === "booking" && (
+                {(item.type === "booking" || item.type === "contact") && (
                   <select
                     value={item.status}
                     onChange={(e) => updateStatus(item.id, e.target.value as InquiryStatus)}
-                    className="mt-2 border border-stone/50 bg-charcoal px-2 py-1 text-xs text-cream"
+                    className={cn(
+                      "mt-2 border bg-charcoal px-2 py-1 text-xs",
+                      INQUIRY_STATUS_COLORS[item.status as InquiryStatus] ||
+                        "border-stone/50 text-cream"
+                    )}
                     aria-label="Inquiry status"
                   >
                     {INQUIRY_STATUSES.map((status) => (
                       <option key={status} value={status}>
                         {INQUIRY_STATUS_LABELS[status]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {item.type === "session" && (
+                  <select
+                    value={item.status}
+                    onChange={(e) => updateStatus(item.id, e.target.value as ApplicationStatus)}
+                    className={cn(
+                      "mt-2 border bg-charcoal px-2 py-1 text-xs",
+                      APPLICATION_STATUS_COLORS[item.status as ApplicationStatus] ||
+                        "border-stone/50 text-cream"
+                    )}
+                    aria-label="Application status"
+                  >
+                    {APPLICATION_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {APPLICATION_STATUS_LABELS[status]}
                       </option>
                     ))}
                   </select>
@@ -379,7 +515,30 @@ export default function AdminSubmissionsClient() {
               </div>
             </div>
             {expanded === item.id && (
-              <SubmissionDetail type={item.type} data={item.data} />
+              <>
+                <SubmissionDetail type={item.type} data={item.data} />
+                <div className="mt-6 border-t border-stone/20 pt-4">
+                  <label className="mb-2 block text-xs tracking-wide text-muted uppercase">
+                    Internal notes
+                  </label>
+                  <textarea
+                    value={noteDrafts[item.id] ?? ""}
+                    onChange={(e) =>
+                      setNoteDrafts({ ...noteDrafts, [item.id]: e.target.value })
+                    }
+                    rows={3}
+                    className="w-full border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
+                    placeholder="Private notes — not visible to client"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveNotes(item.id)}
+                    className="mt-2 border border-stone/50 px-3 py-1.5 text-xs text-fog uppercase hover:text-cream"
+                  >
+                    Save notes
+                  </button>
+                </div>
+              </>
             )}
           </div>
         ))}

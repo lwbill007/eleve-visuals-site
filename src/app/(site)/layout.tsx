@@ -1,5 +1,7 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { BrandThemeStyles } from "@/components/admin/BrandThemeStyles";
 import { getSiteConfig, getNavigationConfig } from "@/lib/content";
 
 export async function generateMetadata() {
@@ -25,6 +27,7 @@ export async function generateMetadata() {
       description: siteConfig.description,
       type: "website",
       locale: "en_US",
+      ...(siteConfig.ogImage ? { images: [{ url: siteConfig.ogImage }] } : {}),
     },
   };
 }
@@ -37,6 +40,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
   return (
     <>
+      <BrandThemeStyles colors={siteConfig.brandColors} />
+      <GoogleAnalytics measurementId={siteConfig.googleAnalyticsId} />
       <Header siteConfig={siteConfig} navLinks={navigation.navLinks} />
       <main>{children}</main>
       <Footer siteConfig={siteConfig} navigation={navigation} />

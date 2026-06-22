@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { mapService } from "@/lib/content";
+import { revalidateServicesPages } from "@/lib/revalidate-public";
 
 export async function GET() {
   try {
@@ -29,19 +30,22 @@ export async function POST(request: Request) {
       tagline: body.tagline,
       description: body.description,
       forWhom: body.forWhom,
-        includes: JSON.stringify(body.includes || []),
-        deliverables: JSON.stringify(body.deliverables || []),
-        startingPrice: body.startingPrice,
-        turnaround: body.turnaround || "",
-        image: body.image || null,
-        imageAlt: body.imageAlt || "",
-        bannerImage: body.bannerImage || null,
-        thumbnailImage: body.thumbnailImage || null,
-        sortOrder: body.sortOrder ?? 0,
-        published: body.published !== false,
-        archived: !!body.archived,
+      includes: JSON.stringify(body.includes || []),
+      deliverables: JSON.stringify(body.deliverables || []),
+      faqs: JSON.stringify(body.faqs || []),
+      startingPrice: body.startingPrice,
+      turnaround: body.turnaround || "",
+      image: body.image || null,
+      imageAlt: body.imageAlt || "",
+      bannerImage: body.bannerImage || null,
+      thumbnailImage: body.thumbnailImage || null,
+      featured: !!body.featured,
+      sortOrder: body.sortOrder ?? 0,
+      published: body.published !== false,
+      archived: !!body.archived,
     },
   });
 
+  revalidateServicesPages();
   return NextResponse.json(mapService(item));
 }

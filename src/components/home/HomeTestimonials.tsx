@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import type { HomepageSectionCopy, TestimonialDTO } from "@/lib/types";
@@ -56,11 +57,24 @@ export function HomeTestimonials({
                 <p className="font-display text-2xl leading-snug text-cream md:text-3xl lg:text-4xl">
                   &ldquo;{current.quote}&rdquo;
                 </p>
-                <footer className="mt-8">
-                  <p className="text-sm text-cream">{current.name}</p>
-                  <p className="mt-1 text-xs tracking-[0.15em] text-muted uppercase">
-                    {current.role}
-                  </p>
+                <footer className="mt-8 flex flex-col items-center gap-3">
+                  {current.image && (
+                    <div className="relative h-14 w-14 overflow-hidden rounded-full border border-stone/40">
+                      <Image
+                        src={current.image}
+                        alt={current.imageAlt || current.name}
+                        fill
+                        className="object-cover"
+                        sizes="56px"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-cream">{current.name}</p>
+                    <p className="mt-1 text-xs tracking-[0.15em] text-muted uppercase">
+                      {current.role}
+                    </p>
+                  </div>
                 </footer>
               </motion.blockquote>
             </AnimatePresence>

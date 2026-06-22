@@ -14,6 +14,18 @@ export const PORTFOLIO_CATEGORIES: string[] = [
 
 export type AspectRatio = "portrait" | "landscape" | "square" | "wide";
 
+export interface BrandColors {
+  ink: string;
+  charcoal: string;
+  stone: string;
+  muted: string;
+  fog: string;
+  cream: string;
+  creamDim: string;
+  accent: string;
+  accentDim: string;
+}
+
 export interface SiteConfig {
   name: string;
   creator: string;
@@ -35,6 +47,9 @@ export interface SiteConfig {
   seoTitle: string;
   seoDescription: string;
   copyrightText: string;
+  ogImage: string | null;
+  googleAnalyticsId: string;
+  brandColors: BrandColors;
 }
 
 export interface NavLink {
@@ -298,9 +313,45 @@ export type InquiryStatus = (typeof INQUIRY_STATUSES)[number];
 export const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
   new: "New",
   contacted: "Contacted",
-  scheduled: "Scheduled",
+  scheduled: "Scheduled / Confirmed",
   completed: "Completed",
   archived: "Archived",
+};
+
+export const INQUIRY_STATUS_COLORS: Record<InquiryStatus, string> = {
+  new: "text-amber-400 border-amber-400/40",
+  contacted: "text-sky-400 border-sky-400/40",
+  scheduled: "text-emerald-400 border-emerald-400/40",
+  completed: "text-fog border-stone/40",
+  archived: "text-muted border-stone/30",
+};
+
+export const APPLICATION_STATUSES = [
+  "new",
+  "contacted",
+  "accepted",
+  "rejected",
+  "waitlisted",
+  "confirmed",
+] as const;
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
+export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  accepted: "Accepted",
+  rejected: "Rejected",
+  waitlisted: "Waitlisted",
+  confirmed: "Confirmed",
+};
+
+export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, string> = {
+  new: "text-amber-400 border-amber-400/40",
+  contacted: "text-sky-400 border-sky-400/40",
+  accepted: "text-emerald-400 border-emerald-400/40",
+  rejected: "text-red-400 border-red-400/40",
+  waitlisted: "text-violet-400 border-violet-400/40",
+  confirmed: "text-accent border-accent/40",
 };
 
 export interface PortfolioCredit {
@@ -372,12 +423,14 @@ export interface ServiceDTO {
   forWhom: string;
   includes: string[];
   deliverables: string[];
+  faqs: string[];
   startingPrice: string;
   turnaround: string;
   image: string | null;
   imageAlt: string;
   bannerImage: string | null;
   thumbnailImage: string | null;
+  featured: boolean;
   sortOrder: number;
   published: boolean;
   archived: boolean;
@@ -388,6 +441,8 @@ export interface TestimonialDTO {
   quote: string;
   name: string;
   role: string;
+  image: string | null;
+  imageAlt: string;
   featured: boolean;
   sortOrder: number;
   published: boolean;

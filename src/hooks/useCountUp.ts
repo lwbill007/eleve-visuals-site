@@ -12,19 +12,20 @@ export function useCountUp(value: string, active: boolean, duration = 1600) {
   const [display, setDisplay] = useState(value);
 
   useEffect(() => {
-    const p = parseStatValue(value);
-    if (!active || !p) {
+    const parsed = parseStatValue(value);
+    if (!active || !parsed) {
       setDisplay(value);
       return;
     }
 
     const start = performance.now();
+    const { prefix, num, suffix } = parsed;
 
     function tick(now: number) {
       const progress = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(p.num * eased);
-      setDisplay(`${p.prefix}${current}${p.suffix}`);
+      const current = Math.round(num * eased);
+      setDisplay(`${prefix}${current}${suffix}`);
       if (progress < 1) requestAnimationFrame(tick);
     }
 

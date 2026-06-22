@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { AdminField, AdminInput, AdminTextarea } from "@/components/admin/AdminForm";
+import { AdminField, AdminInput, AdminTextarea, ImageUpload } from "@/components/admin/AdminForm";
 import type { TestimonialDTO } from "@/lib/types";
 
 export default function AdminTestimonialsPage() {
@@ -50,13 +50,28 @@ export default function AdminTestimonialsPage() {
     load();
   }
 
+  async function reorder(id: string, direction: -1 | 1) {
+    const index = items.findIndex((i) => i.id === id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= items.length) return;
+    const next = [...items];
+    [next[index], next[target]] = [next[target], next[index]];
+    const order = next.map((item, sortOrder) => ({ id: item.id, sortOrder }));
+    const res = await adminFetch("/api/admin/testimonials/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order }),
+    });
+    if (res.ok) load();
+  }
+
   return (
     <AdminShell title="Testimonials">
       <div className="mb-6 flex justify-end">
         <button
           type="button"
           onClick={() =>
-            setEditing({ quote: "", name: "", role: "", featured: false, published: true, sortOrder: 0 })
+            setEditing({ quote: "", name: "", role: "", image: null, imageAlt: "", featured: false, published: true, sortOrder: 0 })
           }
           className="bg-cream px-4 py-2 text-xs tracking-[0.15em] text-ink uppercase"
         >
@@ -87,8 +102,12 @@ export default function AdminTestimonialsPage() {
                 />
               </AdminField>
             </div>
-            <AdminField
-              label="Featured on homepage"
+            <ImageUpload
+              label="Client photo (optional)"
+              value={editing.image || null}
+              onChange={(url) => setEditing({ ...editing, image: url })}
+            />
+            <AdminField label="Featured on homepage"
               hint="Shows in the Client Words section on the homepage. Must also be Published."
             >
               <label className="flex items-center gap-2 text-sm text-fog">
@@ -127,19 +146,25 @@ export default function AdminTestimonialsPage() {
 
       <div className="space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="border border-stone/30 p-4">
-            <p className="text-sm text-cream">&ldquo;{item.quote}&rdquo;</p>
-            <p className="mt-2 text-xs text-muted">
-              — {item.name}, {item.role}
-              {item.featured && " · Featured"}
-            </p>
-            <div className="mt-3 flex gap-3">
-              <button type="button" onClick={() => setEditing(item)} className="text-xs text-accent">
-                Edit
-              </button>
-              <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
-                Delete
-              </button>
+          <div key={item.id} className="flex items-start gap-3 border border-stone/30 p-4">
+            <div className="flex shrink-0 flex-col gap-1">
+              <button type="button" onClick={() => reorder(item.id, -1)} className="text-xs text-fog">↑</button>
+              <button type="button" onClick={() => reorder(item.id, 1)} className="text-xs text-fog">↓</button>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-cream">&ldquo;{item.quote}&rdquo;</p>
+              <p className="mt-2 text-xs text-muted">
+                — {item.name}, {item.role}
+                {item.featured && " · Featured"}
+              </p>
+              <div className="mt-3 flex gap-3">
+                <button type="button" onClick={() => setEditing(item)} className="text-xs text-accent">
+                  Edit
+                </button>
+                <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         ))}

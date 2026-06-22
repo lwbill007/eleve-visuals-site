@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { deleteBlobUrl } from "@/lib/blob-storage";
 
 export async function PATCH(
   request: Request,
@@ -41,6 +42,10 @@ export async function DELETE(
 
   const { id } = await params;
   try {
+    const asset = await prisma.mediaAsset.findUnique({ where: { id } });
+    if (!asset) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await deleteBlobUrl(asset.url);
     await prisma.mediaAsset.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {

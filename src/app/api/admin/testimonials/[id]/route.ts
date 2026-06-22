@@ -24,6 +24,8 @@ export async function PUT(
         quote: body.quote,
         name: body.name,
         role: body.role,
+        image: body.image ?? null,
+        imageAlt: body.imageAlt || "",
         featured: !!body.featured,
         sortOrder: body.sortOrder ?? 0,
         published: body.published !== false,

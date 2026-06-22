@@ -11,8 +11,8 @@ import {
 } from "@/components/admin/AdminForm";
 import { adminFetch } from "@/lib/admin-fetch";
 import { saveAdminContent } from "@/lib/admin-save";
-import { DEFAULT_NAVIGATION, DEFAULT_SITE_CONFIG } from "@/lib/defaults";
-import type { NavigationConfig, SiteConfig } from "@/lib/types";
+import { DEFAULT_BRAND_COLORS, DEFAULT_NAVIGATION, DEFAULT_SITE_CONFIG } from "@/lib/defaults";
+import type { BrandColors, NavigationConfig, SiteConfig } from "@/lib/types";
 
 export default function AdminSettingsPage() {
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
@@ -25,8 +25,17 @@ export default function AdminSettingsPage() {
       .then((r) => r.json())
       .then((items: { key: string; value: unknown }[]) => {
         for (const item of items) {
-          if (item.key === "siteConfig")
-            setSiteConfig({ ...DEFAULT_SITE_CONFIG, ...(item.value as SiteConfig) });
+          if (item.key === "siteConfig") {
+            const merged = {
+              ...DEFAULT_SITE_CONFIG,
+              ...(item.value as SiteConfig),
+              brandColors: {
+                ...DEFAULT_BRAND_COLORS,
+                ...((item.value as SiteConfig).brandColors ?? {}),
+              },
+            };
+            setSiteConfig(merged);
+          }
           if (item.key === "navigation")
             setNavigation({ ...DEFAULT_NAVIGATION, ...(item.value as NavigationConfig) });
         }
@@ -145,6 +154,53 @@ export default function AdminSettingsPage() {
               value={siteConfig.favicon}
               onChange={(url) => setSiteConfig({ ...siteConfig, favicon: url })}
             />
+            <ImageUpload
+              label="Open Graph Image"
+              value={siteConfig.ogImage}
+              onChange={(url) => setSiteConfig({ ...siteConfig, ogImage: url })}
+            />
+            <AdminField label="Google Analytics ID" hint="e.g. G-XXXXXXXXXX">
+              <AdminInput
+                value={siteConfig.googleAnalyticsId}
+                onChange={(e) => setSiteConfig({ ...siteConfig, googleAnalyticsId: e.target.value })}
+              />
+            </AdminField>
+          </div>
+        </section>
+
+        <section className="border border-stone/30 p-6">
+          <h2 className="mb-6 font-display text-xl">Brand Colors</h2>
+          <p className="mb-6 text-sm text-fog">
+            Overrides site-wide CSS color variables. Use hex values (e.g. #b8a88a).
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {(Object.keys(DEFAULT_BRAND_COLORS) as (keyof BrandColors)[]).map((key) => (
+              <AdminField key={key} label={key.replace(/([A-Z])/g, " $1")}>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={siteConfig.brandColors[key]}
+                    onChange={(e) =>
+                      setSiteConfig({
+                        ...siteConfig,
+                        brandColors: { ...siteConfig.brandColors, [key]: e.target.value },
+                      })
+                    }
+                    className="h-10 w-12 cursor-pointer border border-stone/40 bg-charcoal"
+                    aria-label={`${key} color picker`}
+                  />
+                  <AdminInput
+                    value={siteConfig.brandColors[key]}
+                    onChange={(e) =>
+                      setSiteConfig({
+                        ...siteConfig,
+                        brandColors: { ...siteConfig.brandColors, [key]: e.target.value },
+                      })
+                    }
+                  />
+                </div>
+              </AdminField>
+            ))}
           </div>
         </section>
 

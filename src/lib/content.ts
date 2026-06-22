@@ -132,12 +132,14 @@ function mapService(item: {
   forWhom: string;
   includes: string;
   deliverables?: string;
+  faqs?: string;
   startingPrice: string;
   turnaround?: string;
   image: string | null;
   imageAlt: string;
   bannerImage?: string | null;
   thumbnailImage?: string | null;
+  featured?: boolean;
   sortOrder: number;
   published: boolean;
   archived?: boolean;
@@ -151,12 +153,14 @@ function mapService(item: {
     forWhom: item.forWhom,
     includes: parseJsonArray(item.includes),
     deliverables: parseJsonArray(item.deliverables ?? "[]"),
+    faqs: parseJsonArray(item.faqs ?? "[]"),
     startingPrice: item.startingPrice,
     turnaround: item.turnaround ?? "",
     image: item.image,
     imageAlt: item.imageAlt,
     bannerImage: item.bannerImage ?? null,
     thumbnailImage: item.thumbnailImage ?? null,
+    featured: item.featured ?? false,
     sortOrder: item.sortOrder,
     published: item.published,
     archived: item.archived ?? false,
@@ -168,6 +172,8 @@ function mapTestimonial(item: {
   quote: string;
   name: string;
   role: string;
+  image?: string | null;
+  imageAlt?: string;
   featured: boolean;
   sortOrder: number;
   published: boolean;
@@ -177,6 +183,8 @@ function mapTestimonial(item: {
     quote: item.quote,
     name: item.name,
     role: item.role,
+    image: item.image ?? null,
+    imageAlt: item.imageAlt ?? "",
     featured: item.featured,
     sortOrder: item.sortOrder,
     published: item.published,
@@ -186,7 +194,14 @@ function mapTestimonial(item: {
 // Public getters
 export async function getSiteConfig(): Promise<SiteConfig> {
   const stored = await getJsonContent(CONTENT_KEYS.siteConfig, DEFAULT_SITE_CONFIG);
-  return { ...DEFAULT_SITE_CONFIG, ...stored };
+  return {
+    ...DEFAULT_SITE_CONFIG,
+    ...stored,
+    brandColors: {
+      ...DEFAULT_SITE_CONFIG.brandColors,
+      ...(stored.brandColors ?? {}),
+    },
+  };
 }
 
 export async function getHeroContent(): Promise<HeroContent> {

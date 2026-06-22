@@ -18,7 +18,10 @@ import {
   type SessionTimelineStep,
   type SessionVolumeDTO,
   type SessionVolumeStatus,
+  type SessionsApplicationContent,
 } from "@/lib/types";
+import { DEFAULT_SESSIONS_APPLICATION } from "@/lib/defaults";
+import { saveAdminContent } from "@/lib/admin-save";
 import { getSessionStatusLabel, slugifySessionTitle, resolveSessionPosterImage } from "@/lib/session-volume";
 
 const DEFAULT_TIMELINE: SessionTimelineStep[] = [
@@ -69,7 +72,10 @@ function emptyVolume(): Partial<SessionVolumeDTO> {
 }
 
 export default function AdminSessionsPage() {
+  const [view, setView] = useState<"volumes" | "application">("volumes");
   const [items, setItems] = useState<SessionVolumeDTO[]>([]);
+  const [applicationCopy, setApplicationCopy] = useState<SessionsApplicationContent>(DEFAULT_SESSIONS_APPLICATION);
+  const [appSaving, setAppSaving] = useState(false);
   const [editing, setEditing] = useState<Partial<SessionVolumeDTO> | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -81,6 +87,14 @@ export default function AdminSessionsPage() {
 
   useEffect(() => {
     load();
+    adminFetch("/api/admin/content")
+      .then((r) => r.json())
+      .then((all: { key: string; value: unknown }[]) => {
+        const item = all.find((c) => c.key === "sessionsApplication");
+        if (item?.value) {
+          setApplicationCopy({ ...DEFAULT_SESSIONS_APPLICATION, ...(item.value as SessionsApplicationContent) });
+        }
+      });
   }, []);
 
   function update<K extends keyof SessionVolumeDTO>(key: K, value: SessionVolumeDTO[K]) {
@@ -125,8 +139,103 @@ export default function AdminSessionsPage() {
     load();
   }
 
+  async function duplicate(id: string) {
+    const res = await adminFetch(`/api/admin/session-volumes/${id}/duplicate`, { method: "POST" });
+    setMessage(res.ok ? "Volume duplicated as draft." : "Duplicate failed.");
+    if (res.ok) load();
+  }
+
+  async function archiveVolume(item: SessionVolumeDTO) {
+    const res = await adminFetch(`/api/admin/session-volumes/${item.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...item, status: "archived", archived: true, published: false }),
+    });
+    setMessage(res.ok ? "Volume archived." : "Archive failed.");
+    if (res.ok) load();
+  }
+
+  async function reorder(id: string, direction: -1 | 1) {
+    const index = items.findIndex((i) => i.id === id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= items.length) return;
+    const next = [...items];
+    [next[index], next[target]] = [next[target], next[index]];
+    const order = next.map((vol, sortOrder) => ({ id: vol.id, sortOrder }));
+    const res = await adminFetch("/api/admin/session-volumes/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order }),
+    });
+    if (res.ok) load();
+  }
+
+  async function saveApplicationCopy() {
+    setAppSaving(true);
+    const ok = await saveAdminContent("sessionsApplication", applicationCopy);
+    setMessage(ok ? "Application copy saved." : "Save failed.");
+    setAppSaving(false);
+  }
+
   return (
     <AdminShell title="ÉLEVÉ Sessions">
+      <div className="mb-6 flex gap-2">
+        {(["volumes", "application"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setView(mode)}
+            className={`px-3 py-1.5 text-xs uppercase ${
+              view === mode ? "bg-cream text-ink" : "border border-stone/50 text-fog"
+            }`}
+          >
+            {mode === "volumes" ? "Volumes" : "Application Form Copy"}
+          </button>
+        ))}
+      </div>
+
+      {view === "application" ? (
+        <div className="max-w-2xl space-y-4 border border-stone/30 p-6">
+          <AdminField label="Form headline">
+            <AdminInput
+              value={applicationCopy.headline}
+              onChange={(e) => setApplicationCopy({ ...applicationCopy, headline: e.target.value })}
+            />
+          </AdminField>
+          <AdminField label="Subheadline">
+            <AdminTextarea
+              value={applicationCopy.subheadline}
+              onChange={(e) => setApplicationCopy({ ...applicationCopy, subheadline: e.target.value })}
+            />
+          </AdminField>
+          <AdminField label="Success title">
+            <AdminInput
+              value={applicationCopy.successTitle}
+              onChange={(e) => setApplicationCopy({ ...applicationCopy, successTitle: e.target.value })}
+            />
+          </AdminField>
+          <AdminField label="Success message">
+            <AdminTextarea
+              value={applicationCopy.successMessage}
+              onChange={(e) => setApplicationCopy({ ...applicationCopy, successMessage: e.target.value })}
+            />
+          </AdminField>
+          <StringListEditor
+            label="Next steps (after submit)"
+            items={applicationCopy.nextSteps}
+            onChange={(nextSteps) => setApplicationCopy({ ...applicationCopy, nextSteps })}
+          />
+          <button
+            type="button"
+            onClick={saveApplicationCopy}
+            disabled={appSaving}
+            className="bg-cream px-5 py-2 text-xs text-ink uppercase disabled:opacity-50"
+          >
+            {appSaving ? "Saving..." : "Save Application Copy"}
+          </button>
+        </div>
+      ) : (
+        <>
       <div className="mb-6 flex justify-between">
         <p className="text-sm text-fog">{items.length} volumes</p>
         <button
@@ -465,12 +574,22 @@ export default function AdminSessionsPage() {
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
+                <button type="button" onClick={() => reorder(item.id, -1)} className="text-xs text-fog">↑</button>
+                <button type="button" onClick={() => reorder(item.id, 1)} className="text-xs text-fog">↓</button>
                 <Link href={`/sessions/${item.slug}`} className="text-xs text-fog hover:text-cream">
                   View
                 </Link>
                 <button type="button" onClick={() => setEditing(item)} className="text-xs text-accent">
                   Edit
                 </button>
+                <button type="button" onClick={() => duplicate(item.id)} className="text-xs text-fog">
+                  Duplicate
+                </button>
+                {item.status !== "archived" && (
+                  <button type="button" onClick={() => archiveVolume(item)} className="text-xs text-fog">
+                    Archive
+                  </button>
+                )}
                 <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
                   Delete
                 </button>
@@ -486,6 +605,8 @@ export default function AdminSessionsPage() {
       </div>
 
       {message && <p className="mt-6 text-sm text-accent">{message}</p>}
+        </>
+      )}
     </AdminShell>
   );
 }

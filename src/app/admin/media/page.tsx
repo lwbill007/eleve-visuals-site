@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminField, AdminInput } from "@/components/admin/AdminForm";
@@ -16,20 +16,26 @@ interface MediaAsset {
 
 export default function AdminMediaPage() {
   const [items, setItems] = useState<MediaAsset[]>([]);
+  const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editAlt, setEditAlt] = useState("");
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function load() {
-    const res = await adminFetch("/api/admin/media");
+  const load = useCallback(async () => {
+    const qs = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : "";
+    const res = await adminFetch(`/api/admin/media${qs}`);
     if (res.ok) setItems(await res.json());
-  }
+  }, [search]);
 
   useEffect(() => {
-    load();
-  }, []);
+    const timer = setTimeout(() => {
+      load();
+    }, search ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [load, search]);
 
   async function remove(id: string) {
     if (!confirm("Delete this media asset from the library?")) return;
@@ -42,7 +48,7 @@ export default function AdminMediaPage() {
     const res = await adminFetch(`/api/admin/media/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: editName }),
+      body: JSON.stringify({ filename: editName, alt: editAlt }),
     });
     setMessage(res.ok ? "Updated." : "Update failed.");
     setEditingId(null);
@@ -82,7 +88,7 @@ export default function AdminMediaPage() {
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -91,21 +97,43 @@ export default function AdminMediaPage() {
           }}
         />
       </div>
+
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by filename, alt text, or URL..."
+        className="mb-4 w-full max-w-md border border-stone/50 bg-charcoal px-4 py-2.5 text-sm text-cream"
+        aria-label="Search media"
+      />
+
       {message && <p className="mb-4 text-sm text-accent">{message}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {items.map((item) => (
           <div key={item.id} className="border border-stone/30 bg-charcoal/20">
             <div className="relative aspect-square bg-ink">
-              <Image src={item.url} alt={item.alt || item.filename} fill className="object-cover" sizes="200px" />
+              {item.url.match(/\.(mp4|webm)(\?|$)/i) ? (
+                <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+              ) : (
+                <Image src={item.url} alt={item.alt || item.filename} fill className="object-cover" sizes="200px" />
+              )}
             </div>
             <div className="space-y-2 p-3">
               {editingId === item.id ? (
-                <AdminField label="Filename">
-                  <AdminInput value={editName} onChange={(e) => setEditName(e.target.value)} />
-                </AdminField>
+                <>
+                  <AdminField label="Filename">
+                    <AdminInput value={editName} onChange={(e) => setEditName(e.target.value)} />
+                  </AdminField>
+                  <AdminField label="Alt text">
+                    <AdminInput value={editAlt} onChange={(e) => setEditAlt(e.target.value)} />
+                  </AdminField>
+                </>
               ) : (
-                <p className="truncate text-xs text-cream">{item.filename || "Untitled"}</p>
+                <>
+                  <p className="truncate text-xs text-cream">{item.filename || "Untitled"}</p>
+                  {item.alt && <p className="truncate text-[0.65rem] text-muted">Alt: {item.alt}</p>}
+                </>
               )}
               <p className="truncate text-[0.65rem] text-muted">{item.url}</p>
               <div className="flex flex-wrap gap-2">
@@ -126,10 +154,11 @@ export default function AdminMediaPage() {
                     onClick={() => {
                       setEditingId(item.id);
                       setEditName(item.filename);
+                      setEditAlt(item.alt);
                     }}
                     className="text-xs text-fog"
                   >
-                    Rename
+                    Edit
                   </button>
                 )}
                 <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
@@ -141,7 +170,9 @@ export default function AdminMediaPage() {
         ))}
       </div>
       {items.length === 0 && (
-        <p className="py-16 text-center text-fog">No media yet. Upload images from any admin editor.</p>
+        <p className="py-16 text-center text-fog">
+          {search ? "No media matches your search." : "No media yet. Upload images from any admin editor."}
+        </p>
       )}
     </AdminShell>
   );

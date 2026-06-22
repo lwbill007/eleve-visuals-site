@@ -59,6 +59,7 @@ export function parseSessionVolumeBody(body: Record<string, unknown>) {
     featured: !!body.featured,
     published: !!body.published,
     showApplyButton: body.showApplyButton !== false,
+    archived: !!body.archived || status === "archived",
     seoTitle: String(body.seoTitle || ""),
     seoDescription: String(body.seoDescription || ""),
     sortOrder: Number(body.sortOrder) || 0,

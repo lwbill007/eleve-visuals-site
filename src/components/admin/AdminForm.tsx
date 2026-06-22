@@ -454,14 +454,19 @@ export function SaveBar({
   onSave,
   saving,
   message,
+  autosaveNote,
 }: {
   onSave: () => void;
   saving: boolean;
   message?: string;
+  autosaveNote?: string;
 }) {
   return (
     <div className="sticky bottom-0 -mx-6 mt-8 flex items-center justify-between border-t border-stone/30 bg-ink/95 px-6 py-4 backdrop-blur md:-mx-10 md:px-10">
-      <p className="text-sm text-accent">{message}</p>
+      <div className="text-sm">
+        {message && <p className="text-accent">{message}</p>}
+        {autosaveNote && !message && <p className="text-muted">{autosaveNote}</p>}
+      </div>
       <button
         type="button"
         onClick={onSave}

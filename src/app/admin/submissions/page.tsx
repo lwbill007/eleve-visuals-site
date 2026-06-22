@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import AdminSubmissionsClient from "./SubmissionsClient";
+import { AdminPageSkeleton } from "@/components/admin/AdminPageSkeleton";
 
 export default function AdminSubmissionsPage() {
   return (
-    <Suspense fallback={<p className="p-10 text-fog">Loading...</p>}>
+    <Suspense fallback={<AdminPageSkeleton rows={8} />}>
       <AdminSubmissionsClient />
     </Suspense>
   );

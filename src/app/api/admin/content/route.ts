@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { contentSetters } from "@/lib/content";
+import { revalidateContentKey } from "@/lib/revalidate-public";
 import {
   getSiteConfig,
   getHeroContent,
@@ -11,6 +12,7 @@ import {
   getSessionsContent,
   getSessionsApplicationContent,
   getServicesIntro,
+  getServicesPageContent,
   getBookingOptions,
   getBookingTerms,
   getPageCopy,
@@ -29,6 +31,7 @@ const GETTERS = {
   sessions: getSessionsContent,
   sessionsApplication: getSessionsApplicationContent,
   servicesIntro: getServicesIntro,
+  servicesPage: getServicesPageContent,
   bookingOptions: getBookingOptions,
   bookingTerms: getBookingTerms,
   pageCopy: getPageCopy,
@@ -76,6 +79,7 @@ export async function PUT(request: Request) {
 
     const setter = contentSetters[key as keyof typeof contentSetters];
     await (setter as (v: unknown) => Promise<void>)(value);
+    revalidateContentKey(key);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Failed to save content" }, { status: 500 });

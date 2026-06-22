@@ -2,6 +2,7 @@ import type {
   AboutContent,
   BookingOptions,
   BookingTermsContent,
+  BrandColors,
   BrandStory,
   ContactPageContent,
   HeroContent,
@@ -16,6 +17,18 @@ import type {
   SiteConfig,
   FaqItem,
 } from "./types";
+
+export const DEFAULT_BRAND_COLORS: BrandColors = {
+  ink: "#0a0a0a",
+  charcoal: "#1a1a1a",
+  stone: "#2a2a2a",
+  muted: "#6b6862",
+  fog: "#9a9690",
+  cream: "#f5f3ef",
+  creamDim: "#e8e4dc",
+  accent: "#b8a88a",
+  accentDim: "#8a7d66",
+};
 
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
   name: "ÉLEVÉ Visuals",
@@ -40,6 +53,9 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   seoDescription:
     "Cinematic photography, video production, and creative direction for brands, artists, and athletes.",
   copyrightText: "© ÉLEVÉ Visuals. All rights reserved.",
+  ogImage: null,
+  googleAnalyticsId: "",
+  brandColors: DEFAULT_BRAND_COLORS,
 };
 
 export const DEFAULT_NAVIGATION: NavigationConfig = {

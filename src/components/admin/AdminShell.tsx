@@ -13,7 +13,9 @@ const NAV_SECTIONS = [
     label: "Content",
     items: [
       { label: "Homepage", href: "/admin/homepage" },
-      { label: "About & Pages", href: "/admin/content" },
+      { label: "About", href: "/admin/about" },
+      { label: "Contact", href: "/admin/contact" },
+      { label: "Page Copy", href: "/admin/content" },
       { label: "Settings", href: "/admin/settings" },
       { label: "Media Library", href: "/admin/media" },
     ],
@@ -30,9 +32,11 @@ const NAV_SECTIONS = [
   {
     label: "Inquiries",
     items: [
-      { label: "Booking Inquiries", href: "/admin/submissions?type=booking" },
-      { label: "Booking Form", href: "/admin/booking" },
+      { label: "Booking CRM", href: "/admin/submissions?type=booking" },
+      { label: "Applications", href: "/admin/applications" },
+      { label: "Contact Messages", href: "/admin/submissions?type=contact" },
       { label: "All Submissions", href: "/admin/submissions" },
+      { label: "Booking Form", href: "/admin/booking" },
     ],
   },
 ];
