@@ -1,36 +1,33 @@
 import {
-  getHeroContent,
   getBrandStory,
   getFeaturedPortfolio,
   getFeaturedTestimonials,
-  getHomeServices,
+  getHeroContent,
   getHomepageContent,
-  getPageCopy,
-  getSiteConfig,
+  getServices,
 } from "@/lib/content";
 import { getFeaturedSessionVolume, getSessionVolumeById } from "@/lib/session-volumes";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { FeaturedWork } from "@/components/sections/FeaturedWork";
-import { ServicesOverview } from "@/components/sections/ServicesOverview";
-import { BrandStorySection } from "@/components/sections/BrandStory";
-import { Testimonials } from "@/components/sections/Testimonials";
-import { FeaturedSessionsHome } from "@/components/sections/FeaturedSessionsHome";
-import { CTABanner } from "@/components/ui/Section";
+import { HomeHero } from "@/components/home/HomeHero";
+import { HomeStats } from "@/components/home/HomeStats";
+import { HomeFeaturedWork } from "@/components/home/HomeFeaturedWork";
+import { HomeServicesPreview } from "@/components/home/HomeServicesPreview";
+import { HomeSessionsPreview } from "@/components/home/HomeSessionsPreview";
+import { HomeWhyEleve } from "@/components/home/HomeWhyEleve";
+import { HomeProcessTimeline } from "@/components/home/HomeProcessTimeline";
+import { HomeTestimonials } from "@/components/home/HomeTestimonials";
+import { HomeFinalCta } from "@/components/home/HomeFinalCta";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [siteConfig, hero, homepage, featured, homeServices, brandStory, testimonials, pageCopy] =
-    await Promise.all([
-      getSiteConfig(),
-      getHeroContent(),
-      getHomepageContent(),
-      getFeaturedPortfolio(),
-      getHomeServices(),
-      getBrandStory(),
-      getFeaturedTestimonials(),
-      getPageCopy(),
-    ]);
+  const [hero, homepage, featured, services, brandStory, testimonials] = await Promise.all([
+    getHeroContent(),
+    getHomepageContent(),
+    getFeaturedPortfolio(),
+    getServices(true),
+    getBrandStory(),
+    getFeaturedTestimonials(),
+  ]);
 
   let featuredSession = null;
   if (homepage.featuredSessionVolumeId) {
@@ -41,29 +38,63 @@ export default async function HomePage() {
   }
 
   const sectionMap: Record<string, React.ReactNode> = {
-    "featured-work": <FeaturedWork key="featured-work" items={featured} />,
-    services: <ServicesOverview key="services" services={homeServices} />,
-    sessions: featuredSession ? (
-      <FeaturedSessionsHome key="sessions" volume={featuredSession} />
-    ) : null,
-    "brand-story": <BrandStorySection key="brand-story" brandStory={brandStory} />,
-    testimonials: <Testimonials key="testimonials" items={testimonials} />,
-    cta: (
-      <CTABanner
-        key="cta"
-        headline={pageCopy.homeCta.headline}
-        subheadline={pageCopy.homeCta.subheadline}
-        primaryLabel={pageCopy.homeCta.primaryLabel}
-        primaryHref={pageCopy.homeCta.primaryHref}
-        secondaryLabel={pageCopy.homeCta.secondaryLabel}
-        secondaryHref={pageCopy.homeCta.secondaryHref}
+    stats: (
+      <HomeStats
+        key="stats"
+        enabled={homepage.stats.enabled}
+        items={homepage.stats.items}
       />
     ),
+    "featured-work": (
+      <HomeFeaturedWork
+        key="featured-work"
+        items={featured}
+        copy={homepage.copy.featuredWork}
+        filters={homepage.workFilters}
+      />
+    ),
+    services: (
+      <HomeServicesPreview
+        key="services"
+        services={services}
+        copy={homepage.copy.services}
+      />
+    ),
+    sessions: featuredSession ? (
+      <HomeSessionsPreview
+        key="sessions"
+        volume={featuredSession}
+        copy={homepage.copy.sessions}
+      />
+    ) : null,
+    "brand-story": (
+      <HomeWhyEleve
+        key="brand-story"
+        brandStory={brandStory}
+        copy={homepage.copy.whyEleve}
+        pillars={homepage.whyPillars}
+      />
+    ),
+    process: (
+      <HomeProcessTimeline
+        key="process"
+        copy={homepage.copy.process}
+        steps={homepage.processSteps}
+      />
+    ),
+    testimonials: (
+      <HomeTestimonials
+        key="testimonials"
+        items={testimonials}
+        copy={homepage.copy.testimonials}
+      />
+    ),
+    cta: <HomeFinalCta key="cta" copy={homepage.copy.cta} />,
   };
 
   return (
     <>
-      <HeroSection hero={hero} siteConfig={siteConfig} />
+      <HomeHero hero={hero} />
       {homepage.sections
         .filter((s) => s.enabled)
         .map((s) => sectionMap[s.id])

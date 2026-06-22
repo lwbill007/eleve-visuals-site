@@ -200,6 +200,25 @@ export async function getHomepageContent(): Promise<HomepageContent> {
     ...DEFAULT_HOMEPAGE,
     ...stored,
     sections: stored.sections?.length ? stored.sections : DEFAULT_HOMEPAGE.sections,
+    stats: {
+      ...DEFAULT_HOMEPAGE.stats,
+      ...stored.stats,
+      items: stored.stats?.items?.length ? stored.stats.items : DEFAULT_HOMEPAGE.stats.items,
+    },
+    workFilters: stored.workFilters?.length ? stored.workFilters : DEFAULT_HOMEPAGE.workFilters,
+    copy: {
+      ...DEFAULT_HOMEPAGE.copy,
+      ...stored.copy,
+      featuredWork: { ...DEFAULT_HOMEPAGE.copy.featuredWork, ...stored.copy?.featuredWork },
+      services: { ...DEFAULT_HOMEPAGE.copy.services, ...stored.copy?.services },
+      sessions: { ...DEFAULT_HOMEPAGE.copy.sessions, ...stored.copy?.sessions },
+      whyEleve: { ...DEFAULT_HOMEPAGE.copy.whyEleve, ...stored.copy?.whyEleve },
+      process: { ...DEFAULT_HOMEPAGE.copy.process, ...stored.copy?.process },
+      testimonials: { ...DEFAULT_HOMEPAGE.copy.testimonials, ...stored.copy?.testimonials },
+      cta: { ...DEFAULT_HOMEPAGE.copy.cta, ...stored.copy?.cta },
+    },
+    processSteps: stored.processSteps?.length ? stored.processSteps : DEFAULT_HOMEPAGE.processSteps,
+    whyPillars: stored.whyPillars?.length ? stored.whyPillars : DEFAULT_HOMEPAGE.whyPillars,
   };
 }
 
@@ -312,7 +331,7 @@ export async function getFeaturedPortfolio(): Promise<PortfolioItemDTO[]> {
   const items = await prisma.portfolioItem.findMany({
     where: { published: true, featured: true, archived: false },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-    take: 5,
+    take: 8,
   });
   return items.map(mapPortfolioItem);
 }

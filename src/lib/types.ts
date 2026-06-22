@@ -61,10 +61,58 @@ export interface HomepageBanner {
   image: string | null;
 }
 
+export interface HomepageStat {
+  label: string;
+  value: string;
+  enabled: boolean;
+}
+
+export interface HomepageSectionCopy {
+  eyebrow?: string;
+  headline: string;
+  subheadline?: string;
+}
+
+export interface HomepageProcessStep {
+  step: string;
+  title: string;
+  description: string;
+}
+
+export interface HomepageWhyPillar {
+  title: string;
+  description: string;
+}
+
+export interface HomepageCtaCopy extends HomepageSectionCopy {
+  primaryLabel: string;
+  primaryHref: string;
+  secondaryLabel?: string;
+  secondaryHref?: string;
+  backgroundImage: string | null;
+  videoUrl: string | null;
+}
+
 export interface HomepageContent {
   sections: HomepageSection[];
   featuredSessionVolumeId: string | null;
   banner: HomepageBanner | null;
+  stats: {
+    enabled: boolean;
+    items: HomepageStat[];
+  };
+  workFilters: string[];
+  copy: {
+    featuredWork: HomepageSectionCopy;
+    services: HomepageSectionCopy;
+    sessions: HomepageSectionCopy;
+    whyEleve: HomepageSectionCopy;
+    process: HomepageSectionCopy;
+    testimonials: HomepageSectionCopy;
+    cta: HomepageCtaCopy;
+  };
+  processSteps: HomepageProcessStep[];
+  whyPillars: HomepageWhyPillar[];
 }
 
 export interface HeroContent {

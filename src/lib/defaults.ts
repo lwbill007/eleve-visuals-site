@@ -60,36 +60,126 @@ export const DEFAULT_NAVIGATION: NavigationConfig = {
 
 export const DEFAULT_HOMEPAGE: HomepageContent = {
   sections: [
+    { id: "stats", label: "Signature Stats", enabled: true },
     { id: "featured-work", label: "Featured Work", enabled: true },
     { id: "services", label: "Services", enabled: true },
     { id: "sessions", label: "ÉLEVÉ Sessions", enabled: true },
-    { id: "brand-story", label: "Brand Story", enabled: true },
+    { id: "brand-story", label: "Why ÉLEVÉ", enabled: true },
+    { id: "process", label: "Client Experience", enabled: true },
     { id: "testimonials", label: "Testimonials", enabled: true },
-    { id: "cta", label: "Call to Action", enabled: true },
+    { id: "cta", label: "Final CTA", enabled: true },
   ],
   featuredSessionVolumeId: null,
   banner: null,
+  stats: {
+    enabled: true,
+    items: [
+      { label: "Sessions Produced", value: "", enabled: true },
+      { label: "Brands Worked With", value: "", enabled: true },
+      { label: "Portraits Delivered", value: "", enabled: true },
+      { label: "Creative Projects", value: "", enabled: true },
+      { label: "Cities Served", value: "", enabled: true },
+    ],
+  },
+  workFilters: ["Portraits", "Brands", "Athletes", "Events", "Motion", "Creative Direction"],
+  copy: {
+    featuredWork: {
+      eyebrow: "Selected Work",
+      headline: "Craft built to outlast the moment.",
+      subheadline: "Editorial projects across portrait, brand, athlete, and motion — each frame intentional.",
+    },
+    services: {
+      eyebrow: "Capabilities",
+      headline: "Production at studio standard.",
+      subheadline: "Photography, film, and creative direction — scoped with precision, delivered with obsession.",
+    },
+    sessions: {
+      eyebrow: "ÉLEVÉ Sessions",
+      headline: "Limited volumes. Cinematic standards.",
+      subheadline: "Curated creative productions — part editorial, part experience.",
+    },
+    whyEleve: {
+      eyebrow: "Why ÉLEVÉ",
+      headline: "Direction before execution. Always.",
+      subheadline: "We build visual identities — not just images.",
+    },
+    process: {
+      eyebrow: "The Experience",
+      headline: "From inquiry to delivery.",
+      subheadline: "A refined creative process designed for clarity, collaboration, and exceptional results.",
+    },
+    testimonials: {
+      eyebrow: "Client Words",
+      headline: "Trusted by those who refuse ordinary.",
+      subheadline: "Partners who expect editorial quality and cinematic craft.",
+    },
+    cta: {
+      eyebrow: "Begin",
+      headline: "Ready to create something unforgettable?",
+      subheadline: "Limited availability. Exceptional projects only.",
+      primaryLabel: "Book Your Project",
+      primaryHref: "/book",
+      secondaryLabel: "View Portfolio",
+      secondaryHref: "/portfolio",
+      backgroundImage: null,
+      videoUrl: null,
+    },
+  },
+  processSteps: [
+    { step: "01", title: "Inquiry", description: "Share your vision, goals, and timeline." },
+    { step: "02", title: "Discovery", description: "We align on creative direction and scope." },
+    { step: "03", title: "Creative Planning", description: "Mood, locations, wardrobe, and shot design." },
+    { step: "04", title: "Production", description: "On-set direction with editorial precision." },
+    { step: "05", title: "Editing", description: "Refined retouching, grade, and assembly." },
+    { step: "06", title: "Delivery", description: "Final assets delivered, ready to deploy." },
+  ],
+  whyPillars: [
+    {
+      title: "Direction before execution",
+      description: "Every project begins with creative intent — never a shot list pulled from a template.",
+    },
+    {
+      title: "Intentional visuals",
+      description: "Frames designed to carry weight, emotion, and narrative long after the shoot ends.",
+    },
+    {
+      title: "Quality over quantity",
+      description: "Selective bookings. Limited sessions. Work that earns its place in your archive.",
+    },
+    {
+      title: "Collaborative process",
+      description: "You bring the vision. We bring direction, craft, and production discipline.",
+    },
+    {
+      title: "Editorial standards",
+      description: "Campaign-grade imagery with the restraint and taste of premium editorial.",
+    },
+    {
+      title: "Visual identity, not snapshots",
+      description: "We build cohesive worlds — not one-off content that disappears in the feed.",
+    },
+  ],
 };
 
 export const DEFAULT_HERO: HeroContent = {
-  headline: "Visuals that move with intention.",
+  headline: "Stories worth remembering deserve visuals worth obsessing over.",
   subheadline:
-    "Photography, film, and creative direction for brands, artists, and athletes who demand more than content — they demand presence.",
+    "Photography. Motion. Creative direction. Crafted for brands, athletes, artists, and visionaries.",
   description: "",
-  primaryCta: { label: "Book a Shoot", href: "/book" },
-  secondaryCta: { label: "View Portfolio", href: "/portfolio" },
+  primaryCta: { label: "Book a Project", href: "/book" },
+  secondaryCta: { label: "Explore Work", href: "/portfolio" },
   image: null,
-  imageAlt: "",
+  imageAlt: "ÉLEVÉ Visuals cinematic hero",
   videoUrl: null,
 };
 
 export const DEFAULT_BRAND_STORY: BrandStory = {
   eyebrow: "Why ÉLEVÉ",
-  headline: "Elevated isn't a look. It's a standard.",
+  headline: "A production house mindset. An artist's eye.",
   body: [
-    "ÉLEVÉ Visuals was built on one belief: your image should feel as considered as your craft. Whether you're launching a brand, building a personal archive, or documenting a moment that matters — the visuals need to carry weight.",
-    "I'm Bill — photographer, director, and the person behind the lens. I work with athletes, artists, founders, and creatives across Sacramento and the Bay Area, producing work that sits somewhere between editorial and cinema.",
-    "No rushed shoots. No generic deliverables. Every project starts with direction, ends with intention, and leaves you with assets you're proud to put your name on.",
+    "ÉLEVÉ Visuals operates at the intersection of cinema, editorial, and brand strategy — built for clients who understand that image is infrastructure.",
+    "We don't chase trends. We craft visual languages — deliberate, elevated, and impossible to confuse with anyone else in your market.",
+    "From Sacramento to the Bay Area and beyond, we partner with brands, athletes, and artists who treat their visual presence as seriously as their craft.",
   ],
   stats: [],
 };
