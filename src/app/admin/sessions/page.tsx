@@ -1,0 +1,491 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { adminFetch } from "@/lib/admin-fetch";
+import { AdminShell } from "@/components/admin/AdminShell";
+import {
+  AdminField,
+  AdminInput,
+  AdminTextarea,
+  ImageUpload,
+  GalleryUpload,
+  StringListEditor,
+} from "@/components/admin/AdminForm";
+import {
+  SESSION_VOLUME_STATUSES,
+  type SessionTimelineStep,
+  type SessionVolumeDTO,
+  type SessionVolumeStatus,
+} from "@/lib/types";
+import { getSessionStatusLabel, slugifySessionTitle, resolveSessionPosterImage } from "@/lib/session-volume";
+
+const DEFAULT_TIMELINE: SessionTimelineStep[] = [
+  { label: "Application Opens", detail: "" },
+  { label: "Applications Close", detail: "" },
+  { label: "Selection", detail: "" },
+  { label: "Shoot Day", detail: "" },
+  { label: "Final Delivery", detail: "" },
+];
+
+function emptyVolume(): Partial<SessionVolumeDTO> {
+  return {
+    volumeNumber: 1,
+    title: "",
+    slug: "",
+    theme: "",
+    subtitle: "",
+    synopsis: "",
+    posterImage: null,
+    posterImageAlt: "",
+    bannerImage: null,
+    bannerImageAlt: "",
+    moodBoard: [],
+    gallery: [],
+    status: "draft",
+    genre: "Creative Production",
+    year: String(new Date().getFullYear()),
+    sessionDate: "",
+    sessionTime: "",
+    location: "",
+    city: "",
+    capacity: "Limited capacity",
+    category: "ÉLEVÉ Sessions",
+    creativeDirector: "",
+    dressCode: "",
+    runtime: "",
+    requirements: [],
+    timeline: DEFAULT_TIMELINE,
+    applicationDeadline: null,
+    teaserVideoUrl: null,
+    featured: false,
+    published: false,
+    showApplyButton: true,
+    seoTitle: "",
+    seoDescription: "",
+    sortOrder: 0,
+  };
+}
+
+export default function AdminSessionsPage() {
+  const [items, setItems] = useState<SessionVolumeDTO[]>([]);
+  const [editing, setEditing] = useState<Partial<SessionVolumeDTO> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function load() {
+    const res = await adminFetch("/api/admin/session-volumes");
+    if (res.ok) setItems(await res.json());
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  function update<K extends keyof SessionVolumeDTO>(key: K, value: SessionVolumeDTO[K]) {
+    if (!editing) return;
+    const next = { ...editing, [key]: value };
+    if (key === "title" && !editing.id && typeof value === "string") {
+      next.slug = slugifySessionTitle(value);
+    }
+    setEditing(next);
+  }
+
+  async function save() {
+    if (!editing?.title || !editing.slug) return;
+    setSaving(true);
+    setMessage("");
+
+    const isNew = !editing.id;
+    const url = isNew ? "/api/admin/session-volumes" : `/api/admin/session-volumes/${editing.id}`;
+    const method = isNew ? "POST" : "PUT";
+
+    const res = await adminFetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editing),
+    });
+
+    setMessage(res.ok ? "Saved." : "Save failed.");
+    if (res.ok) {
+      setEditing(null);
+      load();
+    }
+    setSaving(false);
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Delete this session volume?")) return;
+    const res = await adminFetch(`/api/admin/session-volumes/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setMessage("Delete failed.");
+      return;
+    }
+    load();
+  }
+
+  return (
+    <AdminShell title="ÉLEVÉ Sessions">
+      <div className="mb-6 flex justify-between">
+        <p className="text-sm text-fog">{items.length} volumes</p>
+        <button
+          type="button"
+          onClick={() => setEditing(emptyVolume())}
+          className="bg-cream px-4 py-2 text-xs tracking-[0.15em] text-ink uppercase"
+        >
+          New Volume
+        </button>
+      </div>
+
+      {editing && (
+        <div className="mb-10 border border-stone/30 p-6">
+          <h2 className="mb-6 font-display text-xl">
+            {editing.id ? `Edit Vol. ${editing.volumeNumber}` : "New Session Volume"}
+          </h2>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <AdminField label="Volume Number">
+              <AdminInput
+                type="number"
+                value={editing.volumeNumber ?? 1}
+                onChange={(e) => update("volumeNumber", parseInt(e.target.value) || 1)}
+              />
+            </AdminField>
+            <AdminField label="Year">
+              <AdminInput
+                value={editing.year || ""}
+                onChange={(e) => update("year", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Title">
+              <AdminInput
+                value={editing.title || ""}
+                onChange={(e) => update("title", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Slug" hint="URL: /sessions/your-slug">
+              <AdminInput
+                value={editing.slug || ""}
+                onChange={(e) => update("slug", slugifySessionTitle(e.target.value))}
+              />
+            </AdminField>
+            <AdminField label="Theme">
+              <AdminInput
+                value={editing.theme || ""}
+                onChange={(e) => update("theme", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Genre">
+              <AdminInput
+                value={editing.genre || ""}
+                onChange={(e) => update("genre", e.target.value)}
+              />
+            </AdminField>
+            <div className="md:col-span-2">
+              <AdminField label="Subtitle / Tagline">
+                <AdminInput
+                  value={editing.subtitle || ""}
+                  onChange={(e) => update("subtitle", e.target.value)}
+                />
+              </AdminField>
+            </div>
+            <div className="md:col-span-2">
+              <AdminField label="Synopsis">
+                <AdminTextarea
+                  value={editing.synopsis || ""}
+                  onChange={(e) => update("synopsis", e.target.value)}
+                  className="min-h-[140px]"
+                />
+              </AdminField>
+            </div>
+            <AdminField label="Status">
+              <select
+                className="w-full"
+                value={editing.status || "draft"}
+                onChange={(e) => update("status", e.target.value as SessionVolumeStatus)}
+              >
+                {SESSION_VOLUME_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {getSessionStatusLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </AdminField>
+            <AdminField label="Application Deadline" hint="ISO datetime for countdown">
+              <AdminInput
+                type="datetime-local"
+                value={
+                  editing.applicationDeadline
+                    ? editing.applicationDeadline.slice(0, 16)
+                    : ""
+                }
+                onChange={(e) =>
+                  update(
+                    "applicationDeadline",
+                    e.target.value ? new Date(e.target.value).toISOString() : null
+                  )
+                }
+              />
+            </AdminField>
+            <AdminField label="Session Date">
+              <AdminInput
+                value={editing.sessionDate || ""}
+                onChange={(e) => update("sessionDate", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Session Time">
+              <AdminInput
+                value={editing.sessionTime || ""}
+                onChange={(e) => update("sessionTime", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="City">
+              <AdminInput
+                value={editing.city || ""}
+                onChange={(e) => update("city", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Location">
+              <AdminInput
+                value={editing.location || ""}
+                onChange={(e) => update("location", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Capacity">
+              <AdminInput
+                value={editing.capacity || ""}
+                onChange={(e) => update("capacity", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Creative Director">
+              <AdminInput
+                value={editing.creativeDirector || ""}
+                onChange={(e) => update("creativeDirector", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Dress Code">
+              <AdminInput
+                value={editing.dressCode || ""}
+                onChange={(e) => update("dressCode", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Runtime" hint="Optional stylistic field">
+              <AdminInput
+                value={editing.runtime || ""}
+                onChange={(e) => update("runtime", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Teaser Video URL" hint="YouTube or direct MP4 URL">
+              <AdminInput
+                value={editing.teaserVideoUrl || ""}
+                onChange={(e) => update("teaserVideoUrl", e.target.value || null)}
+              />
+            </AdminField>
+            <div className="md:col-span-2">
+              <ImageUpload
+                label="Poster Image"
+                value={editing.posterImage || null}
+                onChange={(url) => update("posterImage", url)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <ImageUpload
+                label="Banner Image"
+                value={editing.bannerImage || null}
+                onChange={(url) => update("bannerImage", url)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <GalleryUpload
+                label="Mood Board"
+                hint="Reference images for the production."
+                images={editing.moodBoard || []}
+                onChange={(moodBoard) => update("moodBoard", moodBoard)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <GalleryUpload
+                label="Gallery"
+                hint="Session photos or stills for the detail page."
+                images={editing.gallery || []}
+                onChange={(gallery) => update("gallery", gallery)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <StringListEditor
+                label="Requirements (who should apply)"
+                items={editing.requirements || []}
+                onChange={(requirements) => update("requirements", requirements)}
+                addLabel="Add requirement"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <p className="mb-3 text-sm text-cream-dim">Timeline</p>
+              <div className="space-y-3">
+                {(editing.timeline || []).map((step, index) => (
+                  <div key={index} className="grid gap-2 md:grid-cols-2">
+                    <AdminInput
+                      placeholder="Step label"
+                      value={step.label}
+                      onChange={(e) => {
+                        const timeline = [...(editing.timeline || [])];
+                        timeline[index] = { ...timeline[index], label: e.target.value };
+                        update("timeline", timeline);
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <AdminInput
+                        placeholder="Detail (optional)"
+                        value={step.detail || ""}
+                        onChange={(e) => {
+                          const timeline = [...(editing.timeline || [])];
+                          timeline[index] = { ...timeline[index], detail: e.target.value };
+                          update("timeline", timeline);
+                        }}
+                        className="flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          update(
+                            "timeline",
+                            (editing.timeline || []).filter((_, i) => i !== index)
+                          )
+                        }
+                        className="border border-stone/50 px-3 text-xs text-fog"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    update("timeline", [...(editing.timeline || []), { label: "", detail: "" }])
+                  }
+                  className="text-xs text-accent"
+                >
+                  Add timeline step
+                </button>
+              </div>
+            </div>
+            <AdminField label="SEO Title">
+              <AdminInput
+                value={editing.seoTitle || ""}
+                onChange={(e) => update("seoTitle", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Sort Order">
+              <AdminInput
+                type="number"
+                value={editing.sortOrder ?? 0}
+                onChange={(e) => update("sortOrder", parseInt(e.target.value) || 0)}
+              />
+            </AdminField>
+            <div className="md:col-span-2">
+              <AdminField label="SEO Description">
+                <AdminTextarea
+                  value={editing.seoDescription || ""}
+                  onChange={(e) => update("seoDescription", e.target.value)}
+                />
+              </AdminField>
+            </div>
+            <div className="flex flex-wrap gap-6 md:col-span-2">
+              <label className="flex items-center gap-2 text-sm text-fog">
+                <input
+                  type="checkbox"
+                  checked={!!editing.featured}
+                  onChange={(e) => update("featured", e.target.checked)}
+                />
+                Featured on /sessions
+              </label>
+              <label className="flex items-center gap-2 text-sm text-fog">
+                <input
+                  type="checkbox"
+                  checked={editing.published !== false}
+                  onChange={(e) => update("published", e.target.checked)}
+                />
+                Published
+              </label>
+              <label className="flex items-center gap-2 text-sm text-fog">
+                <input
+                  type="checkbox"
+                  checked={editing.showApplyButton !== false}
+                  onChange={(e) => update("showApplyButton", e.target.checked)}
+                />
+                Show apply button when open
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-6 flex gap-3">
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="bg-cream px-5 py-2 text-xs text-ink uppercase disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Volume"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(null)}
+              className="border border-stone px-5 py-2 text-xs text-fog uppercase"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {items.map((item) => {
+          const poster = resolveSessionPosterImage(item);
+          return (
+            <div key={item.id} className="flex items-center gap-4 border border-stone/30 p-4">
+              <div className="relative h-20 w-14 shrink-0 bg-charcoal">
+                {poster ? (
+                  <Image src={poster} alt="" fill className="object-cover" sizes="56px" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[10px] text-muted">
+                    No poster
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-cream">
+                  Vol. {item.volumeNumber} — {item.title}
+                </p>
+                <p className="text-xs text-muted">
+                  {getSessionStatusLabel(item.status)}
+                  {item.featured && " · Featured"}
+                  {!item.published && " · Draft"}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Link href={`/sessions/${item.slug}`} className="text-xs text-fog hover:text-cream">
+                  View
+                </Link>
+                <button type="button" onClick={() => setEditing(item)} className="text-xs text-accent">
+                  Edit
+                </button>
+                <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {items.length === 0 && (
+          <p className="py-12 text-center text-fog">
+            No session volumes yet. Create Vol. 1 to launch the collection.
+          </p>
+        )}
+      </div>
+
+      {message && <p className="mt-6 text-sm text-accent">{message}</p>}
+    </AdminShell>
+  );
+}

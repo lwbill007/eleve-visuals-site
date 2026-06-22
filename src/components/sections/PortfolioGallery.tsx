@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { PORTFOLIO_CATEGORIES, type PortfolioCategory, type PortfolioItemDTO } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface PortfolioGalleryProps {
@@ -81,7 +82,9 @@ export function PortfolioGallery({ items, initialProjectId }: PortfolioGalleryPr
             </div>
           ) : (
             <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
-              {filtered.map((item) => (
+              {filtered.map((item) => {
+                const coverImage = resolvePortfolioCoverImage(item.image, item.gallery);
+                return (
                 <button
                   key={item.id}
                   type="button"
@@ -89,9 +92,9 @@ export function PortfolioGallery({ items, initialProjectId }: PortfolioGalleryPr
                   className="group mb-4 block w-full break-inside-avoid overflow-hidden bg-charcoal text-left"
                 >
                   <div className="relative aspect-[4/5]">
-                    {item.image ? (
+                    {coverImage ? (
                       <Image
-                        src={item.image}
+                        src={coverImage}
                         alt={item.imageAlt || item.title}
                         fill
                         className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
@@ -111,7 +114,8 @@ export function PortfolioGallery({ items, initialProjectId }: PortfolioGalleryPr
                     )}
                   </div>
                 </button>
-              ))}
+              );
+              })}
             </div>
           )}
         </div>

@@ -1,0 +1,50 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
+import { mapSessionVolume } from "@/lib/session-volume";
+import { parseSessionVolumeBody } from "@/lib/session-volume-admin";
+import { revalidateSessionPages } from "@/lib/revalidate-public";
+
+export async function GET() {
+  try {
+    await requireAdmin();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const items = await prisma.sessionVolume.findMany({
+    orderBy: [{ volumeNumber: "desc" }, { sortOrder: "asc" }],
+  });
+
+  return NextResponse.json(items.map(mapSessionVolume));
+}
+
+export async function POST(request: Request) {
+  try {
+    await requireAdmin();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const data = parseSessionVolumeBody(body);
+
+  if (!data.title || !data.slug) {
+    return NextResponse.json({ error: "Title and slug are required" }, { status: 400 });
+  }
+
+  if (data.featured) {
+    await prisma.sessionVolume.updateMany({ data: { featured: false } });
+  }
+
+  const item = await prisma.sessionVolume.create({
+    data: {
+      ...data,
+      applicationDeadline:
+        data.applicationDeadline === undefined ? null : data.applicationDeadline,
+    },
+  });
+
+  revalidateSessionPages(data.slug);
+  return NextResponse.json(mapSessionVolume(item));
+}

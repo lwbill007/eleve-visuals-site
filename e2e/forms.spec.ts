@@ -53,6 +53,7 @@ test.describe("Public forms", () => {
 
   test("sessions application submission", async ({ page }) => {
     await page.goto("/sessions/apply");
+    await page.waitForURL(/\/sessions(\/[^/?#]+)?(#apply)?$/, { timeout: 15_000 });
     await waitForSpamTiming(page);
 
     await page.locator("#fullName").fill("E2E Session Applicant");

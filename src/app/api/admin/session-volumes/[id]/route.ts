@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { mapPortfolioItem } from "@/lib/content";
-import { normalizePortfolioInput } from "@/lib/portfolio-utils";
-import { revalidatePortfolioPages } from "@/lib/revalidate-public";
-import type { AspectRatio, PortfolioCategory } from "@/lib/types";
+import { mapSessionVolume } from "@/lib/session-volume";
+import { parseSessionVolumeBody } from "@/lib/session-volume-admin";
+import { revalidateSessionPages } from "@/lib/revalidate-public";
 
 export async function GET(
   _request: Request,
@@ -17,9 +16,9 @@ export async function GET(
   }
 
   const { id } = await params;
-  const item = await prisma.portfolioItem.findUnique({ where: { id } });
+  const item = await prisma.sessionVolume.findUnique({ where: { id } });
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(mapPortfolioItem(item));
+  return NextResponse.json(mapSessionVolume(item));
 }
 
 export async function PUT(
@@ -34,29 +33,31 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { image, gallery } = normalizePortfolioInput(body);
+  const data = parseSessionVolumeBody(body);
+
+  if (!data.title || !data.slug) {
+    return NextResponse.json({ error: "Title and slug are required" }, { status: 400 });
+  }
 
   try {
-    const item = await prisma.portfolioItem.update({
+    if (data.featured) {
+      await prisma.sessionVolume.updateMany({
+        where: { id: { not: id } },
+        data: { featured: false },
+      });
+    }
+
+    const item = await prisma.sessionVolume.update({
       where: { id },
       data: {
-        title: body.title,
-        category: body.category as PortfolioCategory,
-        client: body.client || null,
-        year: body.year,
-        description: body.description,
-        image,
-        imageAlt: body.imageAlt,
-        aspectRatio: body.aspectRatio as AspectRatio,
-        featured: !!body.featured,
-        sortOrder: body.sortOrder ?? 0,
-        gallery: JSON.stringify(gallery),
-        published: body.published !== false,
+        ...data,
+        applicationDeadline:
+          data.applicationDeadline === undefined ? undefined : data.applicationDeadline,
       },
     });
 
-    revalidatePortfolioPages();
-    return NextResponse.json(mapPortfolioItem(item));
+    revalidateSessionPages(data.slug);
+    return NextResponse.json(mapSessionVolume(item));
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -74,8 +75,8 @@ export async function DELETE(
 
   const { id } = await params;
   try {
-    await prisma.portfolioItem.delete({ where: { id } });
-    revalidatePortfolioPages();
+    await prisma.sessionVolume.delete({ where: { id } });
+    revalidateSessionPages();
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

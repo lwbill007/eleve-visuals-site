@@ -1,31 +1,10 @@
-import type { Metadata } from "next";
-import { PageHero } from "@/components/ui/Section";
-import { SessionsApplicationForm } from "@/components/forms/SessionsApplicationForm";
-import { getSessionsApplicationContent } from "@/lib/content";
+import { redirect } from "next/navigation";
+import { getOpenSessionVolume } from "@/lib/session-volumes";
 
-export const metadata: Metadata = {
-  title: "Apply — ÉLEVÉ Sessions",
-  description:
-    "Apply to participate in ÉLEVÉ Sessions — an exclusive creative series by ÉLEVÉ Visuals.",
-};
+export const dynamic = "force-dynamic";
 
 export default async function SessionsApplyPage() {
-  const applicationContent = await getSessionsApplicationContent();
-
-  return (
-    <>
-      <PageHero
-        eyebrow="Application"
-        headline={applicationContent.headline}
-        subheadline={applicationContent.subheadline}
-        compact
-      />
-
-      <section className="section-padding pt-0">
-        <div className="container-narrow">
-          <SessionsApplicationForm applicationContent={applicationContent} />
-        </div>
-      </section>
-    </>
-  );
+  const open = await getOpenSessionVolume();
+  if (open) redirect(`/sessions/${open.slug}#apply`);
+  redirect("/sessions");
 }

@@ -238,3 +238,57 @@ export const NAVIGATION = [
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ] as const;
+
+export const SESSION_VOLUME_STATUSES = [
+  "draft",
+  "coming_soon",
+  "applications_open",
+  "applications_closed",
+  "sold_out",
+  "archived",
+] as const;
+
+export type SessionVolumeStatus = (typeof SESSION_VOLUME_STATUSES)[number];
+
+export interface SessionTimelineStep {
+  label: string;
+  detail?: string;
+}
+
+export interface SessionVolumeDTO {
+  id: string;
+  volumeNumber: number;
+  title: string;
+  slug: string;
+  theme: string;
+  subtitle: string;
+  synopsis: string;
+  posterImage: string | null;
+  posterImageAlt: string;
+  bannerImage: string | null;
+  bannerImageAlt: string;
+  moodBoard: string[];
+  gallery: string[];
+  status: SessionVolumeStatus;
+  genre: string;
+  year: string;
+  sessionDate: string;
+  sessionTime: string;
+  location: string;
+  city: string;
+  capacity: string;
+  category: string;
+  creativeDirector: string;
+  dressCode: string;
+  runtime: string;
+  requirements: string[];
+  timeline: SessionTimelineStep[];
+  applicationDeadline: string | null;
+  teaserVideoUrl: string | null;
+  featured: boolean;
+  published: boolean;
+  showApplyButton: boolean;
+  seoTitle: string;
+  seoDescription: string;
+  sortOrder: number;
+}

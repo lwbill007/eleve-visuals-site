@@ -67,7 +67,17 @@ Sign in at `/admin/login` to manage:
 
 ### Uploading images
 
-In admin, use the image upload fields. With `BLOB_READ_WRITE_TOKEN` set, files upload to Vercel Blob. Locally, files save to `public/uploads/`.
+In admin, use the image upload fields. Production uploads go to **Vercel Blob**; locally, files save to `public/uploads/` when no Blob token is set.
+
+**Vercel Blob setup (required for production uploads):**
+
+1. Vercel Dashboard → your project → **Storage** → **Create Database** → **Blob**
+2. Set access mode to **Public** (portfolio images must be viewable on the public site without auth)
+3. **Connect** the store to this project — Vercel injects `BLOB_READ_WRITE_TOKEN` automatically
+4. Redeploy after connecting the store
+5. Do not paste a token from a different project or a Private store
+
+The upload API already sets `access: "public"` on each file (`src/app/api/admin/upload/route.ts`). A **Private** store at the project level will still cause upload or display failures for public portfolio pages.
 
 ## Scripts
 
@@ -95,7 +105,7 @@ npm run test:e2e
 
 1. Add a **Neon** or **Vercel Postgres** database.
 2. Set environment variables: `DATABASE_URL`, `AUTH_SECRET`, `ADMIN_PASSWORD`.
-3. Add **Vercel Blob** and set `BLOB_READ_WRITE_TOKEN`.
+3. Add **Vercel Blob** — create a **Public** store, connect it to the project (sets `BLOB_READ_WRITE_TOKEN` automatically)
 4. Deploy — migrations run during build; content is **not** overwritten.
 
 ## Site routes

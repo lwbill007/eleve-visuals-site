@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { mapPortfolioItem } from "@/lib/content";
+import { normalizePortfolioInput } from "@/lib/portfolio-utils";
+import { revalidatePortfolioPages } from "@/lib/revalidate-public";
 import type { AspectRatio, PortfolioCategory } from "@/lib/types";
 
 export async function GET() {
@@ -26,6 +28,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
+  const { image, gallery } = normalizePortfolioInput(body);
 
   const item = await prisma.portfolioItem.create({
     data: {
@@ -34,15 +37,16 @@ export async function POST(request: Request) {
       client: body.client || null,
       year: body.year || new Date().getFullYear().toString(),
       description: body.description || "",
-      image: body.image || null,
+      image,
       imageAlt: body.imageAlt || "",
       aspectRatio: (body.aspectRatio as AspectRatio) || "landscape",
       featured: !!body.featured,
       sortOrder: body.sortOrder ?? 0,
-      gallery: JSON.stringify(body.gallery || []),
+      gallery: JSON.stringify(gallery),
       published: body.published !== false,
     },
   });
 
+  revalidatePortfolioPages();
   return NextResponse.json(mapPortfolioItem(item));
 }

@@ -5,6 +5,15 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
 
+async function uploadImageFile(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await adminFetch("/api/admin/upload", { method: "POST", body: formData });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Upload failed");
+  return data.url as string;
+}
+
 interface ImageUploadProps {
   value: string | null;
   onChange: (url: string | null) => void;
@@ -20,14 +29,8 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
   async function handleFile(file: File) {
     setUploading(true);
     setError("");
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const res = await adminFetch("/api/admin/upload", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
-      onChange(data.url);
+      onChange(await uploadImageFile(file));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -83,6 +86,132 @@ export function ImageUpload({ value, onChange, label, className }: ImageUploadPr
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) handleFile(file);
+          e.target.value = "";
+        }}
+      />
+      {error && <p className="field-error mt-2">{error}</p>}
+    </div>
+  );
+}
+
+interface GalleryUploadProps {
+  images: string[];
+  onChange: (images: string[]) => void;
+  coverImage?: string | null;
+  onCoverChange?: (url: string) => void;
+  label?: string;
+  hint?: string;
+  className?: string;
+}
+
+export function GalleryUpload({
+  images,
+  onChange,
+  coverImage,
+  onCoverChange,
+  label,
+  hint,
+  className,
+}: GalleryUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
+  const [error, setError] = useState("");
+
+  async function handleFiles(fileList: FileList) {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+
+    setUploading(true);
+    setError("");
+    const uploaded: string[] = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        setUploadProgress(`Uploading ${i + 1} of ${files.length}...`);
+        uploaded.push(await uploadImageFile(files[i]));
+      }
+      const next = [...images, ...uploaded];
+      onChange(next);
+      if (onCoverChange && !coverImage && uploaded[0]) {
+        onCoverChange(uploaded[0]);
+      }
+    } catch (err) {
+      if (uploaded.length > 0) {
+        onChange([...images, ...uploaded]);
+      }
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      setUploadProgress("");
+    }
+  }
+
+  function removeAt(index: number) {
+    onChange(images.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className={className}>
+      {label && <p className="mb-2 text-sm text-cream-dim">{label}</p>}
+      {hint && <p className="mb-3 text-xs text-muted">{hint}</p>}
+
+      {images.length > 0 && (
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {images.map((src, index) => (
+            <div
+              key={`${src}-${index}`}
+              className={cn(
+                "relative aspect-square overflow-hidden bg-charcoal",
+                coverImage === src && "ring-2 ring-accent"
+              )}
+            >
+              <Image src={src} alt="" fill className="object-cover" sizes="160px" />
+              <div className="absolute inset-0 flex flex-col items-end justify-end gap-1 bg-ink/50 p-2 opacity-0 transition-opacity hover:opacity-100">
+                {onCoverChange && coverImage !== src && (
+                  <button
+                    type="button"
+                    onClick={() => onCoverChange(src)}
+                    className="w-full bg-cream px-2 py-1 text-[10px] text-ink"
+                  >
+                    Set cover
+                  </button>
+                )}
+                {coverImage === src && (
+                  <span className="w-full bg-accent/90 px-2 py-1 text-center text-[10px] text-ink">
+                    Cover
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeAt(index)}
+                  className="w-full border border-stone px-2 py-1 text-[10px] text-cream"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="flex min-h-[100px] w-full items-center justify-center border border-dashed border-stone/50 bg-charcoal/30 p-6 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50"
+      >
+        {uploading ? uploadProgress || "Uploading..." : "Add gallery images (select multiple)"}
+      </button>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) handleFiles(e.target.files);
           e.target.value = "";
         }}
       />

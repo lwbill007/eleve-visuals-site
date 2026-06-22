@@ -4,6 +4,8 @@ import { PageHero, CTABanner } from "@/components/ui/Section";
 import { PortfolioGallery } from "@/components/sections/PortfolioGallery";
 import { getPageCopy, getPortfolioItems } from "@/lib/content";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "Portfolio",
   description:

@@ -14,6 +14,8 @@ import { BrandStorySection } from "@/components/sections/BrandStory";
 import { Testimonials } from "@/components/sections/Testimonials";
 import { CTABanner } from "@/components/ui/Section";
 
+export const revalidate = 60;
+
 export default async function HomePage() {
   const [siteConfig, hero, featured, homeServices, brandStory, testimonials, pageCopy] =
     await Promise.all([

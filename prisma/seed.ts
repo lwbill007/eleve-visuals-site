@@ -65,9 +65,84 @@ async function seedServices() {
   }
 }
 
+async function seedSessionVolumes() {
+  const count = await prisma.sessionVolume.count();
+  if (count > 0) return;
+
+  const timeline = JSON.stringify([
+    { label: "Application Opens", detail: "Now accepting applications" },
+    { label: "Applications Close", detail: "" },
+    { label: "Selection", detail: "Reviewed individually" },
+    { label: "Shoot Day", detail: "" },
+    { label: "Final Delivery", detail: "Portfolio selects delivered" },
+  ]);
+
+  const requirements = JSON.stringify([
+    "Models, photographers, stylists, and creatives with a strong portfolio",
+    "Willingness to collaborate under a unified creative direction",
+    "Professional conduct on set",
+  ]);
+
+  await prisma.sessionVolume.create({
+    data: {
+      volumeNumber: 3,
+      title: "MASK OFF",
+      slug: "mask-off",
+      theme: "Identity & Vulnerability",
+      subtitle: "The only face without a mask tells the whole story.",
+      synopsis:
+        "A cinematic study of truth beneath performance — where shadow, skin, and silence carry more weight than spectacle.\n\nÉLEVÉ Sessions Vol. 3 invites a limited roster of creatives to strip away artifice and build imagery that feels raw, editorial, and unforgettable.",
+      status: "applications_open",
+      genre: "Editorial / Portrait",
+      year: "2026",
+      sessionDate: "TBA",
+      sessionTime: "TBA",
+      location: "Sacramento, CA — shared upon acceptance",
+      city: "Sacramento, CA",
+      capacity: "Limited capacity",
+      category: "ÉLEVÉ Sessions",
+      creativeDirector: "ÉLEVÉ Visuals",
+      dressCode: "Monochrome layers, minimal jewelry, clean silhouettes",
+      runtime: "One-day production",
+      requirements,
+      timeline,
+      featured: true,
+      published: true,
+      showApplyButton: true,
+      seoTitle: "MASK OFF — ÉLEVÉ Sessions Vol. 3",
+      seoDescription:
+        "Apply for ÉLEVÉ Sessions Vol. 3: MASK OFF — a limited creative production on identity and vulnerability.",
+    },
+  });
+
+  await prisma.sessionVolume.create({
+    data: {
+      volumeNumber: 2,
+      title: "AFTER DARK",
+      slug: "after-dark",
+      theme: "Nocturnal Editorial",
+      subtitle: "Shadow, texture, and controlled tension.",
+      synopsis:
+        "A nocturnal visual study — editorial portraiture meets underground cinema. Archived volume from the ÉLEVÉ Sessions collection.",
+      status: "archived",
+      genre: "Editorial",
+      year: "2025",
+      sessionDate: "Completed",
+      city: "Sacramento, CA",
+      capacity: "Closed",
+      requirements: JSON.stringify([]),
+      timeline: JSON.stringify([]),
+      featured: false,
+      published: true,
+      showApplyButton: false,
+    },
+  });
+}
+
 async function main() {
   await seedContent();
   await seedServices();
+  await seedSessionVolumes();
   console.log("Database seeded.");
 }
 

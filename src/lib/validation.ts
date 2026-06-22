@@ -106,6 +106,9 @@ export const sessionSchema = z.object({
   themeFit: z.string().trim().min(10).max(3000),
   availabilityConfirm: z.literal(true),
   mediaRelease: z.literal(true),
+  sessionVolumeId: z.string().optional(),
+  sessionVolumeSlug: z.string().optional(),
+  sessionVolumeTitle: z.string().optional(),
 });
 
 export type BookingInput = z.infer<ReturnType<typeof createBookingSchema>>;

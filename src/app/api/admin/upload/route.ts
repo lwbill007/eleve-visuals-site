@@ -58,12 +58,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: `/uploads/${filename}` });
   } catch (error) {
     console.error("Upload failed:", error);
+
+    if (process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN) {
+      return NextResponse.json(
+        {
+          error:
+            "Image uploads on Vercel require a Blob store. In Vercel → Storage, create a Public Blob store, connect it to this project, then redeploy.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const detail = error instanceof Error ? error.message : String(error);
+    const accessHint =
+      /access|public|private|BlobAccess/i.test(detail)
+        ? " Ensure your Vercel Blob store access mode is Public (Storage → your store → Settings)."
+        : "";
+
     return NextResponse.json(
       {
         error:
-          process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN
-            ? "Image uploads on Vercel require BLOB_READ_WRITE_TOKEN. Add a Vercel Blob store in your project settings."
-            : "Upload failed. Check server storage permissions.",
+          process.env.VERCEL
+            ? `Upload failed.${accessHint} Check that BLOB_READ_WRITE_TOKEN matches a Public Blob store linked to this project.`
+            : "Upload failed. For local dev, set BLOB_READ_WRITE_TOKEN or ensure public/uploads is writable.",
       },
       { status: 500 }
     );

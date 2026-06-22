@@ -87,3 +87,47 @@ model AnalyticsEvent {
   @@index([type, createdAt])
   @@index([path, createdAt])
 }
+
+model SessionVolume {
+  id                  String    @id @default(cuid())
+  volumeNumber        Int
+  title               String
+  slug                String    @unique
+  theme               String    @default("")
+  subtitle            String    @default("")
+  synopsis            String    @default("")
+  posterImage         String?
+  posterImageAlt      String    @default("")
+  bannerImage         String?
+  bannerImageAlt      String    @default("")
+  moodBoard           String    @default("[]")
+  gallery             String    @default("[]")
+  status              String    @default("draft")
+  genre               String    @default("")
+  year                String    @default("")
+  sessionDate         String    @default("")
+  sessionTime         String    @default("")
+  location            String    @default("")
+  city                String    @default("")
+  capacity            String    @default("")
+  category            String    @default("")
+  creativeDirector    String    @default("")
+  dressCode           String    @default("")
+  runtime             String    @default("")
+  requirements        String    @default("[]")
+  timeline            String    @default("[]")
+  applicationDeadline DateTime?
+  teaserVideoUrl      String?
+  featured            Boolean   @default(false)
+  published           Boolean   @default(false)
+  showApplyButton     Boolean   @default(true)
+  seoTitle            String    @default("")
+  seoDescription      String    @default("")
+  sortOrder           Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([published, status])
+  @@index([featured])
+  @@index([volumeNumber])
+}

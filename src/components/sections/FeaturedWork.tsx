@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SectionHeader } from "@/components/ui/Section";
 import type { PortfolioItemDTO } from "@/lib/types";
+import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
 import { cn } from "@/lib/utils";
 
 const aspectClasses = {
@@ -50,6 +51,7 @@ export function FeaturedWork({ items }: FeaturedWorkProps) {
 
         <div className="grid gap-3 md:grid-cols-12 md:gap-4">
           {items.map((item, index) => {
+            const coverImage = resolvePortfolioCoverImage(item.image, item.gallery);
             const spans =
               index === 0
                 ? "md:col-span-7 md:row-span-2"
@@ -73,9 +75,9 @@ export function FeaturedWork({ items }: FeaturedWorkProps) {
                     : aspectClasses[item.aspectRatio]
                 )}
               >
-                {item.image ? (
+                {coverImage ? (
                   <Image
-                    src={item.image}
+                    src={coverImage}
                     alt={item.imageAlt || item.title}
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"

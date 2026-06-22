@@ -87,24 +87,27 @@ export default function AdminTestimonialsPage() {
                 />
               </AdminField>
             </div>
-            <div className="flex gap-6">
+            <AdminField
+              label="Featured on homepage"
+              hint="Shows in the Client Words section on the homepage. Must also be Published."
+            >
               <label className="flex items-center gap-2 text-sm text-fog">
                 <input
                   type="checkbox"
                   checked={!!editing.featured}
                   onChange={(e) => setEditing({ ...editing, featured: e.target.checked })}
                 />
-                Featured on homepage
+                Feature this testimonial on the homepage
               </label>
-              <label className="flex items-center gap-2 text-sm text-fog">
-                <input
-                  type="checkbox"
-                  checked={editing.published !== false}
-                  onChange={(e) => setEditing({ ...editing, published: e.target.checked })}
-                />
-                Published
-              </label>
-            </div>
+            </AdminField>
+            <label className="flex items-center gap-2 text-sm text-fog">
+              <input
+                type="checkbox"
+                checked={editing.published !== false}
+                onChange={(e) => setEditing({ ...editing, published: e.target.checked })}
+              />
+              Published
+            </label>
             <div className="flex gap-3">
               <button
                 type="button"

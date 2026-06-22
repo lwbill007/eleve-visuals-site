@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { mapTestimonial } from "@/lib/content";
+import { revalidateHomepage } from "@/lib/revalidate-public";
 
 export async function GET() {
   try {
@@ -33,5 +34,6 @@ export async function POST(request: Request) {
     },
   });
 
+  revalidateHomepage();
   return NextResponse.json(mapTestimonial(item));
 }

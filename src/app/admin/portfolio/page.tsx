@@ -10,8 +10,10 @@ import {
   AdminSelect,
   AdminTextarea,
   ImageUpload,
+  GalleryUpload,
 } from "@/components/admin/AdminForm";
 import { PORTFOLIO_CATEGORIES, type AspectRatio, type PortfolioItemDTO } from "@/lib/types";
+import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
 
 const ASPECT_RATIOS: AspectRatio[] = ["portrait", "landscape", "square", "wide"];
 
@@ -159,6 +161,16 @@ export default function AdminPortfolioPage() {
                 onChange={(url) => setEditing({ ...editing, image: url })}
               />
             </div>
+            <div className="md:col-span-2">
+              <GalleryUpload
+                label="Project Gallery"
+                hint="Upload multiple images for this project. They appear in the portfolio modal. The cover image is used in the grid; set any gallery image as cover with “Set cover”."
+                images={editing.gallery || []}
+                coverImage={editing.image || null}
+                onChange={(gallery) => setEditing({ ...editing, gallery })}
+                onCoverChange={(url) => setEditing({ ...editing, image: url })}
+              />
+            </div>
             <AdminField label="Image Alt Text">
               <AdminInput
                 value={editing.imageAlt || ""}
@@ -166,14 +178,19 @@ export default function AdminPortfolioPage() {
               />
             </AdminField>
             <div className="flex flex-wrap gap-6 md:col-span-2">
-              <label className="flex items-center gap-2 text-sm text-fog">
-                <input
-                  type="checkbox"
-                  checked={!!editing.featured}
-                  onChange={(e) => setEditing({ ...editing, featured: e.target.checked })}
-                />
-                Featured on homepage
-              </label>
+              <AdminField
+                label="Featured on homepage"
+                hint="Shows in the Selected Work section on the homepage (up to 5 projects, ordered by sort order). Project must also be Published."
+              >
+                <label className="flex items-center gap-2 text-sm text-fog">
+                  <input
+                    type="checkbox"
+                    checked={!!editing.featured}
+                    onChange={(e) => setEditing({ ...editing, featured: e.target.checked })}
+                  />
+                  Feature this project on the homepage
+                </label>
+              </AdminField>
               <label className="flex items-center gap-2 text-sm text-fog">
                 <input
                   type="checkbox"
@@ -205,14 +222,16 @@ export default function AdminPortfolioPage() {
       )}
 
       <div className="space-y-3">
-        {items.map((item) => (
+        {items.map((item) => {
+          const coverImage = resolvePortfolioCoverImage(item.image, item.gallery);
+          return (
           <div
             key={item.id}
             className="flex items-center gap-4 border border-stone/30 p-4"
           >
             <div className="relative h-16 w-24 shrink-0 bg-charcoal">
-              {item.image ? (
-                <Image src={item.image} alt="" fill className="object-cover" sizes="96px" />
+              {coverImage ? (
+                <Image src={coverImage} alt="" fill className="object-cover" sizes="96px" />
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-muted">
                   No img
@@ -244,7 +263,8 @@ export default function AdminPortfolioPage() {
               </button>
             </div>
           </div>
-        ))}
+        );
+        })}
         {items.length === 0 && (
           <p className="py-12 text-center text-fog">
             No portfolio items yet. Add your first project above.

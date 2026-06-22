@@ -5,6 +5,7 @@ import {
   SESSIONS_APPLICANT_ROLES,
   EXPERIENCE_LEVELS,
   type SessionsApplicationContent,
+  type SessionVolumeDTO,
 } from "@/lib/types";
 import {
   FormField,
@@ -57,8 +58,10 @@ const initialData: ApplicationFormData = {
 
 export function SessionsApplicationForm({
   applicationContent,
+  sessionVolume,
 }: {
   applicationContent: SessionsApplicationContent;
+  sessionVolume?: SessionVolumeDTO;
 }) {
   const [data, setData] = useState<ApplicationFormData>(initialData);
   const [errors, setErrors] = useState<FormErrors<ApplicationFormData>>({});
@@ -123,7 +126,13 @@ export function SessionsApplicationForm({
     const res = await fetch("/api/submit/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, ...spam.spamPayload() }),
+      body: JSON.stringify({
+        ...data,
+        ...spam.spamPayload(),
+        sessionVolumeId: sessionVolume?.id,
+        sessionVolumeSlug: sessionVolume?.slug,
+        sessionVolumeTitle: sessionVolume?.title,
+      }),
     });
 
     setLoading(false);
