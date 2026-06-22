@@ -295,7 +295,7 @@ export async function getPortfolioPageContent(): Promise<PortfolioPageContent> {
     ...stored,
     hero: { ...DEFAULT_PORTFOLIO_PAGE.hero, ...stored.hero },
     emptyState: { ...DEFAULT_PORTFOLIO_PAGE.emptyState, ...stored.emptyState },
-    stats: stored.stats?.length ? stored.stats : DEFAULT_PORTFOLIO_PAGE.stats,
+    stats: stored.stats ?? [],
     categories: stored.categories?.length ? stored.categories : DEFAULT_PORTFOLIO_PAGE.categories,
   };
 }

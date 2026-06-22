@@ -799,12 +799,7 @@ export const DEFAULT_PORTFOLIO_PAGE: PortfolioPageContent = {
     imageAlt: "ÉLEVÉ Visuals portfolio",
     videoUrl: null,
   },
-  stats: [
-    { label: "Projects Completed", value: "150+" },
-    { label: "Clients Served", value: "80+" },
-    { label: "Sessions Produced", value: "12" },
-    { label: "Years Creating", value: "8+" },
-  ],
+  stats: [],
   categories: [
     "Portraits",
     "Brands",

@@ -23,12 +23,7 @@ export async function getPortfolioFeaturedProject(): Promise<PortfolioItemDTO | 
     where: { published: true, archived: false, portfolioFeatured: true },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
   });
-  if (featured) return mapPortfolioItem(featured);
-  const fallback = await prisma.portfolioItem.findFirst({
-    where: { published: true, archived: false },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-  });
-  return fallback ? mapPortfolioItem(fallback) : null;
+  return featured ? mapPortfolioItem(featured) : null;
 }
 
 export async function getPortfolioItemBySlug(slug: string): Promise<PortfolioItemDTO | null> {
