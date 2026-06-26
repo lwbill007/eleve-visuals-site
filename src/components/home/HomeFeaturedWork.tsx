@@ -66,7 +66,7 @@ export function HomeFeaturedWork({
               type="button"
               onClick={() => setActive(cat)}
               className={cn(
-                "rounded-full px-4 py-2 text-xs tracking-[0.12em] uppercase transition-all duration-300",
+                "inline-flex min-h-10 items-center rounded-full px-4 py-2 text-xs tracking-[0.12em] uppercase transition-all duration-300",
                 active === cat
                   ? "bg-cream text-ink"
                   : "border border-stone/40 text-fog hover:border-fog hover:text-cream"

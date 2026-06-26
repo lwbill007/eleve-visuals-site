@@ -5,12 +5,12 @@ import { BOOKING_STEPS } from "@/lib/booking";
 
 export function BookingProgress({ currentStep }: { currentStep: number }) {
   return (
-    <div className="mb-10">
-      <div className="mb-3 flex items-center justify-between text-xs tracking-[0.15em] text-muted uppercase">
-        <span>
+    <div className="w-full">
+      <div className="mb-3 flex items-center justify-between gap-3 text-xs tracking-[0.15em] text-muted uppercase">
+        <span className="shrink-0">
           Step {currentStep} of {BOOKING_STEPS.length}
         </span>
-        <span>{BOOKING_STEPS[currentStep - 1]?.label}</span>
+        <span className="truncate text-right">{BOOKING_STEPS[currentStep - 1]?.label}</span>
       </div>
       <div className="flex gap-1.5">
         {BOOKING_STEPS.map((step) => (

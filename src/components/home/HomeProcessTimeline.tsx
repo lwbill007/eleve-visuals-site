@@ -28,7 +28,7 @@ export function HomeProcessTimeline({
 
         <div className="relative">
           <div className="absolute top-8 right-0 left-0 hidden h-px bg-stone/30 md:block" />
-          <div className="flex gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-6 md:gap-5 md:overflow-visible md:pb-0">
+          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] md:grid md:grid-cols-6 md:gap-5 md:overflow-visible md:pb-0">
             {steps.map((step, index) => (
               <motion.div
                 key={`${step.step}-${step.title}`}
@@ -36,7 +36,7 @@ export function HomeProcessTimeline({
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.75, delay: index * 0.07 }}
-                className="min-w-[220px] shrink-0 border border-stone/30 bg-ink-soft p-6 md:min-w-0"
+                className="w-[78%] shrink-0 snap-start border border-stone/30 bg-ink-soft p-6 xs:w-[60%] sm:w-[44%] md:w-auto md:min-w-0"
               >
                 <p className="font-display text-3xl text-accent/80">{step.step}</p>
                 <h3 className="mt-4 font-display text-lg text-cream">{step.title}</h3>

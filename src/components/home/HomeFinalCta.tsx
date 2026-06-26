@@ -41,7 +41,7 @@ export function HomeFinalCta({ copy }: { copy: HomepageCtaCopy }) {
           className="container-wide text-center"
         >
           {copy.eyebrow && <p className="label-caps mb-4 text-accent">{copy.eyebrow}</p>}
-          <h2 className="headline-xl mx-auto max-w-3xl text-balance">{copy.headline}</h2>
+          <h2 className="headline-lg mx-auto max-w-3xl text-balance">{copy.headline}</h2>
           {copy.subheadline && (
             <p className="body-lg mx-auto mt-6 max-w-xl text-fog">{copy.subheadline}</p>
           )}

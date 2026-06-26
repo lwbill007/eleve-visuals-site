@@ -78,7 +78,7 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
 
           <button
             type="button"
-            className="relative z-50 flex h-10 w-10 flex-col items-center justify-center gap-1.5 lg:hidden"
+            className="relative z-50 -mr-2 flex h-11 w-11 flex-col items-center justify-center gap-1.5 lg:hidden"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}

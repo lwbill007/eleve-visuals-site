@@ -6,11 +6,11 @@ import { APPLICATION_STEPS } from "@/lib/session-application";
 export function SessionApplicationProgress({ currentStep }: { currentStep: number }) {
   return (
     <div className="mb-10">
-      <div className="mb-3 flex items-center justify-between text-xs tracking-[0.15em] text-muted uppercase">
-        <span>
+      <div className="mb-3 flex items-center justify-between gap-3 text-xs tracking-[0.15em] text-muted uppercase">
+        <span className="shrink-0">
           Step {currentStep} of {APPLICATION_STEPS.length}
         </span>
-        <span>{APPLICATION_STEPS[currentStep - 1]?.label}</span>
+        <span className="truncate text-right">{APPLICATION_STEPS[currentStep - 1]?.label}</span>
       </div>
       <div className="flex gap-1.5">
         {APPLICATION_STEPS.map((step) => (

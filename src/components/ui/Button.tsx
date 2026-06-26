@@ -21,9 +21,9 @@ const variants = {
 };
 
 const sizes = {
-  sm: "px-5 py-2.5 text-xs tracking-[0.15em] uppercase",
-  md: "px-7 py-3.5 text-xs tracking-[0.15em] uppercase",
-  lg: "px-9 py-4 text-xs tracking-[0.15em] uppercase",
+  sm: "min-h-11 px-5 py-2.5 text-xs tracking-[0.15em] uppercase",
+  md: "min-h-11 px-7 py-3.5 text-xs tracking-[0.15em] uppercase",
+  lg: "min-h-12 px-9 py-4 text-xs tracking-[0.15em] uppercase",
 };
 
 export function Button({

@@ -49,7 +49,7 @@ export function SessionsVolumeGrid({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as SessionVolumeStatus | "all")}
-              className="border border-stone/50 bg-charcoal px-3 py-2 text-xs text-cream"
+              className="min-h-11 border border-stone/50 bg-charcoal px-3 py-2.5 text-xs text-cream"
               aria-label="Filter by status"
             >
               <option value="all">All statuses</option>
@@ -62,7 +62,7 @@ export function SessionsVolumeGrid({
             <select
               value={yearFilter}
               onChange={(e) => setYearFilter(e.target.value)}
-              className="border border-stone/50 bg-charcoal px-3 py-2 text-xs text-cream"
+              className="min-h-11 border border-stone/50 bg-charcoal px-3 py-2.5 text-xs text-cream"
               aria-label="Filter by year"
             >
               <option value="all">All years</option>

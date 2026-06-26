@@ -263,10 +263,10 @@ export function BookingForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="relative">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-10">
         <BookingProgress currentStep={step} />
         {autosaved && (
-          <span className="text-[0.65rem] tracking-[0.15em] text-muted uppercase">
+          <span className="mt-2 block text-right text-[0.65rem] tracking-[0.15em] text-muted uppercase">
             Draft saved
           </span>
         )}
@@ -431,7 +431,7 @@ export function BookingForm({
                     options={bookingOptions.sessionSettings}
                     selected={data.sessionSetting}
                     onToggle={(v) => update("sessionSetting", v)}
-                    columns="grid-cols-2 sm:grid-cols-4"
+                    columns="grid-cols-1 xs:grid-cols-2 sm:grid-cols-4"
                   />
                   {errors.sessionSetting && (
                     <p className="field-error mt-2">{errors.sessionSetting}</p>
@@ -574,7 +574,7 @@ export function BookingForm({
                   options={bookingOptions.referralSources}
                   selected={data.referralSource}
                   onToggle={(v) => update("referralSource", v)}
-                  columns="grid-cols-2 sm:grid-cols-4"
+                  columns="grid-cols-1 xs:grid-cols-2 sm:grid-cols-4"
                 />
                 {errors.referralSource && (
                   <p className="field-error">{errors.referralSource}</p>
@@ -623,7 +623,7 @@ export function BookingForm({
               <button
                 type="button"
                 onClick={goBack}
-                className="text-xs tracking-[0.15em] text-fog uppercase transition-colors hover:text-cream"
+                className="inline-flex min-h-11 items-center text-xs tracking-[0.15em] text-fog uppercase transition-colors hover:text-cream"
               >
                 ← Back
               </button>
@@ -634,7 +634,7 @@ export function BookingForm({
               <button
                 type="button"
                 onClick={goNext}
-                className="inline-flex items-center justify-center border border-cream bg-cream px-9 py-4 text-xs font-medium tracking-[0.15em] text-ink uppercase transition-all duration-500 hover:bg-cream-dim"
+                className="inline-flex min-h-12 items-center justify-center border border-cream bg-cream px-9 py-4 text-xs font-medium tracking-[0.15em] text-ink uppercase transition-all duration-500 hover:bg-cream-dim"
                 style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
               >
                 Continue

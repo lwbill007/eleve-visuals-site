@@ -12,7 +12,7 @@ export function SessionApplicationHero({ volume }: { volume: SessionVolumeDTO })
 
   return (
     <section className="relative border-b border-stone/30 bg-ink-soft">
-      <div className="container-wide section-padding">
+      <div className="container-wide px-5 pt-28 pb-20 md:px-8 md:pt-36 md:pb-28 lg:px-12">
         <Link href={`/sessions/${volume.slug}`} className="label-caps mb-8 inline-block text-fog hover:text-cream">
           ← Back to Vol. {volume.volumeNumber}
         </Link>

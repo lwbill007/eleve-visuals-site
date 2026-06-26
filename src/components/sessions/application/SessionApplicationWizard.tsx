@@ -537,16 +537,24 @@ export function SessionApplicationWizard({
         </motion.div>
       </AnimatePresence>
 
-      <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-stone/30 pt-8">
+      <div className="mt-12 flex items-center justify-between gap-4 border-t border-stone/30 pt-8">
         {step > 1 ? (
-          <button type="button" onClick={goBack} className="text-sm text-fog hover:text-cream">
+          <button
+            type="button"
+            onClick={goBack}
+            className="inline-flex min-h-11 items-center text-sm text-fog hover:text-cream"
+          >
             ← Back
           </button>
         ) : (
           <span />
         )}
         {step < APPLICATION_STEPS.length ? (
-          <button type="button" onClick={goNext} className="bg-cream px-8 py-3 text-xs tracking-[0.15em] text-ink uppercase">
+          <button
+            type="button"
+            onClick={goNext}
+            className="inline-flex min-h-12 items-center bg-cream px-8 py-3 text-xs tracking-[0.15em] text-ink uppercase"
+          >
             Continue
           </button>
         ) : (
@@ -554,7 +562,7 @@ export function SessionApplicationWizard({
             type="button"
             onClick={() => void handleSubmit()}
             disabled={loading || !spam.canSubmit()}
-            className="bg-cream px-8 py-3 text-xs tracking-[0.15em] text-ink uppercase disabled:opacity-50"
+            className="inline-flex min-h-12 items-center bg-cream px-8 py-3 text-xs tracking-[0.15em] text-ink uppercase disabled:opacity-50"
           >
             {loading ? "Submitting..." : "Submit Application"}
           </button>

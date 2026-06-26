@@ -20,7 +20,7 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "shrink-0 rounded-full px-5 py-2.5 text-xs tracking-[0.12em] uppercase transition-all duration-300",
+        "inline-flex min-h-11 shrink-0 items-center rounded-full px-5 py-2.5 text-xs tracking-[0.12em] uppercase transition-all duration-300",
         active
           ? "bg-cream text-ink shadow-lg shadow-ink/20"
           : "border border-stone/40 text-fog hover:border-fog hover:text-cream"

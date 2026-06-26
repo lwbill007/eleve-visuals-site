@@ -26,7 +26,7 @@ export default async function BookingTermsPage() {
           {terms.sections.map((section) => (
             <article key={section.title} className="border-t border-stone/30 pt-8">
               <h2 className="headline-sm mb-4">{section.title}</h2>
-              <p className="body-md text-fog">{section.body}</p>
+              <p className="body-md whitespace-pre-line">{section.body}</p>
             </article>
           ))}
 

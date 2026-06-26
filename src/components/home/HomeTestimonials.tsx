@@ -87,12 +87,16 @@ export function HomeTestimonials({
                   key={item.id}
                   type="button"
                   onClick={() => setActive(i)}
-                  className={cn(
-                    "h-1 transition-all duration-300",
-                    i === active ? "w-10 bg-accent" : "w-4 bg-stone hover:bg-muted"
-                  )}
+                  className="group flex h-11 items-center px-1"
                   aria-label={`View testimonial ${i + 1}`}
-                />
+                >
+                  <span
+                    className={cn(
+                      "block h-1 transition-all duration-300",
+                      i === active ? "w-10 bg-accent" : "w-4 bg-stone group-hover:bg-muted"
+                    )}
+                  />
+                </button>
               ))}
             </div>
           )}

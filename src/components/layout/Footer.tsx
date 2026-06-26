@@ -35,12 +35,12 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
 
             <div className="md:col-span-3">
               <p className="label-caps mb-4">Navigate</p>
-              <ul className="space-y-2">
+              <ul className="space-y-1">
                 {footerLinks.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="text-sm text-fog transition-colors hover:text-cream"
+                      className="inline-flex min-h-9 items-center text-sm text-fog transition-colors hover:text-cream"
                     >
                       {item.label}
                     </Link>
@@ -49,7 +49,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                 <li>
                   <Link
                     href="/book"
-                    className="text-sm text-fog transition-colors hover:text-cream"
+                    className="inline-flex min-h-9 items-center text-sm text-fog transition-colors hover:text-cream"
                   >
                     Book a Shoot
                   </Link>
@@ -59,11 +59,11 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
 
             <div className="md:col-span-4">
               <p className="label-caps mb-4">Connect</p>
-              <ul className="space-y-2">
+              <ul className="space-y-1">
                 <li>
                   <a
                     href={`mailto:${siteConfig.email}`}
-                    className="text-sm text-fog transition-colors hover:text-cream"
+                    className="inline-flex min-h-9 items-center text-sm text-fog transition-colors hover:text-cream break-all"
                   >
                     {siteConfig.email}
                   </a>
@@ -73,7 +73,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                     href={siteConfig.instagramUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-fog transition-colors hover:text-cream"
+                    className="inline-flex min-h-9 items-center text-sm text-fog transition-colors hover:text-cream"
                   >
                     @{siteConfig.instagram}
                   </a>

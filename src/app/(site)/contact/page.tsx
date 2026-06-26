@@ -31,12 +31,12 @@ export default async function ContactPage() {
         <div className="container-wide">
           <div className="grid gap-16 lg:grid-cols-12">
             <div className="lg:col-span-5">
-              <div className="space-y-8 sticky top-28">
+              <div className="space-y-8 lg:sticky lg:top-28">
                 <div>
                   <p className="label-caps mb-3">Email</p>
                   <a
                     href={`mailto:${siteConfig.email}`}
-                    className="font-display text-2xl text-cream hover:text-accent transition-colors"
+                    className="font-display text-xl text-cream transition-colors hover:text-accent sm:text-2xl break-words"
                   >
                     {siteConfig.email}
                   </a>
@@ -48,7 +48,7 @@ export default async function ContactPage() {
                     href={siteConfig.instagramUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-display text-2xl text-cream hover:text-accent transition-colors"
+                    className="font-display text-xl text-cream transition-colors hover:text-accent sm:text-2xl break-words"
                   >
                     @{siteConfig.instagram}
                   </a>

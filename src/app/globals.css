@@ -16,6 +16,8 @@
   --font-body: var(--font-outfit), "Outfit", system-ui, sans-serif;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --breakpoint-xs: 26rem;
 }
 
 @layer base {
@@ -112,7 +114,7 @@
   }
 
   .headline-xl {
-    @apply font-display text-5xl leading-[0.95] md:text-7xl lg:text-8xl;
+    @apply font-display text-[2.75rem] leading-[0.98] md:text-7xl lg:text-8xl;
   }
 
   .headline-lg {
@@ -123,8 +125,16 @@
     @apply font-display text-3xl leading-[1.05] md:text-4xl;
   }
 
+  .headline-sm {
+    @apply font-display text-2xl leading-[1.1] md:text-3xl;
+  }
+
   .body-lg {
     @apply text-base leading-relaxed text-fog md:text-lg;
+  }
+
+  .body-md {
+    @apply text-sm leading-relaxed text-fog md:text-base;
   }
 
   .link-underline {
@@ -194,7 +204,7 @@ select.error {
 }
 
 .checkbox-row input[type="checkbox"] {
-  @apply mt-1 h-4 w-4 shrink-0 cursor-pointer accent-accent;
+  @apply mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-accent;
 }
 
 /* Scrollbar */

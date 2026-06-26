@@ -80,7 +80,7 @@ export function PageHero({
   return (
     <section
       className={cn(
-        "section-padding border-b border-stone/30",
+        "border-b border-stone/30 px-5 pt-28 md:px-8 md:pt-36 lg:px-12 lg:pt-40",
         compact ? "pb-12 md:pb-16" : "pb-16 md:pb-24"
       )}
     >
