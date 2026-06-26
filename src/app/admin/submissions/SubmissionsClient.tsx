@@ -159,7 +159,7 @@ function exportCsv(items: Submission[], type: "booking" | "session" | "contact")
       const d = item.data;
       const services = asStringArray(d.serviceTypes).join("; ") || asString(d.serviceType) || "";
       return [
-        item.id,
+        formatInquiryId(item.id),
         item.createdAt,
         item.status,
         asString(d.fullName) ?? "",
@@ -405,17 +405,18 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
             ))}
           </>
         )}
-        {items.length > 0 && (
+        {(typeFilter === "booking" || typeFilter === "contact" || typeFilter === "session") && items.length > 0 && (
           <button
             type="button"
             onClick={() => {
-              const exportType =
+              exportCsv(
+                items,
                 typeFilter === "session"
                   ? "session"
                   : typeFilter === "contact"
                     ? "contact"
-                    : "booking";
-              exportCsv(items, exportType);
+                    : "booking"
+              );
             }}
             className="ml-auto border border-stone/50 px-3 py-1.5 text-xs text-fog uppercase hover:border-cream/40"
           >

@@ -46,6 +46,7 @@ function activityLabel(type: string) {
 }
 
 function activityHref(type: string) {
+  if (type === "session") return "/admin/applications";
   return `/admin/submissions?type=${type === "contact" ? "contact" : type}`;
 }
 
@@ -71,7 +72,7 @@ export function AdminDashboard() {
     { label: "Total bookings", value: stats.bookings.total, href: "/admin/submissions?type=booking" },
     { label: "Pending inquiries", value: stats.bookings.pending, href: "/admin/submissions?type=booking&status=new" },
     { label: "Confirmed shoots", value: stats.bookings.confirmed, href: "/admin/submissions?type=booking&status=scheduled" },
-    { label: "Session applications", value: stats.applications.total, href: "/admin/submissions?type=session" },
+    { label: "Session applications", value: stats.applications.total, href: "/admin/applications" },
     { label: "Pending review", value: stats.applications.new, href: "/admin/applications?status=pending_review" },
     { label: "Unread messages", value: stats.inquiries.unread, href: "/admin/submissions" },
     { label: "Active sessions", value: stats.content.sessions, href: "/admin/sessions" },

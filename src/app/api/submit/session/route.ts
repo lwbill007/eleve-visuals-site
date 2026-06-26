@@ -61,6 +61,7 @@ export async function POST(request: Request) {
 
   const schema = createSessionApplicationSchema({
     requirePortfolioUpload: settings.requirePortfolioUpload,
+    requireRoleSelection: settings.requireRoleSelection,
     questions: settings.questions,
   });
 
@@ -88,13 +89,15 @@ export async function POST(request: Request) {
     sessionVolumeTitle: volume.title,
   };
 
+  const initialStatus = gate.waitlist ? "waitlisted" : "pending_review";
+
   let applicationId: string;
   try {
     const submission = await prisma.submission.create({
       data: {
         type: "session",
         data: JSON.stringify(payload),
-        status: "pending_review",
+        status: initialStatus,
         sessionVolumeId: volumeId,
       },
     });
@@ -133,9 +136,10 @@ export async function POST(request: Request) {
     }
 
     if (settings.notifyApplicantOnSubmission) {
-      const message =
-        settings.customConfirmationMessage ||
-        settings.emailTemplates.submissionConfirmation;
+      const message = gate.waitlist
+        ? settings.emailTemplates.waitlist
+        : settings.customConfirmationMessage ||
+          settings.emailTemplates.submissionConfirmation;
       const mail = applicantConfirmationEmail({
         name: parsed.data.fullName,
         volumeTitle: volume.title,
@@ -155,5 +159,10 @@ export async function POST(request: Request) {
 
   await maybeAutoCloseVolume(volumeId, settings, volume.applicationDeadline);
 
-  return NextResponse.json({ ok: true, inquiryId: applicationId, applicationId });
+  return NextResponse.json({
+    ok: true,
+    inquiryId: applicationId,
+    applicationId,
+    waitlist: gate.waitlist ?? false,
+  });
 }

@@ -7,9 +7,9 @@ import {
   sanitizeUploadFilename,
   saveLocalUpload,
 } from "@/lib/upload-server";
+import { SESSION_PORTFOLIO_MAX_BYTES } from "@/lib/upload-constants";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE = 5 * 1024 * 1024;
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
-  const honeypot = formData.get("website") as string | null;
+  const honeypot = (formData.get("_hp") ?? formData.get("website")) as string | null;
 
   if (honeypot?.trim()) {
     return NextResponse.json({ ok: true, url: "" });
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (file.size > MAX_SIZE) {
+  if (file.size > SESSION_PORTFOLIO_MAX_BYTES) {
     return NextResponse.json({ error: "Image must be under 5MB" }, { status: 400 });
   }
 

@@ -57,6 +57,7 @@ export async function POST(
       requirements: source.requirements,
       timeline: source.timeline,
       applicationDeadline: source.applicationDeadline,
+      applicationSettings: source.applicationSettings,
       teaserVideoUrl: source.teaserVideoUrl,
       featured: false,
       published: false,

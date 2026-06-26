@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import type { BookingOptions, PageCopy } from "@/lib/types";
 import {
@@ -79,7 +80,7 @@ export function BookingForm({
 
   useEffect(() => {
     const hasContent = Object.values(data).some((v) =>
-      Array.isArray(v) ? v.length > 0 : typeof v === "string" && v.trim()
+      Array.isArray(v) ? v.length > 0 : typeof v === "boolean" ? v : typeof v === "string" && v.trim()
     );
     if (!hasContent || submitted) return;
 
@@ -87,14 +88,18 @@ export function BookingForm({
       try {
         localStorage.setItem(BOOKING_AUTOSAVE_KEY, JSON.stringify({ ...data, step }));
         setAutosaved(true);
-        const hide = setTimeout(() => setAutosaved(false), 2000);
-        return () => clearTimeout(hide);
       } catch {
         /* storage full or unavailable */
       }
     }, 500);
     return () => clearTimeout(timer);
   }, [data, step, submitted]);
+
+  useEffect(() => {
+    if (!autosaved) return;
+    const hide = setTimeout(() => setAutosaved(false), 2000);
+    return () => clearTimeout(hide);
+  }, [autosaved]);
 
   const update = useCallback(<K extends keyof BookingFormData>(
     key: K,
@@ -110,7 +115,7 @@ export function BookingForm({
     update(key, next);
   };
 
-  const validateStep = (currentStep: number): boolean => {
+  const getStepErrors = (currentStep: number): FormErrors<BookingFormData> => {
     const next: FormErrors<BookingFormData> = {};
 
     if (currentStep === 1) {
@@ -153,6 +158,9 @@ export function BookingForm({
         next.moodBoardUrl = "Enter a valid URL";
       if (data.driveLink && !isValidOptionalUrl(data.driveLink))
         next.driveLink = "Enter a valid URL";
+      if (data.inspirationInstagram && !isValidInstagram(data.inspirationInstagram) && !isValidOptionalUrl(data.inspirationInstagram)) {
+        next.inspirationInstagram = "Enter a valid @handle or URL";
+      }
     }
 
     if (currentStep === 5) {
@@ -166,10 +174,29 @@ export function BookingForm({
 
     if (currentStep === 7) {
       if (!data.referralSource) next.referralSource = "Let us know how you found ÉLEVÉ";
+      if (!data.termsAccepted) next.termsAccepted = "You must agree to the booking terms";
     }
 
+    return next;
+  };
+
+  const validateStep = (currentStep: number): boolean => {
+    const next = getStepErrors(currentStep);
     setErrors(next);
     return Object.keys(next).length === 0;
+  };
+
+  const validateAllSteps = (): number | null => {
+    const allErrors: FormErrors<BookingFormData> = {};
+    for (let s = 1; s <= BOOKING_STEPS.length; s++) {
+      Object.assign(allErrors, getStepErrors(s));
+    }
+    setErrors(allErrors);
+    if (Object.keys(allErrors).length === 0) return null;
+    for (let s = 1; s <= BOOKING_STEPS.length; s++) {
+      if (Object.keys(getStepErrors(s)).length > 0) return s;
+    }
+    return 1;
   };
 
   const goNext = () => {
@@ -185,7 +212,15 @@ export function BookingForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateStep(step) || !spam.canSubmit()) return;
+    const invalidStep = validateAllSteps();
+    if (invalidStep !== null) {
+      if (invalidStep !== step) {
+        setStep(invalidStep);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+    if (!spam.canSubmit()) return;
 
     setLoading(true);
     const res = await fetch("/api/submit/booking", {
@@ -462,6 +497,7 @@ export function BookingForm({
                   <FormField
                     label="Instagram Inspiration"
                     name="inspirationInstagram"
+                    error={errors.inspirationInstagram}
                   >
                     <TextInput
                       id="inspirationInstagram"
@@ -469,6 +505,7 @@ export function BookingForm({
                       value={data.inspirationInstagram}
                       onChange={(e) => update("inspirationInstagram", e.target.value)}
                       placeholder="@account or link"
+                      error={!!errors.inspirationInstagram}
                     />
                   </FormField>
                   <FormField label="Google Drive Link" name="driveLink" error={errors.driveLink}>
@@ -541,6 +578,23 @@ export function BookingForm({
                 />
                 {errors.referralSource && (
                   <p className="field-error">{errors.referralSource}</p>
+                )}
+                <CheckboxField
+                  name="termsAccepted"
+                  checked={data.termsAccepted}
+                  onChange={(e) => update("termsAccepted", e.target.checked)}
+                  label={
+                    <>
+                      I agree to the{" "}
+                      <Link href="/booking-terms" className="text-accent underline hover:text-cream">
+                        booking terms
+                      </Link>
+                      .
+                    </>
+                  }
+                />
+                {errors.termsAccepted && (
+                  <p className="field-error">{errors.termsAccepted}</p>
                 )}
                 <div className="mt-8 border border-stone/30 bg-ink/50 p-6">
                   <p className="text-sm leading-relaxed text-fog">

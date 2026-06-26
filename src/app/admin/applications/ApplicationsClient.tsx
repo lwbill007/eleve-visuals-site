@@ -323,7 +323,17 @@ export default function ApplicationsClient() {
                     >
                       {item.starred ? "★" : "☆"}
                     </button>
-                    <button type="button" onClick={() => setExpanded(expanded === item.id ? null : item.id)} className="text-xs text-accent">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = expanded === item.id ? null : item.id;
+                        setExpanded(next);
+                        if (next && !item.read) {
+                          void updateRow(item.id, { read: true });
+                        }
+                      }}
+                      className="text-xs text-accent"
+                    >
                       {expanded === item.id ? "Hide" : "View"}
                     </button>
                     <button

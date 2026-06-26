@@ -4,7 +4,6 @@ import type { SessionVolumeDTO } from "@/lib/types";
 import type { SessionsApplicationContent } from "@/lib/types";
 import {
   getSessionCtaMessage,
-  isApplicationsOpen,
   resolveSessionPosterImage,
 } from "@/lib/session-volume";
 import { Button } from "@/components/ui/Button";
@@ -13,13 +12,14 @@ import { SessionCountdown } from "@/components/sessions/SessionCountdown";
 
 export function SessionDetailView({
   volume,
-  applicationContent,
+  applicationContent: _applicationContent,
+  canApply,
 }: {
   volume: SessionVolumeDTO;
   applicationContent: SessionsApplicationContent;
+  canApply: boolean;
 }) {
   const heroImage = volume.bannerImage || resolveSessionPosterImage(volume);
-  const canApply = isApplicationsOpen(volume);
   const gallery = [...volume.gallery, ...volume.moodBoard].filter(
     (url, i, arr) => arr.indexOf(url) === i
   );

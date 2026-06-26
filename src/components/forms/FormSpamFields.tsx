@@ -92,10 +92,10 @@ export function FormSpamFields({
   return (
     <>
       <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
-        <label htmlFor="website">Website</label>
+        <label htmlFor="form-honeypot">Leave blank</label>
         <input
-          id="website"
-          name="website"
+          id="form-honeypot"
+          name="_hp_field"
           type="text"
           tabIndex={-1}
           autoComplete="off"

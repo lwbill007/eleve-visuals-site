@@ -91,14 +91,18 @@ export function SessionApplicationWizard({
       try {
         localStorage.setItem(storageKey, JSON.stringify({ ...data, step }));
         setAutosaved(true);
-        const hide = setTimeout(() => setAutosaved(false), 2000);
-        return () => clearTimeout(hide);
       } catch {
         /* ignore */
       }
     }, 600);
     return () => clearTimeout(timer);
   }, [data, step, submitted, storageKey]);
+
+  useEffect(() => {
+    if (!autosaved) return;
+    const hide = setTimeout(() => setAutosaved(false), 2000);
+    return () => clearTimeout(hide);
+  }, [autosaved]);
 
   const update = useCallback(<K extends keyof SessionApplicationData>(
     key: K,
@@ -122,7 +126,7 @@ export function SessionApplicationWizard({
     );
   };
 
-  const validateStep = (current: number): boolean => {
+  const getStepErrors = (current: number): FormErrors<SessionApplicationData> => {
     const next: FormErrors<SessionApplicationData> = {};
 
     if (current === 1) {
@@ -186,8 +190,26 @@ export function SessionApplicationWizard({
       if (!data.agreementAccurate) next.agreementAccurate = "Required";
     }
 
+    return next;
+  };
+
+  const validateStep = (current: number): boolean => {
+    const next = getStepErrors(current);
     setErrors(next);
     return Object.keys(next).length === 0;
+  };
+
+  const validateAllSteps = (): number | null => {
+    const allErrors: FormErrors<SessionApplicationData> = {};
+    for (let s = 1; s <= APPLICATION_STEPS.length; s++) {
+      Object.assign(allErrors, getStepErrors(s));
+    }
+    setErrors(allErrors);
+    if (Object.keys(allErrors).length === 0) return null;
+    for (let s = 1; s <= APPLICATION_STEPS.length; s++) {
+      if (Object.keys(getStepErrors(s)).length > 0) return s;
+    }
+    return 1;
   };
 
   const goNext = () => {
@@ -240,7 +262,15 @@ export function SessionApplicationWizard({
   }
 
   async function handleSubmit() {
-    if (!validateStep(6) || !spam.canSubmit()) return;
+    const invalidStep = validateAllSteps();
+    if (invalidStep !== null) {
+      if (invalidStep !== step) {
+        setStep(invalidStep);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+    if (!spam.canSubmit()) return;
     setLoading(true);
 
     const res = await fetch("/api/submit/session", {
@@ -258,9 +288,20 @@ export function SessionApplicationWizard({
       return;
     }
 
-    const payload = await res.json();
+    const payload = await res.json().catch(() => ({}));
+    const id =
+      typeof payload.applicationId === "string"
+        ? payload.applicationId
+        : typeof payload.inquiryId === "string"
+          ? payload.inquiryId
+          : undefined;
+    if (!id) {
+      setErrors({ fullName: "Submission could not be completed. Please try again." });
+      return;
+    }
+
     trackConversion("session");
-    setApplicationId(payload.applicationId ?? payload.inquiryId);
+    setApplicationId(id);
     setSubmitted(true);
     try {
       localStorage.removeItem(storageKey);
@@ -270,7 +311,7 @@ export function SessionApplicationWizard({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  if (submitted) {
+  if (submitted && applicationId) {
     return (
       <SessionApplicationSuccess
         title={applicationContent.successTitle || "Application Received"}
@@ -279,7 +320,7 @@ export function SessionApplicationWizard({
           applicationContent.successMessage ||
           settings.emailTemplates.submissionConfirmation
         }
-        applicationId={applicationId!}
+        applicationId={applicationId}
         volumeTitle={volume.title}
       />
     );
@@ -373,7 +414,7 @@ export function SessionApplicationWizard({
                         <button
                           type="button"
                           onClick={() => update("portfolioImages", data.portfolioImages.filter((u) => u !== url))}
-                          className="absolute top-1 right-1 bg-ink/80 px-2 py-0.5 text-[10px] text-fog"
+                          className="absolute top-1 right-1 min-h-8 min-w-8 bg-ink/80 px-2 py-1 text-xs text-fog"
                         >
                           Remove
                         </button>
@@ -477,6 +518,12 @@ export function SessionApplicationWizard({
                 onChange={(e) => update("agreementAccurate", e.target.checked)}
                 label="I confirm all information provided is accurate."
               />
+              {(errors.agreementCurated ||
+                errors.agreementNoGuarantee ||
+                errors.agreementGuidelines ||
+                errors.agreementAccurate) && (
+                <p className="field-error">Please accept all required agreements.</p>
+              )}
               <FormSpamFields
                 honeypot={spam.honeypot}
                 onHoneypotChange={spam.setHoneypot}

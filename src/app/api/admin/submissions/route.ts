@@ -8,6 +8,9 @@ import {
   type ApplicationStatus,
   type InquiryStatus,
 } from "@/lib/types";
+import { notifyApplicationStatusChange } from "@/lib/application-notifications";
+import { maybeAutoCloseVolumeAfterAccept } from "@/lib/session-application-server";
+import { parseApplicationSettings } from "@/lib/session-application";
 
 function parseSubmissionData(raw: string) {
   try {
@@ -42,6 +45,12 @@ function submissionMatchesSearch(data: Record<string, unknown>, q: string): bool
     data.projectVision,
     data.projectDetails,
     data.serviceType,
+    data.location,
+    data.budgetRange,
+    data.referralSource,
+    data.preferredDate,
+    ...(Array.isArray(data.serviceTypes) ? data.serviceTypes : []),
+    ...(Array.isArray(data.deliverables) ? data.deliverables : []),
     ...(Array.isArray(data.roles) ? data.roles : []),
     data.role,
   ]
@@ -152,9 +161,24 @@ export async function PATCH(request: Request) {
     }
 
     await prisma.submission.update({ where: { id }, data });
+
+    if (typeof data.status === "string" && existing.type === "session" && isApplicationStatus(data.status)) {
+      void notifyApplicationStatusChange(id, data.status, existing.status);
+      if (data.status === "accepted" && existing.sessionVolumeId) {
+        const volume = await prisma.sessionVolume.findUnique({
+          where: { id: existing.sessionVolumeId },
+        });
+        if (volume) {
+          const settings = parseApplicationSettings(volume.applicationSettings);
+          void maybeAutoCloseVolumeAfterAccept(existing.sessionVolumeId, settings);
+        }
+      }
+    }
+
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  } catch (error) {
+    console.error("Submission PATCH failed:", error);
+    return NextResponse.json({ error: "Update failed" }, { status: 400 });
   }
 }
 
@@ -173,7 +197,8 @@ export async function DELETE(request: Request) {
 
     await prisma.submission.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  } catch (error) {
+    console.error("Submission DELETE failed:", error);
+    return NextResponse.json({ error: "Delete failed" }, { status: 400 });
   }
 }

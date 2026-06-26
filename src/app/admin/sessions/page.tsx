@@ -563,15 +563,23 @@ export default function AdminSessionsPage() {
                     .map((q) => `${q.label}|${q.required ? "required" : "optional"}|${q.maxLength}`)
                     .join("\n")}
                   onChange={(e) => {
+                    const previous = editing.applicationSettings?.questions || [];
                     const questions = e.target.value
                       .split("\n")
                       .map((line) => line.trim())
                       .filter(Boolean)
                       .map((line, i) => {
                         const [label, req, max] = line.split("|");
+                        const trimmedLabel = label?.trim() || "";
+                        const existing =
+                          previous.find((q) => q.label === trimmedLabel) ?? previous[i];
+                        const slug = trimmedLabel
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, "-")
+                          .replace(/^-|-$/g, "");
                         return {
-                          id: `custom-${i}`,
-                          label: label?.trim() || "",
+                          id: existing?.id ?? (slug || `question-${i}`),
+                          label: trimmedLabel,
                           required: req?.trim().toLowerCase() === "required",
                           maxLength: parseInt(max || "3000") || 3000,
                         };

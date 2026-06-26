@@ -79,7 +79,7 @@ export function HomeSessionsPreview({
                 Explore Volume
               </Button>
               {canApply && (
-                <Button variant="secondary" href={`/sessions/${volume.slug}#apply`}>
+                <Button variant="secondary" href={`/sessions/${volume.slug}/apply`}>
                   Apply Now
                 </Button>
               )}

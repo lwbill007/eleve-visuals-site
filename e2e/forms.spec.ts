@@ -56,6 +56,7 @@ test.describe("Public forms", () => {
     await page.getByRole("button", { name: "Continue" }).click();
 
     await page.getByRole("button", { name: "Google", exact: true }).click();
+    await page.getByRole("checkbox", { name: /booking terms/i }).check();
     await page.getByRole("button", { name: "Submit Inquiry" }).click();
 
     await expect(page.getByText("Inquiry received.")).toBeVisible({
@@ -65,28 +66,43 @@ test.describe("Public forms", () => {
 
   test("sessions application submission", async ({ page }) => {
     await page.goto("/sessions/apply");
-    await page.waitForURL(/\/sessions(\/[^/?#]+)?(#apply)?$/, { timeout: 15_000 });
+    await page.waitForURL(/\/sessions\/[^/]+\/apply/, { timeout: 15_000 });
     await waitForSpamTiming(page);
 
     await page.locator("#fullName").fill("E2E Session Applicant");
     await page.locator("#email").fill("e2e-session@example.com");
     await page.locator("#phone").fill("5559876543");
+    await page.locator("#cityState").fill("Sacramento, CA");
     await page.locator("#instagram").fill("@e2eapplicant");
-    await page.getByLabel(/18 years of age/i).check();
-    await page.locator("#role").selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.getByRole("button", { name: "Model", exact: true }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+
     await page.locator("#portfolioLink").fill("https://example.com/portfolio");
-    await page.locator("#experienceLevel").selectOption({ index: 1 });
-    await page.locator("#whyParticipate").fill(
-      "I want to participate because this is an automated E2E test submission."
-    );
-    await page.locator("#themeFit").fill(
-      "My aesthetic aligns with elevated editorial portraiture and clean composition."
-    );
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    const textareas = page.locator("textarea");
+    const count = await textareas.count();
+    for (let i = 0; i < count; i++) {
+      await textareas.nth(i).fill(
+        "This is an automated E2E test answer with enough characters for validation."
+      );
+    }
+    await page.getByRole("button", { name: "Continue" }).click();
+
     await page.getByLabel(/confirm availability/i).check();
-    await page.getByLabel(/media release/i).check();
+    await page.getByLabel(/transportation/i).check();
+    await page.getByLabel(/creative direction/i).check();
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.getByLabel(/curated creative/i).check();
+    await page.getByLabel(/does not guarantee/i).check();
+    await page.getByLabel(/production guidelines/i).check();
+    await page.getByLabel(/information provided is accurate/i).check();
     await page.getByRole("button", { name: "Submit Application" }).click();
 
-    await expect(page.getByText("Application received.")).toBeVisible({
+    await expect(page.getByText(/Application Received|Application received/i)).toBeVisible({
       timeout: 15_000,
     });
   });

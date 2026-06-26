@@ -1,3 +1,4 @@
+/** @deprecated Legacy single-page form — use SessionApplicationWizard at /sessions/[slug]/apply */
 "use client";
 
 import { useState } from "react";
