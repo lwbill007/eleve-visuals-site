@@ -65,9 +65,16 @@ export type SessionApplicationInput = z.infer<typeof sessionApplicationSchema>;
 
 export function createSessionApplicationSchema(options: {
   requirePortfolioUpload: boolean;
+  requireRoleSelection: boolean;
   questions: { id: string; required: boolean; maxLength: number }[];
 }) {
-  return sessionApplicationSchema.superRefine((data, ctx) => {
+  const base = options.requireRoleSelection
+    ? sessionApplicationSchema
+    : sessionApplicationSchema.extend({
+        roles: z.array(z.enum(SESSION_APPLICATION_ROLES as unknown as [string, ...string[]])).default([]),
+      });
+
+  return base.superRefine((data, ctx) => {
     const hasPortfolio =
       data.portfolioImages.length > 0 ||
       !!data.portfolioLink?.trim() ||

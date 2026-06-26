@@ -81,3 +81,70 @@ export function applicantConfirmationEmail({
     `,
   };
 }
+
+export function bookingNotificationEmail({
+  name,
+  email,
+  services,
+  preferredDate,
+  inquiryId,
+  adminUrl,
+}: {
+  name: string;
+  email: string;
+  services: string;
+  preferredDate: string;
+  inquiryId: string;
+  adminUrl: string;
+}) {
+  return {
+    subject: `New booking inquiry — ${name}`,
+    html: `
+      <p>A new booking inquiry was submitted.</p>
+      <p><strong>Name:</strong> ${name}</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Services:</strong> ${services}</p>
+      <p><strong>Preferred date:</strong> ${preferredDate}</p>
+      <p><strong>Inquiry ID:</strong> ${inquiryId}</p>
+      <p><a href="${adminUrl}">Review in admin</a></p>
+    `,
+  };
+}
+
+export function bookingConfirmationEmail({
+  name,
+  inquiryId,
+}: {
+  name: string;
+  inquiryId: string;
+}) {
+  return {
+    subject: "Booking inquiry received — ÉLEVÉ Visuals",
+    html: `
+      <p>Hi ${name},</p>
+      <p>Thank you for reaching out to ÉLEVÉ Visuals. Your inquiry has been received and will be reviewed personally.</p>
+      <p><strong>Inquiry ID:</strong> ${inquiryId}</p>
+      <p>If your project aligns with our creative direction, we will follow up with availability and next steps.</p>
+      <p>— ÉLEVÉ Visuals</p>
+    `,
+  };
+}
+
+export function applicationStatusEmail({
+  name,
+  volumeTitle,
+  message,
+}: {
+  name: string;
+  volumeTitle: string;
+  message: string;
+}) {
+  return {
+    subject: `ÉLEVÉ Sessions update — ${volumeTitle}`,
+    html: `
+      <p>Hi ${name},</p>
+      <p>${message}</p>
+      <p>— ÉLEVÉ Visuals</p>
+    `,
+  };
+}

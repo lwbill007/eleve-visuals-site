@@ -19,6 +19,8 @@ export function isAllowedUploadMime(mimeType: string): boolean {
 /** Vercel serverless request body hard limit — server-side multipart uploads must stay under this. */
 export const VERCEL_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 
+export const SESSION_PORTFOLIO_MAX_BYTES = 5 * 1024 * 1024;
+
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 

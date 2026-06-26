@@ -54,6 +54,17 @@ function enumFromOptions(values: string[], label: string) {
   });
 }
 
+const optionalInstagram = z
+  .string()
+  .trim()
+  .max(120)
+  .optional()
+  .or(z.literal(""))
+  .refine(
+    (v) => !v || /^@?[a-zA-Z0-9._]{1,30}$/.test(v) || /^https?:\/\/.+/i.test(v),
+    "Enter a valid Instagram handle or URL"
+  );
+
 export function createBookingSchema(options: BookingOptions) {
   return z.object({
     fullName: z.string().trim().min(1).max(120),
@@ -77,7 +88,7 @@ export function createBookingSchema(options: BookingOptions) {
     projectVision: z.string().trim().min(10).max(5000),
     pinterestLink: optionalUrl,
     moodBoardUrl: optionalUrl,
-    inspirationInstagram: z.string().trim().max(120).optional().or(z.literal("")),
+    inspirationInstagram: optionalInstagram,
     driveLink: optionalUrl,
     deliverables: z
       .array(enumFromOptions(options.deliverables, "deliverable"))
@@ -85,6 +96,9 @@ export function createBookingSchema(options: BookingOptions) {
       .max(20),
     budgetRange: enumFromOptions(options.budgetRanges, "budget range"),
     referralSource: enumFromOptions(options.referralSources, "referral source"),
+    termsAccepted: z.literal(true, {
+      errorMap: () => ({ message: "You must agree to the booking terms" }),
+    }),
   });
 }
 

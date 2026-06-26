@@ -12,6 +12,7 @@ import {
   blobFolderForMime,
   isAllowedUploadMime,
   maxBytesForMime,
+  SESSION_PORTFOLIO_MAX_BYTES,
   VERCEL_SERVER_MAX_BYTES,
 } from "@/lib/upload-constants";
 
@@ -37,7 +38,7 @@ function humanizeUploadError(error: unknown): Error {
   return error;
 }
 
-function validateFileBeforeUpload(file: File): string {
+function validateFileBeforeUpload(file: File, endpoint: string): string {
   const mimeType = inferMimeType(file);
 
   if (!isAllowedUploadMime(mimeType)) {
@@ -51,12 +52,16 @@ function validateFileBeforeUpload(file: File): string {
     );
   }
 
-  const maxSize = maxBytesForMime(mimeType);
+  const maxSize = endpoint.includes("/api/submit/session/upload")
+    ? SESSION_PORTFOLIO_MAX_BYTES
+    : maxBytesForMime(mimeType);
   if (file.size > maxSize) {
     throw new Error(
       mimeType.startsWith("video/")
         ? "Video too large (max 50MB)"
-        : "Image too large (max 10MB)"
+        : endpoint.includes("/api/submit/session/upload")
+          ? "Image too large (max 5MB)"
+          : "Image too large (max 10MB)"
     );
   }
 
@@ -155,6 +160,7 @@ async function uploadViaServerRoute(
 
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("_hp", "");
 
   const fetcher = endpoint.startsWith("/api/admin") ? adminFetch : fetch;
   const res = await fetcher(endpoint, { method: "POST", body: formData });
@@ -182,7 +188,7 @@ async function postUpload(
   endpoint: string,
   validate: (url: string) => void
 ): Promise<string> {
-  const mimeType = validateFileBeforeUpload(file);
+  const mimeType = validateFileBeforeUpload(file, endpoint);
 
   console.log("[upload] start", {
     name: file.name,

@@ -33,21 +33,20 @@ export async function hasDuplicateApplication(
   volumeId: string,
   email: string
 ): Promise<boolean> {
-  const existing = await prisma.submission.findMany({
-    where: { type: "session", sessionVolumeId: volumeId },
-    select: { data: true },
-    take: 500,
-  });
   const normalized = email.trim().toLowerCase();
-  return existing.some((row) => {
-    try {
-      const data = JSON.parse(row.data) as { email?: string };
-      return data.email?.trim().toLowerCase() === normalized;
-    } catch {
-      return false;
-    }
-  });
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "Submission"
+    WHERE type = 'session'
+    AND "sessionVolumeId" = ${volumeId}
+    AND LOWER((data::json)->>'email') = ${normalized}
+    LIMIT 1
+  `;
+  return rows.length > 0;
 }
+
+export type ApplicationGateResult =
+  | { ok: true; waitlist?: boolean }
+  | { ok: false; message: string };
 
 export async function validateSessionApplicationGate(volume: {
   id: string;
@@ -56,7 +55,7 @@ export async function validateSessionApplicationGate(volume: {
   showApplyButton: boolean;
   applicationDeadline: Date | null;
   applicationSettings: string;
-}): Promise<{ ok: true } | { ok: false; message: string }> {
+}): Promise<ApplicationGateResult> {
   const settings = parseApplicationSettings(volume.applicationSettings);
   const dto = {
     status: volume.status,
@@ -75,16 +74,26 @@ export async function validateSessionApplicationGate(volume: {
   if (settings.autoCloseOnCapacity && settings.maxCapacity != null) {
     const accepted = await countAcceptedApplications(volume.id);
     if (accepted >= settings.maxCapacity) {
+      if (settings.waitlistEnabled) {
+        return { ok: true, waitlist: true };
+      }
       return {
         ok: false,
-        message: settings.waitlistEnabled
-          ? "This session has reached capacity. Waitlist may be available soon."
-          : "This session has reached capacity and is no longer accepting applications.",
+        message: "This session has reached capacity and is no longer accepting applications.",
       };
     }
   }
 
   return { ok: true };
+}
+
+export function isSessionApplyOpen(volume: SessionVolumeDTO): boolean {
+  if (!isApplicationsOpen(volume)) return false;
+  const settings = volume.applicationSettings;
+  if (settings.autoCloseOnDeadline && isDeadlinePassed(volume.applicationDeadline)) {
+    return false;
+  }
+  return true;
 }
 
 export async function maybeAutoCloseVolume(
@@ -108,5 +117,19 @@ export async function maybeAutoCloseVolume(
         data: { status: settings.waitlistEnabled ? "applications_closed" : "sold_out" },
       });
     }
+  }
+}
+
+export async function maybeAutoCloseVolumeAfterAccept(
+  volumeId: string,
+  settings: SessionApplicationSettings
+) {
+  if (!settings.autoCloseOnCapacity || settings.maxCapacity == null) return;
+  const accepted = await countAcceptedApplications(volumeId);
+  if (accepted >= settings.maxCapacity) {
+    await prisma.sessionVolume.update({
+      where: { id: volumeId },
+      data: { status: settings.waitlistEnabled ? "applications_closed" : "sold_out" },
+    });
   }
 }

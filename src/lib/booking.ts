@@ -30,6 +30,7 @@ export interface BookingFormData {
   deliverables: string[];
   budgetRange: string;
   referralSource: string;
+  termsAccepted: boolean;
 }
 
 export const initialBookingData: BookingFormData = {
@@ -52,6 +53,7 @@ export const initialBookingData: BookingFormData = {
   deliverables: [],
   budgetRange: "",
   referralSource: "",
+  termsAccepted: false,
 };
 
 export function formatInquiryId(id: string): string {
