@@ -150,8 +150,6 @@ async function uploadViaServerRoute(
   endpoint: string,
   validate: (url: string) => void
 ): Promise<string> {
-  const mimeType = inferMimeType(file);
-
   if (
     process.env.NODE_ENV === "production" &&
     file.size > VERCEL_SERVER_MAX_BYTES

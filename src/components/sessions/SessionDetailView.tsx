@@ -21,7 +21,6 @@ function toEmbedUrl(url: string): string | null {
 
 export function SessionDetailView({
   volume,
-  applicationContent: _applicationContent,
   canApply,
 }: {
   volume: SessionVolumeDTO;

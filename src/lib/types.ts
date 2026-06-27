@@ -626,6 +626,8 @@ export interface SessionVolumeDTO {
   capacity: string;
   category: string;
   creativeDirector: string;
+  directorsNote: string;
+  galleryDelivery: string;
   dressCode: string;
   runtime: string;
   requirements: string[];

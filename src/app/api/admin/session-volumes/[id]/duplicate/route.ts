@@ -54,6 +54,8 @@ export async function POST(
       capacity: source.capacity,
       category: source.category,
       creativeDirector: source.creativeDirector,
+      directorsNote: source.directorsNote,
+      galleryDelivery: source.galleryDelivery,
       dressCode: source.dressCode,
       runtime: source.runtime,
       requirements: source.requirements,

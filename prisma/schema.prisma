@@ -214,6 +214,8 @@ model SessionVolume {
   capacity            String    @default("")
   category            String    @default("")
   creativeDirector    String    @default("")
+  directorsNote       String    @default("")
+  galleryDelivery     String    @default("")
   dressCode           String    @default("")
   runtime             String    @default("")
   requirements        String    @default("[]")

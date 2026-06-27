@@ -60,6 +60,8 @@ function emptyVolume(): Partial<SessionVolumeDTO> {
     capacity: "Limited capacity",
     category: "ÉLEVÉ Sessions",
     creativeDirector: "",
+    directorsNote: "",
+    galleryDelivery: "",
     dressCode: "",
     runtime: "",
     requirements: [],
@@ -378,6 +380,21 @@ export default function AdminSessionsPage() {
                 onChange={(e) => update("creativeDirector", e.target.value)}
               />
             </AdminField>
+            <AdminField label="Gallery Delivery Estimate" hint='e.g. "4–6 weeks after the shoot"'>
+              <AdminInput
+                value={editing.galleryDelivery || ""}
+                onChange={(e) => update("galleryDelivery", e.target.value)}
+              />
+            </AdminField>
+            <div className="md:col-span-2">
+              <AdminField label="Director's Note" hint="Shown on the featured volume. Optional.">
+                <AdminTextarea
+                  value={editing.directorsNote || ""}
+                  onChange={(e) => update("directorsNote", e.target.value)}
+                  className="min-h-[120px]"
+                />
+              </AdminField>
+            </div>
             <AdminField label="Dress Code">
               <AdminInput
                 value={editing.dressCode || ""}

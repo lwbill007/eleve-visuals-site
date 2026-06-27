@@ -95,6 +95,8 @@ export function mapSessionVolume(item: {
   capacity: string;
   category: string;
   creativeDirector: string;
+  directorsNote?: string;
+  galleryDelivery?: string;
   dressCode: string;
   runtime: string;
   requirements: string;
@@ -137,6 +139,8 @@ export function mapSessionVolume(item: {
     capacity: item.capacity,
     category: item.category,
     creativeDirector: item.creativeDirector,
+    directorsNote: item.directorsNote ?? "",
+    galleryDelivery: item.galleryDelivery ?? "",
     dressCode: item.dressCode,
     runtime: item.runtime,
     requirements: parseJsonArray(item.requirements),

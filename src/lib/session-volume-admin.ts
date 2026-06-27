@@ -53,6 +53,8 @@ export function parseSessionVolumeBody(body: Record<string, unknown>) {
     capacity: String(body.capacity || ""),
     category: String(body.category || ""),
     creativeDirector: String(body.creativeDirector || ""),
+    directorsNote: String(body.directorsNote || ""),
+    galleryDelivery: String(body.galleryDelivery || ""),
     dressCode: String(body.dressCode || ""),
     runtime: String(body.runtime || ""),
     requirements: JSON.stringify(
