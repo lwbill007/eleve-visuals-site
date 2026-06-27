@@ -565,7 +565,7 @@ export function VideoGalleryUpload({
         disabled={uploading}
         className="admin-touch-btn min-h-[4.5rem] w-full border border-dashed border-stone/50 bg-charcoal/30 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50 sm:min-h-20"
       >
-        {uploading ? uploadProgress || "Uploading..." : "Upload video (MP4 or WebM, max 50MB)"}
+        {uploading ? uploadProgress || "Uploading..." : "Upload video (MP4 or WebM, up to 2GB)"}
       </button>
 
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">

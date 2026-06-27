@@ -7,6 +7,7 @@ import {
   isAllowedUploadMime,
   localSubdirForMime,
   maxBytesForMime,
+  MAX_VIDEO_LABEL,
   VERCEL_SERVER_MAX_BYTES,
 } from "@/lib/upload-constants";
 import {
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: mimeType.startsWith("video/")
-          ? "Video too large (max 50MB)"
+          ? `Video too large (max ${MAX_VIDEO_LABEL})`
           : "File too large (max 10MB)",
       },
       { status: 400 }

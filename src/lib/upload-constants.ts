@@ -22,7 +22,8 @@ export const VERCEL_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 export const SESSION_PORTFOLIO_MAX_BYTES = 5 * 1024 * 1024;
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 2 * 1024 * 1024 * 1024;
+export const MAX_VIDEO_LABEL = "2GB";
 
 export function maxBytesForMime(mimeType: string): number {
   return UPLOAD_VIDEO_TYPES.includes(mimeType as (typeof UPLOAD_VIDEO_TYPES)[number])

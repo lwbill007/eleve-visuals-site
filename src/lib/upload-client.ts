@@ -12,6 +12,7 @@ import {
   blobFolderForMime,
   isAllowedUploadMime,
   maxBytesForMime,
+  MAX_VIDEO_LABEL,
   SESSION_PORTFOLIO_MAX_BYTES,
   VERCEL_SERVER_MAX_BYTES,
 } from "@/lib/upload-constants";
@@ -58,7 +59,7 @@ function validateFileBeforeUpload(file: File, endpoint: string): string {
   if (file.size > maxSize) {
     throw new Error(
       mimeType.startsWith("video/")
-        ? "Video too large (max 50MB)"
+        ? `Video too large (max ${MAX_VIDEO_LABEL})`
         : endpoint.includes("/api/submit/session/upload")
           ? "Image too large (max 5MB)"
           : "Image too large (max 10MB)"
