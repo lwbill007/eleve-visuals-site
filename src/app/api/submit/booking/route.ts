@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { recordConversion } from "@/lib/analytics-server";
-import { getBookingOptions, getSiteConfig } from "@/lib/content";
+import { getBookingOptions, getNotificationSettings, getSiteConfig } from "@/lib/content";
 import { formatInquiryId } from "@/lib/booking";
-import {
-  bookingConfirmationEmail,
-  bookingNotificationEmail,
-  sendEmail,
-} from "@/lib/email";
+import { bookingConfirmationEmail, sendEmail } from "@/lib/email";
+import { notifyNewSubmission } from "@/lib/notifications";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { runSpamChecks, stripSpamFields } from "@/lib/spam";
 import { createBookingSchema } from "@/lib/validation";
@@ -52,6 +49,9 @@ export async function POST(request: Request) {
         type: "booking",
         data: JSON.stringify(parsed.data),
         status: "new",
+        ipAddress: ip,
+        userAgent: (request.headers.get("user-agent") ?? "").slice(0, 1000),
+        contactEmail: parsed.data.email.trim().toLowerCase(),
       },
     });
     inquiryId = submission.id;
@@ -69,39 +69,36 @@ export async function POST(request: Request) {
   }
 
   try {
-    const siteConfig = await getSiteConfig();
-    const displayId = formatInquiryId(inquiryId);
-    const adminUrl = `${siteConfig.url || process.env.NEXT_PUBLIC_SITE_URL || ""}/admin/submissions?type=booking`;
-
-    if (siteConfig.email) {
-      const adminMail = bookingNotificationEmail({
-        name: parsed.data.fullName,
-        email: parsed.data.email,
-        services: parsed.data.serviceTypes.join(", "),
-        preferredDate: parsed.data.preferredDate,
-        inquiryId: displayId,
-        adminUrl,
-      });
-      await sendEmail({
-        to: siteConfig.email,
-        subject: adminMail.subject,
-        html: adminMail.html,
-        replyTo: parsed.data.email,
-      });
-    }
-
-    const confirmMail = bookingConfirmationEmail({
-      name: parsed.data.fullName,
-      inquiryId: displayId,
-    });
-    await sendEmail({
-      to: parsed.data.email,
-      subject: confirmMail.subject,
-      html: confirmMail.html,
-      replyTo: siteConfig.email,
+    await notifyNewSubmission({
+      formType: "booking",
+      submissionId: inquiryId,
+      data: parsed.data as Record<string, unknown>,
     });
   } catch (error) {
     console.error("Booking notification failed:", error);
+  }
+
+  try {
+    const [siteConfig, notificationSettings] = await Promise.all([
+      getSiteConfig(),
+      getNotificationSettings(),
+    ]);
+
+    if (notificationSettings.sendApplicantConfirmation) {
+      const displayId = formatInquiryId(inquiryId);
+      const confirmMail = bookingConfirmationEmail({
+        name: parsed.data.fullName,
+        inquiryId: displayId,
+      });
+      await sendEmail({
+        to: parsed.data.email,
+        subject: confirmMail.subject,
+        html: confirmMail.html,
+        replyTo: siteConfig.email,
+      });
+    }
+  } catch (error) {
+    console.error("Booking confirmation email failed:", error);
   }
 
   return NextResponse.json({ ok: true, inquiryId });

@@ -10,6 +10,15 @@ import { Button } from "@/components/ui/Button";
 import { SessionStatusBadge } from "@/components/sessions/SessionStatusBadge";
 import { SessionCountdown } from "@/components/sessions/SessionCountdown";
 
+function toEmbedUrl(url: string): string | null {
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/i);
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  if (/youtube\.com\/embed\//i.test(url)) return url;
+  const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  return null;
+}
+
 export function SessionDetailView({
   volume,
   applicationContent: _applicationContent,
@@ -147,6 +156,37 @@ export function SessionDetailView({
         </section>
       )}
 
+      {volume.videos.length > 0 && (
+        <section className="section-padding border-b border-stone/30 bg-ink-soft">
+          <div className="container-wide">
+            <h2 className="label-caps mb-6 text-fog">Videos</h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              {volume.videos.map((src, i) => {
+                const embed = toEmbedUrl(src);
+                return (
+                  <div
+                    key={`${src}-${i}`}
+                    className="relative aspect-video overflow-hidden bg-charcoal"
+                  >
+                    {embed ? (
+                      <iframe
+                        src={embed}
+                        title={`${volume.title} — video ${i + 1}`}
+                        className="absolute inset-0 h-full w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video src={src} controls className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {gallery.length > 0 && (
         <section className="section-padding border-b border-stone/30">
           <div className="container-wide">
@@ -157,6 +197,30 @@ export function SessionDetailView({
                   <Image
                     src={src}
                     alt={`${volume.title} — image ${i + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {volume.btsGallery.length > 0 && (
+        <section className="section-padding border-b border-stone/30 bg-ink-soft">
+          <div className="container-wide">
+            <h2 className="label-caps mb-8 text-fog">Behind the Scenes</h2>
+            <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
+              {volume.btsGallery.map((src, i) => (
+                <div
+                  key={`${src}-${i}`}
+                  className="relative mb-4 aspect-[4/5] break-inside-avoid overflow-hidden bg-charcoal"
+                >
+                  <Image
+                    src={src}
+                    alt={`${volume.title} — behind the scenes ${i + 1}`}
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 33vw"

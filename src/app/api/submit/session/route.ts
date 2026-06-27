@@ -11,11 +11,8 @@ import {
   maybeAutoCloseVolume,
 } from "@/lib/session-application-server";
 import { parseApplicationSettings, toLegacyApplicationFields } from "@/lib/session-application";
-import {
-  sendEmail,
-  applicationNotificationEmail,
-  applicantConfirmationEmail,
-} from "@/lib/email";
+import { sendEmail, applicantConfirmationEmail } from "@/lib/email";
+import { notifyNewSubmission } from "@/lib/notifications";
 import { getSiteConfig } from "@/lib/content";
 import { formatApplicationId } from "@/lib/session-application";
 
@@ -99,6 +96,9 @@ export async function POST(request: Request) {
         data: JSON.stringify(payload),
         status: initialStatus,
         sessionVolumeId: volumeId,
+        ipAddress: ip,
+        userAgent: (request.headers.get("user-agent") ?? "").slice(0, 1000),
+        contactEmail: email,
       },
     });
     applicationId = submission.id;
@@ -115,25 +115,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    const siteConfig = await getSiteConfig();
-    const adminUrl = `${siteConfig.url || process.env.NEXT_PUBLIC_SITE_URL || ""}/admin/applications`;
-    const displayId = formatApplicationId(applicationId);
+    await notifyNewSubmission({
+      formType: "session",
+      submissionId: applicationId,
+      data: {
+        ...parsed.data,
+        sessionVolumeTitle: volume.title,
+      } as Record<string, unknown>,
+    });
+  } catch (error) {
+    console.error("Application notification failed:", error);
+  }
 
-    if (settings.notifyAdminOnSubmission && siteConfig.email) {
-      const adminMail = applicationNotificationEmail({
-        applicantName: parsed.data.fullName,
-        volumeTitle: volume.title,
-        volumeNumber: volume.volumeNumber,
-        applicationId: displayId,
-        adminUrl,
-      });
-      await sendEmail({
-        to: siteConfig.email,
-        subject: adminMail.subject,
-        html: adminMail.html,
-        replyTo: parsed.data.email,
-      });
-    }
+  try {
+    const siteConfig = await getSiteConfig();
+    const displayId = formatApplicationId(applicationId);
 
     if (settings.notifyApplicantOnSubmission) {
       const message = gate.waitlist

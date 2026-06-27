@@ -37,6 +37,12 @@ export function parseSessionVolumeBody(body: Record<string, unknown>) {
     bannerImageAlt: String(body.bannerImageAlt || ""),
     moodBoard: JSON.stringify(normalizePortfolioGallery(body.moodBoard)),
     gallery: JSON.stringify(normalizePortfolioGallery(body.gallery)),
+    btsGallery: JSON.stringify(normalizePortfolioGallery(body.btsGallery)),
+    videos: JSON.stringify(
+      Array.isArray(body.videos)
+        ? body.videos.filter((v) => typeof v === "string" && v.trim())
+        : []
+    ),
     status,
     genre: String(body.genre || ""),
     year: String(body.year || new Date().getFullYear()),

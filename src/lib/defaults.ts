@@ -13,6 +13,7 @@ import type {
   SessionsContent,
   HomepageContent,
   NavigationConfig,
+  NotificationSettings,
   PortfolioPageContent,
   SiteConfig,
   FaqItem,
@@ -236,6 +237,21 @@ export const DEFAULT_CONTACT_PAGE: ContactPageContent = {
     "For detailed project requests, use the booking form for faster turnaround.",
   bookingLink: "/book",
   calendarUrl: null,
+};
+
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  emailEnabled: true,
+  smsEnabled: false,
+  pushEnabled: false,
+  pushSound: true,
+  webhookEnabled: false,
+  notificationEmails: [],
+  smsPhone: "",
+  webhooks: [],
+  sendApplicantConfirmation: true,
+  digestFrequency: "off",
+  digestEmails: [],
+  notificationEmail: "",
 };
 
 export const DEFAULT_ABOUT: AboutContent = {
@@ -942,4 +958,5 @@ export const CONTENT_KEYS = {
   homepage: "homepage",
   navigation: "navigation",
   portfolioPage: "portfolio-page",
+  notificationSettings: "notification-settings",
 } as const;

@@ -181,6 +181,53 @@ export interface ContactPageContent {
   calendarUrl: string | null;
 }
 
+export type NotificationChannel = "email" | "sms" | "push" | "webhook";
+
+export type NotificationFormType = "contact" | "booking" | "session" | "test";
+
+export type WebhookType = "generic" | "discord" | "slack";
+
+export type DigestFrequency = "off" | "daily" | "weekly";
+
+export interface WebhookConfig {
+  url: string;
+  type: WebhookType;
+  enabled: boolean;
+}
+
+export interface NotificationSettings {
+  emailEnabled: boolean;
+  smsEnabled: boolean;
+  pushEnabled: boolean;
+  pushSound: boolean;
+  webhookEnabled: boolean;
+  notificationEmails: string[];
+  smsPhone: string;
+  webhooks: WebhookConfig[];
+  sendApplicantConfirmation: boolean;
+  digestFrequency: DigestFrequency;
+  digestEmails: string[];
+  /** @deprecated use notificationEmails — kept for backward compatibility */
+  notificationEmail?: string;
+}
+
+export interface NotificationLogDTO {
+  id: string;
+  submissionId: string | null;
+  formType: string;
+  channel: NotificationChannel;
+  provider: string;
+  recipient: string;
+  subject: string;
+  preview: string;
+  status: "sent" | "failed" | "pending" | "skipped";
+  error: string;
+  attempts: number;
+  read: boolean;
+  archived: boolean;
+  createdAt: string;
+}
+
 export interface SessionsContent {
   title: string;
   tagline: string;
@@ -567,6 +614,8 @@ export interface SessionVolumeDTO {
   bannerImageAlt: string;
   moodBoard: string[];
   gallery: string[];
+  btsGallery: string[];
+  videos: string[];
   status: SessionVolumeStatus;
   genre: string;
   year: string;

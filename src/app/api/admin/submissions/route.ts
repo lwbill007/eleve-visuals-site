@@ -104,19 +104,39 @@ export async function GET(request: Request) {
     });
   }
 
+  const emails = [...new Set(submissions.map((s) => s.contactEmail).filter(Boolean))];
+  const contactCounts = new Map<string, number>();
+  if (emails.length > 0) {
+    const grouped = await prisma.submission.groupBy({
+      by: ["contactEmail"],
+      where: { contactEmail: { in: emails } },
+      _count: { _all: true },
+    });
+    for (const g of grouped) {
+      contactCounts.set(g.contactEmail, g._count._all);
+    }
+  }
+
   return NextResponse.json(
-    submissions.map((s) => ({
-      id: s.id,
-      type: s.type,
-      data: parseSubmissionData(s.data),
-      status: s.type === "session" ? normalizeApplicationStatus(s.status) : s.status,
-      notes: s.notes,
-      read: s.read,
-      starred: s.starred,
-      sessionVolumeId: s.sessionVolumeId,
-      createdAt: s.createdAt.toISOString(),
-      updatedAt: s.updatedAt.toISOString(),
-    }))
+    submissions.map((s) => {
+      const totalFromContact = s.contactEmail ? contactCounts.get(s.contactEmail) ?? 1 : 1;
+      return {
+        id: s.id,
+        type: s.type,
+        data: parseSubmissionData(s.data),
+        status: s.type === "session" ? normalizeApplicationStatus(s.status) : s.status,
+        notes: s.notes,
+        read: s.read,
+        starred: s.starred,
+        sessionVolumeId: s.sessionVolumeId,
+        ipAddress: s.ipAddress,
+        userAgent: s.userAgent,
+        returningContact: totalFromContact > 1,
+        contactSubmissionCount: totalFromContact,
+        createdAt: s.createdAt.toISOString(),
+        updatedAt: s.updatedAt.toISOString(),
+      };
+    })
   );
 }
 
@@ -139,8 +159,18 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const data: { read?: boolean; status?: string; notes?: string; starred?: boolean } = {};
-    if (typeof read === "boolean") data.read = read;
+    const data: {
+      read?: boolean;
+      status?: string;
+      notes?: string;
+      starred?: boolean;
+      readAt?: Date;
+    } = {};
+    if (typeof read === "boolean") {
+      data.read = read;
+      // Capture first-read time for response-time analytics.
+      if (read && !existing.read) data.readAt = new Date();
+    }
     if (typeof notes === "string") data.notes = notes.slice(0, 10000);
     if (typeof starred === "boolean") data.starred = starred;
 

@@ -91,6 +91,10 @@ model Submission {
   read             Boolean  @default(false)
   starred          Boolean  @default(false)
   sessionVolumeId  String?
+  ipAddress        String   @default("")
+  userAgent        String   @default("")
+  contactEmail     String   @default("")
+  readAt           DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -98,6 +102,19 @@ model Submission {
   @@index([type, createdAt])
   @@index([sessionVolumeId, type])
   @@index([starred, type])
+  @@index([contactEmail])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  actor     String   @default("admin")
+  action    String
+  target    String   @default("")
+  details   String   @default("")
+  ip        String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model MediaAsset {
@@ -105,6 +122,42 @@ model MediaAsset {
   url       String   @unique
   filename  String   @default("")
   alt       String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model NotificationLog {
+  id           String   @id @default(cuid())
+  submissionId String?
+  formType     String
+  channel      String
+  provider     String   @default("")
+  recipient    String   @default("")
+  subject      String   @default("")
+  preview      String   @default("")
+  status       String   @default("pending")
+  error        String   @default("")
+  attempts     Int      @default(0)
+  dedupeKey    String   @default("")
+  read         Boolean  @default(false)
+  archived     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([channel, status])
+  @@index([dedupeKey, createdAt])
+  @@index([submissionId])
+  @@index([archived, createdAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  label     String   @default("")
   createdAt DateTime @default(now())
 
   @@index([createdAt])
@@ -149,6 +202,8 @@ model SessionVolume {
   bannerImageAlt      String    @default("")
   moodBoard           String    @default("[]")
   gallery             String    @default("[]")
+  btsGallery          String    @default("[]")
+  videos              String    @default("[]")
   status              String    @default("draft")
   genre               String    @default("")
   year                String    @default("")

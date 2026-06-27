@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { TimeStamp } from "@/components/admin/TimeStamp";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import {
   APPLICATION_STATUSES,
@@ -25,9 +26,19 @@ interface Submission {
   status: string;
   notes: string;
   read: boolean;
+  ipAddress?: string;
+  userAgent?: string;
+  returningContact?: boolean;
+  contactSubmissionCount?: number;
   createdAt: string;
   updatedAt: string;
 }
+
+const TYPE_BADGE: Record<string, string> = {
+  booking: "border-[#b8a88a]/40 bg-[#b8a88a]/15 text-[#d8c8a8]",
+  contact: "border-blue-500/30 bg-blue-500/15 text-blue-300",
+  session: "border-purple-500/30 bg-purple-500/15 text-purple-300",
+};
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
@@ -223,11 +234,13 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
   const searchParams = useSearchParams();
   const typeFilter = forcedType ?? searchParams.get("type");
   const statusFilter = searchParams.get("status");
+  const focusId = searchParams.get("focus");
   const { toast } = useAdminToast();
   const [items, setItems] = useState<Submission[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const focusHandled = useRef(false);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -252,6 +265,21 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
     }, search ? 300 : 0);
     return () => clearTimeout(timer);
   }, [load, search]);
+
+  useEffect(() => {
+    if (!focusId || focusHandled.current) return;
+    const target = items.find((i) => i.id === focusId);
+    if (!target) return;
+    focusHandled.current = true;
+    setExpanded(focusId);
+    if (!target.read) void markRead(focusId, true);
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`submission-${focusId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, focusId]);
 
   async function markRead(id: string, read: boolean) {
     const res = await adminFetch("/api/admin/submissions", {
@@ -429,21 +457,37 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
         {items.map((item) => (
           <div
             key={item.id}
-            className={`border p-4 ${item.read ? "border-stone/30" : "border-accent/40 bg-charcoal/30"}`}
+            id={`submission-${item.id}`}
+            className={`border p-4 ${
+              focusId === item.id
+                ? "border-accent ring-1 ring-accent/40"
+                : item.read
+                  ? "border-stone/30"
+                  : "border-accent/40 bg-charcoal/30"
+            }`}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm text-cream">
-                  {typeLabel(item.type)}
+                <p className="flex flex-wrap items-center gap-2 text-sm text-cream">
+                  <span
+                    className={`inline-block rounded border px-2 py-0.5 text-[0.65rem] uppercase tracking-wide ${
+                      TYPE_BADGE[item.type] || "border-stone/40 bg-stone/20 text-fog"
+                    }`}
+                  >
+                    {typeLabel(item.type)}
+                  </span>
                   {item.type === "booking" && (
-                    <span className="ml-2 text-xs text-muted">
-                      #{formatInquiryId(item.id)}
+                    <span className="text-xs text-muted">#{formatInquiryId(item.id)}</span>
+                  )}
+                  {item.returningContact && (
+                    <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[0.65rem] text-amber-300">
+                      Returning{item.contactSubmissionCount ? ` ×${item.contactSubmissionCount}` : ""}
                     </span>
                   )}
-                  {!item.read && <span className="ml-2 text-accent">· Unread</span>}
+                  {!item.read && <span className="text-accent">· Unread</span>}
                 </p>
                 <p className="text-xs text-muted">
-                  {new Date(item.createdAt).toLocaleString()}
+                  <TimeStamp iso={item.createdAt} />
                   {typeof item.data.fullName === "string" && ` · ${item.data.fullName}`}
                   {typeof item.data.name === "string" && ` · ${item.data.name}`}
                   {typeof item.data.email === "string" && ` · ${item.data.email}`}
@@ -518,7 +562,22 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
             {expanded === item.id && (
               <>
                 <SubmissionDetail type={item.type} data={item.data} />
-                <div className="mt-6 border-t border-stone/20 pt-4">
+                <div className="mt-4 border-t border-stone/20 pt-4 text-xs text-muted">
+                  <p>
+                    <span className="uppercase tracking-wide">Received</span>{" "}
+                    <TimeStamp iso={item.createdAt} showUtc className="text-fog" />
+                  </p>
+                  {(item.ipAddress || item.userAgent) && (
+                    <p className="mt-1 break-all">
+                      <span className="uppercase tracking-wide">Spam review</span>{" "}
+                      <span className="text-fog">
+                        IP {item.ipAddress || "unknown"}
+                        {item.userAgent ? ` · ${item.userAgent}` : ""}
+                      </span>
+                    </p>
+                  )}
+                </div>
+                <div className="mt-4 border-t border-stone/20 pt-4">
                   <label className="mb-2 block text-xs tracking-wide text-muted uppercase">
                     Internal notes
                   </label>

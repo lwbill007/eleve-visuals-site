@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
-import { uploadImageFile } from "@/lib/upload-client";
+import { uploadImageFile, uploadMediaFile } from "@/lib/upload-client";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import { isVideoUrl } from "@/lib/image-url";
 
@@ -471,6 +471,139 @@ export function AdminSelect({
         </option>
       ))}
     </select>
+  );
+}
+
+interface VideoGalleryUploadProps {
+  videos: string[];
+  onChange: (videos: string[]) => void;
+  label?: string;
+  hint?: string;
+  className?: string;
+}
+
+function isEmbeddableUrl(url: string): boolean {
+  return /youtube\.com|youtu\.be|vimeo\.com/i.test(url);
+}
+
+export function VideoGalleryUpload({
+  videos,
+  onChange,
+  label,
+  hint,
+  className,
+}: VideoGalleryUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
+  const [error, setError] = useState("");
+  const [urlDraft, setUrlDraft] = useState("");
+
+  async function handleFiles(fileList: FileList) {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+    setUploading(true);
+    setError("");
+    const uploaded: string[] = [];
+    try {
+      for (let i = 0; i < files.length; i++) {
+        setUploadProgress(`Uploading ${i + 1} of ${files.length}...`);
+        uploaded.push(await uploadMediaFile(files[i]));
+      }
+      onChange([...videos, ...uploaded]);
+    } catch (err) {
+      if (uploaded.length > 0) onChange([...videos, ...uploaded]);
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      setUploadProgress("");
+    }
+  }
+
+  function addUrl() {
+    const url = urlDraft.trim();
+    if (!url) return;
+    if (!videos.includes(url)) onChange([...videos, url]);
+    setUrlDraft("");
+  }
+
+  return (
+    <div className={className}>
+      {label && <p className="mb-2 text-sm text-cream-dim">{label}</p>}
+      {hint && <p className="mb-3 text-xs text-muted">{hint}</p>}
+
+      {videos.length > 0 && (
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {videos.map((src, index) => (
+            <div key={`${src}-${index}`} className="overflow-hidden border border-stone/40 bg-charcoal">
+              <div className="relative aspect-video w-full bg-ink">
+                {isEmbeddableUrl(src) ? (
+                  <div className="flex h-full w-full items-center justify-center p-3 text-center text-xs break-all text-fog">
+                    {src}
+                  </div>
+                ) : (
+                  <video src={src} controls className="h-full w-full object-cover" />
+                )}
+              </div>
+              <div className="border-t border-stone/30 p-2 sm:p-3">
+                <button
+                  type="button"
+                  onClick={() => onChange(videos.filter((_, i) => i !== index))}
+                  className="admin-touch-btn border border-red-400/60 text-red-400 hover:bg-red-400/10"
+                >
+                  Remove video
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="admin-touch-btn min-h-[4.5rem] w-full border border-dashed border-stone/50 bg-charcoal/30 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50 sm:min-h-20"
+      >
+        {uploading ? uploadProgress || "Uploading..." : "Upload video (MP4 or WebM, max 50MB)"}
+      </button>
+
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          type="url"
+          value={urlDraft}
+          placeholder="Or paste a YouTube, Vimeo, or MP4 URL"
+          onChange={(e) => setUrlDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addUrl();
+            }
+          }}
+          className="flex-1"
+        />
+        <button
+          type="button"
+          onClick={addUrl}
+          className="admin-touch-btn border border-stone/50 text-accent"
+        >
+          Add URL
+        </button>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="video/mp4,video/webm"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) handleFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      {error && <p className="field-error mt-2">{error}</p>}
+    </div>
   );
 }
 

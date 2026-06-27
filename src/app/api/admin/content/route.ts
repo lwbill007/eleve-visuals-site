@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { contentSetters } from "@/lib/content";
+import { logActivity } from "@/lib/activity-log";
 import { revalidateContentKey } from "@/lib/revalidate-public";
 import {
   getSiteConfig,
@@ -19,6 +20,7 @@ import {
   getHomepageContent,
   getNavigationConfig,
   getPortfolioPageContent,
+  getNotificationSettings,
 } from "@/lib/content";
 
 const GETTERS = {
@@ -38,6 +40,7 @@ const GETTERS = {
   homepage: getHomepageContent,
   navigation: getNavigationConfig,
   portfolioPage: getPortfolioPageContent,
+  notificationSettings: getNotificationSettings,
 } as const;
 
 const ALLOWED_KEYS = Object.keys(GETTERS) as (keyof typeof GETTERS)[];
@@ -80,6 +83,32 @@ export async function PUT(request: Request) {
     const setter = contentSetters[key as keyof typeof contentSetters];
     await (setter as (v: unknown) => Promise<void>)(value);
     revalidateContentKey(key);
+
+    if (key === "notificationSettings") {
+      const v = value as {
+        notificationEmails?: string[];
+        emailEnabled?: boolean;
+        smsEnabled?: boolean;
+        pushEnabled?: boolean;
+        webhookEnabled?: boolean;
+        digestFrequency?: string;
+      } | null;
+      const channels = [
+        v?.emailEnabled ? "email" : null,
+        v?.smsEnabled ? "sms" : null,
+        v?.pushEnabled ? "push" : null,
+        v?.webhookEnabled ? "webhook" : null,
+      ].filter(Boolean);
+      void logActivity({
+        action: "settings.update",
+        target: "notification settings",
+        details: `Channels: ${channels.join(", ") || "none"}; recipients: ${
+          v?.notificationEmails?.length ?? 0
+        }; digest: ${v?.digestFrequency ?? "off"}`,
+        request,
+      });
+    }
+
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Failed to save content" }, { status: 500 });

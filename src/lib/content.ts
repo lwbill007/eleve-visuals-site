@@ -11,6 +11,7 @@ import {
   DEFAULT_HERO,
   DEFAULT_HOMEPAGE,
   DEFAULT_NAVIGATION,
+  DEFAULT_NOTIFICATION_SETTINGS,
   DEFAULT_PAGE_COPY,
   DEFAULT_PORTFOLIO_PAGE,
   DEFAULT_SERVICES_INTRO,
@@ -30,6 +31,7 @@ import type {
   FaqItem,
   HomepageContent,
   NavigationConfig,
+  NotificationSettings,
   HeroContent,
   HomeServiceCard,
   PageCopy,
@@ -322,6 +324,33 @@ export async function getPageCopy(): Promise<PageCopy> {
   return getJsonContent(CONTENT_KEYS.pageCopy, DEFAULT_PAGE_COPY);
 }
 
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const stored = await getJsonContent(
+    CONTENT_KEYS.notificationSettings,
+    DEFAULT_NOTIFICATION_SETTINGS
+  );
+  const merged = { ...DEFAULT_NOTIFICATION_SETTINGS, ...stored };
+
+  // Backward compatibility: migrate the legacy single email into the array.
+  let notificationEmails = Array.isArray(merged.notificationEmails)
+    ? merged.notificationEmails.filter((e) => typeof e === "string" && e.trim())
+    : [];
+  if (notificationEmails.length === 0 && merged.notificationEmail?.trim()) {
+    notificationEmails = [merged.notificationEmail.trim()];
+  }
+
+  return {
+    ...merged,
+    notificationEmails,
+    digestEmails: Array.isArray(merged.digestEmails)
+      ? merged.digestEmails.filter((e) => typeof e === "string" && e.trim())
+      : [],
+    webhooks: Array.isArray(merged.webhooks)
+      ? merged.webhooks.filter((w) => w && typeof w.url === "string")
+      : [],
+  };
+}
+
 export async function getPortfolioPageContent(): Promise<PortfolioPageContent> {
   const stored = await getJsonContent(CONTENT_KEYS.portfolioPage, DEFAULT_PORTFOLIO_PAGE);
   return {
@@ -408,6 +437,8 @@ export const contentSetters = {
   homepage: (v: HomepageContent) => setJsonContent(CONTENT_KEYS.homepage, v),
   navigation: (v: NavigationConfig) => setJsonContent(CONTENT_KEYS.navigation, v),
   portfolioPage: (v: PortfolioPageContent) => setJsonContent(CONTENT_KEYS.portfolioPage, v),
+  notificationSettings: (v: NotificationSettings) =>
+    setJsonContent(CONTENT_KEYS.notificationSettings, v),
 };
 
 export { mapPortfolioItem, mapService, mapTestimonial };

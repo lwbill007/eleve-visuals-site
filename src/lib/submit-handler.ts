@@ -4,6 +4,12 @@ import { prisma } from "./db";
 import { recordConversion, type ConversionType } from "./analytics-server";
 import { checkRateLimit, getClientIp } from "./rate-limit";
 import { runSpamChecks, stripSpamFields } from "./spam";
+import {
+  extractContact,
+  notifyNewSubmission,
+  sendVisitorConfirmation,
+} from "./notifications";
+import type { NotificationFormType } from "./types";
 
 interface SubmitOptions<T extends z.ZodType> {
   request: Request;
@@ -11,6 +17,8 @@ interface SubmitOptions<T extends z.ZodType> {
   conversionType: ConversionType;
   schema: T;
   analyticsPath?: string;
+  notifyFormType?: NotificationFormType;
+  confirmVisitor?: boolean;
 }
 
 export async function handleFormSubmit<T extends z.ZodType>({
@@ -19,6 +27,8 @@ export async function handleFormSubmit<T extends z.ZodType>({
   conversionType,
   schema,
   analyticsPath,
+  notifyFormType,
+  confirmVisitor = false,
 }: SubmitOptions<T>) {
   const ip = getClientIp(request);
 
@@ -52,6 +62,10 @@ export async function handleFormSubmit<T extends z.ZodType>({
     );
   }
 
+  const parsedRecord = parsed.data as Record<string, unknown>;
+  const contactEmail =
+    typeof parsedRecord.email === "string" ? parsedRecord.email.trim().toLowerCase() : "";
+
   let inquiryId: string | undefined;
   try {
     const submission = await prisma.submission.create({
@@ -59,6 +73,9 @@ export async function handleFormSubmit<T extends z.ZodType>({
         type: conversionType,
         data: JSON.stringify(parsed.data),
         status: "new",
+        ipAddress: ip,
+        userAgent: (request.headers.get("user-agent") ?? "").slice(0, 1000),
+        contactEmail,
       },
     });
     inquiryId = submission.id;
@@ -77,6 +94,26 @@ export async function handleFormSubmit<T extends z.ZodType>({
     await recordConversion(conversionType, path, referer ?? null, sessionId);
   } catch (error) {
     console.error("Conversion tracking failed:", error);
+  }
+
+  const formType = notifyFormType ?? (conversionType as NotificationFormType);
+  const submissionData = parsed.data as Record<string, unknown>;
+  try {
+    await notifyNewSubmission({
+      formType,
+      submissionId: inquiryId,
+      data: submissionData,
+    });
+    if (confirmVisitor) {
+      const contact = extractContact(submissionData);
+      await sendVisitorConfirmation({
+        formType,
+        to: contact.email,
+        name: contact.name,
+      });
+    }
+  } catch (error) {
+    console.error("Notification dispatch failed:", error);
   }
 
   return NextResponse.json({ ok: true, inquiryId });

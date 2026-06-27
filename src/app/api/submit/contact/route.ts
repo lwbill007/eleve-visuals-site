@@ -7,5 +7,7 @@ export async function POST(request: Request) {
     route: "submit:contact",
     conversionType: "contact",
     schema: contactSchema,
+    notifyFormType: "contact",
+    confirmVisitor: true,
   });
 }

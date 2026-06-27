@@ -42,6 +42,8 @@ export async function POST(
       bannerImageAlt: source.bannerImageAlt,
       moodBoard: source.moodBoard,
       gallery: source.gallery,
+      btsGallery: source.btsGallery,
+      videos: source.videos,
       status: "draft",
       genre: source.genre,
       year: source.year,

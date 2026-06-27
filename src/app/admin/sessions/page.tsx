@@ -11,6 +11,7 @@ import {
   AdminTextarea,
   ImageUpload,
   GalleryUpload,
+  VideoGalleryUpload,
   StringListEditor,
 } from "@/components/admin/AdminForm";
 import {
@@ -47,6 +48,8 @@ function emptyVolume(): Partial<SessionVolumeDTO> {
     bannerImageAlt: "",
     moodBoard: [],
     gallery: [],
+    btsGallery: [],
+    videos: [],
     status: "draft",
     genre: "Creative Production",
     year: String(new Date().getFullYear()),
@@ -421,6 +424,22 @@ export default function AdminSessionsPage() {
                 hint="Session photos or stills for the detail page."
                 images={editing.gallery || []}
                 onChange={(gallery) => update("gallery", gallery)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <GalleryUpload
+                label="Behind the Scenes"
+                hint="BTS photos from the production. Each image has a Remove button."
+                images={editing.btsGallery || []}
+                onChange={(btsGallery) => update("btsGallery", btsGallery)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <VideoGalleryUpload
+                label="Videos"
+                hint="Upload MP4/WebM clips, or paste YouTube, Vimeo, or direct video URLs."
+                videos={editing.videos || []}
+                onChange={(videos) => update("videos", videos)}
               />
             </div>
             <div className="md:col-span-2">

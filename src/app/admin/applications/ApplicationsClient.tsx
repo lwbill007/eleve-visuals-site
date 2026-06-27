@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { TimeStamp } from "@/components/admin/TimeStamp";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminListSkeleton } from "@/components/admin/AdminPageSkeleton";
 import {
@@ -26,6 +27,10 @@ interface ApplicationRow {
   read: boolean;
   starred: boolean;
   sessionVolumeId: string | null;
+  ipAddress?: string;
+  userAgent?: string;
+  returningContact?: boolean;
+  contactSubmissionCount?: number;
   createdAt: string;
 }
 
@@ -63,6 +68,8 @@ export default function ApplicationsClient() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
   const [roleFilter, setRoleFilter] = useState("");
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const focusId = searchParams.get("focus");
+  const focusHandled = useRef(false);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({ type: "session" });
@@ -97,6 +104,21 @@ export default function ApplicationsClient() {
     const timer = setTimeout(() => void load(), search ? 300 : 0);
     return () => clearTimeout(timer);
   }, [load, search]);
+
+  useEffect(() => {
+    if (!focusId || focusHandled.current) return;
+    const target = items.find((i) => i.id === focusId);
+    if (!target) return;
+    focusHandled.current = true;
+    setExpanded(focusId);
+    if (!target.read) void updateRow(focusId, { read: true });
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`application-${focusId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, focusId]);
 
   async function updateRow(id: string, patch: Record<string, unknown>) {
     const res = await adminFetch("/api/admin/submissions", {
@@ -271,10 +293,15 @@ export default function ApplicationsClient() {
             return (
               <div
                 key={item.id}
+                id={`application-${item.id}`}
                 className={cn(
                   "border p-4",
-                  item.read ? "border-stone/30" : "border-accent/40 bg-charcoal/20",
-                  item.starred && "ring-1 ring-accent/30"
+                  focusId === item.id
+                    ? "border-accent ring-1 ring-accent/40"
+                    : item.read
+                      ? "border-stone/30"
+                      : "border-accent/40 bg-charcoal/20",
+                  item.starred && !focusId && "ring-1 ring-accent/30"
                 )}
               >
                 <div className="flex items-start gap-3">
@@ -294,10 +321,15 @@ export default function ApplicationsClient() {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm text-cream">{asString(d.fullName)}</p>
                       <span className="text-xs text-muted">#{formatApplicationId(item.id)}</span>
+                      {item.returningContact && (
+                        <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[0.65rem] text-amber-300">
+                          Returning{item.contactSubmissionCount ? ` ×${item.contactSubmissionCount}` : ""}
+                        </span>
+                      )}
                       {!item.read && <span className="text-xs text-accent">Unread</span>}
                     </div>
                     <p className="text-xs text-muted">
-                      {new Date(item.createdAt).toLocaleString()} · {asString(d.sessionVolumeTitle)} ·{" "}
+                      <TimeStamp iso={item.createdAt} /> · {asString(d.sessionVolumeTitle)} ·{" "}
                       {roles.join(", ") || "—"}
                     </p>
                     <select
@@ -363,6 +395,21 @@ export default function ApplicationsClient() {
                       <div><dt className="text-xs text-muted uppercase">City</dt><dd className="text-cream">{asString(d.cityState)}</dd></div>
                       <div className="sm:col-span-2"><dt className="text-xs text-muted uppercase">Portfolio</dt><dd className="break-all text-cream">{asString(d.portfolioLink) || asString(d.portfolioWebsite) || "—"}</dd></div>
                     </dl>
+                    <div className="mt-4 border-t border-stone/20 pt-3 text-xs text-muted">
+                      <p>
+                        <span className="uppercase tracking-wide">Received</span>{" "}
+                        <TimeStamp iso={item.createdAt} showUtc className="text-fog" />
+                      </p>
+                      {(item.ipAddress || item.userAgent) && (
+                        <p className="mt-1 break-all">
+                          <span className="uppercase tracking-wide">Spam review</span>{" "}
+                          <span className="text-fog">
+                            IP {item.ipAddress || "unknown"}
+                            {item.userAgent ? ` · ${item.userAgent}` : ""}
+                          </span>
+                        </p>
+                      )}
+                    </div>
                     {Array.isArray(d.portfolioImages) && (d.portfolioImages as string[]).length > 0 && (
                       <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
                         {(d.portfolioImages as string[]).map((url) => (

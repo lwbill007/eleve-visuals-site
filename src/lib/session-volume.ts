@@ -83,6 +83,8 @@ export function mapSessionVolume(item: {
   bannerImageAlt: string;
   moodBoard: string;
   gallery: string;
+  btsGallery?: string;
+  videos?: string;
   status: string;
   genre: string;
   year: string;
@@ -123,6 +125,8 @@ export function mapSessionVolume(item: {
     bannerImageAlt: item.bannerImageAlt,
     moodBoard: parseJsonArray(item.moodBoard),
     gallery: parseJsonArray(item.gallery),
+    btsGallery: parseJsonArray(item.btsGallery ?? "[]"),
+    videos: parseJsonArray(item.videos ?? "[]"),
     status,
     genre: item.genre,
     year: item.year || String(new Date().getFullYear()),

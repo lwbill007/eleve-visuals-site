@@ -39,6 +39,10 @@ const NAV_SECTIONS = [
       { label: "Booking Form", href: "/admin/booking" },
     ],
   },
+  {
+    label: "System",
+    items: [{ label: "Notifications", href: "/admin/notifications" }],
+  },
 ];
 
 function isActive(pathname: string, href: string) {
