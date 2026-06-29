@@ -63,6 +63,7 @@ export async function POST(
       applicationDeadline: source.applicationDeadline,
       applicationSettings: source.applicationSettings,
       teaserVideoUrl: source.teaserVideoUrl,
+      playlistUrl: source.playlistUrl,
       featured: false,
       published: false,
       showApplyButton: source.showApplyButton,

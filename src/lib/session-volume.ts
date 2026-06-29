@@ -103,6 +103,7 @@ export function mapSessionVolume(item: {
   timeline: string;
   applicationDeadline: Date | null;
   teaserVideoUrl: string | null;
+  playlistUrl?: string | null;
   featured: boolean;
   published: boolean;
   showApplyButton: boolean;
@@ -147,6 +148,7 @@ export function mapSessionVolume(item: {
     timeline: parseTimeline(item.timeline),
     applicationDeadline: item.applicationDeadline?.toISOString() ?? null,
     teaserVideoUrl: item.teaserVideoUrl,
+    playlistUrl: item.playlistUrl ?? null,
     featured: item.featured,
     published: item.published,
     showApplyButton: item.showApplyButton,

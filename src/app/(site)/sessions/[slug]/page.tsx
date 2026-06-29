@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getSessionVolumeBySlug } from "@/lib/session-volumes";
 import { getSessionsApplicationContent } from "@/lib/content";
 import { validateSessionApplicationGate } from "@/lib/session-application-server";
+import { getCastForVolume, getCastAppearances } from "@/lib/cast-server";
 import { SessionDetailView } from "@/components/sessions/SessionDetailView";
 
 export const revalidate = 60;
@@ -43,6 +44,12 @@ export default async function SessionVolumePage({
 
   if (!volume) notFound();
 
+  const cast = await getCastForVolume(volume.id);
+  const appearances = await getCastAppearances(
+    cast.map((m) => m.slug),
+    volume.id
+  );
+
   const applyGate = await validateSessionApplicationGate({
     id: volume.id,
     status: volume.status,
@@ -52,5 +59,13 @@ export default async function SessionVolumePage({
     applicationSettings: JSON.stringify(volume.applicationSettings),
   });
 
-  return <SessionDetailView volume={volume} applicationContent={applicationContent} canApply={applyGate.ok} />;
+  return (
+    <SessionDetailView
+      volume={volume}
+      applicationContent={applicationContent}
+      canApply={applyGate.ok}
+      cast={cast}
+      appearances={appearances}
+    />
+  );
 }

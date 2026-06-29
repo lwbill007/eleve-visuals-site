@@ -634,6 +634,7 @@ export interface SessionVolumeDTO {
   timeline: SessionTimelineStep[];
   applicationDeadline: string | null;
   teaserVideoUrl: string | null;
+  playlistUrl: string | null;
   featured: boolean;
   published: boolean;
   showApplyButton: boolean;
@@ -641,6 +642,68 @@ export interface SessionVolumeDTO {
   seoDescription: string;
   sortOrder: number;
   applicationSettings: SessionApplicationSettings;
+}
+
+export const CAST_ROLES = [
+  "director",
+  "creative_director",
+  "photographer",
+  "videographer",
+  "model",
+  "stylist",
+  "makeup_artist",
+  "hair_stylist",
+  "designer",
+  "assistant",
+  "other",
+] as const;
+
+export type CastRole = (typeof CAST_ROLES)[number];
+
+export const CAST_STATUSES = ["confirmed", "pending", "alumni"] as const;
+export type CastStatus = (typeof CAST_STATUSES)[number];
+
+export interface CastAward {
+  name: string;
+  year: string;
+  category: string;
+  icon: string;
+  reason: string;
+  volume: string;
+}
+
+export interface CastMemberDTO {
+  id: string;
+  volumeId: string;
+  fullName: string;
+  stageName: string;
+  slug: string;
+  role: CastRole;
+  profilePhoto: string | null;
+  additionalPhotos: string[];
+  bio: string;
+  instagram: string;
+  tiktok: string;
+  website: string;
+  portfolioLink: string;
+  city: string;
+  status: CastStatus;
+  featured: boolean;
+  isAlumni: boolean;
+  featuredAlumni: boolean;
+  notes: string;
+  futureCollaborations: string;
+  enableProfile: boolean;
+  awards: CastAward[];
+  sortOrder: number;
+}
+
+/** A Volume a person has appeared in — used for cross-Volume linking on profiles. */
+export interface CastAppearance {
+  volumeNumber: number;
+  title: string;
+  slug: string;
+  role: CastRole;
 }
 
 export interface SessionApplicationQuestion {

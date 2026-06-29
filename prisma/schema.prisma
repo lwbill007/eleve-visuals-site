@@ -222,6 +222,7 @@ model SessionVolume {
   timeline            String    @default("[]")
   applicationDeadline DateTime?
   teaserVideoUrl      String?
+  playlistUrl         String?
   featured            Boolean   @default(false)
   published           Boolean   @default(false)
   showApplyButton     Boolean   @default(true)
@@ -233,7 +234,42 @@ model SessionVolume {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
+  cast                CastMember[]
+
   @@index([published, status])
   @@index([featured])
   @@index([volumeNumber])
+}
+
+model CastMember {
+  id                   String   @id @default(cuid())
+  volumeId             String
+  volume               SessionVolume @relation(fields: [volumeId], references: [id], onDelete: Cascade)
+  fullName             String
+  stageName            String   @default("")
+  slug                 String   @default("")
+  role                 String   @default("model")
+  profilePhoto         String?
+  additionalPhotos     String   @default("[]")
+  bio                  String   @default("")
+  instagram            String   @default("")
+  tiktok               String   @default("")
+  website              String   @default("")
+  portfolioLink        String   @default("")
+  city                 String   @default("")
+  status               String   @default("confirmed")
+  featured             Boolean  @default(false)
+  isAlumni             Boolean  @default(false)
+  featuredAlumni       Boolean  @default(false)
+  notes                String   @default("")
+  futureCollaborations String   @default("")
+  enableProfile        Boolean  @default(false)
+  awards               String   @default("[]")
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([volumeId, sortOrder])
+  @@index([slug])
+  @@index([featuredAlumni])
 }

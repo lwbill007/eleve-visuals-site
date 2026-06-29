@@ -5,6 +5,7 @@ import {
   getHeroPosterFromVolumes,
 } from "@/lib/session-volumes";
 import { countAcceptedApplications, isSessionApplyOpen } from "@/lib/session-application-server";
+import { getFeaturedAlumni } from "@/lib/cast-server";
 import { toVideoEmbed } from "@/lib/video-embed";
 import { CREATIVE_DISCIPLINES } from "@/lib/sessions-experience";
 import { getPageCopy } from "@/lib/content";
@@ -32,10 +33,11 @@ export const metadata: Metadata = {
 const GALLERY_LIMIT = 16;
 
 export default async function SessionsPage() {
-  const [volumes, featured, pageCopy] = await Promise.all([
+  const [volumes, featured, pageCopy, alumni] = await Promise.all([
     getAllSessionVolumes(),
     getFeaturedSessionVolume(),
     getPageCopy(),
+    getFeaturedAlumni(),
   ]);
 
   const { poster, alt } = getHeroPosterFromVolumes(volumes);
@@ -94,7 +96,7 @@ export default async function SessionsPage() {
       <WhyJoin />
       <SessionsSocialProof stats={stats} />
       <SessionsAwards />
-      <SessionsCommunity />
+      <SessionsCommunity spotlights={alumni} />
       <CinematicGallery items={gallery} />
 
       <SessionsFinalCTA

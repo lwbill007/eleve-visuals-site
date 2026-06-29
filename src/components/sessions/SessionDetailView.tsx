@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { SessionVolumeDTO } from "@/lib/types";
-import type { SessionsApplicationContent } from "@/lib/types";
+import type { SessionsApplicationContent, CastAppearance, CastMemberDTO } from "@/lib/types";
 import {
   getSessionCtaMessage,
   resolveSessionPosterImage,
@@ -9,6 +9,18 @@ import {
 import { Button } from "@/components/ui/Button";
 import { SessionStatusBadge } from "@/components/sessions/SessionStatusBadge";
 import { SessionCountdown } from "@/components/sessions/SessionCountdown";
+import { VolumeCast } from "@/components/sessions/VolumeCast";
+import { VolumeCredits } from "@/components/sessions/VolumeCredits";
+
+function playlistEmbed(url: string): string | null {
+  const spotify = url.match(/spotify\.com\/(playlist|album|track)\/([\w]+)/i);
+  if (spotify) return `https://open.spotify.com/embed/${spotify[1]}/${spotify[2]}`;
+  if (/youtube\.com\/(playlist|embed)|youtu\.be/i.test(url)) {
+    const list = url.match(/[?&]list=([\w-]+)/i);
+    if (list) return `https://www.youtube.com/embed/videoseries?list=${list[1]}`;
+  }
+  return null;
+}
 
 function toEmbedUrl(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/i);
@@ -22,10 +34,14 @@ function toEmbedUrl(url: string): string | null {
 export function SessionDetailView({
   volume,
   canApply,
+  cast = [],
+  appearances = {},
 }: {
   volume: SessionVolumeDTO;
   applicationContent: SessionsApplicationContent;
   canApply: boolean;
+  cast?: CastMemberDTO[];
+  appearances?: Record<string, CastAppearance[]>;
 }) {
   const heroImage = volume.bannerImage || resolveSessionPosterImage(volume);
   const gallery = [...volume.gallery, ...volume.moodBoard].filter(
@@ -231,6 +247,8 @@ export function SessionDetailView({
         </section>
       )}
 
+      <VolumeCast members={cast} appearances={appearances} volumeNumber={volume.volumeNumber} />
+
       {volume.requirements.length > 0 && (
         <section className="section-padding border-b border-stone/30 bg-ink-soft">
           <div className="container-narrow">
@@ -268,6 +286,36 @@ export function SessionDetailView({
           </div>
         </section>
       )}
+
+      {volume.playlistUrl && (
+        <section className="section-padding border-b border-stone/30 bg-ink-soft">
+          <div className="container-narrow">
+            <h2 className="label-caps mb-6 text-fog">The Playlist</h2>
+            {playlistEmbed(volume.playlistUrl) ? (
+              <div className="overflow-hidden border border-stone/30">
+                <iframe
+                  src={playlistEmbed(volume.playlistUrl)!}
+                  title={`${volume.title} playlist`}
+                  className="h-[26rem] w-full"
+                  loading="lazy"
+                  allow="encrypted-media; clipboard-write"
+                />
+              </div>
+            ) : (
+              <a
+                href={volume.playlistUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 border border-stone/40 px-5 py-3 text-sm text-cream hover:border-accent hover:text-accent"
+              >
+                Open the playlist →
+              </a>
+            )}
+          </div>
+        </section>
+      )}
+
+      <VolumeCredits members={cast} volumeNumber={volume.volumeNumber} title={volume.title} />
 
       {canApply && (
         <section id="apply" className="section-padding bg-ink-soft">

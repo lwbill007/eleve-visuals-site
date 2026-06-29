@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { CastManager } from "@/components/admin/CastManager";
 import {
   AdminField,
   AdminInput,
@@ -68,6 +69,7 @@ function emptyVolume(): Partial<SessionVolumeDTO> {
     timeline: DEFAULT_TIMELINE,
     applicationDeadline: null,
     teaserVideoUrl: null,
+    playlistUrl: null,
     featured: false,
     published: false,
     showApplyButton: true,
@@ -413,6 +415,12 @@ export default function AdminSessionsPage() {
                 onChange={(e) => update("teaserVideoUrl", e.target.value || null)}
               />
             </AdminField>
+            <AdminField label="Playlist URL" hint="Spotify, Apple Music, or YouTube playlist">
+              <AdminInput
+                value={editing.playlistUrl || ""}
+                onChange={(e) => update("playlistUrl", e.target.value || null)}
+              />
+            </AdminField>
             <div className="md:col-span-2">
               <ImageUpload
                 label="Poster Image"
@@ -631,6 +639,14 @@ export default function AdminSessionsPage() {
               </AdminField>
               </div>
             </div>
+            {editing.id ? (
+              <CastManager volumeId={editing.id} />
+            ) : (
+              <div className="md:col-span-2 border-t border-stone/30 pt-6">
+                <h3 className="font-display text-lg">Cast &amp; Crew</h3>
+                <p className="text-xs text-muted">Save this volume first, then reopen it to build the cast.</p>
+              </div>
+            )}
             <div className="flex flex-wrap gap-6 md:col-span-2">
               <label className="flex items-center gap-2 text-sm text-fog">
                 <input
