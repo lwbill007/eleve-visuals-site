@@ -600,6 +600,22 @@ export interface SessionTimelineStep {
   detail?: string;
 }
 
+export interface VolumeSponsor {
+  name: string;
+  logo: string;
+  url: string;
+}
+
+export interface VolumeResource {
+  label: string;
+  url: string;
+}
+
+export interface VolumeFAQ {
+  question: string;
+  answer: string;
+}
+
 export interface SessionVolumeDTO {
   id: string;
   volumeNumber: number;
@@ -635,6 +651,15 @@ export interface SessionVolumeDTO {
   applicationDeadline: string | null;
   teaserVideoUrl: string | null;
   playlistUrl: string | null;
+  interviews: string[];
+  audio: string[];
+  productionNotes: string;
+  callSheet: string | null;
+  creativeBrief: string;
+  wardrobeGuide: string | null;
+  sponsors: VolumeSponsor[];
+  resources: VolumeResource[];
+  faqs: VolumeFAQ[];
   featured: boolean;
   published: boolean;
   showApplyButton: boolean;

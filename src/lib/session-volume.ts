@@ -1,6 +1,53 @@
 import { parseJsonArray } from "./utils";
 import { parseApplicationSettings } from "./session-application";
-import type { SessionTimelineStep, SessionVolumeDTO, SessionVolumeStatus } from "./types";
+import type {
+  SessionTimelineStep,
+  SessionVolumeDTO,
+  SessionVolumeStatus,
+  VolumeFAQ,
+  VolumeResource,
+  VolumeSponsor,
+} from "./types";
+
+function parseObjectArray<T>(raw: string | undefined, map: (item: Record<string, unknown>) => T | null): T[] {
+  try {
+    const parsed = JSON.parse(raw ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => map(item as Record<string, unknown>))
+      .filter((item): item is T => item !== null);
+  } catch {
+    return [];
+  }
+}
+
+function parseSponsors(raw?: string): VolumeSponsor[] {
+  return parseObjectArray(raw, (s) => {
+    const name = String(s.name || "");
+    const logo = String(s.logo || "");
+    if (!name && !logo) return null;
+    return { name, logo, url: String(s.url || "") };
+  });
+}
+
+function parseResources(raw?: string): VolumeResource[] {
+  return parseObjectArray(raw, (r) => {
+    const label = String(r.label || "");
+    const url = String(r.url || "");
+    if (!label || !url) return null;
+    return { label, url };
+  });
+}
+
+function parseFaqs(raw?: string): VolumeFAQ[] {
+  return parseObjectArray(raw, (f) => {
+    const question = String(f.question || "");
+    const answer = String(f.answer || "");
+    if (!question || !answer) return null;
+    return { question, answer };
+  });
+}
 
 export const SESSION_STATUS_LABELS: Record<SessionVolumeStatus, string> = {
   draft: "Draft",
@@ -104,6 +151,15 @@ export function mapSessionVolume(item: {
   applicationDeadline: Date | null;
   teaserVideoUrl: string | null;
   playlistUrl?: string | null;
+  interviews?: string;
+  audio?: string;
+  productionNotes?: string;
+  callSheet?: string | null;
+  creativeBrief?: string;
+  wardrobeGuide?: string | null;
+  sponsors?: string;
+  resources?: string;
+  faqs?: string;
   featured: boolean;
   published: boolean;
   showApplyButton: boolean;
@@ -149,6 +205,15 @@ export function mapSessionVolume(item: {
     applicationDeadline: item.applicationDeadline?.toISOString() ?? null,
     teaserVideoUrl: item.teaserVideoUrl,
     playlistUrl: item.playlistUrl ?? null,
+    interviews: parseJsonArray(item.interviews ?? "[]"),
+    audio: parseJsonArray(item.audio ?? "[]"),
+    productionNotes: item.productionNotes ?? "",
+    callSheet: item.callSheet ?? null,
+    creativeBrief: item.creativeBrief ?? "",
+    wardrobeGuide: item.wardrobeGuide ?? null,
+    sponsors: parseSponsors(item.sponsors),
+    resources: parseResources(item.resources),
+    faqs: parseFaqs(item.faqs),
     featured: item.featured,
     published: item.published,
     showApplyButton: item.showApplyButton,

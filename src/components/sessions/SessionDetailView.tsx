@@ -12,6 +12,24 @@ import { SessionCountdown } from "@/components/sessions/SessionCountdown";
 import { VolumeCast } from "@/components/sessions/VolumeCast";
 import { VolumeCredits } from "@/components/sessions/VolumeCredits";
 
+function ResourceLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center justify-between gap-4 border border-stone/40 px-5 py-4 text-sm text-cream transition-colors hover:border-accent hover:text-accent"
+    >
+      <span>{label}</span>
+      <span aria-hidden>↗</span>
+    </a>
+  );
+}
+
+function isDirectAudio(url: string): boolean {
+  return /\.(mp3|wav|m4a|ogg|aac|flac)(\?|#|$)/i.test(url);
+}
+
 function playlistEmbed(url: string): string | null {
   const spotify = url.match(/spotify\.com\/(playlist|album|track)\/([\w]+)/i);
   if (spotify) return `https://open.spotify.com/embed/${spotify[1]}/${spotify[2]}`;
@@ -202,6 +220,59 @@ export function SessionDetailView({
         </section>
       )}
 
+      {volume.interviews.length > 0 && (
+        <section className="section-padding border-b border-stone/30 bg-ink-soft">
+          <div className="container-wide">
+            <h2 className="label-caps mb-6 text-fog">Interviews</h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              {volume.interviews.map((src, i) => {
+                const embed = toEmbedUrl(src);
+                return (
+                  <div key={`${src}-${i}`} className="relative aspect-video overflow-hidden bg-charcoal">
+                    {embed ? (
+                      <iframe
+                        src={embed}
+                        title={`${volume.title} — interview ${i + 1}`}
+                        className="absolute inset-0 h-full w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video src={src} controls className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {volume.audio.length > 0 && (
+        <section className="section-padding border-b border-stone/30">
+          <div className="container-narrow">
+            <h2 className="label-caps mb-6 text-fog">Audio</h2>
+            <div className="space-y-4">
+              {volume.audio.map((src, i) =>
+                isDirectAudio(src) ? (
+                  <audio key={`${src}-${i}`} src={src} controls className="w-full" />
+                ) : (
+                  <a
+                    key={`${src}-${i}`}
+                    href={src}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block border border-stone/40 px-5 py-3 text-sm text-cream hover:border-accent hover:text-accent"
+                  >
+                    Listen → {src}
+                  </a>
+                )
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {gallery.length > 0 && (
         <section className="section-padding border-b border-stone/30">
           <div className="container-wide">
@@ -247,6 +318,33 @@ export function SessionDetailView({
         </section>
       )}
 
+      {(volume.creativeBrief || volume.productionNotes) && (
+        <section className="section-padding border-b border-stone/30">
+          <div className="container-narrow space-y-12">
+            {volume.creativeBrief && (
+              <div>
+                <h2 className="label-caps mb-4 text-fog">Creative Brief</h2>
+                <div className="space-y-5">
+                  {volume.creativeBrief.split("\n").filter(Boolean).map((p, i) => (
+                    <p key={i} className="body-lg text-fog">{p}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+            {volume.productionNotes && (
+              <div>
+                <h2 className="label-caps mb-4 text-fog">Production Notes</h2>
+                <div className="space-y-4">
+                  {volume.productionNotes.split("\n").filter(Boolean).map((p, i) => (
+                    <p key={i} className="text-sm leading-relaxed text-fog">{p}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <VolumeCast members={cast} appearances={appearances} volumeNumber={volume.volumeNumber} />
 
       {volume.requirements.length > 0 && (
@@ -282,6 +380,78 @@ export function SessionDetailView({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {volume.faqs.length > 0 && (
+        <section className="section-padding border-b border-stone/30">
+          <div className="container-narrow">
+            <h2 className="headline-md mb-10 text-center">Frequently Asked</h2>
+            <div className="divide-y divide-stone/30 border-y border-stone/30">
+              {volume.faqs.map((faq, i) => (
+                <details key={i} className="group py-5">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-cream">
+                    <span className="font-display text-lg">{faq.question}</span>
+                    <span className="text-accent transition-transform group-open:rotate-45">+</span>
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    {faq.answer.split("\n").filter(Boolean).map((p, j) => (
+                      <p key={j} className="text-sm leading-relaxed text-fog">{p}</p>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {(volume.callSheet || volume.wardrobeGuide || volume.resources.length > 0) && (
+        <section className="section-padding border-b border-stone/30 bg-ink-soft">
+          <div className="container-narrow">
+            <h2 className="label-caps mb-6 text-fog">Production Files & Resources</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {volume.wardrobeGuide && (
+                <ResourceLink href={volume.wardrobeGuide} label="Wardrobe Guide" />
+              )}
+              {volume.callSheet && <ResourceLink href={volume.callSheet} label="Call Sheet" />}
+              {volume.resources.map((r) => (
+                <ResourceLink key={r.url} href={r.url} label={r.label} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {volume.sponsors.length > 0 && (
+        <section className="section-padding border-b border-stone/30">
+          <div className="container-wide text-center">
+            <h2 className="label-caps mb-10 text-fog">Presented With</h2>
+            <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
+              {volume.sponsors.map((sponsor, i) => {
+                const inner = sponsor.logo ? (
+                  <span className="relative block h-14 w-36">
+                    <Image src={sponsor.logo} alt={sponsor.name} fill className="object-contain" sizes="144px" />
+                  </span>
+                ) : (
+                  <span className="font-display text-xl text-cream-dim">{sponsor.name}</span>
+                );
+                return sponsor.url ? (
+                  <a
+                    key={i}
+                    href={sponsor.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="opacity-70 transition-opacity hover:opacity-100"
+                  >
+                    {inner}
+                  </a>
+                ) : (
+                  <span key={i} className="opacity-80">{inner}</span>
+                );
+              })}
             </div>
           </div>
         </section>

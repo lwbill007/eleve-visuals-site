@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 export interface Spotlight {
@@ -35,6 +36,12 @@ export function SessionsCommunity({
             of photographers, models, stylists, and artists who keep building together long after
             the shoot wraps.
           </p>
+          <Link
+            href="/alumni"
+            className="mt-6 inline-block text-xs tracking-[0.15em] text-accent uppercase hover:text-cream"
+          >
+            Meet the alumni →
+          </Link>
         </div>
 
         {spotlights.length > 0 && (

@@ -223,6 +223,15 @@ model SessionVolume {
   applicationDeadline DateTime?
   teaserVideoUrl      String?
   playlistUrl         String?
+  interviews          String    @default("[]")
+  audio               String    @default("[]")
+  productionNotes     String    @default("")
+  callSheet           String?
+  creativeBrief       String    @default("")
+  wardrobeGuide       String?
+  sponsors            String    @default("[]")
+  resources           String    @default("[]")
+  faqs                String    @default("[]")
   featured            Boolean   @default(false)
   published           Boolean   @default(false)
   showApplyButton     Boolean   @default(true)

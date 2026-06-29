@@ -70,6 +70,15 @@ function emptyVolume(): Partial<SessionVolumeDTO> {
     applicationDeadline: null,
     teaserVideoUrl: null,
     playlistUrl: null,
+    interviews: [],
+    audio: [],
+    productionNotes: "",
+    callSheet: null,
+    creativeBrief: "",
+    wardrobeGuide: null,
+    sponsors: [],
+    resources: [],
+    faqs: [],
     featured: false,
     published: false,
     showApplyButton: true,
@@ -467,6 +476,211 @@ export default function AdminSessionsPage() {
                 onChange={(videos) => update("videos", videos)}
               />
             </div>
+            <div className="md:col-span-2 border-t border-stone/30 pt-6">
+              <h3 className="mb-4 font-display text-lg">Behind the Scenes & Extras</h3>
+            </div>
+            <div className="md:col-span-2">
+              <VideoGalleryUpload
+                label="Interviews"
+                hint="Interview clips — upload MP4/WebM or paste YouTube/Vimeo URLs."
+                videos={editing.interviews || []}
+                onChange={(interviews) => update("interviews", interviews)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <StringListEditor
+                label="Audio"
+                items={editing.audio || []}
+                onChange={(audio) => update("audio", audio)}
+                addLabel="Add audio link (MP3, SoundCloud, Spotify)"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <AdminField label="Production Notes" hint="Notes from the production, shown in the BTS section.">
+                <AdminTextarea
+                  value={editing.productionNotes || ""}
+                  onChange={(e) => update("productionNotes", e.target.value)}
+                  className="min-h-[120px]"
+                />
+              </AdminField>
+            </div>
+
+            <div className="md:col-span-2 border-t border-stone/30 pt-6">
+              <h3 className="mb-4 font-display text-lg">Production Files</h3>
+            </div>
+            <div className="md:col-span-2">
+              <AdminField label="Creative Brief" hint="The creative direction for this Volume.">
+                <AdminTextarea
+                  value={editing.creativeBrief || ""}
+                  onChange={(e) => update("creativeBrief", e.target.value)}
+                  className="min-h-[140px]"
+                />
+              </AdminField>
+            </div>
+            <AdminField label="Call Sheet URL" hint="Link to the call sheet (PDF, Google Doc, etc.)">
+              <AdminInput
+                value={editing.callSheet || ""}
+                onChange={(e) => update("callSheet", e.target.value || null)}
+              />
+            </AdminField>
+            <AdminField label="Wardrobe Guide URL" hint="Link to the wardrobe guide or lookbook.">
+              <AdminInput
+                value={editing.wardrobeGuide || ""}
+                onChange={(e) => update("wardrobeGuide", e.target.value || null)}
+              />
+            </AdminField>
+
+            <div className="md:col-span-2">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm text-cream-dim">Sponsors</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    update("sponsors", [...(editing.sponsors || []), { name: "", logo: "", url: "" }])
+                  }
+                  className="text-xs text-accent"
+                >
+                  Add sponsor
+                </button>
+              </div>
+              <div className="space-y-4">
+                {(editing.sponsors || []).map((sponsor, index) => (
+                  <div key={index} className="grid gap-3 border border-stone/20 p-3 md:grid-cols-2">
+                    <AdminInput
+                      placeholder="Sponsor name"
+                      value={sponsor.name}
+                      onChange={(e) => {
+                        const next = [...(editing.sponsors || [])];
+                        next[index] = { ...next[index], name: e.target.value };
+                        update("sponsors", next);
+                      }}
+                    />
+                    <AdminInput
+                      placeholder="Website URL (optional)"
+                      value={sponsor.url}
+                      onChange={(e) => {
+                        const next = [...(editing.sponsors || [])];
+                        next[index] = { ...next[index], url: e.target.value };
+                        update("sponsors", next);
+                      }}
+                    />
+                    <div className="md:col-span-2">
+                      <ImageUpload
+                        label="Logo"
+                        value={sponsor.logo || null}
+                        onChange={(url) => {
+                          const next = [...(editing.sponsors || [])];
+                          next[index] = { ...next[index], logo: url || "" };
+                          update("sponsors", next);
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => update("sponsors", (editing.sponsors || []).filter((_, i) => i !== index))}
+                      className="justify-self-start border border-stone/50 px-3 py-1 text-xs text-fog"
+                    >
+                      Remove sponsor
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm text-cream-dim">Resources</p>
+                <button
+                  type="button"
+                  onClick={() => update("resources", [...(editing.resources || []), { label: "", url: "" }])}
+                  className="text-xs text-accent"
+                >
+                  Add resource
+                </button>
+              </div>
+              <div className="space-y-2">
+                {(editing.resources || []).map((resource, index) => (
+                  <div key={index} className="grid gap-2 md:grid-cols-2">
+                    <AdminInput
+                      placeholder="Label (e.g. Moodboard PDF)"
+                      value={resource.label}
+                      onChange={(e) => {
+                        const next = [...(editing.resources || [])];
+                        next[index] = { ...next[index], label: e.target.value };
+                        update("resources", next);
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <AdminInput
+                        placeholder="URL"
+                        value={resource.url}
+                        onChange={(e) => {
+                          const next = [...(editing.resources || [])];
+                          next[index] = { ...next[index], url: e.target.value };
+                          update("resources", next);
+                        }}
+                        className="flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => update("resources", (editing.resources || []).filter((_, i) => i !== index))}
+                        className="border border-stone/50 px-3 text-xs text-fog"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm text-cream-dim">FAQs</p>
+                <button
+                  type="button"
+                  onClick={() => update("faqs", [...(editing.faqs || []), { question: "", answer: "" }])}
+                  className="text-xs text-accent"
+                >
+                  Add FAQ
+                </button>
+              </div>
+              <div className="space-y-3">
+                {(editing.faqs || []).map((faq, index) => (
+                  <div key={index} className="space-y-2 border border-stone/20 p-3">
+                    <AdminInput
+                      placeholder="Question"
+                      value={faq.question}
+                      onChange={(e) => {
+                        const next = [...(editing.faqs || [])];
+                        next[index] = { ...next[index], question: e.target.value };
+                        update("faqs", next);
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <AdminTextarea
+                        placeholder="Answer"
+                        value={faq.answer}
+                        onChange={(e) => {
+                          const next = [...(editing.faqs || [])];
+                          next[index] = { ...next[index], answer: e.target.value };
+                          update("faqs", next);
+                        }}
+                        className="min-h-[80px] flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => update("faqs", (editing.faqs || []).filter((_, i) => i !== index))}
+                        className="self-start border border-stone/50 px-3 py-1 text-xs text-fog"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="md:col-span-2">
               <StringListEditor
                 label="Requirements (who should apply)"

@@ -179,6 +179,14 @@ export function VolumeCast({
                   <p className="label-caps text-accent">{CAST_ROLE_LABELS[active.role]}</p>
                   <h3 className="mt-2 font-display text-3xl text-cream">{castDisplayName(active)}</h3>
                   {active.city && <p className="mt-1 text-sm text-muted">{active.city}</p>}
+                  {active.enableProfile && (
+                    <Link
+                      href={`/sessions/cast/${active.slug}`}
+                      className="mt-3 inline-block text-xs tracking-[0.12em] text-accent uppercase hover:text-cream"
+                    >
+                      View full profile →
+                    </Link>
+                  )}
 
                   {active.bio && <p className="mt-5 text-sm leading-relaxed text-fog">{active.bio}</p>}
 

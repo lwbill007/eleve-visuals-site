@@ -3,6 +3,26 @@ import { SESSION_VOLUME_STATUSES } from "@/lib/types";
 import { normalizePortfolioGallery } from "@/lib/portfolio-utils";
 import { DEFAULT_SESSION_APPLICATION_SETTINGS } from "@/lib/session-application";
 
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+    : [];
+}
+
+function objectList<T extends Record<string, string>>(value: unknown, keys: (keyof T)[], required: (keyof T)[]): T[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === "object")
+    .map((item) => {
+      const out = {} as T;
+      for (const key of keys) {
+        out[key] = String((item as Record<string, unknown>)[key as string] ?? "") as T[keyof T];
+      }
+      return out;
+    })
+    .filter((item) => required.every((key) => String(item[key]).trim().length > 0));
+}
+
 export function parseSessionVolumeBody(body: Record<string, unknown>) {
   const status = SESSION_VOLUME_STATUSES.includes(body.status as SessionVolumeStatus)
     ? (body.status as SessionVolumeStatus)
@@ -66,6 +86,29 @@ export function parseSessionVolumeBody(body: Record<string, unknown>) {
     applicationDeadline,
     teaserVideoUrl: body.teaserVideoUrl ? String(body.teaserVideoUrl) : null,
     playlistUrl: body.playlistUrl ? String(body.playlistUrl) : null,
+    interviews: JSON.stringify(stringList(body.interviews)),
+    audio: JSON.stringify(stringList(body.audio)),
+    productionNotes: String(body.productionNotes || ""),
+    callSheet: body.callSheet ? String(body.callSheet) : null,
+    creativeBrief: String(body.creativeBrief || ""),
+    wardrobeGuide: body.wardrobeGuide ? String(body.wardrobeGuide) : null,
+    sponsors: JSON.stringify(
+      objectList<{ name: string; logo: string; url: string }>(
+        body.sponsors,
+        ["name", "logo", "url"],
+        []
+      ).filter((s) => s.name || s.logo)
+    ),
+    resources: JSON.stringify(
+      objectList<{ label: string; url: string }>(body.resources, ["label", "url"], ["label", "url"])
+    ),
+    faqs: JSON.stringify(
+      objectList<{ question: string; answer: string }>(
+        body.faqs,
+        ["question", "answer"],
+        ["question", "answer"]
+      )
+    ),
     featured: !!body.featured,
     published: !!body.published,
     showApplyButton: body.showApplyButton !== false,
