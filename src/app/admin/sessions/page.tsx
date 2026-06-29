@@ -67,6 +67,12 @@ function emptyVolume(): Partial<SessionVolumeDTO> {
     galleryDelivery: "",
     dressCode: "",
     runtime: "",
+    mood: "",
+    season: "",
+    difficulty: "",
+    colorPalette: [],
+    inspirations: [],
+    testimonials: [],
     requirements: [],
     timeline: DEFAULT_TIMELINE,
     applicationDeadline: null,
@@ -414,10 +420,22 @@ export default function AdminSessionsPage() {
                 onChange={(e) => update("dressCode", e.target.value)}
               />
             </AdminField>
-            <AdminField label="Runtime" hint="Optional stylistic field">
+            <AdminField label="Runtime" hint="Estimated session length, e.g. '3 hours'">
               <AdminInput
                 value={editing.runtime || ""}
                 onChange={(e) => update("runtime", e.target.value)}
+              />
+            </AdminField>
+            <AdminField label="Mood" hint='e.g. "Moody, romantic, defiant"'>
+              <AdminInput value={editing.mood || ""} onChange={(e) => update("mood", e.target.value)} />
+            </AdminField>
+            <AdminField label="Season" hint='e.g. "Fall 2026"'>
+              <AdminInput value={editing.season || ""} onChange={(e) => update("season", e.target.value)} />
+            </AdminField>
+            <AdminField label="Difficulty" hint='e.g. "Intermediate"'>
+              <AdminInput
+                value={editing.difficulty || ""}
+                onChange={(e) => update("difficulty", e.target.value)}
               />
             </AdminField>
             <AdminField label="Teaser Video URL" hint="YouTube or direct MP4 URL">
@@ -505,6 +523,89 @@ export default function AdminSessionsPage() {
                   className="min-h-[120px]"
                 />
               </AdminField>
+            </div>
+
+            <div className="md:col-span-2 border-t border-stone/30 pt-6">
+              <h3 className="mb-4 font-display text-lg">Creative Vision</h3>
+            </div>
+            <div className="md:col-span-2">
+              <StringListEditor
+                label="Color Palette (hex codes)"
+                items={editing.colorPalette || []}
+                onChange={(colorPalette) => update("colorPalette", colorPalette)}
+                addLabel="Add color (e.g. #1a1a1a)"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <StringListEditor
+                label="Inspirations & References"
+                items={editing.inspirations || []}
+                onChange={(inspirations) => update("inspirations", inspirations)}
+                addLabel="Add inspiration (film, fashion, music, etc.)"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm text-cream-dim">Testimonials</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    update("testimonials", [...(editing.testimonials || []), { quote: "", name: "", role: "" }])
+                  }
+                  className="text-xs text-accent"
+                >
+                  Add testimonial
+                </button>
+              </div>
+              <div className="space-y-3">
+                {(editing.testimonials || []).map((testimonial, index) => (
+                  <div key={index} className="space-y-2 border border-stone/20 p-3">
+                    <AdminTextarea
+                      placeholder="Quote"
+                      value={testimonial.quote}
+                      onChange={(e) => {
+                        const next = [...(editing.testimonials || [])];
+                        next[index] = { ...next[index], quote: e.target.value };
+                        update("testimonials", next);
+                      }}
+                      className="min-h-[80px]"
+                    />
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <AdminInput
+                        placeholder="Name"
+                        value={testimonial.name}
+                        onChange={(e) => {
+                          const next = [...(editing.testimonials || [])];
+                          next[index] = { ...next[index], name: e.target.value };
+                          update("testimonials", next);
+                        }}
+                      />
+                      <div className="flex gap-2">
+                        <AdminInput
+                          placeholder="Role (e.g. Model, Vol. 1)"
+                          value={testimonial.role}
+                          onChange={(e) => {
+                            const next = [...(editing.testimonials || [])];
+                            next[index] = { ...next[index], role: e.target.value };
+                            update("testimonials", next);
+                          }}
+                          className="flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            update("testimonials", (editing.testimonials || []).filter((_, i) => i !== index))
+                          }
+                          className="border border-stone/50 px-3 text-xs text-fog"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="md:col-span-2 border-t border-stone/30 pt-6">

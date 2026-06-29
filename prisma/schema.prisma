@@ -218,6 +218,12 @@ model SessionVolume {
   galleryDelivery     String    @default("")
   dressCode           String    @default("")
   runtime             String    @default("")
+  mood                String    @default("")
+  season              String    @default("")
+  difficulty          String    @default("")
+  colorPalette        String    @default("[]")
+  inspirations        String    @default("[]")
+  testimonials        String    @default("[]")
   requirements        String    @default("[]")
   timeline            String    @default("[]")
   applicationDeadline DateTime?

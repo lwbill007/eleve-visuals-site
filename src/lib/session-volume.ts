@@ -7,6 +7,7 @@ import type {
   VolumeFAQ,
   VolumeResource,
   VolumeSponsor,
+  VolumeTestimonial,
 } from "./types";
 
 function parseObjectArray<T>(raw: string | undefined, map: (item: Record<string, unknown>) => T | null): T[] {
@@ -46,6 +47,14 @@ function parseFaqs(raw?: string): VolumeFAQ[] {
     const answer = String(f.answer || "");
     if (!question || !answer) return null;
     return { question, answer };
+  });
+}
+
+function parseTestimonials(raw?: string): VolumeTestimonial[] {
+  return parseObjectArray(raw, (t) => {
+    const quote = String(t.quote || "");
+    if (!quote) return null;
+    return { quote, name: String(t.name || ""), role: String(t.role || "") };
   });
 }
 
@@ -146,6 +155,12 @@ export function mapSessionVolume(item: {
   galleryDelivery?: string;
   dressCode: string;
   runtime: string;
+  mood?: string;
+  season?: string;
+  difficulty?: string;
+  colorPalette?: string;
+  inspirations?: string;
+  testimonials?: string;
   requirements: string;
   timeline: string;
   applicationDeadline: Date | null;
@@ -200,6 +215,12 @@ export function mapSessionVolume(item: {
     galleryDelivery: item.galleryDelivery ?? "",
     dressCode: item.dressCode,
     runtime: item.runtime,
+    mood: item.mood ?? "",
+    season: item.season ?? "",
+    difficulty: item.difficulty ?? "",
+    colorPalette: parseJsonArray(item.colorPalette ?? "[]"),
+    inspirations: parseJsonArray(item.inspirations ?? "[]"),
+    testimonials: parseTestimonials(item.testimonials),
     requirements: parseJsonArray(item.requirements),
     timeline: parseTimeline(item.timeline),
     applicationDeadline: item.applicationDeadline?.toISOString() ?? null,

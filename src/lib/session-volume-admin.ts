@@ -77,6 +77,18 @@ export function parseSessionVolumeBody(body: Record<string, unknown>) {
     galleryDelivery: String(body.galleryDelivery || ""),
     dressCode: String(body.dressCode || ""),
     runtime: String(body.runtime || ""),
+    mood: String(body.mood || ""),
+    season: String(body.season || ""),
+    difficulty: String(body.difficulty || ""),
+    colorPalette: JSON.stringify(stringList(body.colorPalette)),
+    inspirations: JSON.stringify(stringList(body.inspirations)),
+    testimonials: JSON.stringify(
+      objectList<{ quote: string; name: string; role: string }>(
+        body.testimonials,
+        ["quote", "name", "role"],
+        ["quote"]
+      )
+    ),
     requirements: JSON.stringify(
       Array.isArray(body.requirements)
         ? body.requirements.filter((r) => typeof r === "string" && r.trim())

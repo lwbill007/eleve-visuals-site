@@ -616,6 +616,12 @@ export interface VolumeFAQ {
   answer: string;
 }
 
+export interface VolumeTestimonial {
+  quote: string;
+  name: string;
+  role: string;
+}
+
 export interface SessionVolumeDTO {
   id: string;
   volumeNumber: number;
@@ -660,6 +666,12 @@ export interface SessionVolumeDTO {
   sponsors: VolumeSponsor[];
   resources: VolumeResource[];
   faqs: VolumeFAQ[];
+  mood: string;
+  season: string;
+  difficulty: string;
+  colorPalette: string[];
+  inspirations: string[];
+  testimonials: VolumeTestimonial[];
   featured: boolean;
   published: boolean;
   showApplyButton: boolean;

@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getSessionVolumeBySlug } from "@/lib/session-volumes";
+import { getSessionVolumeBySlug, getAllSessionVolumes } from "@/lib/session-volumes";
 import { getSessionsApplicationContent } from "@/lib/content";
-import { validateSessionApplicationGate } from "@/lib/session-application-server";
+import {
+  validateSessionApplicationGate,
+  countAcceptedApplications,
+} from "@/lib/session-application-server";
 import { getCastForVolume, getCastAppearances } from "@/lib/cast-server";
 import { SessionDetailView } from "@/components/sessions/SessionDetailView";
+import type { SessionVolumeDTO } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -44,11 +48,27 @@ export default async function SessionVolumePage({
 
   if (!volume) notFound();
 
-  const cast = await getCastForVolume(volume.id);
+  const [cast, allVolumes, acceptedCount] = await Promise.all([
+    getCastForVolume(volume.id),
+    getAllSessionVolumes(),
+    countAcceptedApplications(volume.id),
+  ]);
+
   const appearances = await getCastAppearances(
     cast.map((m) => m.slug),
     volume.id
   );
+
+  const others = allVolumes.filter((v) => v.id !== volume.id);
+  const comingSoon = others.filter((v) => v.status === "coming_soon").slice(0, 8);
+  const recommendedPool = others.filter((v) => v.status !== "coming_soon");
+  const matches = recommendedPool.filter(
+    (v) => v.category === volume.category || (volume.genre && v.genre === volume.genre)
+  );
+  const seen = new Set<string>();
+  const recommended: SessionVolumeDTO[] = [...matches, ...recommendedPool]
+    .filter((v) => (seen.has(v.id) ? false : (seen.add(v.id), true)))
+    .slice(0, 10);
 
   const applyGate = await validateSessionApplicationGate({
     id: volume.id,
@@ -66,6 +86,9 @@ export default async function SessionVolumePage({
       canApply={applyGate.ok}
       cast={cast}
       appearances={appearances}
+      acceptedCount={acceptedCount}
+      recommended={recommended}
+      comingSoon={comingSoon}
     />
   );
 }
