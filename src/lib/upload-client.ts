@@ -12,7 +12,7 @@ import {
   blobFolderForMime,
   isAllowedUploadMime,
   maxBytesForMime,
-  MAX_VIDEO_LABEL,
+  maxLabelForMime,
   SESSION_PORTFOLIO_MAX_BYTES,
   VERCEL_SERVER_MAX_BYTES,
 } from "@/lib/upload-constants";
@@ -49,7 +49,7 @@ function validateFileBeforeUpload(file: File, endpoint: string): string {
       );
     }
     throw new Error(
-      `Unsupported file type (${mimeType || "unknown"}). Use JPEG, PNG, WebP, GIF, MP4, or WebM.`
+      `Unsupported file type (${mimeType || "unknown"}). Use JPEG, PNG, WebP, GIF, MP4, WebM, MP3, WAV, M4A, AAC, OGG, FLAC, or PDF.`
     );
   }
 
@@ -58,11 +58,9 @@ function validateFileBeforeUpload(file: File, endpoint: string): string {
     : maxBytesForMime(mimeType);
   if (file.size > maxSize) {
     throw new Error(
-      mimeType.startsWith("video/")
-        ? `Video too large (max ${MAX_VIDEO_LABEL})`
-        : endpoint.includes("/api/submit/session/upload")
-          ? "Image too large (max 5MB)"
-          : "Image too large (max 10MB)"
+      endpoint.includes("/api/submit/session/upload")
+        ? "Image too large (max 5MB)"
+        : `File too large (max ${maxLabelForMime(mimeType)})`
     );
   }
 

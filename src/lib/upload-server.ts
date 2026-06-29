@@ -1,9 +1,9 @@
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import { tryParseHttpUrl } from "@/lib/image-url";
+import { extensionForMime, tryParseHttpUrl } from "@/lib/image-url";
 
 export function sanitizeUploadFilename(originalName: string, mimeType: string): string {
-  const extFromMime = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "bin";
+  const extFromMime = extensionForMime(mimeType);
   const safeBase = originalName
     .replace(/\.[^.]+$/, "")
     .replace(/[^\w.-]+/g, "-")

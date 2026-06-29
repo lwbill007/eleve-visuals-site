@@ -7,7 +7,7 @@ import {
   isAllowedUploadMime,
   localSubdirForMime,
   maxBytesForMime,
-  MAX_VIDEO_LABEL,
+  maxLabelForMime,
   VERCEL_SERVER_MAX_BYTES,
 } from "@/lib/upload-constants";
 import {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       );
     }
     return NextResponse.json(
-      { error: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM" },
+      { error: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM, MP3, WAV, M4A, AAC, OGG, FLAC, PDF" },
       { status: 400 }
     );
   }
@@ -60,11 +60,7 @@ export async function POST(request: Request) {
   const maxSize = maxBytesForMime(mimeType);
   if (file.size > maxSize) {
     return NextResponse.json(
-      {
-        error: mimeType.startsWith("video/")
-          ? `Video too large (max ${MAX_VIDEO_LABEL})`
-          : "File too large (max 10MB)",
-      },
+      { error: `File too large (max ${maxLabelForMime(mimeType)})` },
       { status: 400 }
     );
   }

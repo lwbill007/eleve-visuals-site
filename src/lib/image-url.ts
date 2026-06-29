@@ -12,12 +12,45 @@ export function isVideoUrl(url: string): boolean {
   return /\.(mp4|webm)(\?|$)/i.test(url);
 }
 
+export function isAudioUrl(url: string): boolean {
+  return /\.(mp3|wav|m4a|ogg|aac|flac)(\?|#|$)/i.test(url);
+}
+
+export function isDocumentUrl(url: string): boolean {
+  return /\.(pdf)(\?|#|$)/i.test(url);
+}
+
+/** Normalize the many browser-reported audio variants to a canonical mime. */
+function normalizeReportedMime(raw: string): string {
+  switch (raw) {
+    case "image/jpg":
+    case "image/pjpeg":
+      return "image/jpeg";
+    case "image/x-png":
+      return "image/png";
+    case "audio/mp3":
+      return "audio/mpeg";
+    case "audio/x-m4a":
+    case "audio/m4a":
+    case "audio/x-mp4":
+      return "audio/mp4";
+    case "audio/x-wav":
+    case "audio/wave":
+    case "audio/vnd.wave":
+      return "audio/wav";
+    case "audio/x-flac":
+      return "audio/flac";
+    case "audio/x-aac":
+      return "audio/aac";
+    default:
+      return raw;
+  }
+}
+
 export function inferMimeType(file: File): string {
   const raw = file.type?.trim().toLowerCase();
   if (raw) {
-    if (raw === "image/jpg" || raw === "image/pjpeg") return "image/jpeg";
-    if (raw === "image/x-png") return "image/png";
-    return raw;
+    return normalizeReportedMime(raw);
   }
 
   const ext = file.name.split(".").pop()?.toLowerCase();
@@ -31,13 +64,41 @@ export function inferMimeType(file: File): string {
     webm: "video/webm",
     heic: "image/heic",
     heif: "image/heif",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    m4a: "audio/mp4",
+    aac: "audio/aac",
+    ogg: "audio/ogg",
+    flac: "audio/flac",
+    pdf: "application/pdf",
   };
   return map[ext || ""] || "application/octet-stream";
 }
 
+const MIME_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "audio/mpeg": "mp3",
+  "audio/wav": "wav",
+  "audio/mp4": "m4a",
+  "audio/aac": "aac",
+  "audio/ogg": "ogg",
+  "audio/flac": "flac",
+  "application/pdf": "pdf",
+};
+
+/** Map a (normalized) mime type to a sensible file extension. */
+export function extensionForMime(mimeType: string): string {
+  return MIME_EXTENSIONS[mimeType] || mimeType.split("/")[1]?.replace("jpeg", "jpg") || "bin";
+}
+
 export function buildUploadPathname(file: File, folder = "uploads"): string {
   const mimeType = inferMimeType(file);
-  const extFromMime = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "bin";
+  const extFromMime = extensionForMime(mimeType);
   const safeBase = file.name
     .replace(/\.[^.]+$/, "")
     .replace(/[^\w.-]+/g, "-")
@@ -68,7 +129,7 @@ export function isRenderableImageSrc(src: string | null | undefined): src is str
   if (!src || typeof src !== "string") return false;
   const trimmed = src.trim();
   if (!trimmed) return false;
-  if (isVideoUrl(trimmed)) return false;
+  if (isVideoUrl(trimmed) || isAudioUrl(trimmed) || isDocumentUrl(trimmed)) return false;
   return isLocalUploadPath(trimmed) || isAbsoluteHttpsUrl(trimmed);
 }
 

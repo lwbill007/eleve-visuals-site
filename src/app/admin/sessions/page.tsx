@@ -13,6 +13,8 @@ import {
   ImageUpload,
   GalleryUpload,
   VideoGalleryUpload,
+  AudioGalleryUpload,
+  FileUpload,
   StringListEditor,
 } from "@/components/admin/AdminForm";
 import {
@@ -488,11 +490,11 @@ export default function AdminSessionsPage() {
               />
             </div>
             <div className="md:col-span-2">
-              <StringListEditor
+              <AudioGalleryUpload
                 label="Audio"
-                items={editing.audio || []}
+                hint="Upload audio files or paste a SoundCloud / Spotify / MP3 URL."
+                tracks={editing.audio || []}
                 onChange={(audio) => update("audio", audio)}
-                addLabel="Add audio link (MP3, SoundCloud, Spotify)"
               />
             </div>
             <div className="md:col-span-2">
@@ -517,18 +519,24 @@ export default function AdminSessionsPage() {
                 />
               </AdminField>
             </div>
-            <AdminField label="Call Sheet URL" hint="Link to the call sheet (PDF, Google Doc, etc.)">
-              <AdminInput
-                value={editing.callSheet || ""}
-                onChange={(e) => update("callSheet", e.target.value || null)}
+            <div className="md:col-span-2">
+              <FileUpload
+                label="Call Sheet"
+                hint="Upload a PDF or paste a link (Google Doc, Dropbox, etc.)."
+                accept=".pdf,application/pdf"
+                value={editing.callSheet || null}
+                onChange={(url) => update("callSheet", url)}
               />
-            </AdminField>
-            <AdminField label="Wardrobe Guide URL" hint="Link to the wardrobe guide or lookbook.">
-              <AdminInput
-                value={editing.wardrobeGuide || ""}
-                onChange={(e) => update("wardrobeGuide", e.target.value || null)}
+            </div>
+            <div className="md:col-span-2">
+              <FileUpload
+                label="Wardrobe Guide"
+                hint="Upload a PDF or image lookbook, or paste a link."
+                accept=".pdf,application/pdf,image/*"
+                value={editing.wardrobeGuide || null}
+                onChange={(url) => update("wardrobeGuide", url)}
               />
-            </AdminField>
+            </div>
 
             <div className="md:col-span-2">
               <div className="mb-3 flex items-center justify-between">

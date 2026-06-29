@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
 import { uploadImageFile, uploadMediaFile } from "@/lib/upload-client";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
-import { isVideoUrl } from "@/lib/image-url";
+import { isVideoUrl, isAudioUrl, isDocumentUrl } from "@/lib/image-url";
 
 interface MediaAsset {
   id: string;
@@ -43,7 +43,11 @@ function MediaLibraryModal({
 
   if (!open) return null;
 
-  const visibleItems = imagesOnly ? items.filter((item) => !isVideoUrl(item.url)) : items;
+  const visibleItems = imagesOnly
+    ? items.filter(
+        (item) => !isVideoUrl(item.url) && !isAudioUrl(item.url) && !isDocumentUrl(item.url)
+      )
+    : items;
 
   function toggle(url: string) {
     if (multiple) {
@@ -595,6 +599,241 @@ export function VideoGalleryUpload({
         ref={inputRef}
         type="file"
         accept="video/mp4,video/webm"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) handleFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      {error && <p className="field-error mt-2">{error}</p>}
+    </div>
+  );
+}
+
+function filenameFromUrl(url: string): string {
+  try {
+    const path = url.startsWith("http") ? new URL(url).pathname : url;
+    return decodeURIComponent(path.split("/").pop() || "file");
+  } catch {
+    return "file";
+  }
+}
+
+interface FileUploadProps {
+  value: string | null;
+  onChange: (url: string | null) => void;
+  label?: string;
+  hint?: string;
+  accept?: string;
+  className?: string;
+}
+
+export function FileUpload({
+  value,
+  onChange,
+  label,
+  hint,
+  accept = ".pdf,application/pdf",
+  className,
+}: FileUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [urlDraft, setUrlDraft] = useState("");
+
+  async function handleFile(file: File) {
+    setUploading(true);
+    setError("");
+    try {
+      onChange(await uploadMediaFile(file));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function addUrl() {
+    const url = urlDraft.trim();
+    if (!url) return;
+    onChange(url);
+    setUrlDraft("");
+  }
+
+  return (
+    <div className={className}>
+      {label && <p className="mb-2 text-sm text-cream-dim">{label}</p>}
+      {hint && <p className="mb-3 text-xs text-muted">{hint}</p>}
+
+      {value && (
+        <div className="mb-3 flex items-center justify-between gap-3 border border-stone/40 bg-charcoal/40 px-4 py-3">
+          <a
+            href={value}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-w-0 flex-1 truncate text-sm text-cream hover:text-accent"
+          >
+            {filenameFromUrl(value)}
+          </a>
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="shrink-0 border border-red-400/60 px-3 py-1 text-xs text-red-400 hover:bg-red-400/10"
+          >
+            Remove
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="admin-touch-btn border border-stone/50 text-fog hover:text-cream disabled:opacity-50"
+        >
+          {uploading ? "Uploading..." : value ? "Replace file" : "Upload file"}
+        </button>
+        <input
+          type="url"
+          value={urlDraft}
+          placeholder="Or paste a link (Google Doc, Dropbox, etc.)"
+          onChange={(e) => setUrlDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addUrl();
+            }
+          }}
+          className="flex-1"
+        />
+        <button type="button" onClick={addUrl} className="admin-touch-btn border border-stone/50 text-accent">
+          Add link
+        </button>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+          e.target.value = "";
+        }}
+      />
+      {error && <p className="field-error mt-2">{error}</p>}
+    </div>
+  );
+}
+
+interface AudioGalleryUploadProps {
+  tracks: string[];
+  onChange: (tracks: string[]) => void;
+  label?: string;
+  hint?: string;
+  className?: string;
+}
+
+export function AudioGalleryUpload({ tracks, onChange, label, hint, className }: AudioGalleryUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
+  const [error, setError] = useState("");
+  const [urlDraft, setUrlDraft] = useState("");
+
+  async function handleFiles(fileList: FileList) {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+    setUploading(true);
+    setError("");
+    const uploaded: string[] = [];
+    try {
+      for (let i = 0; i < files.length; i++) {
+        setUploadProgress(`Uploading ${i + 1} of ${files.length}...`);
+        uploaded.push(await uploadMediaFile(files[i]));
+      }
+      onChange([...tracks, ...uploaded]);
+    } catch (err) {
+      if (uploaded.length > 0) onChange([...tracks, ...uploaded]);
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      setUploadProgress("");
+    }
+  }
+
+  function addUrl() {
+    const url = urlDraft.trim();
+    if (!url) return;
+    if (!tracks.includes(url)) onChange([...tracks, url]);
+    setUrlDraft("");
+  }
+
+  return (
+    <div className={className}>
+      {label && <p className="mb-2 text-sm text-cream-dim">{label}</p>}
+      {hint && <p className="mb-3 text-xs text-muted">{hint}</p>}
+
+      {tracks.length > 0 && (
+        <div className="mb-4 space-y-3">
+          {tracks.map((src, index) => (
+            <div key={`${src}-${index}`} className="flex items-center gap-3 border border-stone/40 bg-charcoal/40 p-3">
+              <div className="min-w-0 flex-1">
+                {isAudioUrl(src) ? (
+                  <audio src={src} controls className="w-full" />
+                ) : (
+                  <a href={src} target="_blank" rel="noopener noreferrer" className="block truncate text-sm text-cream hover:text-accent">
+                    {src}
+                  </a>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => onChange(tracks.filter((_, i) => i !== index))}
+                className="shrink-0 border border-red-400/60 px-3 py-1 text-xs text-red-400 hover:bg-red-400/10"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="admin-touch-btn w-full border border-dashed border-stone/50 bg-charcoal/30 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50"
+      >
+        {uploading ? uploadProgress || "Uploading..." : "Upload audio (MP3, WAV, M4A, up to 100MB)"}
+      </button>
+
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          type="url"
+          value={urlDraft}
+          placeholder="Or paste a SoundCloud, Spotify, or MP3 URL"
+          onChange={(e) => setUrlDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addUrl();
+            }
+          }}
+          className="flex-1"
+        />
+        <button type="button" onClick={addUrl} className="admin-touch-btn border border-stone/50 text-accent">
+          Add URL
+        </button>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="audio/*"
         multiple
         className="hidden"
         onChange={(e) => {
