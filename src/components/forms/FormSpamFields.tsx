@@ -70,7 +70,13 @@ export function TurnstileWidget({ onVerify, onExpire }: TurnstileWidgetProps) {
 
   if (!siteKey) return null;
 
-  return <div ref={containerRef} className="mt-4" />;
+  // The Turnstile iframe has a fixed ~300px width. Constrain it so it can never
+  // push the form (and page) wider than the viewport on small screens.
+  return (
+    <div className="mt-4 max-w-full overflow-x-auto">
+      <div ref={containerRef} />
+    </div>
+  );
 }
 
 interface FormSpamFieldsProps {

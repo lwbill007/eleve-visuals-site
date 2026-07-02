@@ -17,11 +17,20 @@ export function ApplyDock({
 
   useEffect(() => {
     function onScroll() {
-      setVisible(window.scrollY > window.innerHeight * 0.9);
+      const scrolled = window.scrollY;
+      // Hide once the footer / final CTA comes into view so the dock never
+      // overlaps page content at the very bottom.
+      const nearBottom =
+        window.innerHeight + scrolled >= document.documentElement.scrollHeight - 220;
+      setVisible(scrolled > window.innerHeight * 0.9 && !nearBottom);
     }
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   const note =

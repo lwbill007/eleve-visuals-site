@@ -52,11 +52,11 @@ export function PortfolioCard({
               <p className="mt-1 text-sm text-cream-dim">{item.subtitle}</p>
             )}
             <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="flex gap-3 text-[0.65rem] tracking-wide text-muted uppercase">
-                {item.client && <span>{item.client}</span>}
+              <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-[0.65rem] tracking-wide text-muted uppercase">
+                {item.client && <span className="break-words">{item.client}</span>}
                 {item.year && <span>{item.year}</span>}
               </div>
-              <span className="text-[0.65rem] tracking-[0.15em] text-accent uppercase opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+              <span className="hidden shrink-0 text-[0.65rem] tracking-[0.15em] text-accent uppercase opacity-0 transition-opacity duration-500 group-hover:opacity-100 md:inline-block">
                 View Case Study →
               </span>
             </div>

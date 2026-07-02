@@ -44,8 +44,8 @@ export function VolumeTimeline({ status }: { status: SessionVolumeStatus }) {
       <div className="container-wide">
         <p className="label-caps mb-12 text-fog">Production Timeline</p>
 
-        {/* Desktop: horizontal */}
-        <div className="hidden md:block">
+        {/* Desktop: horizontal (only where 8 columns have room) */}
+        <div className="hidden lg:block">
           <div className="grid grid-cols-8 gap-2">
             {STEPS.map((step, i) => {
               const s = state(i);
@@ -79,8 +79,8 @@ export function VolumeTimeline({ status }: { status: SessionVolumeStatus }) {
           </div>
         </div>
 
-        {/* Mobile: vertical */}
-        <div className="space-y-0 md:hidden">
+        {/* Mobile & tablet: vertical */}
+        <div className="space-y-0 lg:hidden">
           {STEPS.map((step, i) => {
             const s = state(i);
             return (

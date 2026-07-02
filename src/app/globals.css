@@ -33,9 +33,17 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  html {
+    overflow-x: clip;
+  }
+
   body {
     @apply bg-ink text-cream font-body;
     font-feature-settings: "kern" 1, "liga" 1;
+    /* Global guard against accidental horizontal scroll. `clip` (not `hidden`)
+       does not create a scroll container, so sticky/fixed positioning is safe. */
+    overflow-x: clip;
+    max-width: 100%;
   }
 
   ::selection {
@@ -97,44 +105,56 @@
     @apply h-px w-12 bg-accent;
   }
 
+  /* Fluid section padding — grows smoothly with the viewport, comfortable on
+     small phones, spacious on large monitors, with no abrupt breakpoint jumps. */
   .section-padding {
-    @apply px-5 py-20 md:px-8 md:py-28 lg:px-12 lg:py-32;
+    padding-inline: clamp(1.25rem, 4vw, 3rem);
+    padding-block: clamp(3.5rem, 7vw, 8rem);
   }
 
   .container-wide {
-    @apply mx-auto max-w-7xl;
+    @apply mx-auto w-full max-w-7xl;
   }
 
   .container-narrow {
-    @apply mx-auto max-w-3xl;
+    @apply mx-auto w-full max-w-3xl;
   }
 
   .label-caps {
-    @apply text-[0.65rem] font-medium uppercase tracking-[0.25em] text-fog;
+    @apply font-medium uppercase tracking-[0.25em] text-fog;
+    font-size: clamp(0.6rem, 0.2vw + 0.55rem, 0.7rem);
   }
 
+  /* Fluid type scale (clamp: min, preferred, max). Titles, body, labels all
+     resize proportionally between mobile and ultrawide. */
   .headline-xl {
-    @apply font-display text-[2.75rem] leading-[0.98] md:text-7xl lg:text-8xl;
+    @apply font-display leading-[1.02] text-balance;
+    font-size: clamp(2.5rem, 5vw + 1.25rem, 7rem);
   }
 
   .headline-lg {
-    @apply font-display text-4xl leading-[1] md:text-5xl lg:text-6xl;
+    @apply font-display leading-[1.04] text-balance;
+    font-size: clamp(2rem, 2.6vw + 1rem, 3.75rem);
   }
 
   .headline-md {
-    @apply font-display text-3xl leading-[1.05] md:text-4xl;
+    @apply font-display leading-[1.08];
+    font-size: clamp(1.6rem, 1.6vw + 0.9rem, 2.5rem);
   }
 
   .headline-sm {
-    @apply font-display text-2xl leading-[1.1] md:text-3xl;
+    @apply font-display leading-[1.12];
+    font-size: clamp(1.35rem, 1vw + 0.85rem, 1.875rem);
   }
 
   .body-lg {
-    @apply text-base leading-relaxed text-fog md:text-lg;
+    @apply leading-relaxed text-fog;
+    font-size: clamp(1rem, 0.4vw + 0.9rem, 1.125rem);
   }
 
   .body-md {
-    @apply text-sm leading-relaxed text-fog md:text-base;
+    @apply leading-relaxed text-fog;
+    font-size: clamp(0.9rem, 0.25vw + 0.85rem, 1rem);
   }
 
   .link-underline {
@@ -185,8 +205,21 @@ select.error {
   @apply border-red-500/60 ring-1 ring-red-500/20;
 }
 
+/* Checkboxes and radios must not inherit the full-width text-field styling. */
+input[type="checkbox"],
+input[type="radio"] {
+  @apply h-[1.15rem] w-[1.15rem] shrink-0 cursor-pointer rounded-none border-stone/70 bg-charcoal/50 p-0 accent-accent;
+  min-height: 0;
+}
+
+/* File inputs should size to content, not stretch full width. */
+input[type="file"] {
+  @apply w-auto px-0 py-0;
+}
+
 .field-error {
   @apply mt-1.5 text-xs text-red-400/90;
+  overflow-wrap: anywhere;
 }
 
 @layer components {
@@ -201,6 +234,12 @@ select.error {
 
 .checkbox-row {
   @apply flex items-start gap-3;
+}
+
+.checkbox-row > label,
+.checkbox-row > span:last-child {
+  @apply min-w-0;
+  overflow-wrap: anywhere;
 }
 
 .checkbox-row input[type="checkbox"] {

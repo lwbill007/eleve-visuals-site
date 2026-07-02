@@ -95,7 +95,7 @@ export function VolumeBrowser({ volumes }: { volumes: SessionVolumeDTO[] }) {
   const activeGroup = groups.find((g) => g.id === active);
 
   return (
-    <section id="browse" className="section-padding border-b border-stone/30">
+    <section id="browse" className="section-padding overflow-hidden border-b border-stone/30">
       <div className="container-wide">
         <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
@@ -108,7 +108,7 @@ export function VolumeBrowser({ volumes }: { volumes: SessionVolumeDTO[] }) {
                 key={t.id}
                 type="button"
                 onClick={() => setActive(t.id)}
-                className={`min-h-9 border px-4 py-2 text-[0.65rem] tracking-[0.18em] uppercase transition-colors duration-300 ${
+                className={`inline-flex min-h-11 items-center border px-4 py-2 text-[0.65rem] tracking-[0.18em] uppercase transition-colors duration-300 ${
                   active === t.id
                     ? "border-accent bg-accent/10 text-accent"
                     : "border-stone/50 text-fog hover:border-cream/40 hover:text-cream"

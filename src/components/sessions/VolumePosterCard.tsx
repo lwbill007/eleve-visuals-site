@@ -38,7 +38,7 @@ export function VolumePosterCard({ volume }: { volume: SessionVolumeDTO }) {
             <p className="text-[0.6rem] tracking-[0.2em] text-accent uppercase">
               Vol. {volume.volumeNumber} · {volume.year}
             </p>
-            <h3 className="mt-1 font-display text-xl leading-tight text-cream">{volume.title}</h3>
+            <h3 className="mt-1 line-clamp-2 font-display text-xl leading-tight text-cream">{volume.title}</h3>
             <div className="grid grid-rows-[0fr] opacity-0 transition-all duration-500 group-hover:grid-rows-[1fr] group-hover:opacity-100">
               <span className="overflow-hidden">
                 <span className="mt-2 block text-[0.6rem] tracking-[0.2em] text-cream-dim uppercase">

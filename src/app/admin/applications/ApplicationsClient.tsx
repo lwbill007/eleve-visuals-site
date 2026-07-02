@@ -218,18 +218,18 @@ export default function ApplicationsClient() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] xl:items-center">
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search applicants..."
-          className="min-w-[200px] flex-1 border border-stone/50 bg-charcoal px-4 py-2 text-sm text-cream"
+          className="w-full border border-stone/50 bg-charcoal px-4 py-2.5 text-sm text-cream sm:col-span-2 xl:col-span-1"
         />
         <select
           value={volumeFilter}
           onChange={(e) => setVolumeFilter(e.target.value)}
-          className="border border-stone/50 bg-charcoal px-3 py-2 text-sm text-cream"
+          className="w-full border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream"
         >
           <option value="">All sessions</option>
           {volumes.map((v) => (
@@ -241,7 +241,7 @@ export default function ApplicationsClient() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="border border-stone/50 bg-charcoal px-3 py-2 text-sm text-cream"
+          className="w-full border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream"
         >
           <option value="">All roles</option>
           {SESSION_APPLICATION_ROLES.map((r) => (
@@ -253,7 +253,7 @@ export default function ApplicationsClient() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-stone/50 bg-charcoal px-3 py-2 text-sm text-cream"
+          className="w-full border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream"
         >
           <option value="">All statuses</option>
           {APPLICATION_STATUSES.map((s) => (
@@ -262,7 +262,11 @@ export default function ApplicationsClient() {
             </option>
           ))}
         </select>
-        <button type="button" onClick={exportCsv} className="border border-stone/50 px-3 py-2 text-xs text-fog uppercase">
+        <button
+          type="button"
+          onClick={exportCsv}
+          className="w-full border border-stone/50 px-3 py-2.5 text-xs text-fog uppercase sm:col-span-2 xl:col-span-1"
+        >
           Export CSV
         </button>
       </div>
@@ -275,7 +279,7 @@ export default function ApplicationsClient() {
               key={s}
               type="button"
               onClick={() => void bulkStatus(s)}
-              className="border border-stone/50 px-2 py-1 text-xs text-fog uppercase hover:text-cream"
+              className="inline-flex min-h-9 items-center border border-stone/50 px-3 py-1.5 text-xs text-fog uppercase hover:text-cream"
             >
               Mark {APPLICATION_STATUS_LABELS[s]}
             </button>
@@ -290,12 +294,18 @@ export default function ApplicationsClient() {
           {items.map((item) => {
             const d = item.data;
             const roles = getRoles(d);
+            const portfolioImages = Array.isArray(d.portfolioImages)
+              ? (d.portfolioImages as unknown[]).filter((x): x is string => typeof x === "string")
+              : [];
+            const photo = portfolioImages[0];
+            const bio = asString(d.whyParticipate) || asString(d.themeFit) || asString(d.bio);
+            const displayName = asString(d.fullName) || asString(d.name) || "Applicant";
             return (
               <div
                 key={item.id}
                 id={`application-${item.id}`}
                 className={cn(
-                  "border p-4",
+                  "w-full max-w-full overflow-hidden border p-4 sm:p-5",
                   focusId === item.id
                     ? "border-accent ring-1 ring-accent/40"
                     : item.read
@@ -304,22 +314,37 @@ export default function ApplicationsClient() {
                   item.starred && !focusId && "ring-1 ring-accent/30"
                 )}
               >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(item.id)}
-                    onChange={(e) => {
-                      const next = new Set(selected);
-                      if (e.target.checked) next.add(item.id);
-                      else next.delete(item.id);
-                      setSelected(next);
-                    }}
-                    className="mt-1"
-                    aria-label={`Select ${asString(d.fullName)}`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm text-cream">{asString(d.fullName)}</p>
+                {/* Flex layout avoids grid minmax(0,fr) columns collapsing to zero width. */}
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-5">
+                  {/* Photo + select */}
+                  <div className="flex shrink-0 items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(item.id)}
+                      onChange={(e) => {
+                        const next = new Set(selected);
+                        if (e.target.checked) next.add(item.id);
+                        else next.delete(item.id);
+                        setSelected(next);
+                      }}
+                      className="mt-1.5"
+                      aria-label={`Select ${displayName}`}
+                    />
+                    <div className="relative aspect-[4/5] w-16 shrink-0 overflow-hidden rounded bg-charcoal sm:w-20">
+                      {photo ? (
+                        <Image src={photo} alt="" fill className="object-cover" sizes="80px" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center px-1 text-center text-[9px] text-muted">
+                          No photo
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Applicant info + roles */}
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="font-medium break-words text-cream">{displayName}</p>
                       <span className="text-xs text-muted">#{formatApplicationId(item.id)}</span>
                       {item.returningContact && (
                         <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[0.65rem] text-amber-300">
@@ -328,17 +353,43 @@ export default function ApplicationsClient() {
                       )}
                       {!item.read && <span className="text-xs text-accent">Unread</span>}
                     </div>
-                    <p className="text-xs text-muted">
-                      <TimeStamp iso={item.createdAt} /> · {asString(d.sessionVolumeTitle)} ·{" "}
-                      {roles.join(", ") || "—"}
+                    <p className="text-xs break-words text-muted">
+                      <TimeStamp iso={item.createdAt} />
+                      {asString(d.sessionVolumeTitle) && ` · ${asString(d.sessionVolumeTitle)}`}
                     </p>
+                    {roles.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {roles.map((r) => (
+                          <span
+                            key={r}
+                            className="rounded-full border border-stone/40 px-2.5 py-0.5 text-[0.65rem] tracking-wide text-fog uppercase"
+                          >
+                            {r}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bio — hidden on small screens when empty; full column on xl */}
+                  <div className="min-w-0 xl:flex-[1.25] xl:basis-0">
+                    {bio ? (
+                      <p className="line-clamp-3 text-sm break-words text-fog xl:line-clamp-4">{bio}</p>
+                    ) : (
+                      <p className="hidden text-sm text-muted/60 italic xl:block">No statement provided</p>
+                    )}
+                  </div>
+
+                  {/* Status + actions */}
+                  <div className="flex w-full shrink-0 flex-col gap-3 border-t border-stone/20 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between xl:w-44 xl:flex-col xl:items-stretch xl:justify-start xl:border-0 xl:pt-0">
                     <select
                       value={item.status}
                       onChange={(e) => updateRow(item.id, { status: e.target.value })}
                       className={cn(
-                        "mt-2 border bg-charcoal px-2 py-1 text-xs",
+                        "w-full border bg-charcoal px-2 py-2 text-xs sm:max-w-xs xl:max-w-none",
                         APPLICATION_STATUS_COLORS[item.status]
                       )}
+                      aria-label="Application status"
                     >
                       {APPLICATION_STATUSES.map((s) => (
                         <option key={s} value={s}>
@@ -346,53 +397,54 @@ export default function ApplicationsClient() {
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => updateRow(item.id, { starred: !item.starred })}
-                      className={cn("text-xs", item.starred ? "text-accent" : "text-fog")}
-                    >
-                      {item.starred ? "★" : "☆"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = expanded === item.id ? null : item.id;
-                        setExpanded(next);
-                        if (next && !item.read) {
-                          void updateRow(item.id, { read: true });
-                        }
-                      }}
-                      className="text-xs text-accent"
-                    >
-                      {expanded === item.id ? "Hide" : "View"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm("Delete this application?")) {
-                          void adminFetch("/api/admin/submissions", {
-                            method: "DELETE",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: item.id }),
-                          }).then(() => load());
-                        }
-                      }}
-                      className="text-xs text-red-400"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <button
+                        type="button"
+                        onClick={() => updateRow(item.id, { starred: !item.starred })}
+                        className={cn("inline-flex min-h-9 items-center text-sm", item.starred ? "text-accent" : "text-fog")}
+                        aria-label={item.starred ? "Unstar" : "Star"}
+                      >
+                        {item.starred ? "★ Starred" : "☆ Star"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = expanded === item.id ? null : item.id;
+                          setExpanded(next);
+                          if (next && !item.read) {
+                            void updateRow(item.id, { read: true });
+                          }
+                        }}
+                        className="inline-flex min-h-9 items-center text-xs text-accent"
+                      >
+                        {expanded === item.id ? "Hide" : "View"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm("Delete this application?")) {
+                            void adminFetch("/api/admin/submissions", {
+                              method: "DELETE",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: item.id }),
+                            }).then(() => load());
+                          }
+                        }}
+                        className="inline-flex min-h-9 items-center text-xs text-red-400"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {expanded === item.id && (
                   <div className="mt-6 border-t border-stone/20 pt-4">
-                    <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                      <div><dt className="text-xs text-muted uppercase">Email</dt><dd className="text-cream">{asString(d.email)}</dd></div>
-                      <div><dt className="text-xs text-muted uppercase">Phone</dt><dd className="text-cream">{asString(d.phone)}</dd></div>
-                      <div><dt className="text-xs text-muted uppercase">Instagram</dt><dd className="text-cream">{asString(d.instagram)}</dd></div>
-                      <div><dt className="text-xs text-muted uppercase">City</dt><dd className="text-cream">{asString(d.cityState)}</dd></div>
+                    <dl className="grid min-w-0 gap-3 text-sm sm:grid-cols-2">
+                      <div className="min-w-0"><dt className="text-xs text-muted uppercase">Email</dt><dd className="break-all text-cream">{asString(d.email)}</dd></div>
+                      <div className="min-w-0"><dt className="text-xs text-muted uppercase">Phone</dt><dd className="break-words text-cream">{asString(d.phone)}</dd></div>
+                      <div className="min-w-0"><dt className="text-xs text-muted uppercase">Instagram</dt><dd className="break-words text-cream">{asString(d.instagram)}</dd></div>
+                      <div className="min-w-0"><dt className="text-xs text-muted uppercase">City</dt><dd className="break-words text-cream">{asString(d.cityState)}</dd></div>
                       <div className="sm:col-span-2"><dt className="text-xs text-muted uppercase">Portfolio</dt><dd className="break-all text-cream">{asString(d.portfolioLink) || asString(d.portfolioWebsite) || "—"}</dd></div>
                     </dl>
                     <div className="mt-4 border-t border-stone/20 pt-3 text-xs text-muted">
@@ -437,7 +489,7 @@ export default function ApplicationsClient() {
                       <button
                         type="button"
                         onClick={() => updateRow(item.id, { notes: noteDrafts[item.id] })}
-                        className="mt-2 border border-stone/50 px-3 py-1 text-xs text-fog uppercase"
+                        className="admin-touch-btn-compact mt-2 border border-stone/50 text-fog uppercase"
                       >
                         Save notes
                       </button>

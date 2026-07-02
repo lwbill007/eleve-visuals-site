@@ -394,7 +394,7 @@ export function SessionApplicationWizard({
                 <p className="mb-4 text-sm text-fog">
                   Upload up to {MAX_PORTFOLIO_UPLOADS} images or provide a portfolio URL.
                 </p>
-                <label className="inline-flex cursor-pointer border border-stone/50 px-5 py-3 text-xs tracking-wide text-fog uppercase hover:border-cream/40">
+                <label className="inline-flex min-h-11 cursor-pointer items-center border border-stone/50 px-5 py-3 text-xs tracking-wide text-fog uppercase hover:border-cream/40">
                   {uploading ? "Uploading..." : "Upload images"}
                   <input
                     type="file"
@@ -414,7 +414,7 @@ export function SessionApplicationWizard({
                         <button
                           type="button"
                           onClick={() => update("portfolioImages", data.portfolioImages.filter((u) => u !== url))}
-                          className="absolute top-1 right-1 min-h-8 min-w-8 bg-ink/80 px-2 py-1 text-xs text-fog"
+                          className="absolute inset-x-0 bottom-0 flex min-h-9 items-center justify-center bg-ink/80 py-1.5 text-[0.65rem] tracking-wide text-fog uppercase hover:bg-ink/90 hover:text-cream"
                         >
                           Remove
                         </button>
@@ -537,7 +537,7 @@ export function SessionApplicationWizard({
         </motion.div>
       </AnimatePresence>
 
-      <div className="mt-12 flex items-center justify-between gap-4 border-t border-stone/30 pt-8">
+      <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-stone/30 pt-8">
         {step > 1 ? (
           <button
             type="button"

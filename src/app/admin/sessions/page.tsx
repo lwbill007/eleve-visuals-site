@@ -255,19 +255,19 @@ export default function AdminSessionsPage() {
             type="button"
             onClick={saveApplicationCopy}
             disabled={appSaving}
-            className="bg-cream px-5 py-2 text-xs text-ink uppercase disabled:opacity-50"
+            className="admin-touch-btn bg-cream tracking-[0.15em] text-ink uppercase disabled:opacity-50 sm:px-6"
           >
             {appSaving ? "Saving..." : "Save Application Copy"}
           </button>
         </div>
       ) : (
         <>
-      <div className="mb-6 flex justify-between">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <p className="text-sm text-fog">{items.length} volumes</p>
         <button
           type="button"
           onClick={() => setEditing(emptyVolume())}
-          className="bg-cream px-4 py-2 text-xs tracking-[0.15em] text-ink uppercase"
+          className="admin-touch-btn-compact shrink-0 bg-cream tracking-[0.15em] text-ink uppercase"
         >
           New Volume
         </button>
@@ -998,19 +998,19 @@ export default function AdminSessionsPage() {
             </div>
           </div>
 
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={save}
               disabled={saving}
-              className="bg-cream px-5 py-2 text-xs text-ink uppercase disabled:opacity-50"
+              className="admin-touch-btn bg-cream tracking-[0.15em] text-ink uppercase disabled:opacity-50 sm:px-6"
             >
               {saving ? "Saving..." : "Save Volume"}
             </button>
             <button
               type="button"
               onClick={() => setEditing(null)}
-              className="border border-stone px-5 py-2 text-xs text-fog uppercase"
+              className="admin-touch-btn border border-stone tracking-[0.15em] text-fog uppercase sm:px-6"
             >
               Cancel
             </button>
@@ -1022,7 +1022,10 @@ export default function AdminSessionsPage() {
         {items.map((item) => {
           const poster = resolveSessionPosterImage(item);
           return (
-            <div key={item.id} className="flex items-center gap-4 border border-stone/30 p-4">
+            <div
+              key={item.id}
+              className="flex flex-wrap items-center gap-x-4 gap-y-3 border border-stone/30 p-4"
+            >
               <div className="relative h-20 w-14 shrink-0 bg-charcoal">
                 {poster ? (
                   <Image src={poster} alt="" fill className="object-cover" sizes="56px" />
@@ -1032,7 +1035,7 @@ export default function AdminSessionsPage() {
                   </div>
                 )}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-40">
                 <p className="truncate text-sm text-cream">
                   Vol. {item.volumeNumber} — {item.title}
                 </p>
@@ -1042,24 +1045,24 @@ export default function AdminSessionsPage() {
                   {!item.published && " · Draft"}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <button type="button" onClick={() => reorder(item.id, -1)} className="text-xs text-fog">↑</button>
-                <button type="button" onClick={() => reorder(item.id, 1)} className="text-xs text-fog">↓</button>
-                <Link href={`/sessions/${item.slug}`} className="text-xs text-fog hover:text-cream">
+              <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 sm:w-auto sm:justify-end">
+                <button type="button" onClick={() => reorder(item.id, -1)} className="py-1 text-sm text-fog">↑</button>
+                <button type="button" onClick={() => reorder(item.id, 1)} className="py-1 text-sm text-fog">↓</button>
+                <Link href={`/sessions/${item.slug}`} className="py-1 text-xs text-fog hover:text-cream">
                   View
                 </Link>
-                <button type="button" onClick={() => setEditing(item)} className="text-xs text-accent">
+                <button type="button" onClick={() => setEditing(item)} className="py-1 text-xs text-accent">
                   Edit
                 </button>
-                <button type="button" onClick={() => duplicate(item.id)} className="text-xs text-fog">
+                <button type="button" onClick={() => duplicate(item.id)} className="py-1 text-xs text-fog">
                   Duplicate
                 </button>
                 {item.status !== "archived" && (
-                  <button type="button" onClick={() => archiveVolume(item)} className="text-xs text-fog">
+                  <button type="button" onClick={() => archiveVolume(item)} className="py-1 text-xs text-fog">
                     Archive
                   </button>
                 )}
-                <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
+                <button type="button" onClick={() => remove(item.id)} className="py-1 text-xs text-red-400">
                   Delete
                 </button>
               </div>

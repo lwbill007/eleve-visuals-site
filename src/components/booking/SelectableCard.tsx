@@ -18,7 +18,7 @@ export function SelectableCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex min-h-12 items-center border px-4 py-3 text-left text-sm transition-all duration-300",
+        "flex min-h-12 items-center border px-4 py-3 text-left text-sm break-words transition-all duration-300",
         selected
           ? "border-accent/60 bg-accent/10 text-cream shadow-[0_0_0_1px_rgba(184,168,138,0.2)]"
           : "border-stone/40 bg-charcoal/30 text-fog hover:border-stone/70 hover:bg-charcoal/50",

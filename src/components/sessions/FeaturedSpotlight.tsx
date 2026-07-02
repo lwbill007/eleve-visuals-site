@@ -156,12 +156,12 @@ export function FeaturedSpotlight({
             {details.length > 0 && (
               <motion.dl
                 variants={fade}
-                className="mt-8 grid grid-cols-2 gap-x-8 gap-y-5 border-t border-stone/30 pt-8 sm:grid-cols-4"
+                className="mt-8 grid grid-cols-2 gap-x-5 gap-y-5 border-t border-stone/30 pt-8 sm:grid-cols-4 sm:gap-x-8"
               >
                 {details.map((d) => (
-                  <div key={d.label}>
+                  <div key={d.label} className="min-w-0">
                     <dt className="text-[0.6rem] tracking-[0.18em] text-muted uppercase">{d.label}</dt>
-                    <dd className="mt-1.5 text-sm text-cream">{d.value}</dd>
+                    <dd className="mt-1.5 text-sm break-words text-cream">{d.value}</dd>
                   </div>
                 ))}
               </motion.dl>

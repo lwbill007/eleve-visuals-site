@@ -497,29 +497,29 @@ export default function AdminServicesPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           {items.map((item) => (
             <div
               key={item.id}
               className={`border p-4 ${editing?.id === item.id ? "border-accent bg-charcoal/50" : "border-stone/30"}`}
             >
               <div className="flex items-start justify-between gap-3">
-                <button type="button" onClick={() => startEdit(item)} className="text-left">
-                  <p className="text-sm text-cream">{item.title}</p>
-                  <p className="text-xs text-muted">
+                <button type="button" onClick={() => startEdit(item)} className="min-w-0 flex-1 text-left">
+                  <p className="truncate text-sm text-cream">{item.title}</p>
+                  <p className="text-xs break-words text-muted">
                     {item.startingPrice}
                     {!item.published && " · Draft"}
                     {item.archived && " · Archived"}
                     {item.featured && " · Featured"}
                   </p>
                 </button>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => reorder(item.id, -1)} className="text-xs text-fog">↑</button>
-                  <button type="button" onClick={() => reorder(item.id, 1)} className="text-xs text-fog">↓</button>
-                  <button type="button" onClick={() => duplicate(item)} className="text-xs text-fog">
+                <div className="flex shrink-0 items-center gap-3">
+                  <button type="button" onClick={() => reorder(item.id, -1)} className="py-1 text-sm text-fog">↑</button>
+                  <button type="button" onClick={() => reorder(item.id, 1)} className="py-1 text-sm text-fog">↓</button>
+                  <button type="button" onClick={() => duplicate(item)} className="py-1 text-xs text-fog">
                     Duplicate
                   </button>
-                  <button type="button" onClick={() => remove(item.id)} className="text-xs text-red-400">
+                  <button type="button" onClick={() => remove(item.id)} className="py-1 text-xs text-red-400">
                     Delete
                   </button>
                 </div>
@@ -529,7 +529,7 @@ export default function AdminServicesPage() {
         </div>
 
         {editing && (
-          <div className="border border-stone/30 p-6 lg:sticky lg:top-24 lg:self-start">
+          <div className="min-w-0 border border-stone/30 p-6 lg:sticky lg:top-24 lg:self-start">
             <h2 className="mb-6 font-display text-xl">{editing.id ? "Edit Service" : "New Service"}</h2>
             <div className="space-y-4">
               <AdminField label="Title">

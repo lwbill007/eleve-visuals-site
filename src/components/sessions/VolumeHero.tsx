@@ -56,7 +56,7 @@ export function VolumeHero({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           >
-            <Link href="/sessions" className="label-caps mb-8 inline-block text-fog transition-colors hover:text-cream">
+            <Link href="/sessions" className="label-caps mb-6 inline-flex min-h-11 items-center text-fog transition-colors hover:text-cream">
               ← All Volumes
             </Link>
             <div className="flex flex-wrap items-center gap-3">
@@ -118,7 +118,7 @@ export function VolumeHero({
 
       {!reduce && (
         <motion.div
-          className="absolute bottom-7 left-1/2 z-10 -translate-x-1/2"
+          className="absolute bottom-7 left-1/2 z-10 hidden -translate-x-1/2 md:block"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.1, duration: 0.8 }}

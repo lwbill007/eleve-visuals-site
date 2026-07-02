@@ -42,7 +42,7 @@ function SocialLink({ href, label }: { href: string; label: string }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="rounded-full border border-stone/40 px-3 py-1 text-[0.7rem] tracking-[0.12em] text-fog uppercase transition-colors hover:border-accent hover:text-accent"
+      className="inline-flex min-h-11 items-center rounded-full border border-stone/40 px-4 py-1 text-[0.7rem] tracking-[0.12em] text-fog uppercase transition-colors hover:border-accent hover:text-accent"
     >
       {label}
     </a>
@@ -119,8 +119,8 @@ export function VolumeCast({
                 </span>
               )}
               <div className="absolute inset-x-0 bottom-0 p-4">
-                <p className="font-display text-lg leading-tight text-cream">{castDisplayName(m)}</p>
-                <p className="text-[0.7rem] tracking-[0.12em] text-accent uppercase">
+                <p className="line-clamp-2 font-display text-lg leading-tight break-words text-cream">{castDisplayName(m)}</p>
+                <p className="line-clamp-1 text-[0.7rem] tracking-[0.12em] text-accent uppercase">
                   {CAST_ROLE_LABELS[m.role]}
                 </p>
                 <p className="mt-2 max-h-0 overflow-hidden text-xs text-fog opacity-0 transition-all duration-500 group-hover:max-h-16 group-hover:opacity-100">
@@ -153,7 +153,7 @@ export function VolumeCast({
                 type="button"
                 onClick={() => setActive(null)}
                 aria-label="Close profile"
-                className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-stone/50 bg-ink/60 text-fog hover:text-cream"
+                className="absolute top-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-stone/50 bg-ink/60 text-fog hover:text-cream"
               >
                 ✕
               </button>
@@ -251,7 +251,7 @@ export function VolumeCast({
                           <Link
                             key={app.slug}
                             href={`/sessions/${app.slug}`}
-                            className="rounded-full border border-stone/40 px-3 py-1 text-xs text-cream transition-colors hover:border-accent hover:text-accent"
+                            className="inline-flex min-h-11 items-center rounded-full border border-stone/40 px-4 py-1 text-xs text-cream transition-colors hover:border-accent hover:text-accent"
                           >
                             Vol. {app.volumeNumber} — {app.title}
                           </Link>

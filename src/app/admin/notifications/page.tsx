@@ -704,7 +704,7 @@ export default function AdminNotificationsPage() {
             <select
               value={channelFilter}
               onChange={(e) => setChannelFilter(e.target.value)}
-              className="border border-stone/50 bg-charcoal px-3 py-2 text-sm text-cream"
+              className="w-full border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream sm:w-auto"
               aria-label="Filter by channel"
             >
               <option value="">All channels</option>
@@ -716,7 +716,7 @@ export default function AdminNotificationsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-stone/50 bg-charcoal px-3 py-2 text-sm text-cream"
+              className="w-full border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream sm:w-auto"
               aria-label="Filter by status"
             >
               <option value="">All statuses</option>

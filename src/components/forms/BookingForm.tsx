@@ -443,7 +443,7 @@ export function BookingForm({
                     options={bookingOptions.durations}
                     selected={data.duration}
                     onToggle={(v) => update("duration", v)}
-                    columns="grid-cols-2 sm:grid-cols-3"
+                    columns="grid-cols-1 xs:grid-cols-2 sm:grid-cols-3"
                   />
                   {errors.duration && (
                     <p className="field-error mt-2">{errors.duration}</p>
@@ -556,7 +556,7 @@ export function BookingForm({
                   options={bookingOptions.budgetRanges}
                   selected={data.budgetRange}
                   onToggle={(v) => update("budgetRange", v)}
-                  columns="grid-cols-2 sm:grid-cols-3"
+                  columns="grid-cols-1 xs:grid-cols-2 sm:grid-cols-3"
                 />
                 {errors.budgetRange && (
                   <p className="field-error">{errors.budgetRange}</p>

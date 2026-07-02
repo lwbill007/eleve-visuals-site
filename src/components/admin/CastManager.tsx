@@ -125,7 +125,7 @@ export function CastManager({ volumeId }: { volumeId: string }) {
 
   return (
     <div className="md:col-span-2 border-t border-stone/30 pt-6">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h3 className="font-display text-lg">Cast & Crew</h3>
           <p className="text-xs text-muted">Drag to reorder. Confirmed &amp; Alumni show publicly; Pending stays hidden.</p>
@@ -134,7 +134,7 @@ export function CastManager({ volumeId }: { volumeId: string }) {
           <button
             type="button"
             onClick={() => setEditing(emptyMember())}
-            className="border border-cream/40 px-3 py-1.5 text-xs text-cream uppercase"
+            className="admin-touch-btn-compact shrink-0 border border-cream/40 text-cream uppercase"
           >
             Add member
           </button>
@@ -170,11 +170,11 @@ export function CastManager({ volumeId }: { volumeId: string }) {
                   {m.awards.length > 0 && ` · ${m.awards.length} award${m.awards.length > 1 ? "s" : ""}`}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <button type="button" onClick={() => move(index, -1)} className="text-xs text-fog">↑</button>
-                <button type="button" onClick={() => move(index, 1)} className="text-xs text-fog">↓</button>
-                <button type="button" onClick={() => setEditing(m)} className="text-xs text-accent">Edit</button>
-                <button type="button" onClick={() => removeMember(m.id)} className="text-xs text-red-400">Remove</button>
+              <div className="flex shrink-0 items-center gap-3">
+                <button type="button" onClick={() => move(index, -1)} className="py-1 text-sm text-fog">↑</button>
+                <button type="button" onClick={() => move(index, 1)} className="py-1 text-sm text-fog">↓</button>
+                <button type="button" onClick={() => setEditing(m)} className="py-1 text-xs text-accent">Edit</button>
+                <button type="button" onClick={() => removeMember(m.id)} className="py-1 text-xs text-red-400">Remove</button>
               </div>
             </div>
           ))}
@@ -347,7 +347,7 @@ export function CastManager({ volumeId }: { volumeId: string }) {
                     <button
                       type="button"
                       onClick={() => set("awards", awards.filter((_, idx) => idx !== i))}
-                      className="border border-stone/50 px-3 text-xs text-fog"
+                      className="shrink-0 border border-stone/50 px-3 py-2 text-xs text-fog"
                     >
                       Remove
                     </button>
@@ -357,19 +357,19 @@ export function CastManager({ volumeId }: { volumeId: string }) {
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={saveMember}
               disabled={saving}
-              className="bg-cream px-5 py-2 text-xs text-ink uppercase disabled:opacity-50"
+              className="admin-touch-btn bg-cream tracking-[0.15em] text-ink uppercase disabled:opacity-50 sm:px-6"
             >
               {saving ? "Saving..." : "Save Member"}
             </button>
             <button
               type="button"
               onClick={() => setEditing(null)}
-              className="border border-stone px-5 py-2 text-xs text-fog uppercase"
+              className="admin-touch-btn border border-stone tracking-[0.15em] text-fog uppercase sm:px-6"
             >
               Cancel
             </button>

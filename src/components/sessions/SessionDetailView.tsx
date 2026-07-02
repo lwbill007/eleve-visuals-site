@@ -28,8 +28,8 @@ function ResourceLink({ href, label }: { href: string; label: string }) {
       rel="noopener noreferrer"
       className="flex items-center justify-between gap-4 border border-stone/40 px-5 py-4 text-sm text-cream transition-colors hover:border-accent hover:text-accent"
     >
-      <span>{label}</span>
-      <span aria-hidden>↗</span>
+      <span className="min-w-0 break-words">{label}</span>
+      <span aria-hidden className="shrink-0">↗</span>
     </a>
   );
 }
@@ -128,7 +128,7 @@ export function SessionDetailView({
             {productionInfo.map((item) => (
               <div key={item.label} className="bg-ink p-5">
                 <dt className="text-[0.6rem] tracking-[0.18em] text-muted uppercase">{item.label}</dt>
-                <dd className="mt-2 text-sm text-cream">{item.value}</dd>
+                <dd className="mt-2 text-sm break-words text-cream">{item.value}</dd>
               </div>
             ))}
           </div>
@@ -241,7 +241,7 @@ export function SessionDetailView({
                     href={src}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block border border-stone/40 px-5 py-3 text-sm text-cream hover:border-accent hover:text-accent"
+                    className="block border border-stone/40 px-5 py-3 text-sm break-all text-cream hover:border-accent hover:text-accent"
                   >
                     Listen → {src}
                   </a>
@@ -262,7 +262,7 @@ export function SessionDetailView({
                 <iframe
                   src={playlistEmbed(volume.playlistUrl)!}
                   title={`${volume.title} soundtrack`}
-                  className="h-[26rem] w-full"
+                  className="h-80 w-full sm:h-[26rem]"
                   loading="lazy"
                   allow="encrypted-media; clipboard-write; autoplay"
                 />
@@ -342,8 +342,8 @@ export function SessionDetailView({
               {volume.faqs.map((faq, i) => (
                 <details key={i} className="group py-5">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-cream">
-                    <span className="font-display text-lg">{faq.question}</span>
-                    <span className="text-accent transition-transform group-open:rotate-45">+</span>
+                    <span className="min-w-0 font-display text-lg break-words">{faq.question}</span>
+                    <span className="shrink-0 text-accent transition-transform group-open:rotate-45">+</span>
                   </summary>
                   <div className="mt-3 space-y-3">
                     {faq.answer.split("\n").filter(Boolean).map((p, j) => (

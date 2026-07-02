@@ -40,7 +40,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="inline-flex min-h-9 items-center text-sm text-fog transition-colors hover:text-cream"
+                      className="inline-flex min-h-11 items-center text-sm text-fog transition-colors hover:text-cream"
                     >
                       {item.label}
                     </Link>
@@ -49,7 +49,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                 <li>
                   <Link
                     href="/book"
-                    className="inline-flex min-h-9 items-center text-sm text-fog transition-colors hover:text-cream"
+                    className="inline-flex min-h-11 items-center text-sm text-fog transition-colors hover:text-cream"
                   >
                     Book a Shoot
                   </Link>
@@ -63,7 +63,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                 <li>
                   <a
                     href={`mailto:${siteConfig.email}`}
-                    className="inline-flex min-h-9 items-center text-sm text-fog transition-colors hover:text-cream break-all"
+                    className="inline-flex min-h-11 items-center text-sm text-fog transition-colors hover:text-cream break-all"
                   >
                     {siteConfig.email}
                   </a>
@@ -73,7 +73,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                     href={siteConfig.instagramUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex min-h-9 items-center text-sm text-fog transition-colors hover:text-cream"
+                    className="inline-flex min-h-11 items-center text-sm text-fog transition-colors hover:text-cream"
                   >
                     @{siteConfig.instagram}
                   </a>
@@ -84,7 +84,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                 <p className="text-sm text-cream-dim">Ready to start a project?</p>
                 <Link
                   href="/book"
-                  className="mt-2 inline-block text-xs tracking-[0.2em] text-accent uppercase link-underline"
+                  className="mt-2 inline-flex min-h-11 items-center text-xs tracking-[0.2em] text-accent uppercase link-underline"
                 >
                   Request a booking →
                 </Link>

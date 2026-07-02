@@ -18,8 +18,8 @@ export function ProductionTimeline() {
         </div>
 
         <div className="relative">
-          <div className="absolute top-8 right-0 left-0 hidden h-px bg-stone/30 md:block" />
-          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] md:grid md:grid-cols-7 md:gap-4 md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden">
+          <div className="absolute top-8 right-0 left-0 hidden h-px bg-stone/30 lg:block" />
+          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] lg:grid lg:grid-cols-7 lg:gap-4 lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
             {PRODUCTION_TIMELINE.map((stage, index) => (
               <motion.div
                 key={stage.step}
@@ -27,7 +27,7 @@ export function ProductionTimeline() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: index * 0.07, ease: [0.16, 1, 0.3, 1] }}
-                className="w-[70%] shrink-0 snap-start xs:w-[55%] sm:w-[40%] md:w-auto md:min-w-0"
+                className="w-[70%] shrink-0 snap-start xs:w-[55%] sm:w-[40%] md:w-[30%] lg:w-auto lg:min-w-0"
               >
                 <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full border border-accent/60 bg-ink text-xs text-accent">
                   {index + 1}

@@ -466,8 +466,8 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
                   : "border-accent/40 bg-charcoal/30"
             }`}
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2 text-sm text-cream">
                   <span
                     className={`inline-block rounded border px-2 py-0.5 text-[0.65rem] uppercase tracking-wide ${
@@ -486,7 +486,7 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
                   )}
                   {!item.read && <span className="text-accent">· Unread</span>}
                 </p>
-                <p className="text-xs text-muted">
+                <p className="text-xs break-words text-muted">
                   <TimeStamp iso={item.createdAt} />
                   {typeof item.data.fullName === "string" && ` · ${item.data.fullName}`}
                   {typeof item.data.name === "string" && ` · ${item.data.name}`}
@@ -533,11 +533,11 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
                   </select>
                 )}
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-stone/20 pt-3 sm:shrink-0 sm:border-0 sm:pt-0">
                 <button
                   type="button"
                   onClick={() => toggleExpanded(item)}
-                  className="text-xs text-accent"
+                  className="inline-flex min-h-9 items-center text-xs text-accent"
                 >
                   {expanded === item.id ? "Hide" : "View"}
                 </button>
@@ -545,7 +545,7 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
                   <button
                     type="button"
                     onClick={() => markRead(item.id, true)}
-                    className="text-xs text-fog"
+                    className="inline-flex min-h-9 items-center text-xs text-fog"
                   >
                     Mark read
                   </button>
@@ -553,7 +553,7 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
                 <button
                   type="button"
                   onClick={() => remove(item.id)}
-                  className="text-xs text-red-400"
+                  className="inline-flex min-h-9 items-center text-xs text-red-400"
                 >
                   Delete
                 </button>

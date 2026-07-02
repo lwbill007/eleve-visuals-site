@@ -27,7 +27,7 @@ export function RelatedVolumes({
   if (recommended.length === 0 && comingSoon.length === 0) return null;
 
   return (
-    <section className="section-padding bg-ink-soft">
+    <section className="section-padding overflow-hidden bg-ink-soft">
       <div className="container-wide">
         <div className="mb-10">
           <p className="label-caps text-accent">Keep Exploring</p>

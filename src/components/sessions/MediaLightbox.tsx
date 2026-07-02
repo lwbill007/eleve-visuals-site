@@ -59,7 +59,7 @@ export function MediaLightbox({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/95 p-4 md:p-10"
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-ink/95 p-4 md:p-10"
           role="dialog"
           aria-modal="true"
           aria-label="Media viewer"
@@ -69,7 +69,7 @@ export function MediaLightbox({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="absolute top-5 right-5 z-10 flex h-11 w-11 items-center justify-center text-2xl text-fog transition-colors hover:text-cream"
+            className="fixed top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-10 flex h-11 w-11 items-center justify-center text-2xl text-fog transition-colors hover:text-cream"
           >
             ×
           </button>
@@ -83,7 +83,7 @@ export function MediaLightbox({
                   go(-1);
                 }}
                 aria-label="Previous"
-                className="absolute left-3 z-10 flex h-12 w-12 items-center justify-center text-2xl text-fog transition-colors hover:text-cream md:left-6"
+                className="fixed top-1/2 left-1 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center text-3xl text-fog transition-colors hover:text-cream md:left-6"
               >
                 ‹
               </button>
@@ -94,7 +94,7 @@ export function MediaLightbox({
                   go(1);
                 }}
                 aria-label="Next"
-                className="absolute right-3 z-10 flex h-12 w-12 items-center justify-center text-2xl text-fog transition-colors hover:text-cream md:right-6"
+                className="fixed top-1/2 right-1 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center text-3xl text-fog transition-colors hover:text-cream md:right-6"
               >
                 ›
               </button>
@@ -106,11 +106,11 @@ export function MediaLightbox({
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="relative flex max-h-[88vh] w-full max-w-5xl items-center justify-center"
+            className="relative my-auto flex max-h-[88dvh] w-full max-w-5xl items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
             {item.type === "image" ? (
-              <div className="relative h-[80vh] w-full">
+              <div className="relative h-[78dvh] w-full">
                 <Image
                   src={item.src}
                   alt={item.alt || ""}
@@ -135,7 +135,7 @@ export function MediaLightbox({
                 controls
                 autoPlay
                 playsInline
-                className="max-h-[85vh] w-full bg-charcoal"
+                className="max-h-[85dvh] w-full bg-charcoal"
               />
             )}
           </motion.div>
