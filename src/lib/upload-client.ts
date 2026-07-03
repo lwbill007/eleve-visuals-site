@@ -24,6 +24,59 @@ export type UploadProgressCallback = (progress: {
   percent: number;
 }) => void;
 
+type ProgressEvent = {
+  loaded: number;
+  total: number;
+  percentage?: number;
+};
+
+/**
+ * Vercel Blob fires onUploadProgress(0%) for every sub-request (token, upload, complete).
+ * This wrapper ignores tiny handshake bodies and never decreases the reported percent.
+ */
+function createMonotonicProgressReporter(
+  fileSize: number,
+  onProgress?: UploadProgressCallback
+): ((event: ProgressEvent) => void) | undefined {
+  if (!onProgress) return undefined;
+
+  let maxPercent = 0;
+
+  return (event: ProgressEvent) => {
+    const { loaded, total } = event;
+    const rawPercentage =
+      typeof event.percentage === "number"
+        ? event.percentage
+        : total > 0
+          ? (loaded / total) * 100
+          : 0;
+
+    // Token / completion pings carry a tiny body — don't reset the bar to 0%.
+    const isHandshake = fileSize > 256 * 1024 && total > 0 && total < fileSize * 0.01;
+    if (isHandshake) {
+      maxPercent = Math.max(maxPercent, 2);
+    } else if (total >= fileSize * 0.5 || fileSize === 0) {
+      const filePercent =
+        fileSize > 0 ? (Math.min(loaded, fileSize) / fileSize) * 100 : rawPercentage;
+      maxPercent = Math.max(maxPercent, Math.min(99, Math.round(filePercent)));
+    } else {
+      maxPercent = Math.max(maxPercent, Math.min(99, Math.round(rawPercentage)));
+    }
+
+    const safeTotal = fileSize > 0 ? fileSize : total;
+    const safeLoaded =
+      safeTotal > 0
+        ? Math.min(safeTotal, Math.round((maxPercent / 100) * safeTotal))
+        : loaded;
+
+    onProgress({
+      loaded: safeLoaded,
+      total: safeTotal,
+      percent: maxPercent,
+    });
+  };
+}
+
 function humanizeUploadError(error: unknown): Error {
   if (!(error instanceof Error)) return new Error("Upload failed");
 
@@ -110,18 +163,18 @@ async function uploadViaDirectBlob(
     pathname,
   });
 
-  onProgress?.({ loaded: 0, total: file.size, percent: 0 });
+  const reportProgress = createMonotonicProgressReporter(file.size, onProgress);
 
   const blob = await blobClientUpload(pathname, file, {
     access: "public",
     handleUploadUrl: "/api/admin/upload/client",
     contentType: mimeType,
-    onUploadProgress: onProgress
-      ? ({ loaded, total }) =>
-          onProgress({
-            loaded,
-            total,
-            percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
+    onUploadProgress: reportProgress
+      ? (event) =>
+          reportProgress({
+            loaded: event.loaded,
+            total: event.total,
+            percentage: event.percentage,
           })
       : undefined,
   });
@@ -178,8 +231,6 @@ async function uploadViaServerRoute(
     throw new Error("FILE_TOO_LARGE_FOR_SERVER");
   }
 
-  onProgress?.({ loaded: 0, total: file.size, percent: 0 });
-
   if (onProgress && typeof XMLHttpRequest !== "undefined") {
     return uploadViaServerRouteXhr(file, endpoint, validate, onProgress);
   }
@@ -216,6 +267,8 @@ function uploadViaServerRouteXhr(
   validate: (url: string) => void,
   onProgress: UploadProgressCallback
 ): Promise<string> {
+  const reportProgress = createMonotonicProgressReporter(file.size, onProgress)!;
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
@@ -224,10 +277,11 @@ function uploadViaServerRouteXhr(
 
     xhr.upload.addEventListener("progress", (event) => {
       const total = event.lengthComputable ? event.total : file.size;
-      const loaded = event.loaded;
-      const percent =
-        total > 0 ? Math.min(99, Math.round((loaded / total) * 100)) : 0;
-      onProgress({ loaded, total, percent });
+      reportProgress({
+        loaded: event.loaded,
+        total,
+        percentage: total > 0 ? (event.loaded / total) * 100 : 0,
+      });
     });
 
     xhr.addEventListener("load", () => {

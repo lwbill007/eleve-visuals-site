@@ -497,13 +497,13 @@ interface UploadProgressState {
 }
 
 function UploadProgressBar({ percent, label }: UploadProgressState) {
-  const indeterminate = percent === 0 && label.toLowerCase().includes("preparing");
+  const displayPercent = Math.min(100, Math.max(0, percent));
 
   return (
     <div
       className="mt-3 rounded border border-accent/30 bg-charcoal/60 p-4"
       role="progressbar"
-      aria-valuenow={indeterminate ? undefined : percent}
+      aria-valuenow={displayPercent}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label={label}
@@ -511,20 +511,16 @@ function UploadProgressBar({ percent, label }: UploadProgressState) {
       <div className="mb-2.5 flex items-center justify-between gap-3 text-xs">
         <span className="min-w-0 break-words text-fog">{label}</span>
         <span className="shrink-0 font-medium tabular-nums text-accent">
-          {indeterminate ? "…" : `${percent}%`}
+          {displayPercent}%
         </span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-stone/40">
-        {indeterminate ? (
-          <div className="upload-progress-indeterminate h-full w-1/3 rounded-full bg-accent" />
-        ) : (
-          <div
-            className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
-            style={{
-              width: `${Math.min(100, Math.max(percent, percent > 0 ? 3 : 0))}%`,
-            }}
-          />
-        )}
+        <div
+          className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+          style={{
+            width: `${Math.max(displayPercent, displayPercent > 0 ? 3 : 0)}%`,
+          }}
+        />
       </div>
     </div>
   );
@@ -540,10 +536,14 @@ function makeProgressUpdater(
     fileCount && fileCount > 1 && fileIndex
       ? `Video ${fileIndex} of ${fileCount} · `
       : "";
+  let maxPercent = 0;
+
   return (progress) => {
+    maxPercent = Math.max(maxPercent, progress.percent);
+    const normalized = { ...progress, percent: maxPercent };
     setProgress({
-      percent: progress.percent,
-      label: `${prefix}${fileName} — ${formatUploadProgress(progress)}`,
+      percent: maxPercent,
+      label: `${prefix}${fileName} — ${formatUploadProgress(normalized)}`,
     });
   };
 }
@@ -578,7 +578,7 @@ export function VideoGalleryUpload({
     if (files.length === 0) return;
     setUploading(true);
     setError("");
-    setProgress({ percent: 0, label: "Preparing upload..." });
+    setProgress({ percent: 0, label: `${files[0].name} — Connecting to storage…` });
     const uploaded: string[] = [];
     try {
       for (let i = 0; i < files.length; i++) {
@@ -710,7 +710,7 @@ export function VideoUpload({ value, onChange, label, hint, className }: VideoUp
   async function handleFile(file: File) {
     setUploading(true);
     setError("");
-    setProgress({ percent: 0, label: "Preparing upload..." });
+    setProgress({ percent: 0, label: `${file.name} — Connecting to storage…` });
     try {
       const url = await uploadMediaFile(
         file,
