@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { SessionIcon, type SessionIconName } from "./SessionIcon";
 import { CAST_ROLE_LABELS, castDisplayName } from "@/lib/cast";
+import { GalleryImage } from "@/components/gallery/GalleryImage";
 import type { CastAppearance, CastMemberDTO } from "@/lib/types";
 
 const AWARD_ICONS = new Set<SessionIconName>([
@@ -306,17 +307,15 @@ export function VolumeCast({
                   {active.additionalPhotos.length > 0 && (
                     <div className="mt-7">
                       <p className="label-caps mb-3 text-fog">Gallery</p>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {active.additionalPhotos.map((src, i) => (
-                          <div key={`${src}-${i}`} className="relative aspect-square overflow-hidden bg-charcoal">
-                            <Image
-                              src={src}
-                              alt={`${castDisplayName(active)} — ${i + 1}`}
-                              fill
-                              className="object-cover"
-                              sizes="120px"
-                            />
-                          </div>
+                          <GalleryImage
+                            key={`${src}-${i}`}
+                            src={src}
+                            alt={`${castDisplayName(active)} — ${i + 1}`}
+                            sizes="160px"
+                            interactive={false}
+                          />
                         ))}
                       </div>
                     </div>

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { GalleryMasonry } from "@/components/gallery/GalleryMasonry";
 import { SessionIcon, type SessionIconName } from "./SessionIcon";
 import { CAST_ROLE_LABELS } from "@/lib/cast";
 import type { CastProfile } from "@/lib/cast-server";
@@ -163,24 +164,15 @@ export function CastProfileView({ profile }: { profile: CastProfile }) {
       )}
 
       {profile.photos.length > 0 && (
-        <section className="section-padding">
-          <div className="container-wide">
-            <h2 className="label-caps mb-8 text-fog">Gallery</h2>
-            <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
-              {profile.photos.map((src, i) => (
-                <div key={`${src}-${i}`} className="relative mb-4 aspect-[4/5] break-inside-avoid overflow-hidden bg-charcoal">
-                  <Image
-                    src={src}
-                    alt={`${profile.name} — ${i + 1}`}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <GalleryMasonry
+          items={profile.photos.map((src, i) => ({
+            type: "image" as const,
+            src,
+            alt: `${profile.name} — ${i + 1}`,
+          }))}
+          label="Gallery"
+          columns="standard"
+        />
       )}
     </>
   );

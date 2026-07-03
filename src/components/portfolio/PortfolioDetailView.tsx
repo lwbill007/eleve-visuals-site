@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { PortfolioItemDTO } from "@/lib/types";
 import { resolvePortfolioHeroImage } from "@/lib/portfolio-utils";
+import { GalleryMasonry } from "@/components/gallery/GalleryMasonry";
 import { PortfolioVideoEmbed } from "./PortfolioVideoEmbed";
 
 export function PortfolioDetailView({
@@ -112,25 +113,15 @@ export function PortfolioDetailView({
       )}
 
       {gallery.length > 0 && (
-        <section className="section-padding border-b border-stone/30">
-          <div className="container-wide">
-            <h2 className="label-caps mb-8 text-fog">Gallery</h2>
-            <div className="space-y-4">
-              {gallery.map((src, i) => (
-                <div key={`${src}-${i}`} className="relative aspect-[16/10] overflow-hidden bg-charcoal">
-                  <Image
-                    src={src}
-                    alt={`${project.title} — ${i + 1}`}
-                    fill
-                    loading="lazy"
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 1200px"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <GalleryMasonry
+          items={gallery.map((src, i) => ({
+            type: "image" as const,
+            src,
+            alt: `${project.title} — ${i + 1}`,
+          }))}
+          label="Gallery"
+          columns="narrow"
+        />
       )}
 
       {project.videos.length > 0 && (
@@ -145,25 +136,16 @@ export function PortfolioDetailView({
       )}
 
       {project.btsGallery.length > 0 && (
-        <section className="section-padding border-b border-stone/30 bg-ink-soft">
-          <div className="container-wide">
-            <h2 className="label-caps mb-8 text-fog">Behind the Scenes</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {project.btsGallery.map((src, i) => (
-                <div key={`${src}-${i}`} className="relative aspect-[4/3] overflow-hidden bg-charcoal">
-                  <Image
-                    src={src}
-                    alt={`${project.title} BTS ${i + 1}`}
-                    fill
-                    loading="lazy"
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <GalleryMasonry
+          items={project.btsGallery.map((src, i) => ({
+            type: "image" as const,
+            src,
+            alt: `${project.title} — behind the scenes ${i + 1}`,
+          }))}
+          label="Behind the Scenes"
+          tone="soft"
+          columns="standard"
+        />
       )}
 
       {project.credits.length > 0 && (
