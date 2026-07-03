@@ -42,6 +42,9 @@ yarn-error.log*
 # local node
 .node-local/
 
+# local uploads (dev fallback — never commit user media)
+/public/uploads/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

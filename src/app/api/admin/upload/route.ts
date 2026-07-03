@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { inferMimeType } from "@/lib/image-url";
+import { inferMimeType, assertExtensionMatchesMime } from "@/lib/image-url";
 import {
   blobFolderForMime,
   isAllowedUploadMime,
@@ -55,6 +55,13 @@ export async function POST(request: Request) {
       { error: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM, MOV, MP3, WAV, M4A, AAC, OGG, FLAC, PDF" },
       { status: 400 }
     );
+  }
+
+  try {
+    assertExtensionMatchesMime(file, mimeType);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid file extension";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   const maxSize = maxBytesForMime(mimeType);

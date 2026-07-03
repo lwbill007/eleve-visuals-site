@@ -5,9 +5,47 @@ import { requireAdmin } from "@/lib/auth";
 import {
   MAX_VIDEO_BYTES,
   UPLOAD_ALL_TYPES,
+  isAllowedUploadMime,
+  maxBytesForMime,
 } from "@/lib/upload-constants";
 
 export const runtime = "nodejs";
+
+type ClientUploadMeta = {
+  size?: number;
+  mime?: string;
+  filename?: string;
+};
+
+function parseClientPayload(clientPayload: string | null): ClientUploadMeta {
+  if (!clientPayload) return {};
+  try {
+    return JSON.parse(clientPayload) as ClientUploadMeta;
+  } catch {
+    return {};
+  }
+}
+
+function maximumBytesForPayload(clientPayload: string | null): number {
+  const meta = parseClientPayload(clientPayload);
+  if (meta.mime && isAllowedUploadMime(meta.mime)) {
+    return maxBytesForMime(meta.mime);
+  }
+  return MAX_VIDEO_BYTES;
+}
+
+function filenameFromTokenPayload(tokenPayload: string | null | undefined, fallback: string): string {
+  if (!tokenPayload) return fallback;
+  try {
+    const parsed = JSON.parse(tokenPayload) as { filename?: string };
+    if (typeof parsed.filename === "string" && parsed.filename.trim()) {
+      return parsed.filename.trim();
+    }
+  } catch {
+    // ignore
+  }
+  return fallback;
+}
 
 async function indexMediaAsset(url: string, filename: string) {
   try {
@@ -61,16 +99,22 @@ export async function POST(request: Request) {
           throw new Error("Unauthorized");
         }
 
+        const meta = parseClientPayload(clientPayload);
+
         return {
           allowedContentTypes: [...UPLOAD_ALL_TYPES],
-          maximumSizeInBytes: MAX_VIDEO_BYTES,
+          maximumSizeInBytes: maximumBytesForPayload(clientPayload),
           access: "public",
           addRandomSuffix: true,
           validUntil: tokenValidUntil(clientPayload),
+          tokenPayload: JSON.stringify({
+            filename: meta.filename || null,
+          }),
         };
       },
-      onUploadCompleted: async ({ blob }) => {
-        const filename = blob.pathname.split("/").pop() || "upload";
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        const fallback = blob.pathname.split("/").pop() || "upload";
+        const filename = filenameFromTokenPayload(tokenPayload, fallback);
         await indexMediaAsset(blob.url, filename);
       },
     });

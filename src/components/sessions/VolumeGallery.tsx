@@ -58,7 +58,7 @@ export function VolumeGallery({
                   </div>
                   {item.src && !item.embed && (
                     // eslint-disable-next-line jsx-a11y/media-has-caption
-                    <video src={item.src} muted className="h-full w-full object-cover" preload="metadata" />
+                    <video src={item.src} muted playsInline className="h-full w-full object-cover" preload="metadata" />
                   )}
                 </>
               ) : (

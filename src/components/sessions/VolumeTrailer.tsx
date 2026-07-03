@@ -2,20 +2,12 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { toVideoEmbed } from "@/lib/video-embed";
 import { SessionIcon } from "./SessionIcon";
-
-function toEmbedUrl(url: string): string | null {
-  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/i);
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
-  if (/youtube\.com\/embed\//i.test(url)) return url;
-  const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
-  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
-  return null;
-}
 
 export function VolumeTrailer({ url, title }: { url: string | null; title: string }) {
   const [playing, setPlaying] = useState(false);
-  const embed = url ? toEmbedUrl(url) : null;
+  const embed = url ? toVideoEmbed(url) : null;
 
   return (
     <section id="trailer" className="section-padding border-b border-stone/30 bg-ink">
@@ -53,6 +45,7 @@ export function VolumeTrailer({ url, title }: { url: string | null; title: strin
                   title={`${title} trailer preview`}
                   className="pointer-events-none absolute inset-0 h-full w-full opacity-70"
                   tabIndex={-1}
+                  loading="lazy"
                 />
                 <span className="absolute inset-0 bg-ink/40 transition-colors group-hover:bg-ink/25" />
                 <motion.span

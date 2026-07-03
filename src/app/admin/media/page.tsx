@@ -6,6 +6,7 @@ import { AdminField, AdminInput } from "@/components/admin/AdminForm";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import { adminFetch } from "@/lib/admin-fetch";
 import { uploadMediaFile } from "@/lib/upload-client";
+import { ADMIN_MEDIA_ACCEPT } from "@/lib/upload-constants";
 
 interface MediaAsset {
   id: string;
@@ -15,15 +16,27 @@ interface MediaAsset {
   createdAt: string;
 }
 
+function formatUploadProgress(progress: { percent: number; loaded: number; total: number }): string {
+  if (progress.total > 0) {
+    const mbLoaded = (progress.loaded / (1024 * 1024)).toFixed(1);
+    const mbTotal = (progress.total / (1024 * 1024)).toFixed(1);
+    return `${progress.percent}% · ${mbLoaded} / ${mbTotal} MB`;
+  }
+  return "Preparing upload...";
+}
+
 export default function AdminMediaPage() {
   const [items, setItems] = useState<MediaAsset[]>([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
+  const [messageIsError, setMessageIsError] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editAlt, setEditAlt] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ percent: number; label: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
     const qs = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : "";
@@ -41,6 +54,7 @@ export default function AdminMediaPage() {
   async function remove(id: string) {
     if (!confirm("Delete this media asset from the library?")) return;
     const res = await adminFetch(`/api/admin/media/${id}`, { method: "DELETE" });
+    setMessageIsError(!res.ok);
     setMessage(res.ok ? "Deleted." : "Delete failed.");
     load();
   }
@@ -51,6 +65,7 @@ export default function AdminMediaPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filename: editName, alt: editAlt }),
     });
+    setMessageIsError(!res.ok);
     setMessage(res.ok ? "Updated." : "Update failed.");
     setEditingId(null);
     load();
@@ -58,21 +73,54 @@ export default function AdminMediaPage() {
 
   function copyUrl(url: string) {
     navigator.clipboard.writeText(url);
+    setMessageIsError(false);
     setMessage("URL copied to clipboard.");
   }
 
+  function cancelUpload() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setUploading(false);
+    setUploadProgress(null);
+    setMessageIsError(true);
+    setMessage("Upload cancelled.");
+  }
+
   async function handleUpload(file: File) {
+    if (uploading) return;
     setUploading(true);
     setMessage("");
+    setMessageIsError(false);
+    setUploadProgress({ percent: 0, label: `${file.name} — Connecting to storage…` });
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let maxPercent = 0;
+
     try {
-      await uploadMediaFile(file);
-      setMessage("Uploaded.");
+      await uploadMediaFile(file, "/api/admin/upload", {
+        signal: controller.signal,
+        onProgress: (progress) => {
+          maxPercent = Math.max(maxPercent, progress.percent);
+          setUploadProgress({
+            percent: maxPercent,
+            label: `${file.name} — ${formatUploadProgress({ ...progress, percent: maxPercent })}`,
+          });
+        },
+      });
+      setUploadProgress({ percent: 100, label: "Upload complete" });
+      setMessageIsError(false);
+      setMessage("Uploaded successfully.");
       load();
     } catch (err) {
       console.error("Upload error:", err);
+      setMessageIsError(true);
       setMessage(err instanceof Error ? err.message : "Upload failed.");
+      setUploadProgress(null);
     } finally {
+      abortRef.current = null;
       setUploading(false);
+      setTimeout(() => setUploadProgress(null), 1200);
     }
   }
 
@@ -80,8 +128,8 @@ export default function AdminMediaPage() {
     <AdminShell title="Media Library">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <p className="text-sm text-fog">
-          Centralized media for the entire site. Upload here or from any image field — all assets
-          are indexed for reuse.
+          Centralized media for the entire site. Upload here or from any editor — all assets are
+          indexed for reuse.
         </p>
         <button
           type="button"
@@ -94,15 +142,45 @@ export default function AdminMediaPage() {
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+          accept={ADMIN_MEDIA_ACCEPT}
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) handleUpload(file);
+            if (file) void handleUpload(file);
             e.target.value = "";
           }}
         />
       </div>
+
+      {uploadProgress && (
+        <div
+          className="mb-4 rounded border border-accent/30 bg-charcoal/60 p-4"
+          role="progressbar"
+          aria-valuenow={uploadProgress.percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+            <span className="min-w-0 break-words text-fog">{uploadProgress.label}</span>
+            <span className="shrink-0 font-medium tabular-nums text-accent">{uploadProgress.percent}%</span>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-stone/40">
+            <div
+              className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+              style={{ width: `${Math.max(uploadProgress.percent, uploadProgress.percent > 0 ? 3 : 0)}%` }}
+            />
+          </div>
+          {uploading && (
+            <button
+              type="button"
+              onClick={cancelUpload}
+              className="admin-touch-btn-compact mt-3 border border-stone/50 text-fog hover:border-red-400/60 hover:text-red-400"
+            >
+              Cancel upload
+            </button>
+          )}
+        </div>
+      )}
 
       <input
         type="search"
@@ -113,14 +191,16 @@ export default function AdminMediaPage() {
         aria-label="Search media"
       />
 
-      {message && <p className="mb-4 text-sm text-accent">{message}</p>}
+      {message && (
+        <p className={`mb-4 text-sm ${messageIsError ? "text-red-400" : "text-accent"}`}>{message}</p>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {items.map((item) => (
           <div key={item.id} className="border border-stone/30 bg-charcoal/20">
             <div className="relative aspect-square bg-ink">
-              {item.url.match(/\.(mp4|webm)(\?|$)/i) ? (
-                <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+              {item.url.match(/\.(mp4|webm|mov|m4v)(\?|$)/i) ? (
+                <video src={item.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
               ) : (
                 <AdminPreviewImage src={item.url} alt={item.alt || item.filename} fill className="object-cover" sizes="200px" />
               )}
@@ -185,7 +265,7 @@ export default function AdminMediaPage() {
       </div>
       {items.length === 0 && (
         <p className="py-16 text-center text-fog">
-          {search ? "No media matches your search." : "No media yet. Upload images from any admin editor."}
+          {search ? "No media matches your search." : "No media yet. Upload images or videos from any admin editor."}
         </p>
       )}
     </AdminShell>

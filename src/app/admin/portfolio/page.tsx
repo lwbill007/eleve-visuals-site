@@ -13,7 +13,9 @@ import {
   ImageUpload,
   SaveBar,
   StringListEditor,
+  VideoGalleryUpload,
 } from "@/components/admin/AdminForm";
+import { useUploadsActive } from "@/lib/upload-tracker";
 import { saveAdminContent } from "@/lib/admin-save";
 import { DEFAULT_PORTFOLIO_PAGE } from "@/lib/defaults";
 import { PORTFOLIO_CATEGORIES, type AspectRatio, type PortfolioItemDTO, type PortfolioPageContent } from "@/lib/types";
@@ -58,6 +60,7 @@ export default function AdminPortfolioPage() {
   const [categories, setCategories] = useState<string[]>([...PORTFOLIO_CATEGORIES]);
   const [editing, setEditing] = useState<Partial<PortfolioItemDTO> | null>(null);
   const [saving, setSaving] = useState(false);
+  const uploadsActive = useUploadsActive();
   const [message, setMessage] = useState("");
 
   async function load() {
@@ -79,7 +82,7 @@ export default function AdminPortfolioPage() {
   }, []);
 
   async function saveProject() {
-    if (!editing?.title) return;
+    if (!editing?.title || saving || uploadsActive) return;
     setSaving(true);
     setMessage("");
 
@@ -428,9 +431,10 @@ export default function AdminPortfolioPage() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <StringListEditor
-                    label="Video URLs (YouTube, Vimeo, or direct MP4)"
-                    items={editing.videos || []}
+                  <VideoGalleryUpload
+                    label="Project Videos"
+                    hint="Upload MP4, WebM, or MOV files (up to 2GB each), or paste YouTube, Vimeo, or direct URLs."
+                    videos={editing.videos || []}
                     onChange={(videos) => setEditing({ ...editing, videos })}
                   />
                 </div>
@@ -529,10 +533,10 @@ export default function AdminPortfolioPage() {
                 <button
                   type="button"
                   onClick={saveProject}
-                  disabled={saving}
+                  disabled={saving || uploadsActive}
                   className="admin-touch-btn bg-cream text-ink uppercase disabled:opacity-50 sm:w-auto"
                 >
-                  {saving ? "Saving..." : "Save Project"}
+                  {uploadsActive ? "Wait for uploads…" : saving ? "Saving..." : "Save Project"}
                 </button>
                 <button
                   type="button"

@@ -102,6 +102,39 @@ export function extensionForMime(mimeType: string): string {
   return MIME_EXTENSIONS[mimeType] || mimeType.split("/")[1]?.replace("jpeg", "jpg") || "bin";
 }
 
+const ALLOWED_EXTENSIONS: Record<string, readonly string[]> = {
+  "image/jpeg": ["jpg", "jpeg"],
+  "image/png": ["png"],
+  "image/webp": ["webp"],
+  "image/gif": ["gif"],
+  "video/mp4": ["mp4", "m4v"],
+  "video/webm": ["webm"],
+  "video/quicktime": ["mov"],
+  "video/x-m4v": ["m4v", "mp4"],
+  "audio/mpeg": ["mp3"],
+  "audio/wav": ["wav"],
+  "audio/mp4": ["m4a", "mp4"],
+  "audio/aac": ["aac", "m4a"],
+  "audio/ogg": ["ogg"],
+  "audio/flac": ["flac"],
+  "application/pdf": ["pdf"],
+};
+
+/** Reject obvious extension / MIME mismatches (e.g. renamed executables). */
+export function assertExtensionMatchesMime(file: File, mimeType: string): void {
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  if (!ext) {
+    throw new Error("File must include an extension (e.g. .mp4, .mov).");
+  }
+
+  const allowed = ALLOWED_EXTENSIONS[mimeType];
+  if (allowed && !allowed.includes(ext)) {
+    throw new Error(
+      `File extension ".${ext}" does not match the detected type (${mimeType}). Rename the file or export in a supported format.`
+    );
+  }
+}
+
 export function buildUploadPathname(file: File, folder = "uploads"): string {
   const mimeType = inferMimeType(file);
   const extFromMime = extensionForMime(mimeType);

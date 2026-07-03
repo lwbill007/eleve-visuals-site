@@ -5,9 +5,11 @@ import { adminFetch } from "@/lib/admin-fetch";
 import {
   assertValidImageUrl,
   assertValidMediaUrl,
+  assertExtensionMatchesMime,
   buildUploadPathname,
   inferMimeType,
 } from "@/lib/image-url";
+import { beginUpload, endUpload } from "@/lib/upload-tracker";
 import {
   BLOB_MULTIPART_THRESHOLD_BYTES,
   BLOB_VIDEO_MULTIPART_THRESHOLD_BYTES,
@@ -25,6 +27,25 @@ export type UploadProgressCallback = (progress: {
   total: number;
   percent: number;
 }) => void;
+
+export type UploadFileOptions = {
+  onProgress?: UploadProgressCallback;
+  signal?: AbortSignal;
+};
+
+function normalizeUploadOptions(
+  options?: UploadProgressCallback | UploadFileOptions
+): UploadFileOptions {
+  if (!options) return {};
+  if (typeof options === "function") return { onProgress: options };
+  return options;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new DOMException("Upload cancelled", "AbortError");
+  }
+}
 
 type ProgressEvent = {
   loaded: number;
@@ -110,6 +131,16 @@ function humanizeUploadError(error: unknown): Error {
     );
   }
 
+  if (/abort|cancel/i.test(msg)) {
+    return new Error("Upload cancelled.");
+  }
+
+  if (/network error|failed to fetch|load failed/i.test(msg)) {
+    return new Error(
+      "Upload failed: network connection interrupted. Check your connection and try again."
+    );
+  }
+
   return error;
 }
 
@@ -133,6 +164,8 @@ function validateFileBeforeUpload(file: File, endpoint: string): string {
       `Unsupported file type (${mimeType || "unknown"}). Use JPEG, PNG, WebP, GIF, MP4, WebM, MOV, MP3, WAV, M4A, AAC, OGG, FLAC, or PDF.`
     );
   }
+
+  assertExtensionMatchesMime(file, mimeType);
 
   const maxSize = endpoint.includes("/api/submit/session/upload")
     ? SESSION_PORTFOLIO_MAX_BYTES
@@ -172,8 +205,11 @@ function shouldUseDirectBlobUpload(file: File, endpoint: string): boolean {
 async function uploadViaDirectBlob(
   file: File,
   validate: (url: string) => void,
-  onProgress?: UploadProgressCallback
+  options: UploadFileOptions = {}
 ): Promise<string> {
+  const { onProgress, signal } = options;
+  throwIfAborted(signal);
+
   const mimeType = inferMimeType(file);
   const pathname = buildUploadPathname(file, blobFolderForMime(mimeType));
 
@@ -193,7 +229,12 @@ async function uploadViaDirectBlob(
     handleUploadUrl: "/api/admin/upload/client",
     contentType: mimeType,
     multipart,
-    clientPayload: JSON.stringify({ size: file.size, mime: mimeType }),
+    clientPayload: JSON.stringify({
+      size: file.size,
+      mime: mimeType,
+      filename: file.name,
+    }),
+    abortSignal: signal,
     onUploadProgress: reportProgress
       ? (event) =>
           reportProgress({
@@ -247,8 +288,11 @@ async function uploadViaServerRoute(
   file: File,
   endpoint: string,
   validate: (url: string) => void,
-  onProgress?: UploadProgressCallback
+  options: UploadFileOptions = {}
 ): Promise<string> {
+  const { onProgress, signal } = options;
+  throwIfAborted(signal);
+
   if (
     process.env.NODE_ENV === "production" &&
     file.size > VERCEL_SERVER_MAX_BYTES
@@ -257,7 +301,7 @@ async function uploadViaServerRoute(
   }
 
   if (onProgress && typeof XMLHttpRequest !== "undefined") {
-    return uploadViaServerRouteXhr(file, endpoint, validate, onProgress);
+    return uploadViaServerRouteXhr(file, endpoint, validate, options);
   }
 
   const formData = new FormData();
@@ -265,7 +309,7 @@ async function uploadViaServerRoute(
   formData.append("_hp", "");
 
   const fetcher = endpoint.startsWith("/api/admin") ? adminFetch : fetch;
-  const res = await fetcher(endpoint, { method: "POST", body: formData });
+  const res = await fetcher(endpoint, { method: "POST", body: formData, signal });
   const text = await res.text();
   const data = parseUploadJson(text, res.status);
 
@@ -290,8 +334,9 @@ function uploadViaServerRouteXhr(
   file: File,
   endpoint: string,
   validate: (url: string) => void,
-  onProgress: UploadProgressCallback
+  options: UploadFileOptions
 ): Promise<string> {
+  const { onProgress, signal } = options;
   const reportProgress = createMonotonicProgressReporter(file.size, onProgress)!;
 
   return new Promise((resolve, reject) => {
@@ -299,6 +344,19 @@ function uploadViaServerRouteXhr(
     const formData = new FormData();
     formData.append("file", file);
     formData.append("_hp", "");
+
+    const onAbort = () => {
+      xhr.abort();
+      reject(new DOMException("Upload cancelled", "AbortError"));
+    };
+
+    if (signal) {
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
 
     xhr.upload.addEventListener("progress", (event) => {
       const total = event.lengthComputable ? event.total : file.size;
@@ -310,6 +368,7 @@ function uploadViaServerRouteXhr(
     });
 
     xhr.addEventListener("load", () => {
+      signal?.removeEventListener("abort", onAbort);
       const text = xhr.responseText;
       let data: Record<string, unknown>;
       try {
@@ -339,7 +398,7 @@ function uploadViaServerRouteXhr(
       try {
         const url = extractUploadUrl(data);
         validate(url);
-        onProgress({ loaded: file.size, total: file.size, percent: 100 });
+        onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
         resolve(url);
       } catch (error) {
         reject(error);
@@ -347,7 +406,7 @@ function uploadViaServerRouteXhr(
     });
 
     xhr.addEventListener("error", () => reject(new Error("Upload failed: network error")));
-    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+    xhr.addEventListener("abort", () => reject(new DOMException("Upload cancelled", "AbortError")));
 
     xhr.open("POST", endpoint);
     xhr.withCredentials = true;
@@ -359,8 +418,9 @@ async function postUpload(
   file: File,
   endpoint: string,
   validate: (url: string) => void,
-  onProgress?: UploadProgressCallback
+  options?: UploadProgressCallback | UploadFileOptions
 ): Promise<string> {
+  const uploadOptions = normalizeUploadOptions(options);
   const mimeType = validateFileBeforeUpload(file, endpoint);
 
   console.log("[upload] start", {
@@ -371,25 +431,25 @@ async function postUpload(
     mode: shouldUseDirectBlobUpload(file, endpoint) ? "direct-blob" : "server",
   });
 
+  beginUpload();
   try {
     if (shouldUseDirectBlobUpload(file, endpoint)) {
       try {
-        return await uploadViaDirectBlob(file, validate, onProgress);
+        return await uploadViaDirectBlob(file, validate, uploadOptions);
       } catch (directError) {
-        // Local dev without Blob connected — fall back to the server route for smaller files.
         if (
           process.env.NODE_ENV !== "production" &&
           file.size <= VERCEL_SERVER_MAX_BYTES
         ) {
           console.log("[upload] direct blob unavailable in dev, trying server route");
-          return await uploadViaServerRoute(file, endpoint, validate, onProgress);
+          return await uploadViaServerRoute(file, endpoint, validate, uploadOptions);
         }
         throw directError;
       }
     }
 
     try {
-      return await uploadViaServerRoute(file, endpoint, validate, onProgress);
+      return await uploadViaServerRoute(file, endpoint, validate, uploadOptions);
     } catch (error) {
       if (
         error instanceof Error &&
@@ -398,7 +458,7 @@ async function postUpload(
         endpoint.startsWith("/api/admin")
       ) {
         console.log("[upload] falling back to direct blob upload");
-        return await uploadViaDirectBlob(file, validate, onProgress);
+        return await uploadViaDirectBlob(file, validate, uploadOptions);
       }
       throw error;
     }
@@ -410,21 +470,23 @@ async function postUpload(
       size: file.size,
     });
     throw humanizeUploadError(error);
+  } finally {
+    endUpload();
   }
 }
 
 export async function uploadImageFile(
   file: File,
   endpoint = "/api/admin/upload",
-  onProgress?: UploadProgressCallback
+  options?: UploadProgressCallback | UploadFileOptions
 ): Promise<string> {
-  return postUpload(file, endpoint, assertValidImageUrl, onProgress);
+  return postUpload(file, endpoint, assertValidImageUrl, options);
 }
 
 export async function uploadMediaFile(
   file: File,
   endpoint = "/api/admin/upload",
-  onProgress?: UploadProgressCallback
+  options?: UploadProgressCallback | UploadFileOptions
 ): Promise<string> {
-  return postUpload(file, endpoint, assertValidMediaUrl, onProgress);
+  return postUpload(file, endpoint, assertValidMediaUrl, options);
 }

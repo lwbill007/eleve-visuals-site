@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
 import { uploadImageFile, uploadMediaFile, type UploadProgressCallback } from "@/lib/upload-client";
+import { ADMIN_VIDEO_ACCEPT } from "@/lib/upload-constants";
 import { toVideoEmbed } from "@/lib/video-embed";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import { isVideoUrl, isAudioUrl, isDocumentUrl } from "@/lib/image-url";
@@ -479,7 +480,7 @@ export function AdminSelect({
   );
 }
 
-const VIDEO_ACCEPT = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v";
+const VIDEO_ACCEPT = ADMIN_VIDEO_ACCEPT;
 const VIDEO_UPLOAD_LABEL = "Upload video (MP4, WebM, or MOV — up to 2GB)";
 
 function formatUploadProgress(progress: { percent: number; loaded: number; total: number }): string {
@@ -548,6 +549,18 @@ function makeProgressUpdater(
   };
 }
 
+function UploadCancelButton({ onCancel }: { onCancel: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onCancel}
+      className="admin-touch-btn-compact mt-2 border border-stone/50 text-fog hover:border-red-400/60 hover:text-red-400"
+    >
+      Cancel upload
+    </button>
+  );
+}
+
 interface VideoGalleryUploadProps {
   videos: string[];
   onChange: (videos: string[]) => void;
@@ -568,26 +581,50 @@ export function VideoGalleryUpload({
   className,
 }: VideoGalleryUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<UploadProgressState | null>(null);
   const [error, setError] = useState("");
   const [urlDraft, setUrlDraft] = useState("");
 
+  function cancelUpload() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setUploading(false);
+    setProgress(null);
+    setError("Upload cancelled.");
+  }
+
   async function handleFiles(fileList: FileList) {
     const files = Array.from(fileList);
-    if (files.length === 0) return;
+    if (files.length === 0 || uploading) return;
+
+    const seen = new Set<string>();
+    const uniqueFiles = files.filter((file) => {
+      const key = `${file.name}:${file.size}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    if (uniqueFiles.length < files.length) {
+      setError("Skipped duplicate files in this batch.");
+    }
+
     setUploading(true);
-    setError("");
-    setProgress({ percent: 0, label: `${files[0].name} — Connecting to storage…` });
+    setError(uniqueFiles.length < files.length ? "Skipped duplicate files in this batch." : "");
+    setProgress({ percent: 0, label: `${uniqueFiles[0].name} — Connecting to storage…` });
     const uploaded: string[] = [];
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      for (let i = 0; i < files.length; i++) {
+      for (let i = 0; i < uniqueFiles.length; i++) {
         uploaded.push(
-          await uploadMediaFile(
-            files[i],
-            "/api/admin/upload",
-            makeProgressUpdater(setProgress, files[i].name, i + 1, files.length)
-          )
+          await uploadMediaFile(uniqueFiles[i], "/api/admin/upload", {
+            signal: controller.signal,
+            onProgress: makeProgressUpdater(setProgress, uniqueFiles[i].name, i + 1, uniqueFiles.length),
+          })
         );
       }
       setProgress({ percent: 100, label: "Upload complete — saving to library" });
@@ -597,12 +634,14 @@ export function VideoGalleryUpload({
       setError(err instanceof Error ? err.message : "Upload failed");
       setProgress(null);
     } finally {
+      abortRef.current = null;
       setUploading(false);
       setTimeout(() => setProgress(null), uploaded.length > 0 ? 1200 : 0);
     }
   }
 
   function addUrl() {
+    if (uploading) return;
     const url = urlDraft.trim();
     if (!url) return;
     if (!videos.includes(url)) onChange([...videos, url]);
@@ -624,7 +663,7 @@ export function VideoGalleryUpload({
                     {src}
                   </div>
                 ) : (
-                  <video src={src} controls className="h-full w-full object-cover" />
+                  <video src={src} controls playsInline className="h-full w-full object-cover" />
                 )}
               </div>
               <div className="border-t border-stone/30 p-2 sm:p-3">
@@ -651,6 +690,7 @@ export function VideoGalleryUpload({
       </button>
 
       {progress && <UploadProgressBar percent={progress.percent} label={progress.label} />}
+      {uploading && <UploadCancelButton onCancel={cancelUpload} />}
 
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
@@ -664,12 +704,14 @@ export function VideoGalleryUpload({
               addUrl();
             }
           }}
-          className="flex-1"
+          disabled={uploading}
+          className="flex-1 disabled:opacity-50"
         />
         <button
           type="button"
           onClick={addUrl}
-          className="admin-touch-btn border border-stone/50 text-accent"
+          disabled={uploading}
+          className="admin-touch-btn border border-stone/50 text-accent disabled:opacity-50"
         >
           Add URL
         </button>
@@ -702,33 +744,47 @@ interface VideoUploadProps {
 /** Single video field — upload a file or paste YouTube/Vimeo/direct URL (e.g. official trailer). */
 export function VideoUpload({ value, onChange, label, hint, className }: VideoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<UploadProgressState | null>(null);
   const [error, setError] = useState("");
   const [urlDraft, setUrlDraft] = useState("");
 
+  function cancelUpload() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setUploading(false);
+    setProgress(null);
+    setError("Upload cancelled.");
+  }
+
   async function handleFile(file: File) {
+    if (uploading) return;
     setUploading(true);
     setError("");
     setProgress({ percent: 0, label: `${file.name} — Connecting to storage…` });
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const url = await uploadMediaFile(
-        file,
-        "/api/admin/upload",
-        makeProgressUpdater(setProgress, file.name)
-      );
+      const url = await uploadMediaFile(file, "/api/admin/upload", {
+        signal: controller.signal,
+        onProgress: makeProgressUpdater(setProgress, file.name),
+      });
       setProgress({ percent: 100, label: "Upload complete" });
       onChange(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
       setProgress(null);
     } finally {
+      abortRef.current = null;
       setUploading(false);
       setTimeout(() => setProgress(null), 1200);
     }
   }
 
   function addUrl() {
+    if (uploading) return;
     const url = urlDraft.trim();
     if (!url) return;
     onChange(url);
@@ -778,6 +834,7 @@ export function VideoUpload({ value, onChange, label, hint, className }: VideoUp
       </button>
 
       {progress && <UploadProgressBar percent={progress.percent} label={progress.label} />}
+      {uploading && <UploadCancelButton onCancel={cancelUpload} />}
 
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
@@ -791,9 +848,15 @@ export function VideoUpload({ value, onChange, label, hint, className }: VideoUp
               addUrl();
             }
           }}
-          className="flex-1"
+          disabled={uploading}
+          className="flex-1 disabled:opacity-50"
         />
-        <button type="button" onClick={addUrl} className="admin-touch-btn border border-stone/50 text-accent">
+        <button
+          type="button"
+          onClick={addUrl}
+          disabled={uploading}
+          className="admin-touch-btn border border-stone/50 text-accent disabled:opacity-50"
+        >
           Use URL
         </button>
       </div>

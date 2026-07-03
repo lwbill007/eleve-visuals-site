@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useUploadsActive } from "@/lib/upload-tracker";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { CastManager } from "@/components/admin/CastManager";
@@ -106,6 +107,7 @@ export default function AdminSessionsPage() {
   const [editing, setEditing] = useState<Partial<SessionVolumeDTO> | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const uploadsActive = useUploadsActive();
 
   async function load() {
     const res = await adminFetch("/api/admin/session-volumes");
@@ -134,7 +136,7 @@ export default function AdminSessionsPage() {
   }
 
   async function save() {
-    if (!editing?.title || !editing.slug) return;
+    if (!editing?.title || !editing.slug || saving || uploadsActive) return;
     setSaving(true);
     setMessage("");
 
@@ -1005,10 +1007,10 @@ export default function AdminSessionsPage() {
             <button
               type="button"
               onClick={save}
-              disabled={saving}
+              disabled={saving || uploadsActive}
               className="admin-touch-btn bg-cream tracking-[0.15em] text-ink uppercase disabled:opacity-50 sm:px-6"
             >
-              {saving ? "Saving..." : "Save Volume"}
+              {uploadsActive ? "Wait for uploads…" : saving ? "Saving..." : "Save Volume"}
             </button>
             <button
               type="button"

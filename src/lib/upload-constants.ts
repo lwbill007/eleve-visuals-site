@@ -80,6 +80,13 @@ export function maxLabelForMime(mimeType: string): string {
   return "10MB";
 }
 
+/** `accept` attribute for admin file inputs covering all supported media types. */
+export const ADMIN_MEDIA_ACCEPT =
+  "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,video/x-m4v,audio/mpeg,audio/wav,audio/mp4,audio/aac,audio/ogg,audio/flac,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm,.mov,.m4v,.mp3,.wav,.m4a,.aac,.ogg,.flac,.pdf";
+
+export const ADMIN_VIDEO_ACCEPT =
+  "video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.webm,.mov,.m4v";
+
 export function blobFolderForMime(mimeType: string): string {
   if (isVideoMime(mimeType)) return "uploads/videos";
   if (isAudioMime(mimeType)) return "uploads/audio";
