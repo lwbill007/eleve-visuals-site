@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -49,6 +49,120 @@ function SocialLink({ href, label }: { href: string; label: string }) {
   );
 }
 
+function dedupeCastMembers(members: CastMemberDTO[]): CastMemberDTO[] {
+  const seen = new Set<string>();
+  return members.filter((member) => {
+    if (seen.has(member.id)) return false;
+    seen.add(member.id);
+    return true;
+  });
+}
+
+function CastCardPhoto({ src, alt }: { src: string | null; alt: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-charcoal">
+        <SessionIcon name="users" className="h-10 w-10 text-stone sm:h-12 sm:w-12" />
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      className="object-cover transition-transform duration-700 group-hover:scale-105"
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+const CARD_SURFACE =
+  "group relative block w-full min-w-0 overflow-hidden bg-charcoal text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:transition-transform sm:duration-300 sm:hover:scale-[1.01]";
+
+function CastCardFace({ member }: { member: CastMemberDTO }) {
+  const name = castDisplayName(member);
+  const roleLabel = CAST_ROLE_LABELS[member.role];
+
+  return (
+    <div className="relative aspect-[3/4] w-full">
+      <CastCardPhoto src={member.profilePhoto} alt={name} />
+
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-ink via-ink/50 to-transparent"
+        aria-hidden
+      />
+
+      {member.featured && (
+        <span className="absolute top-2 left-2 z-[2] rounded-full bg-accent px-2.5 py-0.5 text-[0.6rem] font-medium tracking-[0.12em] text-ink uppercase sm:top-3 sm:left-3">
+          Featured
+        </span>
+      )}
+
+      <div className="absolute inset-x-0 bottom-0 z-[2] px-3 pt-12 pb-3 sm:px-4 sm:pb-4">
+        <p className="line-clamp-2 font-display text-sm leading-snug break-words text-cream sm:text-lg sm:leading-tight">
+          {name}
+        </p>
+        <p className="mt-1 line-clamp-1 text-[0.6rem] tracking-[0.12em] text-accent uppercase sm:text-[0.7rem]">
+          {roleLabel}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CastGridCard({
+  member,
+  index,
+  reduce,
+  onQuickLook,
+}: {
+  member: CastMemberDTO;
+  index: number;
+  reduce: boolean;
+  onQuickLook: (member: CastMemberDTO) => void;
+}) {
+  const name = castDisplayName(member);
+  const hasProfile = member.enableProfile && !!member.slug;
+  const motionProps = {
+    initial: reduce ? false : ({ opacity: 0, y: 16 } as const),
+    whileInView: reduce ? undefined : ({ opacity: 1, y: 0 } as const),
+    viewport: { once: true, margin: "-40px" as const },
+    transition: { duration: 0.45, delay: Math.min(index * 0.04, 0.35) },
+  };
+
+  if (hasProfile) {
+    return (
+      <motion.li {...motionProps} className="min-w-0 list-none">
+        <Link
+          href={`/sessions/cast/${member.slug}`}
+          className={CARD_SURFACE}
+          aria-label={`View ${name} profile`}
+        >
+          <CastCardFace member={member} />
+        </Link>
+      </motion.li>
+    );
+  }
+
+  return (
+    <motion.li {...motionProps} className="min-w-0 list-none">
+      <button
+        type="button"
+        onClick={() => onQuickLook(member)}
+        className={CARD_SURFACE}
+        aria-label={`Quick look at ${name}`}
+      >
+        <CastCardFace member={member} />
+      </button>
+    </motion.li>
+  );
+}
+
 export function VolumeCast({
   members,
   appearances,
@@ -61,6 +175,8 @@ export function VolumeCast({
   const reduce = useReducedMotion();
   const [active, setActive] = useState<CastMemberDTO | null>(null);
 
+  const castMembers = useMemo(() => dedupeCastMembers(members), [members]);
+
   useEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setActive(null);
@@ -72,92 +188,35 @@ export function VolumeCast({
     };
   }, [active]);
 
-  if (members.length === 0) return null;
+  if (castMembers.length === 0) return null;
 
   return (
-    <section className="section-padding border-b border-stone/30">
-      <div className="container-wide">
-        <div className="mb-10 flex items-end justify-between gap-6">
-          <div>
+    <section className="section-padding overflow-x-clip border-b border-stone/30">
+      <div className="container-wide min-w-0">
+        <header className="mb-8 flex flex-col gap-3 sm:mb-10 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+          <div className="min-w-0">
             <p className="label-caps text-accent">Official Cast</p>
-            <h2 className="headline-md mt-2">The Ensemble</h2>
+            <h2 className="headline-md mt-2 text-balance">The Ensemble</h2>
           </div>
-          <p className="hidden text-sm text-muted sm:block">
-            {members.length} creative{members.length > 1 ? "s" : ""} · Vol. {volumeNumber}
+          <p className="shrink-0 text-sm text-muted">
+            {castMembers.length} creative{castMembers.length > 1 ? "s" : ""} · Vol. {volumeNumber}
           </p>
-        </div>
+        </header>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {members.map((m, i) => {
-            const cardClass =
-              "group relative aspect-[3/4] overflow-hidden bg-charcoal text-left transition-transform duration-300 hover:scale-[1.02]";
-            const cardInner = (
-              <>
-                {m.profilePhoto ? (
-                  <Image
-                    src={m.profilePhoto}
-                    alt={castDisplayName(m)}
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <SessionIcon name="users" className="h-10 w-10 text-stone" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/10 to-transparent opacity-90" />
-                {m.featured && (
-                  <span className="absolute top-3 left-3 rounded-full bg-accent/90 px-2 py-0.5 text-[0.6rem] font-medium tracking-[0.12em] text-ink uppercase">
-                    Featured
-                  </span>
-                )}
-                <div className="absolute inset-x-0 bottom-0 p-4">
-                  <p className="line-clamp-2 font-display text-lg leading-tight break-words text-cream">
-                    {castDisplayName(m)}
-                  </p>
-                  <p className="line-clamp-1 text-[0.7rem] tracking-[0.12em] text-accent uppercase">
-                    {CAST_ROLE_LABELS[m.role]}
-                  </p>
-                  <p className="mt-2 text-xs text-fog sm:max-h-0 sm:overflow-hidden sm:opacity-0 sm:transition-all sm:duration-500 sm:group-hover:max-h-16 sm:group-hover:opacity-100">
-                    {m.enableProfile && m.slug ? "View profile →" : "Quick look →"}
-                  </p>
-                </div>
-              </>
-            );
-
-            if (m.enableProfile && m.slug) {
-              return (
-                <motion.div
-                  key={m.id}
-                  initial={reduce ? false : { opacity: 0, y: 24 }}
-                  whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-60px" }}
-                  transition={{ duration: 0.5, delay: Math.min(i * 0.05, 0.4) }}
-                >
-                  <Link href={`/sessions/cast/${m.slug}`} className={cardClass}>
-                    {cardInner}
-                  </Link>
-                </motion.div>
-              );
-            }
-
-            return (
-              <motion.button
-                key={m.id}
-                type="button"
-                onClick={() => setActive(m)}
-                initial={reduce ? false : { opacity: 0, y: 24 }}
-                whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.5, delay: Math.min(i * 0.05, 0.4) }}
-                className={cardClass}
-              >
-                {cardInner}
-              </motion.button>
-            );
-          })}
-        </div>
+        <ul
+          className="grid min-w-0 grid-cols-1 gap-4 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+          role="list"
+        >
+          {castMembers.map((member, index) => (
+            <CastGridCard
+              key={member.id}
+              member={member}
+              index={index}
+              reduce={!!reduce}
+              onQuickLook={setActive}
+            />
+          ))}
+        </ul>
       </div>
 
       <AnimatePresence>
@@ -188,35 +247,27 @@ export function VolumeCast({
 
               <div className="grid gap-0 md:grid-cols-2">
                 <div className="relative aspect-[3/4] bg-charcoal md:aspect-auto md:min-h-[28rem]">
-                  {active.profilePhoto ? (
-                    <Image
-                      src={active.profilePhoto}
-                      alt={castDisplayName(active)}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <SessionIcon name="users" className="h-14 w-14 text-stone" />
-                    </div>
-                  )}
+                  <CastCardPhoto src={active.profilePhoto} alt={castDisplayName(active)} />
                 </div>
 
                 <div className="max-h-[80vh] overflow-y-auto p-6 sm:p-8">
                   <p className="label-caps text-accent">{CAST_ROLE_LABELS[active.role]}</p>
-                  <h3 className="mt-2 font-display text-3xl text-cream">{castDisplayName(active)}</h3>
+                  <h3 className="mt-2 font-display text-2xl break-words text-cream sm:text-3xl">
+                    {castDisplayName(active)}
+                  </h3>
                   {active.city && <p className="mt-1 text-sm text-muted">{active.city}</p>}
-                  {active.enableProfile && (
+                  {active.enableProfile && active.slug && (
                     <Link
                       href={`/sessions/cast/${active.slug}`}
-                      className="mt-3 inline-block text-xs tracking-[0.12em] text-accent uppercase hover:text-cream"
+                      className="mt-3 inline-flex min-h-11 items-center text-xs tracking-[0.12em] text-accent uppercase hover:text-cream"
                     >
                       View full profile →
                     </Link>
                   )}
 
-                  {active.bio && <p className="mt-5 text-sm leading-relaxed break-words text-fog">{active.bio}</p>}
+                  {active.bio && (
+                    <p className="mt-5 text-sm leading-relaxed break-words text-fog">{active.bio}</p>
+                  )}
 
                   {(active.instagram || active.tiktok || active.website || active.portfolioLink) && (
                     <div className="mt-6 flex flex-wrap gap-2">
@@ -232,19 +283,19 @@ export function VolumeCast({
                       <p className="label-caps mb-3 text-fog">Awards</p>
                       <ul className="space-y-3">
                         {active.awards.map((a, i) => (
-                          <li key={i} className="flex gap-3">
+                          <li key={`${a.name}-${a.year}-${i}`} className="flex gap-3">
                             <SessionIcon name={awardIcon(a.icon)} className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
-                            <div>
-                              <p className="text-sm text-cream">
+                            <div className="min-w-0">
+                              <p className="text-sm break-words text-cream">
                                 {a.name}
                                 {a.year && <span className="text-muted"> · {a.year}</span>}
                               </p>
                               {(a.category || a.volume) && (
-                                <p className="text-xs text-muted">
+                                <p className="text-xs break-words text-muted">
                                   {[a.category, a.volume].filter(Boolean).join(" · ")}
                                 </p>
                               )}
-                              {a.reason && <p className="mt-0.5 text-xs text-fog">{a.reason}</p>}
+                              {a.reason && <p className="mt-0.5 text-xs break-words text-fog">{a.reason}</p>}
                             </div>
                           </li>
                         ))}
@@ -279,7 +330,7 @@ export function VolumeCast({
                           <Link
                             key={app.slug}
                             href={`/sessions/${app.slug}`}
-                            className="inline-flex min-h-11 items-center rounded-full border border-stone/40 px-4 py-1 text-xs text-cream transition-colors hover:border-accent hover:text-accent"
+                            className="inline-flex min-h-11 max-w-full items-center rounded-full border border-stone/40 px-4 py-1 text-xs break-words text-cream transition-colors hover:border-accent hover:text-accent"
                           >
                             Vol. {app.volumeNumber} — {app.title}
                           </Link>
@@ -291,7 +342,7 @@ export function VolumeCast({
                   {active.futureCollaborations && (
                     <div className="mt-7">
                       <p className="label-caps mb-2 text-fog">Future Projects</p>
-                      <p className="text-sm text-fog">{active.futureCollaborations}</p>
+                      <p className="text-sm break-words text-fog">{active.futureCollaborations}</p>
                     </div>
                   )}
                 </div>
