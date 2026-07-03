@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       );
     }
     return NextResponse.json(
-      { error: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM, MP3, WAV, M4A, AAC, OGG, FLAC, PDF" },
+      { error: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM, MOV, MP3, WAV, M4A, AAC, OGG, FLAC, PDF" },
       { status: 400 }
     );
   }

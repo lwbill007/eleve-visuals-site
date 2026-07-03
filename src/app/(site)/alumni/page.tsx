@@ -73,7 +73,7 @@ export default async function AlumniPage() {
                       <p className="line-clamp-1 text-[0.7rem] tracking-[0.12em] text-accent uppercase">{person.role}</p>
                       <p className="mt-1 line-clamp-1 text-[0.65rem] tracking-wide break-words text-muted">{person.volumes.join(" · ")}</p>
                       {person.profileEnabled && (
-                        <p className="mt-2 max-h-0 overflow-hidden text-xs text-fog opacity-0 transition-all duration-500 group-hover:max-h-10 group-hover:opacity-100">
+                        <p className="mt-2 text-xs text-fog sm:opacity-80">
                           View profile →
                         </p>
                       )}

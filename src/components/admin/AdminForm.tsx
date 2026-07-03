@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
-import { uploadImageFile, uploadMediaFile } from "@/lib/upload-client";
+import { uploadImageFile, uploadMediaFile, type UploadProgressCallback } from "@/lib/upload-client";
+import { toVideoEmbed } from "@/lib/video-embed";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import { isVideoUrl, isAudioUrl, isDocumentUrl } from "@/lib/image-url";
 
@@ -478,6 +479,18 @@ export function AdminSelect({
   );
 }
 
+const VIDEO_ACCEPT = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v";
+const VIDEO_UPLOAD_LABEL = "Upload video (MP4, WebM, or MOV — up to 2GB)";
+
+function formatUploadProgress(progress: { percent: number; loaded: number; total: number }): string {
+  if (progress.total > 0) {
+    const mbLoaded = (progress.loaded / (1024 * 1024)).toFixed(1);
+    const mbTotal = (progress.total / (1024 * 1024)).toFixed(1);
+    return `Uploading ${progress.percent}% (${mbLoaded} / ${mbTotal} MB)`;
+  }
+  return "Uploading...";
+}
+
 interface VideoGalleryUploadProps {
   videos: string[];
   onChange: (videos: string[]) => void;
@@ -509,10 +522,17 @@ export function VideoGalleryUpload({
     setUploading(true);
     setError("");
     const uploaded: string[] = [];
+    const onProgress: UploadProgressCallback = (progress) => {
+      setUploadProgress(formatUploadProgress(progress));
+    };
     try {
       for (let i = 0; i < files.length; i++) {
         setUploadProgress(`Uploading ${i + 1} of ${files.length}...`);
-        uploaded.push(await uploadMediaFile(files[i]));
+        uploaded.push(
+          await uploadMediaFile(files[i], "/api/admin/upload", (progress) => {
+            onProgress(progress);
+          })
+        );
       }
       onChange([...videos, ...uploaded]);
     } catch (err) {
@@ -569,14 +589,14 @@ export function VideoGalleryUpload({
         disabled={uploading}
         className="admin-touch-btn min-h-[4.5rem] w-full border border-dashed border-stone/50 bg-charcoal/30 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50 sm:min-h-20"
       >
-        {uploading ? uploadProgress || "Uploading..." : "Upload video (MP4 or WebM, up to 2GB)"}
+        {uploading ? uploadProgress || "Uploading..." : VIDEO_UPLOAD_LABEL}
       </button>
 
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
           type="url"
           value={urlDraft}
-          placeholder="Or paste a YouTube, Vimeo, or MP4 URL"
+          placeholder="Or paste a YouTube, Vimeo, or direct video URL"
           onChange={(e) => setUrlDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -598,11 +618,127 @@ export function VideoGalleryUpload({
       <input
         ref={inputRef}
         type="file"
-        accept="video/mp4,video/webm"
+        accept={VIDEO_ACCEPT}
         multiple
         className="hidden"
         onChange={(e) => {
           if (e.target.files) handleFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      {error && <p className="field-error mt-2">{error}</p>}
+    </div>
+  );
+}
+
+interface VideoUploadProps {
+  value: string | null;
+  onChange: (url: string | null) => void;
+  label?: string;
+  hint?: string;
+  className?: string;
+}
+
+/** Single video field — upload a file or paste YouTube/Vimeo/direct URL (e.g. official trailer). */
+export function VideoUpload({ value, onChange, label, hint, className }: VideoUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
+  const [error, setError] = useState("");
+  const [urlDraft, setUrlDraft] = useState("");
+
+  async function handleFile(file: File) {
+    setUploading(true);
+    setError("");
+    try {
+      const url = await uploadMediaFile(file, "/api/admin/upload", (progress) => {
+        setUploadProgress(formatUploadProgress(progress));
+      });
+      onChange(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      setUploadProgress("");
+    }
+  }
+
+  function addUrl() {
+    const url = urlDraft.trim();
+    if (!url) return;
+    onChange(url);
+    setUrlDraft("");
+  }
+
+  return (
+    <div className={className}>
+      {label && <p className="mb-2 text-sm text-cream-dim">{label}</p>}
+      {hint && <p className="mb-3 text-xs text-muted">{hint}</p>}
+
+      {value && (
+        <div className="mb-4 overflow-hidden border border-stone/40 bg-charcoal">
+          <div className="relative aspect-video w-full bg-ink">
+            {toVideoEmbed(value) ? (
+              <iframe
+                src={toVideoEmbed(value)!}
+                title="Video preview"
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <video src={value} controls playsInline className="h-full w-full object-contain" />
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone/30 p-3">
+            <p className="min-w-0 flex-1 truncate text-xs break-all text-muted">{value}</p>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              className="admin-touch-btn-compact border border-red-400/60 text-red-400 hover:bg-red-400/10"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="admin-touch-btn min-h-[4.5rem] w-full border border-dashed border-stone/50 bg-charcoal/30 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50 sm:min-h-20"
+      >
+        {uploading ? uploadProgress || "Uploading..." : value ? "Replace video" : VIDEO_UPLOAD_LABEL}
+      </button>
+
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          type="url"
+          value={urlDraft}
+          placeholder="Or paste YouTube, Vimeo, or direct video URL"
+          onChange={(e) => setUrlDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addUrl();
+            }
+          }}
+          className="flex-1"
+        />
+        <button type="button" onClick={addUrl} className="admin-touch-btn border border-stone/50 text-accent">
+          Use URL
+        </button>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept={VIDEO_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleFile(file);
           e.target.value = "";
         }}
       />

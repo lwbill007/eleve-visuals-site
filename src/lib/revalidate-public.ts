@@ -13,7 +13,15 @@ export function revalidatePortfolioPages(slug?: string) {
 export function revalidateSessionPages(slug?: string) {
   revalidatePath("/");
   revalidatePath("/sessions");
+  revalidatePath("/alumni");
   if (slug) revalidatePath(`/sessions/${slug}`);
+}
+
+/** Revalidate cast profile and alumni surfaces after cast mutations. */
+export function revalidateCastPages(castSlug?: string) {
+  revalidatePath("/alumni");
+  revalidatePath("/sessions");
+  if (castSlug) revalidatePath(`/sessions/cast/${castSlug}`);
 }
 
 export function revalidateServicesPages() {

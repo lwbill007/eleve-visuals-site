@@ -9,6 +9,8 @@ export interface Spotlight {
   role: string;
   image?: string | null;
   volume?: string;
+  slug?: string;
+  profileEnabled?: boolean;
 }
 
 export interface CommunityTestimonial {
@@ -46,36 +48,53 @@ export function SessionsCommunity({
 
         {spotlights.length > 0 && (
           <div className="mb-14 grid grid-cols-2 gap-5 md:grid-cols-4">
-            {spotlights.map((p, i) => (
-              <motion.figure
-                key={`${p.name}-${i}`}
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: (i % 4) * 0.06 }}
-                className="group"
-              >
-                <div className="relative aspect-[3/4] overflow-hidden bg-charcoal">
-                  {p.image ? (
-                    <Image
-                      src={p.image}
-                      alt={p.name}
-                      fill
-                      loading="lazy"
-                      className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      sizes="(max-width: 768px) 50vw, 25vw"
-                    />
+            {spotlights.map((p, i) => {
+              const figure = (
+                <>
+                  <div className="relative aspect-[3/4] overflow-hidden bg-charcoal">
+                    {p.image ? (
+                      <Image
+                        src={p.image}
+                        alt={p.name}
+                        fill
+                        loading="lazy"
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-charcoal to-ink" />
+                    )}
+                  </div>
+                  <figcaption className="mt-3">
+                    <p className="text-sm break-words text-cream">{p.name}</p>
+                    <p className="text-xs text-fog">{p.role}</p>
+                    {p.volume && <p className="mt-0.5 text-[0.65rem] tracking-wide text-muted">{p.volume}</p>}
+                    {p.profileEnabled && p.slug && (
+                      <p className="mt-1 text-[0.65rem] tracking-wide text-accent">View profile →</p>
+                    )}
+                  </figcaption>
+                </>
+              );
+
+              return (
+                <motion.figure
+                  key={`${p.slug || p.name}-${i}`}
+                  initial={{ opacity: 0, y: 18 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: (i % 4) * 0.06 }}
+                  className="group"
+                >
+                  {p.profileEnabled && p.slug ? (
+                    <Link href={`/sessions/cast/${p.slug}`} className="block">
+                      {figure}
+                    </Link>
                   ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-charcoal to-ink" />
+                    figure
                   )}
-                </div>
-                <figcaption className="mt-3">
-                  <p className="text-sm text-cream">{p.name}</p>
-                  <p className="text-xs text-fog">{p.role}</p>
-                  {p.volume && <p className="mt-0.5 text-[0.65rem] tracking-wide text-muted">{p.volume}</p>}
-                </figcaption>
-              </motion.figure>
-            ))}
+                </motion.figure>
+              );
+            })}
           </div>
         )}
 

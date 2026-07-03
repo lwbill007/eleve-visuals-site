@@ -9,7 +9,7 @@ export function isLocalUploadPath(value: string): boolean {
 }
 
 export function isVideoUrl(url: string): boolean {
-  return /\.(mp4|webm)(\?|$)/i.test(url);
+  return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(url);
 }
 
 export function isAudioUrl(url: string): boolean {
@@ -42,6 +42,8 @@ function normalizeReportedMime(raw: string): string {
       return "audio/flac";
     case "audio/x-aac":
       return "audio/aac";
+    case "video/x-m4v":
+      return "video/mp4";
     default:
       return raw;
   }
@@ -62,6 +64,8 @@ export function inferMimeType(file: File): string {
     gif: "image/gif",
     mp4: "video/mp4",
     webm: "video/webm",
+    mov: "video/quicktime",
+    m4v: "video/mp4",
     heic: "image/heic",
     heif: "image/heif",
     mp3: "audio/mpeg",
@@ -82,6 +86,8 @@ const MIME_EXTENSIONS: Record<string, string> = {
   "image/gif": "gif",
   "video/mp4": "mp4",
   "video/webm": "webm",
+  "video/quicktime": "mov",
+  "video/x-m4v": "m4v",
   "audio/mpeg": "mp3",
   "audio/wav": "wav",
   "audio/mp4": "m4a",

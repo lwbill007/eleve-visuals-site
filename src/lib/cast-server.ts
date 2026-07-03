@@ -1,8 +1,20 @@
 import { prisma } from "./db";
 import { mapCastMember, castDisplayName, CAST_ROLE_LABELS } from "./cast";
-import type { CastAppearance, CastMemberDTO, CastRole } from "./types";
+import type { CastAppearance, CastAward, CastMemberDTO, CastRole } from "./types";
 
 const PUBLIC_STATUSES = ["confirmed", "alumni"];
+
+function dedupeAwards(awards: CastAward[]): CastAward[] {
+  const seen = new Set<string>();
+  return awards.filter((award) => {
+    const key = [award.name, award.year, award.category, award.volume, award.reason]
+      .map((v) => v.trim().toLowerCase())
+      .join("|");
+    if (!award.name || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 /** Cast shown publicly on a Volume page (hides pending members). */
 export async function getCastForVolume(volumeId: string): Promise<CastMemberDTO[]> {
@@ -126,7 +138,7 @@ export async function getCastProfile(slug: string): Promise<CastProfile | null> 
     portfolioLink: firstNonEmpty(members.map((m) => m.portfolioLink)),
     photos,
     coverPhoto: photos[0] ?? null,
-    awards: members.flatMap((m) => m.awards),
+    awards: dedupeAwards(members.flatMap((m) => m.awards)),
     futureCollaborations: firstNonEmpty(members.map((m) => m.futureCollaborations)),
     isAlumni: members.some((m) => m.isAlumni || m.status === "alumni"),
     volumes: rows.map((row) => ({
@@ -166,6 +178,7 @@ export interface AlumniEntry {
 export async function getAlumniDirectory(): Promise<AlumniEntry[]> {
   const rows = await prisma.castMember.findMany({
     where: {
+      status: { in: PUBLIC_STATUSES },
       OR: [{ isAlumni: true }, { status: "alumni" }, { featuredAlumni: true }],
       volume: { published: true, status: { not: "draft" } },
     },
@@ -205,6 +218,8 @@ export interface AlumniSpotlight {
   role: string;
   image: string | null;
   volume: string;
+  slug: string;
+  profileEnabled: boolean;
 }
 
 /** Featured alumni across published Volumes — feeds the Community section. */
@@ -212,6 +227,7 @@ export async function getFeaturedAlumni(limit = 8): Promise<AlumniSpotlight[]> {
   const rows = await prisma.castMember.findMany({
     where: {
       featuredAlumni: true,
+      status: { in: PUBLIC_STATUSES },
       volume: { published: true, status: { not: "draft" } },
     },
     include: { volume: { select: { volumeNumber: true } } },
@@ -226,6 +242,8 @@ export async function getFeaturedAlumni(limit = 8): Promise<AlumniSpotlight[]> {
       role: CAST_ROLE_LABELS[member.role],
       image: member.profilePhoto,
       volume: `Vol. ${row.volume.volumeNumber}`,
+      slug: member.slug,
+      profileEnabled: member.enableProfile,
     };
   });
 }

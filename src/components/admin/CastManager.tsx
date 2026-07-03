@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminField, AdminInput, AdminTextarea, ImageUpload, GalleryUpload } from "./AdminForm";
-import { CAST_ROLE_LABELS, CAST_STATUS_LABELS, castDisplayName } from "@/lib/cast";
+import { CAST_ROLE_LABELS, CAST_STATUS_LABELS, castDisplayName, slugifyName } from "@/lib/cast";
 import {
   CAST_ROLES,
   CAST_STATUSES,
@@ -57,7 +57,20 @@ export function CastManager({ volumeId }: { volumeId: string }) {
 
   function set<K extends keyof CastMemberDTO>(key: K, value: CastMemberDTO[K]) {
     if (!editing) return;
-    setEditing({ ...editing, [key]: value });
+    const next = { ...editing, [key]: value };
+    if (key === "status") {
+      const status = value as CastStatus;
+      if (status === "alumni") next.isAlumni = true;
+      if (status !== "alumni" && editing.status === "alumni") next.isAlumni = false;
+    }
+    if (key === "isAlumni") {
+      if (value) next.status = "alumni";
+      else if (editing.status === "alumni") next.status = "confirmed";
+    }
+    if (key === "fullName" && !editing.id && !editing.slug) {
+      next.slug = slugifyName(String(value));
+    }
+    setEditing(next);
   }
 
   async function saveMember() {
@@ -150,7 +163,7 @@ export function CastManager({ volumeId }: { volumeId: string }) {
               onDragStart={() => (dragIndex.current = index)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(index)}
-              className="flex items-center gap-3 border border-stone/30 bg-charcoal/40 p-3"
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-stone/30 bg-charcoal/40 p-3"
             >
               <span className="cursor-grab text-fog" aria-hidden>⠿</span>
               <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-charcoal">
@@ -163,14 +176,15 @@ export function CastManager({ volumeId }: { volumeId: string }) {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-cream">{castDisplayName(m)}</p>
-                <p className="text-xs text-muted">
+                <p className="text-xs break-words text-muted">
                   {CAST_ROLE_LABELS[m.role]} · {CAST_STATUS_LABELS[m.status]}
+                  {m.enableProfile && " · Profile live"}
                   {m.featured && " · Featured"}
                   {m.featuredAlumni && " · Featured Alumni"}
                   {m.awards.length > 0 && ` · ${m.awards.length} award${m.awards.length > 1 ? "s" : ""}`}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="flex w-full shrink-0 flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
                 <button type="button" onClick={() => move(index, -1)} className="py-1 text-sm text-fog">↑</button>
                 <button type="button" onClick={() => move(index, 1)} className="py-1 text-sm text-fog">↓</button>
                 <button type="button" onClick={() => setEditing(m)} className="py-1 text-xs text-accent">Edit</button>
@@ -192,6 +206,16 @@ export function CastManager({ volumeId }: { volumeId: string }) {
             </AdminField>
             <AdminField label="Stage Name" hint="Optional — shown instead of full name">
               <AdminInput value={editing.stageName || ""} onChange={(e) => set("stageName", e.target.value)} />
+            </AdminField>
+            <AdminField
+              label="Profile URL Slug"
+              hint="Used for /sessions/cast/your-slug — auto-filled from name on new members"
+            >
+              <AdminInput
+                value={editing.slug || ""}
+                onChange={(e) => set("slug", slugifyName(e.target.value))}
+                placeholder={slugifyName(editing.fullName || "member-name")}
+              />
             </AdminField>
             <AdminField label="Creative Role">
               <select
@@ -273,9 +297,15 @@ export function CastManager({ volumeId }: { volumeId: string }) {
                   checked={!!editing.enableProfile}
                   onChange={(e) => set("enableProfile", e.target.checked)}
                 />
-                Enable profile page (future)
+                Enable public profile page
               </label>
             </div>
+            {editing.enableProfile && editing.slug && (
+              <p className="mt-3 text-xs break-all text-muted">
+                Live at{" "}
+                <span className="text-accent">/sessions/cast/{editing.slug}</span>
+              </p>
+            )}
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <AdminField label="Future Collaborations">
                 <AdminInput

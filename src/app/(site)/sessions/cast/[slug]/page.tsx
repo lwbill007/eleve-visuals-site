@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getCastProfile } from "@/lib/cast-server";
+import { getCastProfile, getProfileSlugs } from "@/lib/cast-server";
 import { CastProfileView } from "@/components/sessions/CastProfileView";
 import { CAST_ROLE_LABELS } from "@/lib/cast";
 
 export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const slugs = await getProfileSlugs();
+  return slugs.map((slug) => ({ slug }));
+}
 
 export async function generateMetadata({
   params,

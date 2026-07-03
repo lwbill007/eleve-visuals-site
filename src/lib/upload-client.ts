@@ -11,11 +11,18 @@ import {
 import {
   blobFolderForMime,
   isAllowedUploadMime,
+  isVideoMime,
   maxBytesForMime,
   maxLabelForMime,
   SESSION_PORTFOLIO_MAX_BYTES,
   VERCEL_SERVER_MAX_BYTES,
 } from "@/lib/upload-constants";
+
+export type UploadProgressCallback = (progress: {
+  loaded: number;
+  total: number;
+  percent: number;
+}) => void;
 
 function humanizeUploadError(error: unknown): Error {
   if (!(error instanceof Error)) return new Error("Upload failed");
@@ -49,7 +56,7 @@ function validateFileBeforeUpload(file: File, endpoint: string): string {
       );
     }
     throw new Error(
-      `Unsupported file type (${mimeType || "unknown"}). Use JPEG, PNG, WebP, GIF, MP4, WebM, MP3, WAV, M4A, AAC, OGG, FLAC, or PDF.`
+      `Unsupported file type (${mimeType || "unknown"}). Use JPEG, PNG, WebP, GIF, MP4, WebM, MOV, MP3, WAV, M4A, AAC, OGG, FLAC, or PDF.`
     );
   }
 
@@ -79,15 +86,19 @@ async function indexMediaAsset(url: string, filename: string) {
   }
 }
 
-function shouldUseDirectBlobUpload(endpoint: string): boolean {
-  return (
-    endpoint.startsWith("/api/admin") && process.env.NODE_ENV === "production"
-  );
+function shouldUseDirectBlobUpload(file: File, endpoint: string): boolean {
+  if (!endpoint.startsWith("/api/admin")) return false;
+  const mimeType = inferMimeType(file);
+  // Videos routinely exceed Vercel's ~4.5MB serverless body limit — always bypass the server route.
+  if (isVideoMime(mimeType)) return true;
+  if (file.size > VERCEL_SERVER_MAX_BYTES) return true;
+  return process.env.NODE_ENV === "production";
 }
 
 async function uploadViaDirectBlob(
   file: File,
-  validate: (url: string) => void
+  validate: (url: string) => void,
+  onProgress?: UploadProgressCallback
 ): Promise<string> {
   const mimeType = inferMimeType(file);
   const pathname = buildUploadPathname(file, blobFolderForMime(mimeType));
@@ -103,6 +114,14 @@ async function uploadViaDirectBlob(
     access: "public",
     handleUploadUrl: "/api/admin/upload/client",
     contentType: mimeType,
+    onUploadProgress: onProgress
+      ? ({ loaded, total }) =>
+          onProgress({
+            loaded,
+            total,
+            percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
+          })
+      : undefined,
   });
 
   console.log("[upload] direct blob response", blob);
@@ -183,7 +202,8 @@ async function uploadViaServerRoute(
 async function postUpload(
   file: File,
   endpoint: string,
-  validate: (url: string) => void
+  validate: (url: string) => void,
+  onProgress?: UploadProgressCallback
 ): Promise<string> {
   const mimeType = validateFileBeforeUpload(file, endpoint);
 
@@ -192,12 +212,24 @@ async function postUpload(
     type: mimeType,
     reportedType: file.type,
     size: file.size,
-    mode: shouldUseDirectBlobUpload(endpoint) ? "direct-blob" : "server",
+    mode: shouldUseDirectBlobUpload(file, endpoint) ? "direct-blob" : "server",
   });
 
   try {
-    if (shouldUseDirectBlobUpload(endpoint)) {
-      return await uploadViaDirectBlob(file, validate);
+    if (shouldUseDirectBlobUpload(file, endpoint)) {
+      try {
+        return await uploadViaDirectBlob(file, validate, onProgress);
+      } catch (directError) {
+        // Local dev without Blob connected — fall back to the server route for smaller files.
+        if (
+          process.env.NODE_ENV !== "production" &&
+          file.size <= VERCEL_SERVER_MAX_BYTES
+        ) {
+          console.log("[upload] direct blob unavailable in dev, trying server route");
+          return await uploadViaServerRoute(file, endpoint, validate);
+        }
+        throw directError;
+      }
     }
 
     try {
@@ -210,7 +242,7 @@ async function postUpload(
         endpoint.startsWith("/api/admin")
       ) {
         console.log("[upload] falling back to direct blob upload");
-        return await uploadViaDirectBlob(file, validate);
+        return await uploadViaDirectBlob(file, validate, onProgress);
       }
       throw error;
     }
@@ -227,14 +259,16 @@ async function postUpload(
 
 export async function uploadImageFile(
   file: File,
-  endpoint = "/api/admin/upload"
+  endpoint = "/api/admin/upload",
+  onProgress?: UploadProgressCallback
 ): Promise<string> {
-  return postUpload(file, endpoint, assertValidImageUrl);
+  return postUpload(file, endpoint, assertValidImageUrl, onProgress);
 }
 
 export async function uploadMediaFile(
   file: File,
-  endpoint = "/api/admin/upload"
+  endpoint = "/api/admin/upload",
+  onProgress?: UploadProgressCallback
 ): Promise<string> {
-  return postUpload(file, endpoint, assertValidMediaUrl);
+  return postUpload(file, endpoint, assertValidMediaUrl, onProgress);
 }

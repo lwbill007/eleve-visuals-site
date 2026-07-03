@@ -26,7 +26,7 @@ function Social({ href, label }: { href: string; label: string }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="rounded-full border border-stone/40 px-4 py-1.5 text-xs tracking-[0.12em] text-fog uppercase transition-colors hover:border-accent hover:text-accent"
+      className="inline-flex min-h-11 items-center rounded-full border border-stone/40 px-4 py-1.5 text-xs tracking-[0.12em] text-fog uppercase transition-colors hover:border-accent hover:text-accent"
     >
       {label}
     </a>
@@ -35,6 +35,17 @@ function Social({ href, label }: { href: string; label: string }) {
 
 export function CastProfileView({ profile }: { profile: CastProfile }) {
   const roleLabel = profile.roles.map((r) => CAST_ROLE_LABELS[r]).join(" · ");
+  const primaryVolume = profile.volumes[0];
+  const backHref = profile.isAlumni
+    ? "/alumni"
+    : primaryVolume
+      ? `/sessions/${primaryVolume.slug}`
+      : "/sessions";
+  const backLabel = profile.isAlumni
+    ? "Alumni"
+    : primaryVolume
+      ? `Vol. ${primaryVolume.volumeNumber}`
+      : "Sessions";
 
   return (
     <>
@@ -47,11 +58,11 @@ export function CastProfileView({ profile }: { profile: CastProfile }) {
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-ink/20" />
         <div className="relative z-10 w-full section-padding pb-14 pt-28">
           <div className="container-wide">
-            <Link href="/alumni" className="label-caps mb-6 inline-block text-fog hover:text-cream">
-              ← Alumni
+            <Link href={backHref} className="label-caps mb-6 inline-flex min-h-11 items-center text-fog hover:text-cream">
+              ← {backLabel}
             </Link>
             <p className="label-caps text-accent">{roleLabel}</p>
-            <h1 className="headline-xl mt-2">{profile.name}</h1>
+            <h1 className="headline-xl mt-2 break-words">{profile.name}</h1>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted">
               {profile.city && <span>{profile.city}</span>}
               {profile.isAlumni && (
@@ -66,13 +77,15 @@ export function CastProfileView({ profile }: { profile: CastProfile }) {
 
       <section className="section-padding border-b border-stone/30">
         <div className="container-wide grid gap-12 lg:grid-cols-12">
-          <div className="lg:col-span-7">
-            {profile.bio && (
+          <div className="min-w-0 lg:col-span-7">
+            {profile.bio ? (
               <div className="space-y-5">
                 {profile.bio.split("\n").filter(Boolean).map((p, i) => (
-                  <p key={i} className="body-lg text-fog">{p}</p>
+                  <p key={i} className="body-lg break-words text-fog">{p}</p>
                 ))}
               </div>
+            ) : (
+              <p className="body-lg text-muted">Profile details are being updated.</p>
             )}
             {profile.futureCollaborations && (
               <div className="mt-10">
@@ -138,7 +151,7 @@ export function CastProfileView({ profile }: { profile: CastProfile }) {
                     <div className="absolute inset-0 bg-gradient-to-t from-ink/90 to-transparent" />
                     <div className="absolute inset-x-0 bottom-0 p-3">
                       <p className="text-[0.65rem] tracking-[0.12em] text-accent uppercase">Vol. {v.volumeNumber}</p>
-                      <p className="font-display text-sm text-cream">{v.title}</p>
+                      <p className="line-clamp-2 font-display text-sm leading-tight break-words text-cream">{v.title}</p>
                       <p className="text-[0.65rem] text-muted">{CAST_ROLE_LABELS[v.role]}</p>
                     </div>
                   </div>

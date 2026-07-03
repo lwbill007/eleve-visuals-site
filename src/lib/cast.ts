@@ -155,11 +155,12 @@ export function parseCastBody(body: Record<string, unknown>) {
     : [];
 
   const isAlumni = !!body.isAlumni || status === "alumni";
+  const slugInput = String(body.slug || "").trim();
 
   return {
     fullName,
     stageName: String(body.stageName || ""),
-    slug: slugifyName(fullName),
+    slug: slugInput ? slugifyName(slugInput) : slugifyName(fullName),
     role,
     profilePhoto: (body.profilePhoto as string | null) ?? null,
     additionalPhotos: JSON.stringify(additionalPhotos),

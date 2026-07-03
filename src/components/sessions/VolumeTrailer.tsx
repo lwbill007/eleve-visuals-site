@@ -71,10 +71,8 @@ export function VolumeTrailer({ url, title }: { url: string | null; title: strin
               src={url}
               controls
               playsInline
-              muted
-              autoPlay
-              loop
-              className="h-full w-full object-cover"
+              preload="metadata"
+              className="h-full w-full object-contain bg-ink"
             />
           </div>
         )}

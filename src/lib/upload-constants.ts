@@ -5,7 +5,12 @@ export const UPLOAD_IMAGE_TYPES = [
   "image/gif",
 ] as const;
 
-export const UPLOAD_VIDEO_TYPES = ["video/mp4", "video/webm"] as const;
+export const UPLOAD_VIDEO_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/x-m4v",
+] as const;
 
 export const UPLOAD_AUDIO_TYPES = [
   "audio/mpeg",

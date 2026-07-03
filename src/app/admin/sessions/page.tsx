@@ -13,6 +13,7 @@ import {
   ImageUpload,
   GalleryUpload,
   VideoGalleryUpload,
+  VideoUpload,
   AudioGalleryUpload,
   FileUpload,
   StringListEditor,
@@ -438,12 +439,14 @@ export default function AdminSessionsPage() {
                 onChange={(e) => update("difficulty", e.target.value)}
               />
             </AdminField>
-            <AdminField label="Teaser Video URL" hint="YouTube or direct MP4 URL">
-              <AdminInput
-                value={editing.teaserVideoUrl || ""}
-                onChange={(e) => update("teaserVideoUrl", e.target.value || null)}
+            <div className="md:col-span-2">
+              <VideoUpload
+                label="Official Trailer"
+                hint="Upload MP4, WebM, or MOV (up to 2GB), or paste a YouTube, Vimeo, or direct video URL."
+                value={editing.teaserVideoUrl ?? null}
+                onChange={(url) => update("teaserVideoUrl", url)}
               />
-            </AdminField>
+            </div>
             <AdminField label="Playlist URL" hint="Spotify, Apple Music, or YouTube playlist">
               <AdminInput
                 value={editing.playlistUrl || ""}
@@ -491,7 +494,7 @@ export default function AdminSessionsPage() {
             <div className="md:col-span-2">
               <VideoGalleryUpload
                 label="Videos"
-                hint="Upload MP4/WebM clips, or paste YouTube, Vimeo, or direct video URLs."
+                hint="Upload MP4, WebM, or MOV clips, or paste YouTube, Vimeo, or direct video URLs."
                 videos={editing.videos || []}
                 onChange={(videos) => update("videos", videos)}
               />
@@ -502,7 +505,7 @@ export default function AdminSessionsPage() {
             <div className="md:col-span-2">
               <VideoGalleryUpload
                 label="Interviews"
-                hint="Interview clips — upload MP4/WebM or paste YouTube/Vimeo URLs."
+                hint="Interview clips — upload MP4, WebM, or MOV, or paste YouTube/Vimeo URLs."
                 videos={editing.interviews || []}
                 onChange={(interviews) => update("interviews", interviews)}
               />

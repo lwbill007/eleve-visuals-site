@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CAST_CREDIT_HEADINGS, castDisplayName } from "@/lib/cast";
 import { CAST_ROLES, type CastMemberDTO, type CastRole } from "@/lib/types";
 
@@ -36,7 +37,16 @@ export function VolumeCredits({
               <ul className="mt-3 space-y-1">
                 {group.people.map((person) => (
                   <li key={person.id} className="font-display text-xl text-cream">
-                    {castDisplayName(person)}
+                    {person.enableProfile && person.slug ? (
+                      <Link
+                        href={`/sessions/cast/${person.slug}`}
+                        className="break-words transition-colors hover:text-accent"
+                      >
+                        {castDisplayName(person)}
+                      </Link>
+                    ) : (
+                      <span className="break-words">{castDisplayName(person)}</span>
+                    )}
                   </li>
                 ))}
               </ul>

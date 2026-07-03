@@ -88,47 +88,75 @@ export function VolumeCast({
         </div>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {members.map((m, i) => (
-            <motion.button
-              key={m.id}
-              type="button"
-              onClick={() => setActive(m)}
-              initial={reduce ? false : { opacity: 0, y: 24 }}
-              whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.5, delay: Math.min(i * 0.05, 0.4) }}
-              className="group relative aspect-[3/4] overflow-hidden bg-charcoal text-left"
-            >
-              {m.profilePhoto ? (
-                <Image
-                  src={m.profilePhoto}
-                  alt={castDisplayName(m)}
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center">
-                  <SessionIcon name="users" className="h-10 w-10 text-stone" />
+          {members.map((m, i) => {
+            const cardClass =
+              "group relative aspect-[3/4] overflow-hidden bg-charcoal text-left transition-transform duration-300 hover:scale-[1.02]";
+            const cardInner = (
+              <>
+                {m.profilePhoto ? (
+                  <Image
+                    src={m.profilePhoto}
+                    alt={castDisplayName(m)}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <SessionIcon name="users" className="h-10 w-10 text-stone" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/10 to-transparent opacity-90" />
+                {m.featured && (
+                  <span className="absolute top-3 left-3 rounded-full bg-accent/90 px-2 py-0.5 text-[0.6rem] font-medium tracking-[0.12em] text-ink uppercase">
+                    Featured
+                  </span>
+                )}
+                <div className="absolute inset-x-0 bottom-0 p-4">
+                  <p className="line-clamp-2 font-display text-lg leading-tight break-words text-cream">
+                    {castDisplayName(m)}
+                  </p>
+                  <p className="line-clamp-1 text-[0.7rem] tracking-[0.12em] text-accent uppercase">
+                    {CAST_ROLE_LABELS[m.role]}
+                  </p>
+                  <p className="mt-2 text-xs text-fog sm:max-h-0 sm:overflow-hidden sm:opacity-0 sm:transition-all sm:duration-500 sm:group-hover:max-h-16 sm:group-hover:opacity-100">
+                    {m.enableProfile && m.slug ? "View profile →" : "Quick look →"}
+                  </p>
                 </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/10 to-transparent opacity-90" />
-              {m.featured && (
-                <span className="absolute top-3 left-3 rounded-full bg-accent/90 px-2 py-0.5 text-[0.6rem] font-medium tracking-[0.12em] text-ink uppercase">
-                  Featured
-                </span>
-              )}
-              <div className="absolute inset-x-0 bottom-0 p-4">
-                <p className="line-clamp-2 font-display text-lg leading-tight break-words text-cream">{castDisplayName(m)}</p>
-                <p className="line-clamp-1 text-[0.7rem] tracking-[0.12em] text-accent uppercase">
-                  {CAST_ROLE_LABELS[m.role]}
-                </p>
-                <p className="mt-2 max-h-0 overflow-hidden text-xs text-fog opacity-0 transition-all duration-500 group-hover:max-h-16 group-hover:opacity-100">
-                  View profile →
-                </p>
-              </div>
-            </motion.button>
-          ))}
+              </>
+            );
+
+            if (m.enableProfile && m.slug) {
+              return (
+                <motion.div
+                  key={m.id}
+                  initial={reduce ? false : { opacity: 0, y: 24 }}
+                  whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-60px" }}
+                  transition={{ duration: 0.5, delay: Math.min(i * 0.05, 0.4) }}
+                >
+                  <Link href={`/sessions/cast/${m.slug}`} className={cardClass}>
+                    {cardInner}
+                  </Link>
+                </motion.div>
+              );
+            }
+
+            return (
+              <motion.button
+                key={m.id}
+                type="button"
+                onClick={() => setActive(m)}
+                initial={reduce ? false : { opacity: 0, y: 24 }}
+                whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.5, delay: Math.min(i * 0.05, 0.4) }}
+                className={cardClass}
+              >
+                {cardInner}
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 
@@ -188,7 +216,7 @@ export function VolumeCast({
                     </Link>
                   )}
 
-                  {active.bio && <p className="mt-5 text-sm leading-relaxed text-fog">{active.bio}</p>}
+                  {active.bio && <p className="mt-5 text-sm leading-relaxed break-words text-fog">{active.bio}</p>}
 
                   {(active.instagram || active.tiktok || active.website || active.portfolioLink) && (
                     <div className="mt-6 flex flex-wrap gap-2">
