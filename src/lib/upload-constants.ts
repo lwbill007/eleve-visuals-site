@@ -49,6 +49,12 @@ export function isDocumentMime(mimeType: string): boolean {
 /** Vercel serverless request body hard limit — server-side multipart uploads must stay under this. */
 export const VERCEL_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 
+/** Use Vercel Blob multipart client uploads above this size (recommended for large videos). */
+export const BLOB_MULTIPART_THRESHOLD_BYTES = 100 * 1024 * 1024;
+
+/** Videos often exceed single-request reliability limits — multipart from a lower threshold. */
+export const BLOB_VIDEO_MULTIPART_THRESHOLD_BYTES = 20 * 1024 * 1024;
+
 export const SESSION_PORTFOLIO_MAX_BYTES = 5 * 1024 * 1024;
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;

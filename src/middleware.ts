@@ -14,6 +14,15 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
 
   if (pathname.startsWith("/api/admin")) {
+    // Vercel Blob posts upload-completed webhooks here with x-vercel-signature (no admin cookie).
+    if (
+      pathname === "/api/admin/upload/client" &&
+      request.method === "POST" &&
+      request.headers.get("x-vercel-signature")
+    ) {
+      return NextResponse.next();
+    }
+
     if (!isAuthConfigured()) {
       return NextResponse.json(
         { error: "Server auth is not configured. Set AUTH_SECRET in environment variables." },

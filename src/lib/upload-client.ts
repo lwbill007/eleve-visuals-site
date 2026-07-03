@@ -9,6 +9,8 @@ import {
   inferMimeType,
 } from "@/lib/image-url";
 import {
+  BLOB_MULTIPART_THRESHOLD_BYTES,
+  BLOB_VIDEO_MULTIPART_THRESHOLD_BYTES,
   blobFolderForMime,
   isAllowedUploadMime,
   isVideoMime,
@@ -96,7 +98,26 @@ function humanizeUploadError(error: unknown): Error {
     );
   }
 
+  if (/failed to retrieve the client token/i.test(msg)) {
+    return new Error(
+      "Upload failed: could not connect to storage. Stay signed in to admin and confirm Vercel Blob is connected to this project."
+    );
+  }
+
+  if (/token.*expir|expired/i.test(msg)) {
+    return new Error(
+      "Upload failed: storage token expired during upload. Try again on a faster connection or use a smaller file."
+    );
+  }
+
   return error;
+}
+
+function shouldUseMultipartUpload(file: File, mimeType: string): boolean {
+  const threshold = isVideoMime(mimeType)
+    ? BLOB_VIDEO_MULTIPART_THRESHOLD_BYTES
+    : BLOB_MULTIPART_THRESHOLD_BYTES;
+  return file.size >= threshold;
 }
 
 function validateFileBeforeUpload(file: File, endpoint: string): string {
@@ -165,10 +186,14 @@ async function uploadViaDirectBlob(
 
   const reportProgress = createMonotonicProgressReporter(file.size, onProgress);
 
+  const multipart = shouldUseMultipartUpload(file, mimeType);
+
   const blob = await blobClientUpload(pathname, file, {
     access: "public",
     handleUploadUrl: "/api/admin/upload/client",
     contentType: mimeType,
+    multipart,
+    clientPayload: JSON.stringify({ size: file.size, mime: mimeType }),
     onUploadProgress: reportProgress
       ? (event) =>
           reportProgress({

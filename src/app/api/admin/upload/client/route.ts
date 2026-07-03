@@ -21,13 +21,28 @@ async function indexMediaAsset(url: string, filename: string) {
   }
 }
 
-export async function POST(request: Request) {
-  try {
-    await requireAdmin();
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+function tokenValidUntil(clientPayload: string | null): number {
+  const oneHour = 60 * 60 * 1000;
+  const maxWindow = 24 * 60 * 60 * 1000;
+  let windowMs = oneHour;
+
+  if (clientPayload) {
+    try {
+      const meta = JSON.parse(clientPayload) as { size?: number };
+      if (typeof meta.size === "number" && meta.size > 0) {
+        // ~2 minutes per 100MB, minimum 1 hour, capped at 24 hours.
+        const perHundredMb = Math.ceil(meta.size / (100 * 1024 * 1024)) * 2 * 60 * 1000;
+        windowMs = Math.min(maxWindow, Math.max(oneHour, perHundredMb));
+      }
+    } catch {
+      // ignore malformed client payload
+    }
   }
 
+  return Date.now() + windowMs;
+}
+
+export async function POST(request: Request) {
   let body: HandleUploadBody;
   try {
     body = (await request.json()) as HandleUploadBody;
@@ -39,12 +54,21 @@ export async function POST(request: Request) {
     const jsonResponse = await handleUpload({
       request,
       body,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: [...UPLOAD_ALL_TYPES],
-        maximumSizeInBytes: MAX_VIDEO_BYTES,
-        access: "public",
-        addRandomSuffix: true,
-      }),
+      onBeforeGenerateToken: async (_pathname, clientPayload) => {
+        try {
+          await requireAdmin();
+        } catch {
+          throw new Error("Unauthorized");
+        }
+
+        return {
+          allowedContentTypes: [...UPLOAD_ALL_TYPES],
+          maximumSizeInBytes: MAX_VIDEO_BYTES,
+          access: "public",
+          addRandomSuffix: true,
+          validUntil: tokenValidUntil(clientPayload),
+        };
+      },
       onUploadCompleted: async ({ blob }) => {
         const filename = blob.pathname.split("/").pop() || "upload";
         await indexMediaAsset(blob.url, filename);
@@ -55,6 +79,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[upload-client-api] error:", error);
     const detail = error instanceof Error ? error.message : String(error);
+
+    if (/unauthorized/i.test(detail)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const accessHint =
       /access|public|private|BlobAccess/i.test(detail)
         ? " Use a Public Vercel Blob store (Storage → Settings)."
