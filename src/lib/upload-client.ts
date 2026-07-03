@@ -110,6 +110,8 @@ async function uploadViaDirectBlob(
     pathname,
   });
 
+  onProgress?.({ loaded: 0, total: file.size, percent: 0 });
+
   const blob = await blobClientUpload(pathname, file, {
     access: "public",
     handleUploadUrl: "/api/admin/upload/client",
@@ -133,6 +135,7 @@ async function uploadViaDirectBlob(
 
   validate(url);
   await indexMediaAsset(url, file.name);
+  onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
   return url;
 }
 
@@ -165,13 +168,20 @@ function extractUploadUrl(data: Record<string, unknown>): string {
 async function uploadViaServerRoute(
   file: File,
   endpoint: string,
-  validate: (url: string) => void
+  validate: (url: string) => void,
+  onProgress?: UploadProgressCallback
 ): Promise<string> {
   if (
     process.env.NODE_ENV === "production" &&
     file.size > VERCEL_SERVER_MAX_BYTES
   ) {
     throw new Error("FILE_TOO_LARGE_FOR_SERVER");
+  }
+
+  onProgress?.({ loaded: 0, total: file.size, percent: 0 });
+
+  if (onProgress && typeof XMLHttpRequest !== "undefined") {
+    return uploadViaServerRouteXhr(file, endpoint, validate, onProgress);
   }
 
   const formData = new FormData();
@@ -196,7 +206,74 @@ async function uploadViaServerRoute(
 
   const url = extractUploadUrl(data);
   validate(url);
+  onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
   return url;
+}
+
+function uploadViaServerRouteXhr(
+  file: File,
+  endpoint: string,
+  validate: (url: string) => void,
+  onProgress: UploadProgressCallback
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("_hp", "");
+
+    xhr.upload.addEventListener("progress", (event) => {
+      const total = event.lengthComputable ? event.total : file.size;
+      const loaded = event.loaded;
+      const percent =
+        total > 0 ? Math.min(99, Math.round((loaded / total) * 100)) : 0;
+      onProgress({ loaded, total, percent });
+    });
+
+    xhr.addEventListener("load", () => {
+      const text = xhr.responseText;
+      let data: Record<string, unknown>;
+      try {
+        data = parseUploadJson(text, xhr.status);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+
+      if (xhr.status === 401 && typeof window !== "undefined") {
+        window.location.href = "/admin/login";
+        reject(new Error("Unauthorized"));
+        return;
+      }
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const message =
+          typeof data.error === "string" ? data.error : `Upload failed (${xhr.status})`;
+        if (xhr.status === 413) {
+          reject(new Error("FILE_TOO_LARGE_FOR_SERVER"));
+          return;
+        }
+        reject(new Error(message));
+        return;
+      }
+
+      try {
+        const url = extractUploadUrl(data);
+        validate(url);
+        onProgress({ loaded: file.size, total: file.size, percent: 100 });
+        resolve(url);
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Upload failed: network error")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+
+    xhr.open("POST", endpoint);
+    xhr.withCredentials = true;
+    xhr.send(formData);
+  });
 }
 
 async function postUpload(
@@ -226,14 +303,14 @@ async function postUpload(
           file.size <= VERCEL_SERVER_MAX_BYTES
         ) {
           console.log("[upload] direct blob unavailable in dev, trying server route");
-          return await uploadViaServerRoute(file, endpoint, validate);
+          return await uploadViaServerRoute(file, endpoint, validate, onProgress);
         }
         throw directError;
       }
     }
 
     try {
-      return await uploadViaServerRoute(file, endpoint, validate);
+      return await uploadViaServerRoute(file, endpoint, validate, onProgress);
     } catch (error) {
       if (
         error instanceof Error &&

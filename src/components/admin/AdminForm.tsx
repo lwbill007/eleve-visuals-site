@@ -486,9 +486,66 @@ function formatUploadProgress(progress: { percent: number; loaded: number; total
   if (progress.total > 0) {
     const mbLoaded = (progress.loaded / (1024 * 1024)).toFixed(1);
     const mbTotal = (progress.total / (1024 * 1024)).toFixed(1);
-    return `Uploading ${progress.percent}% (${mbLoaded} / ${mbTotal} MB)`;
+    return `${progress.percent}% · ${mbLoaded} / ${mbTotal} MB`;
   }
-  return "Uploading...";
+  return "Preparing upload...";
+}
+
+interface UploadProgressState {
+  percent: number;
+  label: string;
+}
+
+function UploadProgressBar({ percent, label }: UploadProgressState) {
+  const indeterminate = percent === 0 && label.toLowerCase().includes("preparing");
+
+  return (
+    <div
+      className="mt-3 rounded border border-accent/30 bg-charcoal/60 p-4"
+      role="progressbar"
+      aria-valuenow={indeterminate ? undefined : percent}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label}
+    >
+      <div className="mb-2.5 flex items-center justify-between gap-3 text-xs">
+        <span className="min-w-0 break-words text-fog">{label}</span>
+        <span className="shrink-0 font-medium tabular-nums text-accent">
+          {indeterminate ? "…" : `${percent}%`}
+        </span>
+      </div>
+      <div className="h-2.5 overflow-hidden rounded-full bg-stone/40">
+        {indeterminate ? (
+          <div className="upload-progress-indeterminate h-full w-1/3 rounded-full bg-accent" />
+        ) : (
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
+            style={{
+              width: `${Math.min(100, Math.max(percent, percent > 0 ? 3 : 0))}%`,
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function makeProgressUpdater(
+  setProgress: (state: UploadProgressState | null) => void,
+  fileName: string,
+  fileIndex?: number,
+  fileCount?: number
+): UploadProgressCallback {
+  const prefix =
+    fileCount && fileCount > 1 && fileIndex
+      ? `Video ${fileIndex} of ${fileCount} · `
+      : "";
+  return (progress) => {
+    setProgress({
+      percent: progress.percent,
+      label: `${prefix}${fileName} — ${formatUploadProgress(progress)}`,
+    });
+  };
 }
 
 interface VideoGalleryUploadProps {
@@ -512,7 +569,7 @@ export function VideoGalleryUpload({
 }: VideoGalleryUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState("");
+  const [progress, setProgress] = useState<UploadProgressState | null>(null);
   const [error, setError] = useState("");
   const [urlDraft, setUrlDraft] = useState("");
 
@@ -521,26 +578,27 @@ export function VideoGalleryUpload({
     if (files.length === 0) return;
     setUploading(true);
     setError("");
+    setProgress({ percent: 0, label: "Preparing upload..." });
     const uploaded: string[] = [];
-    const onProgress: UploadProgressCallback = (progress) => {
-      setUploadProgress(formatUploadProgress(progress));
-    };
     try {
       for (let i = 0; i < files.length; i++) {
-        setUploadProgress(`Uploading ${i + 1} of ${files.length}...`);
         uploaded.push(
-          await uploadMediaFile(files[i], "/api/admin/upload", (progress) => {
-            onProgress(progress);
-          })
+          await uploadMediaFile(
+            files[i],
+            "/api/admin/upload",
+            makeProgressUpdater(setProgress, files[i].name, i + 1, files.length)
+          )
         );
       }
+      setProgress({ percent: 100, label: "Upload complete — saving to library" });
       onChange([...videos, ...uploaded]);
     } catch (err) {
       if (uploaded.length > 0) onChange([...videos, ...uploaded]);
       setError(err instanceof Error ? err.message : "Upload failed");
+      setProgress(null);
     } finally {
       setUploading(false);
-      setUploadProgress("");
+      setTimeout(() => setProgress(null), uploaded.length > 0 ? 1200 : 0);
     }
   }
 
@@ -589,8 +647,10 @@ export function VideoGalleryUpload({
         disabled={uploading}
         className="admin-touch-btn min-h-[4.5rem] w-full border border-dashed border-stone/50 bg-charcoal/30 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50 sm:min-h-20"
       >
-        {uploading ? uploadProgress || "Uploading..." : VIDEO_UPLOAD_LABEL}
+        {uploading ? "Upload in progress…" : VIDEO_UPLOAD_LABEL}
       </button>
+
+      {progress && <UploadProgressBar percent={progress.percent} label={progress.label} />}
 
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
@@ -643,23 +703,28 @@ interface VideoUploadProps {
 export function VideoUpload({ value, onChange, label, hint, className }: VideoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState("");
+  const [progress, setProgress] = useState<UploadProgressState | null>(null);
   const [error, setError] = useState("");
   const [urlDraft, setUrlDraft] = useState("");
 
   async function handleFile(file: File) {
     setUploading(true);
     setError("");
+    setProgress({ percent: 0, label: "Preparing upload..." });
     try {
-      const url = await uploadMediaFile(file, "/api/admin/upload", (progress) => {
-        setUploadProgress(formatUploadProgress(progress));
-      });
+      const url = await uploadMediaFile(
+        file,
+        "/api/admin/upload",
+        makeProgressUpdater(setProgress, file.name)
+      );
+      setProgress({ percent: 100, label: "Upload complete" });
       onChange(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
+      setProgress(null);
     } finally {
       setUploading(false);
-      setUploadProgress("");
+      setTimeout(() => setProgress(null), 1200);
     }
   }
 
@@ -709,8 +774,10 @@ export function VideoUpload({ value, onChange, label, hint, className }: VideoUp
         disabled={uploading}
         className="admin-touch-btn min-h-[4.5rem] w-full border border-dashed border-stone/50 bg-charcoal/30 text-sm text-fog hover:border-fog hover:text-cream disabled:opacity-50 sm:min-h-20"
       >
-        {uploading ? uploadProgress || "Uploading..." : value ? "Replace video" : VIDEO_UPLOAD_LABEL}
+        {uploading ? "Upload in progress…" : value ? "Replace video" : VIDEO_UPLOAD_LABEL}
       </button>
+
+      {progress && <UploadProgressBar percent={progress.percent} label={progress.label} />}
 
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input

@@ -230,6 +230,19 @@ input[type="file"] {
   .admin-touch-btn-compact {
     @apply inline-flex min-h-10 items-center justify-center px-3 py-2 text-xs;
   }
+
+  @keyframes upload-slide {
+    0% {
+      transform: translateX(-120%);
+    }
+    100% {
+      transform: translateX(420%);
+    }
+  }
+
+  .upload-progress-indeterminate {
+    animation: upload-slide 1.4s ease-in-out infinite;
+  }
 }
 
 .checkbox-row {
