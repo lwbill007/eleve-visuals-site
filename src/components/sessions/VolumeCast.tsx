@@ -88,6 +88,7 @@ const CARD_SURFACE =
 function CastCardFace({ member }: { member: CastMemberDTO }) {
   const name = castDisplayName(member);
   const roleLabel = CAST_ROLE_LABELS[member.role];
+  const hasProfile = member.enableProfile && !!member.slug;
 
   return (
     <div className="relative aspect-[3/4] w-full">
@@ -111,6 +112,11 @@ function CastCardFace({ member }: { member: CastMemberDTO }) {
         <p className="mt-1 line-clamp-1 text-[0.6rem] tracking-[0.12em] text-accent uppercase sm:text-[0.7rem]">
           {roleLabel}
         </p>
+        {hasProfile && (
+          <p className="mt-2 text-[0.6rem] tracking-[0.14em] text-fog uppercase opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:opacity-100">
+            View Profile →
+          </p>
+        )}
       </div>
     </div>
   );
@@ -192,12 +198,12 @@ export function VolumeCast({
   if (castMembers.length === 0) return null;
 
   return (
-    <section className="section-padding overflow-x-clip border-b border-stone/30">
+    <section id="cast" className="section-padding overflow-x-clip border-b border-stone/30">
       <div className="container-wide min-w-0">
         <header className="mb-8 flex flex-col gap-3 sm:mb-10 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <div className="min-w-0">
             <p className="label-caps text-accent">Official Cast</p>
-            <h2 className="headline-md mt-2 text-balance">The Ensemble</h2>
+            <h2 className="headline-md mt-2 text-balance">Meet the Cast</h2>
           </div>
           <p className="shrink-0 text-sm text-muted">
             {castMembers.length} creative{castMembers.length > 1 ? "s" : ""} · Vol. {volumeNumber}

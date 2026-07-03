@@ -6,11 +6,12 @@ import type {
 } from "@/lib/types";
 import { getSessionCtaMessage, getSessionStatusLabel } from "@/lib/session-volume";
 import { castDisplayName } from "@/lib/cast";
-import { toVideoEmbed } from "@/lib/video-embed";
+import { countVolumeVideos } from "@/lib/volume-watch";
 import { Button } from "@/components/ui/Button";
 import { SessionCountdown } from "@/components/sessions/SessionCountdown";
 import { VolumeHero } from "@/components/sessions/VolumeHero";
-import { VolumeTrailer } from "@/components/sessions/VolumeTrailer";
+import { VolumeWatchSection } from "@/components/sessions/VolumeWatchSection";
+import { VolumeFeaturedGallery } from "@/components/sessions/VolumeFeaturedGallery";
 import { VolumeGallery } from "@/components/sessions/VolumeGallery";
 import { VolumeTimeline } from "@/components/sessions/VolumeTimeline";
 import { VolumeAwards, type VolumeAwardEntry } from "@/components/sessions/VolumeAwards";
@@ -18,6 +19,8 @@ import { VolumeTestimonials } from "@/components/sessions/VolumeTestimonials";
 import { RelatedVolumes } from "@/components/sessions/RelatedVolumes";
 import { VolumeCast } from "@/components/sessions/VolumeCast";
 import { VolumeCredits } from "@/components/sessions/VolumeCredits";
+import { VolumeBTS } from "@/components/sessions/VolumeBTS";
+import { VolumeProductionInfo } from "@/components/sessions/VolumeProductionInfo";
 import type { LightboxItem } from "@/components/sessions/MediaLightbox";
 
 function ResourceLink({ href, label }: { href: string; label: string }) {
@@ -92,11 +95,11 @@ export function SessionDetailView({
     alt: `${volume.title} — ${volume.theme}`,
   }));
 
-  const btsItems: LightboxItem[] = [
-    ...volume.btsGallery.map((src) => ({ type: "image" as const, src, alt: `${volume.title} — behind the scenes` })),
-    ...volume.interviews.map((src) => ({ type: "video" as const, src, embed: toVideoEmbed(src), alt: `${volume.title} — interview` })),
-    ...volume.videos.map((src) => ({ type: "video" as const, src, embed: toVideoEmbed(src), alt: `${volume.title} — clip` })),
-  ];
+  const btsPhotoItems: LightboxItem[] = volume.btsGallery.map((src) => ({
+    type: "image",
+    src,
+    alt: `${volume.title} — behind the scenes`,
+  }));
 
   const moodboardItems: LightboxItem[] = volume.moodBoard.map((src) => ({
     type: "image",
@@ -116,33 +119,22 @@ export function SessionDetailView({
   const hasCreativeVision =
     volume.creativeBrief || volume.directorsNote || volume.colorPalette.length > 0 || volume.inspirations.length > 0;
 
+  const videoCount = countVolumeVideos(volume);
+  const showFullGalleryOnly = galleryItems.length > 0 && galleryItems.length <= 6;
+
   return (
     <>
       <VolumeHero
         volume={volume}
         canApply={canApply}
-        hasTrailer={!!volume.teaserVideoUrl}
         featuredVideoUrl={volume.featuredVideoUrl}
+        frameCount={galleryItems.length}
+        castCount={cast.length}
+        videoCount={videoCount}
       />
 
-      {/* Production Information */}
-      <section className="section-padding border-b border-stone/30 bg-ink-soft">
-        <div className="container-wide">
-          <p className="label-caps mb-8 text-fog">Production Information</p>
-          <div className="grid grid-cols-2 gap-px border border-stone/20 bg-stone/20 sm:grid-cols-3 lg:grid-cols-4">
-            {productionInfo.map((item) => (
-              <div key={item.label} className="bg-ink p-5">
-                <dt className="text-[0.6rem] tracking-[0.18em] text-muted uppercase">{item.label}</dt>
-                <dd className="mt-2 text-sm break-words text-cream">{item.value}</dd>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Official Synopsis */}
       {volume.synopsis && (
-        <section className="section-padding border-b border-stone/30">
+        <section className="section-padding border-b border-stone/30 bg-ink">
           <div className="container-narrow">
             <p className="label-caps mb-6 text-accent">Official Synopsis</p>
             <div className="space-y-6">
@@ -156,17 +148,32 @@ export function SessionDetailView({
         </section>
       )}
 
-      <VolumeTrailer url={volume.teaserVideoUrl} title={volume.title} />
+      <VolumeWatchSection volume={volume} />
 
       <VolumeCast members={cast} appearances={appearances} volumeNumber={volume.volumeNumber} />
 
-      <VolumeGallery
-        title="Gallery"
-        subtitle="Still frames from the production."
-        items={galleryItems}
+      {showFullGalleryOnly ? (
+        <VolumeGallery
+          id="gallery"
+          title="Gallery"
+          subtitle="Still frames from the production."
+          items={galleryItems}
+        />
+      ) : (
+        <VolumeFeaturedGallery title="Gallery" volumeTitle={volume.title} items={galleryItems} />
+      )}
+
+      <VolumeBTS
+        volume={volume}
+        photoItems={btsPhotoItems}
+        videoUrls={volume.videos}
+        interviewUrls={volume.interviews}
       />
 
-      {/* Creative Vision */}
+      <VolumeTimeline status={volume.status} />
+
+      <VolumeProductionInfo items={productionInfo} />
+
       {hasCreativeVision && (
         <section className="section-padding border-b border-stone/30 bg-ink-soft">
           <div className="container-wide grid gap-12 lg:grid-cols-12">
@@ -210,25 +217,39 @@ export function SessionDetailView({
         </section>
       )}
 
-      {/* Behind the Scenes */}
-      <VolumeGallery
-        title="Behind the Scenes"
-        subtitle="Process, candids, and the making of the Volume."
-        items={btsItems}
-        tone="soft"
-      />
+      <VolumeCredits members={cast} volumeNumber={volume.volumeNumber} title={volume.title} />
 
-      {volume.productionNotes && (
+      <VolumeAwards awards={awardEntries} />
+
+      {volume.sponsors.length > 0 && (
         <section className="section-padding border-b border-stone/30">
-          <div className="container-narrow">
-            <p className="label-caps mb-5 text-fog">Director&rsquo;s Commentary</p>
-            <div className="space-y-4">
-              {volume.productionNotes.split("\n").filter(Boolean).map((p, i) => (
-                <p key={i} className="text-sm leading-relaxed text-fog">{p}</p>
-              ))}
+          <div className="container-wide text-center">
+            <p className="label-caps mb-10 text-fog">Presented With</p>
+            <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
+              {volume.sponsors.map((sponsor, i) => {
+                const inner = sponsor.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={sponsor.logo} alt={sponsor.name} className="h-12 w-auto object-contain" />
+                ) : (
+                  <span className="font-display text-xl text-cream-dim">{sponsor.name}</span>
+                );
+                return sponsor.url ? (
+                  <a key={i} href={sponsor.url} target="_blank" rel="noopener noreferrer" className="opacity-70 transition-opacity hover:opacity-100">
+                    {inner}
+                  </a>
+                ) : (
+                  <span key={i} className="opacity-80">{inner}</span>
+                );
+              })}
             </div>
           </div>
         </section>
+      )}
+
+      <VolumeTestimonials testimonials={volume.testimonials} />
+
+      {moodboardItems.length > 0 && (
+        <VolumeGallery title="Moodboard" subtitle="The visual language behind the Volume." items={moodboardItems} tone="soft" />
       )}
 
       {volume.audio.length > 0 && (
@@ -257,7 +278,6 @@ export function SessionDetailView({
         </section>
       )}
 
-      {/* Soundtrack */}
       {volume.playlistUrl && (
         <section className="section-padding border-b border-stone/30">
           <div className="container-narrow">
@@ -286,43 +306,6 @@ export function SessionDetailView({
         </section>
       )}
 
-      <VolumeGallery title="Moodboard" subtitle="The visual language behind the Volume." items={moodboardItems} tone="soft" />
-
-      <VolumeTimeline status={volume.status} />
-
-      <VolumeAwards awards={awardEntries} />
-
-      <VolumeCredits members={cast} volumeNumber={volume.volumeNumber} title={volume.title} />
-
-      {/* Sponsors */}
-      {volume.sponsors.length > 0 && (
-        <section className="section-padding border-b border-stone/30">
-          <div className="container-wide text-center">
-            <p className="label-caps mb-10 text-fog">Presented With</p>
-            <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
-              {volume.sponsors.map((sponsor, i) => {
-                const inner = sponsor.logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={sponsor.logo} alt={sponsor.name} className="h-12 w-auto object-contain" />
-                ) : (
-                  <span className="font-display text-xl text-cream-dim">{sponsor.name}</span>
-                );
-                return sponsor.url ? (
-                  <a key={i} href={sponsor.url} target="_blank" rel="noopener noreferrer" className="opacity-70 transition-opacity hover:opacity-100">
-                    {inner}
-                  </a>
-                ) : (
-                  <span key={i} className="opacity-80">{inner}</span>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      <VolumeTestimonials testimonials={volume.testimonials} />
-
-      {/* Production Files & Resources */}
       {(volume.callSheet || volume.wardrobeGuide || volume.resources.length > 0) && (
         <section className="section-padding border-b border-stone/30 bg-ink-soft">
           <div className="container-narrow">
@@ -338,7 +321,6 @@ export function SessionDetailView({
         </section>
       )}
 
-      {/* FAQ */}
       {volume.faqs.length > 0 && (
         <section className="section-padding border-b border-stone/30">
           <div className="container-narrow">
@@ -362,7 +344,6 @@ export function SessionDetailView({
         </section>
       )}
 
-      {/* Apply CTA */}
       {canApply ? (
         <section id="apply" className="section-padding border-b border-stone/30 bg-ink">
           <div className="container-narrow text-center">

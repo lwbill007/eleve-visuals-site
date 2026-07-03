@@ -7,7 +7,7 @@ import type { SessionVolumeDTO } from "@/lib/types";
 import { resolveSessionPosterImage } from "@/lib/session-volume";
 import { SessionStatusBadge } from "./SessionStatusBadge";
 
-export function VolumePosterCard({ volume }: { volume: SessionVolumeDTO }) {
+export function VolumePosterCard({ volume, showTheme = false }: { volume: SessionVolumeDTO; showTheme?: boolean }) {
   const poster = resolveSessionPosterImage(volume);
 
   return (
@@ -39,6 +39,9 @@ export function VolumePosterCard({ volume }: { volume: SessionVolumeDTO }) {
               Vol. {volume.volumeNumber} · {volume.year}
             </p>
             <h3 className="mt-1 line-clamp-2 font-display text-xl leading-tight text-cream">{volume.title}</h3>
+            {showTheme && volume.theme && (
+              <p className="mt-1 line-clamp-1 text-[0.65rem] tracking-[0.12em] text-fog uppercase">{volume.theme}</p>
+            )}
             <div className="grid grid-rows-[0fr] opacity-0 transition-all duration-500 group-hover:grid-rows-[1fr] group-hover:opacity-100">
               <span className="overflow-hidden">
                 <span className="mt-2 block text-[0.6rem] tracking-[0.2em] text-cream-dim uppercase">
