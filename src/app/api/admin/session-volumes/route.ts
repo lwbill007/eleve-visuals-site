@@ -3,7 +3,20 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { mapSessionVolume } from "@/lib/session-volume";
 import { parseSessionVolumeBody } from "@/lib/session-volume-admin";
+import { validateFeaturedMediaId } from "@/lib/volume-videos";
 import { revalidateSessionPages } from "@/lib/revalidate-public";
+
+async function sanitizeFeaturedMediaId(
+  data: ReturnType<typeof parseSessionVolumeBody>
+): Promise<ReturnType<typeof parseSessionVolumeBody>> {
+  const lists = {
+    videos: JSON.parse(data.videos) as string[],
+    interviews: JSON.parse(data.interviews) as string[],
+    teaserVideoUrl: data.teaserVideoUrl,
+  };
+  const featuredMediaId = await validateFeaturedMediaId(data.featuredMediaId, lists);
+  return { ...data, featuredMediaId };
+}
 
 export async function GET() {
   try {
@@ -27,7 +40,8 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const data = parseSessionVolumeBody(body);
+  const parsed = parseSessionVolumeBody(body);
+  const data = await sanitizeFeaturedMediaId(parsed);
 
   if (!data.title || !data.slug) {
     return NextResponse.json({ error: "Title and slug are required" }, { status: 400 });

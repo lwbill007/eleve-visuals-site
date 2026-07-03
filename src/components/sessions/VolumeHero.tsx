@@ -1,54 +1,29 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from "framer-motion";
 import type { SessionVolumeDTO } from "@/lib/types";
 import { resolveSessionPosterImage } from "@/lib/session-volume";
 import { SessionStatusBadge } from "./SessionStatusBadge";
 import { SessionCountdown } from "./SessionCountdown";
 
-export function VolumeHero({
+function HeroOverlay({
   volume,
   canApply,
   hasTrailer,
+  reduce,
 }: {
   volume: SessionVolumeDTO;
   canApply: boolean;
   hasTrailer: boolean;
+  reduce: boolean | null;
 }) {
-  const reduce = useReducedMotion();
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", reduce ? "0%" : "22%"]);
-  const scale = useTransform(scrollYProgress, [0, 1], [1, reduce ? 1 : 1.12]);
-  const overlayOpacity = useTransform(scrollYProgress, [0, 1], [0.7, 0.95]);
-
-  const artwork = volume.bannerImage || resolveSessionPosterImage(volume);
   const chips = [volume.genre, volume.theme, volume.mood].filter(Boolean);
 
   return (
-    <section ref={ref} className="relative flex min-h-[100svh] items-end overflow-hidden">
-      <motion.div style={{ y, scale }} className="absolute inset-0">
-        {artwork ? (
-          <Image
-            src={artwork}
-            alt={volume.bannerImageAlt || volume.posterImageAlt || volume.title}
-            fill
-            priority
-            className="object-cover"
-            sizes="100vw"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-ink-soft to-ink" />
-        )}
-      </motion.div>
-
-      <motion.div style={{ opacity: overlayOpacity }} className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/30" />
-      <div className="cinematic-overlay absolute inset-0" />
-      <div className="grain pointer-events-none absolute inset-0 opacity-[0.5]" />
-
+    <>
       <div className="relative z-10 w-full section-padding pb-24 pt-32">
         <div className="container-wide">
           <motion.div
@@ -56,7 +31,10 @@ export function VolumeHero({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           >
-            <Link href="/sessions" className="label-caps mb-6 inline-flex min-h-11 items-center text-fog transition-colors hover:text-cream">
+            <Link
+              href="/sessions"
+              className="label-caps mb-6 inline-flex min-h-11 items-center text-fog transition-colors hover:text-cream"
+            >
               ← All Volumes
             </Link>
             <div className="flex flex-wrap items-center gap-3">
@@ -133,6 +111,128 @@ export function VolumeHero({
           </motion.div>
         </motion.div>
       )}
+    </>
+  );
+}
+
+function FeaturedVideoBackground({
+  src,
+  poster,
+  reduce,
+  y,
+  scale,
+}: {
+  src: string;
+  poster: string | null;
+  reduce: boolean | null;
+  y: MotionValue<string>;
+  scale: MotionValue<number>;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    const video = videoRef.current;
+    if (!section || !video || reduce) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.2 }
+    );
+
+    observer.observe(section);
+    video.play().catch(() => {});
+
+    return () => observer.disconnect();
+  }, [reduce, src]);
+
+  return (
+    <motion.div ref={sectionRef} style={{ y, scale }} className="absolute inset-0">
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster || undefined}
+        muted
+        loop
+        playsInline
+        autoPlay={!reduce}
+        preload="metadata"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    </motion.div>
+  );
+}
+
+function HeroScrim({ overlayOpacity }: { overlayOpacity: MotionValue<number> }) {
+  return (
+    <>
+      <motion.div
+        style={{ opacity: overlayOpacity }}
+        className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/30"
+      />
+      <div className="cinematic-overlay absolute inset-0" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.5]" />
+    </>
+  );
+}
+
+export function VolumeHero({
+  volume,
+  canApply,
+  hasTrailer,
+  featuredVideoUrl,
+}: {
+  volume: SessionVolumeDTO;
+  canApply: boolean;
+  hasTrailer: boolean;
+  featuredVideoUrl?: string | null;
+}) {
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+  const y = useTransform(scrollYProgress, [0, 1], ["0%", reduce ? "0%" : "22%"]);
+  const scale = useTransform(scrollYProgress, [0, 1], [1, reduce ? 1 : 1.12]);
+  const overlayOpacity = useTransform(scrollYProgress, [0, 1], [0.7, 0.95]);
+
+  const artwork = volume.bannerImage || resolveSessionPosterImage(volume);
+  const useFeaturedVideo = !!featuredVideoUrl;
+
+  return (
+    <section ref={ref} className="relative flex min-h-[100svh] items-end overflow-hidden">
+      {useFeaturedVideo ? (
+        <FeaturedVideoBackground
+          src={featuredVideoUrl}
+          poster={artwork}
+          reduce={reduce}
+          y={y}
+          scale={scale}
+        />
+      ) : (
+        <motion.div style={{ y, scale }} className="absolute inset-0">
+          {artwork ? (
+            <Image
+              src={artwork}
+              alt={volume.bannerImageAlt || volume.posterImageAlt || volume.title}
+              fill
+              priority
+              className="object-cover"
+              sizes="100vw"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-ink-soft to-ink" />
+          )}
+        </motion.div>
+      )}
+
+      <HeroScrim overlayOpacity={overlayOpacity} />
+      <HeroOverlay volume={volume} canApply={canApply} hasTrailer={hasTrailer} reduce={reduce} />
     </section>
   );
 }

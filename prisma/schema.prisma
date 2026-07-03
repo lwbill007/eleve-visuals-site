@@ -228,6 +228,7 @@ model SessionVolume {
   timeline            String    @default("[]")
   applicationDeadline DateTime?
   teaserVideoUrl      String?
+  featuredMediaId     String?
   playlistUrl         String?
   interviews          String    @default("[]")
   audio               String    @default("[]")

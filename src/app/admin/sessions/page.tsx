@@ -7,6 +7,7 @@ import { useUploadsActive } from "@/lib/upload-tracker";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { CastManager } from "@/components/admin/CastManager";
+import { FeaturedVideoManager } from "@/components/admin/FeaturedVideoManager";
 import {
   AdminField,
   AdminInput,
@@ -79,6 +80,8 @@ function emptyVolume(): Partial<SessionVolumeDTO> {
     timeline: DEFAULT_TIMELINE,
     applicationDeadline: null,
     teaserVideoUrl: null,
+    featuredMediaId: null,
+    featuredVideoUrl: null,
     playlistUrl: null,
     interviews: [],
     audio: [],
@@ -501,6 +504,24 @@ export default function AdminSessionsPage() {
                 onChange={(videos) => update("videos", videos)}
               />
             </div>
+            {editing.id && (
+              <div className="md:col-span-2 border-t border-stone/30 pt-6">
+                <FeaturedVideoManager
+                  volumeId={editing.id}
+                  videos={editing.videos || []}
+                  interviews={editing.interviews || []}
+                  teaserVideoUrl={editing.teaserVideoUrl ?? null}
+                  featuredMediaId={editing.featuredMediaId ?? null}
+                  onFeaturedChange={(mediaId, featuredVideoUrl) => {
+                    if (!editing) return;
+                    setEditing({ ...editing, featuredMediaId: mediaId, featuredVideoUrl });
+                  }}
+                  onVideosChange={(next) => update("videos", next)}
+                  onInterviewsChange={(next) => update("interviews", next)}
+                  onTeaserChange={(url) => update("teaserVideoUrl", url)}
+                />
+              </div>
+            )}
             <div className="md:col-span-2 border-t border-stone/30 pt-6">
               <h3 className="mb-4 font-display text-lg">Behind the Scenes & Extras</h3>
             </div>

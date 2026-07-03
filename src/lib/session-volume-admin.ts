@@ -97,6 +97,7 @@ export function parseSessionVolumeBody(body: Record<string, unknown>) {
     timeline: JSON.stringify(timeline),
     applicationDeadline,
     teaserVideoUrl: body.teaserVideoUrl ? String(body.teaserVideoUrl) : null,
+    featuredMediaId: body.featuredMediaId ? String(body.featuredMediaId) : null,
     playlistUrl: body.playlistUrl ? String(body.playlistUrl) : null,
     interviews: JSON.stringify(stringList(body.interviews)),
     audio: JSON.stringify(stringList(body.audio)),

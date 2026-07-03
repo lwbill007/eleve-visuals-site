@@ -1,6 +1,12 @@
 import { prisma } from "./db";
 import { mapSessionVolume, isPublicSessionVolume, resolveSessionPosterImage } from "./session-volume";
+import { resolveFeaturedVideoUrl } from "./volume-videos";
 import type { SessionVolumeDTO } from "./types";
+
+export async function enrichSessionVolume(volume: SessionVolumeDTO): Promise<SessionVolumeDTO> {
+  const featuredVideoUrl = await resolveFeaturedVideoUrl(volume);
+  return { ...volume, featuredVideoUrl };
+}
 
 export async function getAllSessionVolumes(admin = false): Promise<SessionVolumeDTO[]> {
   const items = await prisma.sessionVolume.findMany({
@@ -15,7 +21,7 @@ export async function getSessionVolumeBySlug(slug: string): Promise<SessionVolum
   if (!item) return null;
   const volume = mapSessionVolume(item);
   if (!isPublicSessionVolume(volume)) return null;
-  return volume;
+  return enrichSessionVolume(volume);
 }
 
 export async function getSessionVolumeById(id: string): Promise<SessionVolumeDTO | null> {

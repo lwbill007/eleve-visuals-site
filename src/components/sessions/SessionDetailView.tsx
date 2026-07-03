@@ -118,7 +118,12 @@ export function SessionDetailView({
 
   return (
     <>
-      <VolumeHero volume={volume} canApply={canApply} hasTrailer={!!volume.teaserVideoUrl} />
+      <VolumeHero
+        volume={volume}
+        canApply={canApply}
+        hasTrailer={!!volume.teaserVideoUrl}
+        featuredVideoUrl={volume.featuredVideoUrl}
+      />
 
       {/* Production Information */}
       <section className="section-padding border-b border-stone/30 bg-ink-soft">

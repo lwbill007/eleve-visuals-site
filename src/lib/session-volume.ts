@@ -165,6 +165,7 @@ export function mapSessionVolume(item: {
   timeline: string;
   applicationDeadline: Date | null;
   teaserVideoUrl: string | null;
+  featuredMediaId?: string | null;
   playlistUrl?: string | null;
   interviews?: string;
   audio?: string;
@@ -225,6 +226,8 @@ export function mapSessionVolume(item: {
     timeline: parseTimeline(item.timeline),
     applicationDeadline: item.applicationDeadline?.toISOString() ?? null,
     teaserVideoUrl: item.teaserVideoUrl,
+    featuredMediaId: item.featuredMediaId ?? null,
+    featuredVideoUrl: null,
     playlistUrl: item.playlistUrl ?? null,
     interviews: parseJsonArray(item.interviews ?? "[]"),
     audio: parseJsonArray(item.audio ?? "[]"),

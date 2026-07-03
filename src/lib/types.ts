@@ -656,6 +656,8 @@ export interface SessionVolumeDTO {
   timeline: SessionTimelineStep[];
   applicationDeadline: string | null;
   teaserVideoUrl: string | null;
+  featuredMediaId: string | null;
+  featuredVideoUrl: string | null;
   playlistUrl: string | null;
   interviews: string[];
   audio: string[];
