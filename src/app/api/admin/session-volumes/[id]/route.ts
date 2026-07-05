@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { mapSessionVolume } from "@/lib/session-volume";
 import { parseSessionVolumeBody } from "@/lib/session-volume-admin";
-import { validateFeaturedMediaId } from "@/lib/volume-videos";
+import { validateFeaturedMediaId } from "@/lib/volume-videos-server";
 import { revalidateSessionPages } from "@/lib/revalidate-public";
 
 async function sanitizeFeaturedMediaId(

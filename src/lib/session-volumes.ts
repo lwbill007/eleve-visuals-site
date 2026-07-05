@@ -1,6 +1,6 @@
 import { prisma } from "./db";
 import { mapSessionVolume, isPublicSessionVolume, resolveSessionPosterImage } from "./session-volume";
-import { resolveFeaturedVideoUrl } from "./volume-videos";
+import { resolveFeaturedVideoUrl } from "./volume-videos-server";
 import type { SessionVolumeDTO } from "./types";
 
 export async function enrichSessionVolume(volume: SessionVolumeDTO): Promise<SessionVolumeDTO> {

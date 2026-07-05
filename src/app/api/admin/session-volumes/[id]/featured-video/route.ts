@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { mapSessionVolume } from "@/lib/session-volume";
 import { enrichSessionVolume } from "@/lib/session-volumes";
-import { validateFeaturedMediaId } from "@/lib/volume-videos";
+import { validateFeaturedMediaId } from "@/lib/volume-videos-server";
 import { revalidateSessionPages } from "@/lib/revalidate-public";
 
 export async function PATCH(

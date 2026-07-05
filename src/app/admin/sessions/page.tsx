@@ -118,15 +118,17 @@ export default function AdminSessionsPage() {
   }
 
   useEffect(() => {
-    load();
+    void load();
     adminFetch("/api/admin/content")
-      .then((r) => r.json())
-      .then((all: { key: string; value: unknown }[]) => {
-        const item = all.find((c) => c.key === "sessionsApplication");
-        if (item?.value) {
+      .then((r) => (r.ok ? r.json() : []))
+      .then((all: unknown) => {
+        if (!Array.isArray(all)) return;
+        const item = all.find((c) => c && typeof c === "object" && (c as { key?: string }).key === "sessionsApplication");
+        if (item && typeof item === "object" && "value" in item && item.value) {
           setApplicationCopy({ ...DEFAULT_SESSIONS_APPLICATION, ...(item.value as SessionsApplicationContent) });
         }
-      });
+      })
+      .catch(() => {});
   }, []);
 
   function update<K extends keyof SessionVolumeDTO>(key: K, value: SessionVolumeDTO[K]) {
