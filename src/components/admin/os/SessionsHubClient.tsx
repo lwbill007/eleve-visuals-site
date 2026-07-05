@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
+import { BusinessActionBar } from "@/components/admin/ai/BusinessActionBar";
 import { AdminMetricCard, AdminPageHeader, AdminPanel, AdminBarChart } from "@/components/admin/os/AdminOSComponents";
+import type { SessionsOperatorIntel } from "@/lib/ai/types";
 
 export function SessionsHubClient() {
   const [appStats, setAppStats] = useState<{
@@ -15,13 +17,17 @@ export function SessionsHubClient() {
   } | null>(null);
   const [volumes, setVolumes] = useState(0);
 
+  const [sessionsIntel, setSessionsIntel] = useState<SessionsOperatorIntel | null>(null);
+
   useEffect(() => {
     Promise.all([
       adminFetch("/api/admin/applications/stats").then((r) => r.json()),
       adminFetch("/api/admin/session-volumes").then((r) => r.json()),
-    ]).then(([stats, vols]) => {
+      adminFetch("/api/admin/ai/operator").then((r) => r.json()),
+    ]).then(([stats, vols, operator]) => {
       setAppStats(stats);
       setVolumes(Array.isArray(vols) ? vols.length : 0);
+      setSessionsIntel(operator.sessions ?? null);
     });
   }, []);
 
@@ -70,6 +76,29 @@ export function SessionsHubClient() {
           <p className="mt-1 text-sm text-muted">Themes, cast, galleries, featured video, and timeline.</p>
         </Link>
       </div>
+
+      {sessionsIntel && (
+        <AdminPanel title="Sessions AI" subtitle="Themes, sponsors, pairings & marketing strategy">
+          {sessionsIntel.openVolume && (
+            <p className="mb-4 text-sm text-cream-dim">
+              Vol. {sessionsIntel.openVolume.volumeNumber} — {sessionsIntel.openVolume.title} ·{" "}
+              {sessionsIntel.openVolume.applications} applications · Theme: {sessionsIntel.openVolume.theme || "TBD"}
+            </p>
+          )}
+          <p className="mb-3 text-xs text-fog">
+            Suggested themes: {sessionsIntel.suggestedThemes.join(" · ")}
+          </p>
+          <div className="space-y-3">
+            {sessionsIntel.recommendations.map((rec) => (
+              <div key={rec.id} className="rounded-lg border border-stone/20 p-3">
+                <p className="text-sm text-cream">{rec.title}</p>
+                <p className="text-xs text-fog">{rec.detail}</p>
+                <BusinessActionBar actions={rec.actions} compact className="mt-2" />
+              </div>
+            ))}
+          </div>
+        </AdminPanel>
+      )}
 
       <AdminPanel title="AI Sessions Assistant" subtitle="Applications, schedules, and participant communications">
         <AIGeneratePanel

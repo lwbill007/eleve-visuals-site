@@ -97,6 +97,29 @@ export async function getCRMContactIntelligence(email: string): Promise<CRMConta
         ? `Check in — ${daysSinceActivity} days since last touch`
         : "On track — maintain relationship";
 
+  const lastSubmission = timeline[0];
+  const lastConversation = lastSubmission
+    ? `${lastSubmission.label} · ${new Date(lastSubmission.createdAt).toLocaleDateString()} · ${lastSubmission.status}`
+    : "No recorded interactions yet";
+
+  const nextBestAction =
+    daysSinceActivity > 90
+      ? "Send personalized re-engagement email with portfolio highlight"
+      : contact.status === "interested"
+        ? "Schedule consultation call within 48 hours"
+        : contact.status === "booked"
+          ? "Confirm shoot details and upsell album package"
+          : contact.bookings === 0 && contact.contacts > 0
+            ? "Convert warm contact to booking inquiry"
+            : "Send thank-you and request testimonial";
+
+  const suggestedEmail =
+    daysSinceActivity > 60
+      ? `Subject: We'd love to create with you again\n\nHi ${contact.name.split(" ")[0] || "there"}, it's been a while since your last ÉLEVÉ session. We have new work we'd love to share — would you be open to a quick chat about your next portrait?`
+      : `Subject: Following up on your ÉLEVÉ inquiry\n\nHi ${contact.name.split(" ")[0] || "there"}, thank you for reaching out. I'd love to learn more about what you're envisioning and find the perfect session for you.`;
+
+  const suggestedText = `Hi ${contact.name.split(" ")[0] || "there"}! Billy from ÉLEVÉ Visuals here. ${daysSinceActivity > 60 ? "Hope you're doing well — would love to reconnect about a session when you're ready." : "Just following up on your inquiry — happy to chat whenever works for you."}`;
+
   const recommendedContactDate = new Date();
   if (daysSinceActivity > 90) recommendedContactDate.setDate(recommendedContactDate.getDate() + 1);
   else if (daysSinceActivity > 30) recommendedContactDate.setDate(recommendedContactDate.getDate() + 7);
@@ -114,6 +137,11 @@ export async function getCRMContactIntelligence(email: string): Promise<CRMConta
     upsells,
     isInactive: daysSinceActivity > 90,
     daysSinceActivity,
+    suggestedEmail,
+    suggestedText,
+    lastConversation,
+    revenueGenerated: contact.revenue,
+    nextBestAction,
   };
 
   await setAIMemory("client", normalized, {

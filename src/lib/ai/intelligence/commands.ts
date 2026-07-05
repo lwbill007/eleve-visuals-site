@@ -1,4 +1,5 @@
 import { adminGlobalSearch, getAdminCRMContacts, getAdminDashboardOS } from "@/lib/admin-os-server";
+import { getCommandCenterHub } from "./business-operator";
 import { prisma } from "@/lib/db";
 import { generateAIContent } from "../service";
 import type { AICommandResult } from "../types";
@@ -28,7 +29,26 @@ export async function executeAICommand(raw: string): Promise<AICommandResult> {
     return { type: "message", message: "Enter a command or question.", provider: "rules" };
   }
 
-  if (lower.includes("show revenue") || lower.includes("revenue")) {
+  const hubKeywords = ["revenue", "marketing", "sponsors", "clients", "bookings", "portfolio", "sessions"];
+  if (hubKeywords.includes(lower) || hubKeywords.some((k) => lower === k)) {
+    const hub = await getCommandCenterHub(lower);
+    if (hub) {
+      return {
+        type: hub.actions.length > 0 ? "search" : "navigate",
+        href: hub.href,
+        message: hub.summary,
+        label: hub.title,
+        results: hub.actions.map((a) => ({
+          label: a.label,
+          href: a.href + (a.task ? `?task=${a.task}` : "") + (a.prompt ? `${a.task ? "&" : "?"}prompt=${encodeURIComponent(a.prompt)}` : ""),
+          category: hub.title,
+        })),
+        provider: "rules",
+      };
+    }
+  }
+
+  if (lower.includes("show revenue") || (lower === "revenue" || lower.startsWith("revenue "))) {
     const dash = await getAdminDashboardOS();
     return {
       type: "navigate",

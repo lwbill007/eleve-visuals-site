@@ -78,6 +78,32 @@ export function isOpenRouterConfigured(): boolean {
   return !!getAIConfig().openrouter.apiKey;
 }
 
+/** Validates the API key against OpenRouter (not the public /models list). */
+export async function probeOpenRouterKey(): Promise<{ ok: boolean; error?: string }> {
+  if (!isOpenRouterConfigured()) {
+    return { ok: false, error: "OPENROUTER_API_KEY not set" };
+  }
+
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/auth/key", { headers: headers() });
+    if (res.ok) return { ok: true };
+
+    const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    const detail = data.error?.message || res.statusText;
+
+    if (res.status === 401) {
+      return {
+        ok: false,
+        error: "Invalid OPENROUTER_API_KEY — OpenRouter rejected the key (401 User not found)",
+      };
+    }
+
+    return { ok: false, error: `OpenRouter auth failed (${res.status}): ${detail}` };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "OpenRouter unreachable" };
+  }
+}
+
 export async function openRouterComplete(request: AICompletionRequest): Promise<AICompletionResult> {
   if (!isOpenRouterConfigured()) {
     return { content: "", finishReason: "error", provider: "openrouter", model: "" };

@@ -16,6 +16,8 @@ type PaletteItem = {
   category: string;
 };
 
+const COMMAND_HUB_KEYWORDS = ["revenue", "marketing", "sponsors", "clients", "bookings", "portfolio", "sessions"];
+
 export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -123,15 +125,15 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
   }, [open, onClose, results, activeIndex, query, executeCommand, navigate]);
 
   useEffect(() => {
-    if (query.trim().length < 2) {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) {
       setSearchResults([]);
       setCommandResult(null);
       return;
     }
-    const q = query.trim();
     const t = setTimeout(async () => {
-      if (looksLikeCommand(q)) {
-        await executeCommand(q);
+      if (COMMAND_HUB_KEYWORDS.includes(q) || looksLikeCommand(query.trim())) {
+        await executeCommand(query.trim());
         return;
       }
       const [textRes, aiRes] = await Promise.all([
@@ -193,7 +195,7 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
                 setQuery(e.target.value);
                 setActiveIndex(0);
               }}
-              placeholder="Command — create invoice, email applicants, show revenue…"
+              placeholder="Revenue · Marketing · Clients · Bookings · or any command…"
               className="min-w-0 flex-1 bg-transparent text-sm text-cream outline-none placeholder:text-muted"
             />
             <kbd className="hidden rounded border border-stone/40 px-1.5 py-0.5 text-[0.65rem] text-muted sm:inline">
@@ -203,12 +205,26 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
 
           {commandResult && (commandResult.draft || commandResult.message) && (
             <div className="border-b border-stone/20 bg-accent/5 px-4 py-3">
-              <p className="text-xs text-accent uppercase">{commandResult.type}</p>
+              <p className="text-xs text-accent uppercase">{commandResult.label ?? commandResult.type}</p>
               <p className="mt-1 text-sm text-cream-dim">{commandResult.message}</p>
               {commandResult.draft && (
                 <p className="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap text-xs text-fog">{commandResult.draft}</p>
               )}
-              {commandResult.href && (
+              {commandResult.results && commandResult.results.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {commandResult.results.map((r) => (
+                    <button
+                      key={r.href + r.label}
+                      type="button"
+                      onClick={() => navigate(r.href)}
+                      className="rounded-lg border border-accent/30 px-2.5 py-1 text-[0.65rem] text-accent uppercase hover:bg-accent/10"
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {commandResult.href && !commandResult.results?.length && (
                 <button
                   type="button"
                   onClick={() => navigate(commandResult.href!)}

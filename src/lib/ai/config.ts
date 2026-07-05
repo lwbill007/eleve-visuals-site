@@ -44,7 +44,7 @@ export function getOpenRouterModelChain(): string[] {
 export function isAIConfigured(): boolean {
   const config = getAIConfig();
   if (config.openrouter.apiKey) return true;
-  if (config.provider === "ollama" && config.ollama.baseUrl) return true;
+  if (config.provider === "ollama" || process.env.OLLAMA_BASE_URL) return true;
   return false;
 }
 

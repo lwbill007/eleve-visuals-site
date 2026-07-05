@@ -79,6 +79,91 @@ export interface AIGenerateRequest {
   context?: Record<string, unknown>;
 }
 
+export interface BusinessAction {
+  id: string;
+  label: string;
+  type:
+    | "navigate"
+    | "create_campaign"
+    | "email_clients"
+    | "instagram_draft"
+    | "open_crm"
+    | "create_workflow"
+    | "export_report"
+    | "sponsor_pdf"
+    | "schedule_followup"
+    | "generate_draft";
+  href: string;
+  task?: AIGenerateTask;
+  prompt?: string;
+}
+
+export interface BusinessInsight {
+  id: string;
+  category: "sales" | "marketing" | "crm" | "sessions" | "operations";
+  severity: "high" | "medium" | "low";
+  title: string;
+  detail: string;
+  metric?: string;
+  actions: BusinessAction[];
+}
+
+export interface MarketingRecommendation {
+  id: string;
+  channel: string;
+  title: string;
+  reason: string;
+  priority: "high" | "medium" | "low";
+  actions: BusinessAction[];
+}
+
+export interface SalesRecommendation {
+  id: string;
+  type: "upsell" | "cross_sell" | "recovery" | "discount" | "referral" | "follow_up";
+  title: string;
+  detail: string;
+  impact: "high" | "medium" | "low";
+  actions: BusinessAction[];
+}
+
+export interface SessionsOperatorIntel {
+  generatedAt: string;
+  openVolume: {
+    id: string;
+    title: string;
+    volumeNumber: number;
+    applications: number;
+    theme: string;
+  } | null;
+  totalApplications: number;
+  pendingReview: number;
+  castPublished: number;
+  suggestedThemes: string[];
+  recommendations: {
+    id: string;
+    title: string;
+    detail: string;
+    actions: BusinessAction[];
+  }[];
+}
+
+export interface SelfImprovementItem {
+  id: string;
+  area: "ux" | "performance" | "automation" | "feature";
+  title: string;
+  detail: string;
+  impact: string;
+  actions: BusinessAction[];
+}
+
+export interface CommandCenterHub {
+  keyword: string;
+  title: string;
+  summary: string;
+  href: string;
+  actions: BusinessAction[];
+}
+
 export interface AIBriefing {
   generatedAt: string;
   provider: AIProviderId | "rules";
@@ -98,12 +183,27 @@ export interface AIDailyBriefing {
   generatedAt: string;
   provider: AIProviderId | "rules";
   summary: string;
+  ceoHeadline: string;
   yesterday: { revenue: number; bookings: number };
-  today: { bookings: number; leads: number; applications: number; subscribers: number };
+  today: { bookings: number; leads: number; applications: number; subscribers: number; revenue: number };
+  month: {
+    revenue: number;
+    revenueChange: number;
+    bookings: number;
+    bookingsChange: number;
+  };
+  traffic: {
+    visitors30: number;
+    conversionRate: number;
+    conversionChange: number;
+    topPage: string;
+  };
   followUp: {
     inactiveClients: { name: string; email: string; daysSince: number }[];
     staleBookings: { id: string; name: string; daysSince: number; href: string }[];
     expiringFollowUps: number;
+    galleriesAwaiting: number;
+    overdueInvoices: number;
   };
   upcomingSessions: { id: string; title: string; date: string; status: string; href: string }[];
   weeklyPriorities: string[];
@@ -114,7 +214,18 @@ export interface AIDailyBriefing {
     productivity: number;
     customerSatisfaction: number;
   };
-  recommendedActions: { id: string; severity: string; title: string; detail: string; action: string; href: string }[];
+  recommendedActions: {
+    id: string;
+    severity: string;
+    title: string;
+    detail: string;
+    action: string;
+    href: string;
+    actions?: BusinessAction[];
+    category?: string;
+    metric?: string;
+  }[];
+  aiRecommendations: string[];
   forecast: { bookings: string; revenue: number; weekStart: string };
 }
 
@@ -145,6 +256,11 @@ export interface CRMContactIntelligence {
   upsells: string[];
   isInactive: boolean;
   daysSinceActivity: number;
+  suggestedEmail: string;
+  suggestedText: string;
+  lastConversation: string;
+  revenueGenerated: number;
+  nextBestAction: string;
 }
 
 export interface BookingIntelligence {

@@ -10,7 +10,9 @@ export class OllamaProvider implements AIProvider {
   }
 
   isConfigured() {
-    return !!getAIConfig().ollama.baseUrl;
+    const config = getAIConfig();
+    // Default localhost URL is not a real deployment target unless explicitly opted in.
+    return config.provider === "ollama" || Boolean(process.env.OLLAMA_BASE_URL);
   }
 
   async complete(request: AICompletionRequest): Promise<AICompletionResult> {

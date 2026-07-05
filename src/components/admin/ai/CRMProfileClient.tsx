@@ -71,7 +71,35 @@ export function CRMProfileClient({ email }: { email: string }) {
           <p className="text-[0.6rem] uppercase text-muted">Contact By</p>
           <p className="mt-1 font-display text-lg text-cream">{intel.recommendedContactDate}</p>
         </AdminPanel>
+        <AdminPanel className="!p-4">
+          <p className="text-[0.6rem] uppercase text-muted">Revenue Generated</p>
+          <p className="mt-1 font-display text-2xl text-cream">${intel.revenueGenerated.toLocaleString()}</p>
+        </AdminPanel>
+        <AdminPanel className="!p-4">
+          <p className="text-[0.6rem] uppercase text-muted">Last Conversation</p>
+          <p className="mt-1 text-sm text-cream">{intel.lastConversation}</p>
+        </AdminPanel>
       </div>
+
+      <AdminPanel title="Recommended Next Action" subtitle={intel.nextBestAction}>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div>
+            <p className="text-[0.65rem] uppercase text-muted">Suggested Email</p>
+            <p className="mt-2 whitespace-pre-wrap rounded-lg border border-stone/20 bg-ink/40 p-3 text-xs text-cream-dim">
+              {intel.suggestedEmail}
+            </p>
+            <button type="button" onClick={() => generate("email")} className="mt-2 text-xs text-accent uppercase">
+              {loadingAI === "email" ? "Generating…" : "✦ Generate personalized email"}
+            </button>
+          </div>
+          <div>
+            <p className="text-[0.65rem] uppercase text-muted">Suggested Text Message</p>
+            <p className="mt-2 whitespace-pre-wrap rounded-lg border border-stone/20 bg-ink/40 p-3 text-xs text-cream-dim">
+              {intel.suggestedText}
+            </p>
+          </div>
+        </div>
+      </AdminPanel>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <AdminPanel title="AI Summary" subtitle="Relationship overview">

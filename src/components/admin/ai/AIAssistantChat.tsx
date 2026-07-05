@@ -62,7 +62,14 @@ export function AIAssistantChat({ compact = false }: { compact?: boolean }) {
           if (payload === "[DONE]") continue;
           try {
             const parsed = JSON.parse(payload) as { text?: string; error?: string };
-            if (parsed.text) {
+            if (parsed.error) {
+              accumulated = parsed.error;
+              setMessages((m) => {
+                const next = [...m];
+                next[next.length - 1] = { role: "assistant", content: accumulated };
+                return next;
+              });
+            } else if (parsed.text) {
               accumulated += parsed.text;
               setMessages((m) => {
                 const next = [...m];

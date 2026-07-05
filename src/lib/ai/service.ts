@@ -1,5 +1,6 @@
 import { getAIConfig, isAIConfigured } from "./config";
 import { aiComplete, aiStream, getActiveProviderLabel } from "./adapter";
+import { isOpenRouterConfigured, probeOpenRouterKey } from "./providers/openrouter-client";
 import { logAIAction } from "./log";
 import { systemPromptForAssistant, systemPromptForTask, TASK_PROMPTS } from "./prompts/system";
 import { BUSINESS_TOOLS, buildBusinessContextSnapshot, executeBusinessTool } from "./tools/business-data";
@@ -69,7 +70,20 @@ export async function* streamAIChat(
     { role: "user", content: userMessage },
   ];
 
+  let streamedText = false;
   for await (const chunk of aiStream({ messages })) {
+    if (chunk.type === "text" && chunk.text) streamedText = true;
+    if (chunk.type === "error" && !streamedText) {
+      const probe = isOpenRouterConfigured() ? await probeOpenRouterKey() : null;
+      const fallback = await fallbackChatResponse(
+        userMessage,
+        !isAIConfigured() ? "missing_key" : probe && !probe.ok ? "invalid_key" : "unavailable"
+      );
+      yield { type: "text", text: fallback };
+      yield { type: "done" };
+      await logAIAction("ai_chat_stream_fallback", "assistant", userMessage.slice(0, 200));
+      return;
+    }
     yield chunk;
   }
 
@@ -154,11 +168,18 @@ export async function aiNaturalLanguageSearch(query: string): Promise<{
   };
 }
 
-async function fallbackChatResponse(message: string): Promise<string> {
+type FallbackReason = "missing_key" | "invalid_key" | "unavailable";
+
+async function fallbackChatResponse(message: string, reason: FallbackReason = "missing_key"): Promise<string> {
   const lower = message.toLowerCase();
   const insights = await getAdminInsights();
   const dashboard = await import("@/lib/admin-os-server").then((m) => m.getAdminDashboardOS());
-  const setupHint = "_Set OPENROUTER_API_KEY for full AI intelligence._";
+  const setupHint =
+    reason === "invalid_key"
+      ? "_OPENROUTER_API_KEY is set but rejected by OpenRouter (401). Create a new key at openrouter.ai/keys and update Vercel + redeploy._"
+      : reason === "unavailable"
+        ? "_OpenRouter is configured but unavailable. Try again shortly._"
+        : "_Set OPENROUTER_API_KEY for full AI intelligence._";
 
   if (lower.includes("today") || lower.includes("focus")) {
     const top = insights.insights[0];
