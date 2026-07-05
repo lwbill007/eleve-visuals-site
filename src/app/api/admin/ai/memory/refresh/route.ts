@@ -19,6 +19,6 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     report,
-    message: `Scanned ${report.pagesScanned} pages · ${report.memoriesCreated} new memories · ${report.memoriesUpdated} updated · ${report.issuesFound.length} issues found`,
+    message: `Intelligence refreshed · ${report.routesDiscovered} routes · health ${report.executiveReport.overallHealthScore}/100 · ${report.memoriesCreated} new · ${report.memoriesUpdated} updated`,
   });
 }

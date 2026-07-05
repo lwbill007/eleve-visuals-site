@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/digest",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/intelligence-refresh?schedule=daily",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/intelligence-refresh?schedule=weekly",
+      "schedule": "0 7 * * 0"
     }
   ]
 }

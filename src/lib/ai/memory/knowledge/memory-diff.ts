@@ -14,15 +14,24 @@ export function memoryFingerprint(layer: string, category: string, key: string) 
 }
 
 function findingToValue(f: KnowledgeFinding): Record<string, unknown> {
+  const now = new Date().toISOString();
   return {
     ...f.value,
     pagePurpose: f.pagePurpose,
     whyItMatters: f.whyItMatters,
     businessArea: f.businessArea,
+    businessCategory: f.businessArea,
     evidence: f.evidence,
     sourcePage: f.sourcePage,
+    sourceSection: (f.value.sourceSection as string) ?? f.category,
+    reasonExists: f.whyItMatters,
+    linkedMemoryKeys: f.relatedKeys.map((r) => `${r.layer}:${r.category}:${r.key}`),
+    semanticTokens: (f.value.semanticTokens as string[]) ?? [],
     issues: f.issues,
     contentHash: stableHash(f.value),
+    lastVerifiedAt: now,
+    lastChangedAt: now,
+    timelineNote: `Indexed ${now}`,
   };
 }
 
@@ -122,7 +131,12 @@ export async function applyIntelligentMemoryDiff(
       key: finding.key,
       title: finding.title,
       summary: finding.summary,
-      value: newValue,
+      value: {
+        ...newValue,
+        lastChangedAt: new Date().toISOString(),
+        previousHash: existingHash,
+        lastVerifiedAt: (existing.value.lastVerifiedAt as string) ?? new Date().toISOString(),
+      },
       confidence: newConfidence,
       importance: Math.max(existing.importance, finding.importance),
       source: "sync",
@@ -130,7 +144,7 @@ export async function applyIntelligentMemoryDiff(
       tags: [...new Set([...existing.tags, ...finding.tags, "platform-scan"])],
       pinned: existing.pinned,
       verified: existing.verified || finding.confidence >= 0.92,
-      actor: "refresh-learn",
+      actor: "refresh-intelligence",
       reason: valueChanged ? `Updated: ${finding.whyItMatters}` : "Summary refined",
     });
 

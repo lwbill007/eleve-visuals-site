@@ -375,6 +375,8 @@ export interface AIDailyBriefing {
   }[];
   aiRecommendations: string[];
   forecast: { bookings: string; revenue: number; weekStart: string };
+  /** Chief Marketing Officer intelligence layer */
+  cmo?: import("./marketing/types").CMODailyBriefing;
 }
 
 export interface CRMContactIntelligence {

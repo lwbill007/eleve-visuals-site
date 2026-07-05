@@ -1,5 +1,8 @@
 import type { MemoryLayer } from "../types";
 
+import type { ExecutiveIntelligenceReport } from "./executive-report";
+import type { PlatformChange } from "./change-detector";
+
 export type PlatformIssueType =
   | "missing_content"
   | "outdated"
@@ -60,22 +63,29 @@ export interface RefreshLearnReport {
   startedAt: string;
   completedAt: string;
   pagesScanned: number;
+  routesDiscovered: number;
   findingsGenerated: number;
   memoriesCreated: number;
   memoriesUpdated: number;
   memoriesArchived: number;
   memoriesUnchanged: number;
+  memoriesMerged: number;
   graphLinksCreated: number;
+  conversionChainsBuilt: number;
   learningOutcomesRecorded: number;
   issuesFound: PlatformIssue[];
+  platformChanges: PlatformChange[];
   opportunities: string[];
   whatChanged: string[];
   whatImproved: string[];
   whatGotWorse: string[];
   pagesAdded: string[];
+  pagesRemoved: string[];
   missingInformation: string[];
   recommendationsChanged: string[];
   actions: MemoryDiffAction[];
+  executiveReport: ExecutiveIntelligenceReport;
+  discoveryMethod: "router" | "hybrid";
   transparency: {
     dataSources: string[];
     uncertainAreas: string[];
@@ -123,15 +133,18 @@ export type RefreshTrigger =
   | "portfolio_upload"
   | "session_publish"
   | "marketing_campaign"
-  | "crm_update";
+  | "crm_update"
+  | "booking_received";
 
+/** @deprecated Use getAutomationOptions() from automation.ts */
 export const REFRESH_AUTOMATION_OPTIONS: { id: RefreshTrigger; label: string; available: boolean }[] = [
   { id: "manual", label: "Manual (admin button)", available: true },
-  { id: "deployment", label: "After each deployment", available: false },
-  { id: "daily", label: "Daily", available: false },
-  { id: "weekly", label: "Weekly", available: false },
-  { id: "portfolio_upload", label: "After portfolio upload", available: false },
-  { id: "session_publish", label: "After session publish", available: false },
-  { id: "marketing_campaign", label: "After marketing campaign", available: false },
-  { id: "crm_update", label: "After CRM updates", available: false },
+  { id: "deployment", label: "After each deployment", available: true },
+  { id: "daily", label: "Daily", available: true },
+  { id: "weekly", label: "Weekly", available: true },
+  { id: "portfolio_upload", label: "After portfolio upload", available: true },
+  { id: "session_publish", label: "After session publish", available: true },
+  { id: "marketing_campaign", label: "After marketing campaign", available: true },
+  { id: "crm_update", label: "After CRM updates", available: true },
+  { id: "booking_received", label: "After new bookings", available: true },
 ];

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
 import { writeMemory } from "./store";
 import { getWorkspaceId } from "./workspace";
+import { syncCMOMemory } from "../marketing/cmo-intelligence";
 
 function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -120,6 +121,9 @@ export async function syncMarketingMemory() {
     });
     synced += 1;
   }
+
+  const cmo = await syncCMOMemory().catch(() => ({ synced: 0 }));
+  synced += cmo.synced;
 
   return { synced, layers: [...layers] };
 }

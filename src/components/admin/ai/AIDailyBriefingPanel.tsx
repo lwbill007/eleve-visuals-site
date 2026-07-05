@@ -187,6 +187,21 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
         </>
       )}
 
+      {briefing.cmo?.biggestOpportunity && !compact && (
+        <div className="mt-6 rounded-xl border border-accent/20 bg-accent/5 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[0.6rem] tracking-[0.14em] text-accent uppercase">CMO · Top opportunity</p>
+              <p className="mt-1 text-sm font-medium text-cream">{briefing.cmo.biggestOpportunity.title}</p>
+              <p className="mt-1 text-xs text-fog">{briefing.cmo.biggestOpportunity.detail}</p>
+            </div>
+            <Link href="/admin/marketing" className="text-xs text-accent hover:text-cream">
+              Marketing Intel →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {briefing.recommendedActions.length > 0 && (
         <div className="mt-6">
           <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">Actionable Insights</p>

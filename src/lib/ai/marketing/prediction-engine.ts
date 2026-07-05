@@ -1,0 +1,130 @@
+import { getAnalyticsSummary } from "@/lib/analytics-server";
+import { getOperatorMetrics } from "../intelligence/business-operator";
+import type { MarketingPrediction, InsightKind } from "./types";
+import { getStoredPatterns } from "./learning-engine";
+import { listCampaignCaseStudies } from "./campaign-memory";
+
+function predict(
+  partial: Omit<MarketingPrediction, "id" | "kind"> & { kind?: InsightKind }
+): MarketingPrediction {
+  return {
+    ...partial,
+    id: `pred-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    kind: partial.kind ?? "prediction",
+  };
+}
+
+export async function generateMarketingPredictions(): Promise<MarketingPrediction[]> {
+  const [metrics, analytics, patterns, campaigns] = await Promise.all([
+    getOperatorMetrics(),
+    getAnalyticsSummary(30),
+    getStoredPatterns(8),
+    listCampaignCaseStudies(10),
+  ]);
+
+  const conversionRate = analytics.totals.conversionRate / 100;
+  const avgBookingValue = metrics.revenue.thisMonth / Math.max(metrics.month.bookings, 1) || 1500;
+  const instagramVisits =
+    analytics.topSources.find((s) => s.source.toLowerCase().includes("instagram"))?.visits ?? 0;
+
+  const predictions: MarketingPrediction[] = [];
+
+  predictions.push(
+    predict({
+      subject: "Instagram carousel (portfolio feature)",
+      platform: "instagram",
+      expectedEngagement: `${Math.round(instagramVisits * 0.08)}–${Math.round(instagramVisits * 0.15)} profile visits`,
+      expectedLeads: Math.max(1, Math.round(instagramVisits * conversionRate * 0.3)),
+      expectedBookings: Math.max(0, Math.round(instagramVisits * conversionRate * 0.1)),
+      expectedRevenue: Math.round(instagramVisits * conversionRate * 0.1 * avgBookingValue),
+      expectedRoi: "High if organic",
+      probabilityOfSuccess: instagramVisits > 50 ? 0.72 : 0.55,
+      confidence: 0.7,
+      basis: [
+        `${instagramVisits} Instagram referrals (30d)`,
+        `${analytics.totals.conversionRate}% site conversion`,
+        patterns.find((p) => p.category === "portfolio")?.pattern ?? "Portfolio drives trust",
+      ],
+      assumptions: ["Post during peak booking hours", "Strong CTA in caption", "Carousel with 5+ images"],
+    })
+  );
+
+  predictions.push(
+    predict({
+      subject: "CRM re-engagement email campaign",
+      platform: "email",
+      expectedEngagement: `${metrics.attention.followUpClients} recipients`,
+      expectedLeads: Math.round(metrics.attention.followUpClients * 0.15),
+      expectedBookings: Math.round(metrics.attention.followUpClients * 0.05),
+      expectedRevenue: Math.round(metrics.attention.followUpValue * 0.15),
+      expectedRoi: "300–800%",
+      probabilityOfSuccess: 0.68,
+      confidence: 0.82,
+      basis: [
+        `${metrics.attention.followUpClients} inactive clients`,
+        `~$${metrics.attention.followUpValue.toLocaleString()} potential value`,
+        patterns.find((p) => p.category === "client_ltv")?.pattern ?? "Repeat clients high LTV",
+      ],
+      assumptions: ["Personalized subject line", "Include recent portfolio work", "Limited-time booking window"],
+    })
+  );
+
+  predictions.push(
+    predict({
+      subject: "ÉLEVÉ Sessions application push",
+      platform: "instagram",
+      expectedEngagement: "200–500 reach (organic estimate)",
+      expectedLeads: 8,
+      expectedBookings: 0,
+      expectedRevenue: 0,
+      expectedRoi: "Brand/community (indirect revenue)",
+      probabilityOfSuccess: 0.65,
+      confidence: 0.6,
+      basis: ["Sessions build long-term brand equity", `${metrics.today.applications} applications today`],
+      assumptions: ["Open volume accepting applications", "BTS content available"],
+      kind: "assumption",
+    })
+  );
+
+  const completedCampaigns = campaigns.filter((c) => c.metrics.bookings || c.metrics.revenue);
+  if (completedCampaigns.length > 0) {
+    const best = completedCampaigns.sort((a, b) => (b.metrics.revenue ?? 0) - (a.metrics.revenue ?? 0))[0];
+    predictions.push(
+      predict({
+        subject: `Repeat: ${best.title}`,
+        platform: best.platform,
+        expectedEngagement: "Based on historical campaign",
+        expectedLeads: best.metrics.leads ?? 2,
+        expectedBookings: best.metrics.bookings ?? 1,
+        expectedRevenue: best.metrics.revenue ?? avgBookingValue,
+        expectedRoi: best.metrics.roi ? `${best.metrics.roi}%` : "Unknown",
+        probabilityOfSuccess: 0.75,
+        confidence: 0.85,
+        basis: [`Historical: ${best.metrics.bookings ?? 0} bookings`, `Revenue: $${best.metrics.revenue ?? 0}`],
+        assumptions: ["Similar audience and offer", "Same platform and format"],
+        kind: "fact",
+      })
+    );
+  }
+
+  predictions.push(
+    predict({
+      subject: "Monthly revenue forecast (marketing-attributed)",
+      expectedEngagement: "N/A",
+      expectedLeads: Math.round(metrics.today.leads * 30),
+      expectedBookings: Math.round(metrics.month.bookings * (1 + metrics.month.bookingsChange / 100)),
+      expectedRevenue: Math.round(metrics.revenue.thisMonth * (1 + Math.max(metrics.revenue.monthChange, -20) / 100)),
+      expectedRoi: "Portfolio-wide",
+      probabilityOfSuccess: 0.6,
+      confidence: 0.65,
+      basis: [
+        `$${metrics.revenue.thisMonth.toLocaleString()} MTD pipeline`,
+        `${metrics.month.bookingsChange}% booking change`,
+        `${analytics.totals.conversionRate}% conversion`,
+      ],
+      assumptions: ["No major seasonality shock", "Consistent marketing cadence"],
+    })
+  );
+
+  return predictions;
+}

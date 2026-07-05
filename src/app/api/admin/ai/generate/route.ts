@@ -20,5 +20,13 @@ export async function POST(request: Request) {
   }
 
   const result = await generateAIContent({ task, prompt, context });
+
+  try {
+    const { registerCampaignFromGeneration } = await import("@/lib/ai/marketing/campaign-memory");
+    await registerCampaignFromGeneration(task, prompt, result.content);
+  } catch {
+    /* campaign memory is best-effort */
+  }
+
   return NextResponse.json(result);
 }

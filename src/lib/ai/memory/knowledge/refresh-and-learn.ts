@@ -5,18 +5,37 @@ import { runLearningPass } from "../sync-learning";
 import { getWorkspaceId } from "../workspace";
 import { applyIntelligentMemoryDiff, collectIssues, summarizeChanges } from "./memory-diff";
 import { scanEntirePlatform } from "./platform-scanner";
+import {
+  buildScanSnapshot,
+  detectPlatformChanges,
+  loadPreviousSnapshot,
+  saveScanSnapshot,
+  changesToIssues,
+} from "./change-detector";
+import { mergeDuplicateMemories } from "./duplicate-merger";
+import { buildConversionChains } from "./graph-chains";
+import { generateExecutiveIntelligenceReport } from "./executive-report";
+import { recordAutomationRun, isScheduleEnabled, getIntelligenceAutomationSettings } from "./automation";
 import type { RefreshLearnReport, RefreshTrigger } from "./types";
 
-export async function refreshAndLearnBusinessKnowledge(
-  trigger: RefreshTrigger = "manual"
-): Promise<RefreshLearnReport> {
-  const refreshId = `refresh-${Date.now()}`;
+export async function refreshIntelligence(trigger: RefreshTrigger = "manual"): Promise<RefreshLearnReport> {
+  const settings = await getIntelligenceAutomationSettings();
+  if (trigger !== "manual" && !isScheduleEnabled(settings, trigger)) {
+    throw new Error(`Intelligence refresh not enabled for trigger: ${trigger}`);
+  }
+
+  const refreshId = `intel-${Date.now()}`;
   const startedAt = new Date().toISOString();
   const workspaceId = getWorkspaceId();
 
-  const { findings, pagesScanned } = await scanEntirePlatform();
+  const { findings, pagesScanned, routes } = await scanEntirePlatform();
+  const previousSnapshot = await loadPreviousSnapshot();
+  const currentSnapshot = buildScanSnapshot(findings, pagesScanned);
+  const platformChanges = detectPlatformChanges(previousSnapshot, currentSnapshot, findings);
+  await saveScanSnapshot(currentSnapshot);
 
   const diffResult = await applyIntelligentMemoryDiff(findings, { archiveMissing: true });
+  const mergeResult = await mergeDuplicateMemories();
 
   let graphLinksCreated = 0;
   const memoryIdCache = new Map<string, string>();
@@ -45,6 +64,9 @@ export async function refreshAndLearnBusinessKnowledge(
     }
   }
 
+  const chainResult = await buildConversionChains(findings, refreshId);
+  graphLinksCreated += chainResult.linksCreated;
+
   const syncResult = await syncAllMemories().catch(() => ({
     synced: 0,
     layers: [] as string[],
@@ -53,8 +75,41 @@ export async function refreshAndLearnBusinessKnowledge(
 
   const learning = await runLearningPass().catch(() => ({ recorded: 0 }));
 
-  const issuesFound = collectIssues(findings);
+  const scanIssues = collectIssues(findings);
+  const changeIssues = changesToIssues(platformChanges);
+  const issuesFound = [...scanIssues, ...changeIssues];
   const summary = summarizeChanges(diffResult.actions);
+
+  const pagesAdded = platformChanges.filter((c) => c.type === "new_page").map((c) => c.page);
+  const pagesRemoved = platformChanges.filter((c) => c.type === "deleted_page").map((c) => c.page);
+
+  const whatChanged = [
+    ...platformChanges.map((c) => `${c.title} — ${c.page}`),
+    ...summary.whatChanged,
+  ];
+  const whatImproved = [
+    ...diffResult.actions
+      .filter((a) => a.type === "confidence_boost")
+      .map((a) => a.reason),
+    ...summary.whatImproved,
+  ];
+  const whatGotWorse = [
+    ...platformChanges.filter((c) => c.severity === "high").map((c) => `${c.page}: ${c.title}`),
+    ...summary.whatGotWorse,
+  ];
+
+  const executiveReport = generateExecutiveIntelligenceReport({
+    refreshId,
+    findings,
+    changes: platformChanges,
+    issues: issuesFound,
+    mergeDetails: mergeResult.details,
+    pagesScanned: pagesScanned.length,
+  });
+  executiveReport.whatImproved = whatImproved;
+  executiveReport.whatChanged = [...new Set([...executiveReport.whatChanged, ...whatChanged])];
+  executiveReport.whatDeclined = [...new Set([...executiveReport.whatDeclined, ...whatGotWorse])];
+
   const completedAt = new Date().toISOString();
 
   const report: RefreshLearnReport = {
@@ -62,31 +117,43 @@ export async function refreshAndLearnBusinessKnowledge(
     startedAt,
     completedAt,
     pagesScanned: pagesScanned.length,
+    routesDiscovered: routes.length,
     findingsGenerated: findings.length,
     memoriesCreated: diffResult.created,
     memoriesUpdated: diffResult.updated,
     memoriesArchived: diffResult.archived,
     memoriesUnchanged: diffResult.unchanged,
+    memoriesMerged: mergeResult.merged,
     graphLinksCreated,
+    conversionChainsBuilt: chainResult.chains.length,
     learningOutcomesRecorded: learning.recorded + (syncResult.learning?.recorded ?? 0),
     issuesFound,
-    opportunities: summary.opportunities,
-    whatChanged: summary.whatChanged,
-    whatImproved: summary.whatImproved,
-    whatGotWorse: summary.whatGotWorse,
-    pagesAdded: summary.pagesAdded,
-    missingInformation: summary.missingInformation,
-    recommendationsChanged: diffResult.updated > 0 ? [`${diffResult.updated} memories updated — executive recommendations may shift`] : [],
+    platformChanges,
+    opportunities: [...executiveReport.recommendations.slice(0, 5).map((r) => r.title), ...summary.opportunities],
+    whatChanged,
+    whatImproved,
+    whatGotWorse,
+    pagesAdded: [...new Set([...pagesAdded, ...summary.pagesAdded])],
+    pagesRemoved,
+    missingInformation: [
+      ...executiveReport.missingContent,
+      ...summary.missingInformation,
+    ],
+    recommendationsChanged:
+      executiveReport.recommendations.length > 0
+        ? executiveReport.recommendations.slice(0, 3).map((r) => r.title)
+        : [],
     actions: diffResult.actions,
+    executiveReport,
+    discoveryMethod: "router",
     transparency: {
       dataSources: [
-        "Public pages (homepage, portfolio, services, booking, sessions, contact, about)",
-        "Session volumes & applications",
-        "CRM contacts & pipeline",
-        "Analytics (30-day)",
-        "Testimonials, media, automations",
-        "Admin modules inventory",
-        "Existing sync layers (metrics, financial, marketing)",
+        "Next.js App Router (filesystem discovery)",
+        "Dynamic expansion (portfolio, sessions, cast slugs from database)",
+        "Semantic analysis (purpose, CTAs, pricing, SEO, branding, tone)",
+        "CRM, pipeline, sponsorship, analytics",
+        "Scan snapshot diff (change detection timeline)",
+        "Knowledge graph + conversion chains",
       ],
       uncertainAreas: issuesFound.filter((i) => i.severity === "high").map((i) => `${i.page}: ${i.title}`),
     },
@@ -97,18 +164,23 @@ export async function refreshAndLearnBusinessKnowledge(
     layer: "operational",
     category: "refresh_report",
     key: refreshId,
-    title: `Business knowledge refresh · ${new Date().toLocaleDateString()}`,
-    summary: `Scanned ${pagesScanned.length} pages · ${diffResult.created} new · ${diffResult.updated} updated · ${issuesFound.length} issues`,
+    title: `Intelligence refresh · ${new Date().toLocaleDateString()}`,
+    summary: report.executiveReport.summary,
     value: report as unknown as Record<string, unknown>,
-    confidence: 0.95,
-    importance: 90,
+    confidence: 0.97,
+    importance: 95,
     source: "sync",
     sourceRef: `refresh:${trigger}`,
-    tags: ["refresh-learn", trigger],
-    actor: "refresh-learn",
+    tags: ["refresh-intelligence", "executive-report", trigger],
+    actor: "refresh-intelligence",
     reason: `Triggered by ${trigger}`,
     verified: true,
   });
 
+  await recordAutomationRun(trigger);
+
   return report;
 }
+
+/** @alias refreshIntelligence */
+export const refreshAndLearnBusinessKnowledge = refreshIntelligence;

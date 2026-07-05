@@ -7,8 +7,7 @@ import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSCompon
 import { MemoryGraphVisual } from "@/components/admin/ai/MemoryGraphVisual";
 import { MemoryHeatmap } from "@/components/admin/ai/MemoryHeatmap";
 import { MEMORY_LAYERS, type MemoryLayer, type MemoryRecord } from "@/lib/ai/memory/types";
-import type { LearningTimelineEvent, MemoryExplanation, RefreshLearnReport } from "@/lib/ai/memory/knowledge/types";
-import { REFRESH_AUTOMATION_OPTIONS } from "@/lib/ai/memory/knowledge/types";
+import type { LearningTimelineEvent, MemoryExplanation, RefreshLearnReport, RefreshTrigger } from "@/lib/ai/memory/knowledge/types";
 import { cn } from "@/lib/utils";
 
 interface MemoryStats {
@@ -59,6 +58,10 @@ export function MemoryCenterClient() {
   const [lastReport, setLastReport] = useState<RefreshLearnReport | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<LearningTimelineEvent | null>(null);
   const [message, setMessage] = useState("");
+  const [automationOptions, setAutomationOptions] = useState<
+    { id: RefreshTrigger; label: string; available: boolean; enabled: boolean }[]
+  >([]);
+  const [automationSaving, setAutomationSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,6 +90,12 @@ export function MemoryCenterClient() {
         const t = await timelineRes.json();
         setTimeline(t.events ?? []);
       }
+
+      const autoRes = await adminFetch("/api/admin/ai/memory/automation");
+      if (autoRes.ok) {
+        const auto = await autoRes.json();
+        setAutomationOptions(auto.options ?? []);
+      }
     } finally {
       setLoading(false);
     }
@@ -97,7 +106,7 @@ export function MemoryCenterClient() {
     return () => clearTimeout(t);
   }, [load, query]);
 
-  async function refreshBusinessKnowledge() {
+  async function refreshIntelligence() {
     setRefreshing(true);
     setMessage("");
     try {
@@ -109,12 +118,44 @@ export function MemoryCenterClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Refresh failed");
       setLastReport(data.report);
-      setMessage(data.message ?? "Business knowledge refreshed.");
+      setMessage(
+        data.message ??
+          `Intelligence refreshed · health ${data.report?.executiveReport?.overallHealthScore ?? "—"}/100`
+      );
       await load();
     } catch {
-      setMessage("Refresh & Learn failed — check server logs.");
+      setMessage("Intelligence refresh failed — check server logs.");
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function toggleAutomation(id: RefreshTrigger, enabled: boolean) {
+    setAutomationSaving(true);
+    try {
+      const current = automationOptions.filter((o) => o.enabled).map((o) => o.id);
+      let schedules: RefreshTrigger[];
+      if (id === "manual" && !enabled) {
+        schedules = current.filter((s) => s !== "manual");
+      } else if (enabled) {
+        schedules = [...new Set([...current.filter((s) => s !== "manual" || id === "manual"), id])];
+        if (id !== "manual") schedules = schedules.filter((s) => s !== "manual");
+      } else {
+        schedules = current.filter((s) => s !== id);
+        if (schedules.length === 0) schedules = ["manual"];
+      }
+
+      const res = await adminFetch("/api/admin/ai/memory/automation", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true, schedules }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAutomationOptions(data.options ?? []);
+      }
+    } finally {
+      setAutomationSaving(false);
     }
   }
 
@@ -162,31 +203,41 @@ export function MemoryCenterClient() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <AdminPageHeader
-          eyebrow="Chief Intelligence Officer"
-          title="Business Knowledge Engine"
-          description="ÉLEVÉ AI continuously studies your entire platform — pages, CRM, sessions, portfolio, and pipeline. Every memory is explainable, auditable, and evolves with each refresh."
-        />
-        <div className="flex flex-wrap gap-2">
+      <AdminPageHeader
+        eyebrow="Chief Intelligence Officer"
+        title="Business Knowledge Engine"
+        description="ÉLEVÉ AI's operating system — discovers every route automatically, builds semantic understanding, detects changes, and generates executive intelligence. Nothing overwrites history; everything evolves."
+      />
+
+      <section className="os-glass rounded-2xl border border-accent/30 p-6 sm:p-8">
+        <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
+          <div className="flex-1">
+            <p className="label-caps text-accent">Intelligence refresh</p>
+            <p className="mt-2 max-w-xl text-sm text-fog">
+              Crawl the entire platform via router discovery — every page, volume, portfolio project, admin module,
+              and business surface. Compare against prior scans. Build the knowledge graph.
+            </p>
+          </div>
           <button
             type="button"
             disabled={refreshing}
-            onClick={() => void refreshBusinessKnowledge()}
-            className="rounded-xl bg-cream px-5 py-3 text-xs tracking-[0.12em] text-ink uppercase transition-colors hover:bg-accent disabled:opacity-50"
+            onClick={() => void refreshIntelligence()}
+            className="w-full min-w-[220px] rounded-2xl bg-cream px-10 py-5 text-sm font-medium tracking-[0.14em] text-ink uppercase shadow-lg shadow-accent/10 transition-all hover:bg-accent hover:shadow-accent/20 disabled:opacity-50 sm:w-auto"
           >
-            {refreshing ? "Learning…" : "Refresh Business Knowledge"}
+            {refreshing ? "Crawling platform…" : "Refresh Intelligence"}
           </button>
+        </div>
+        <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
           <button
             type="button"
             disabled={syncing}
             onClick={() => void syncMemories()}
-            className="rounded-xl border border-stone/30 px-5 py-3 text-xs tracking-[0.12em] text-fog uppercase hover:border-accent disabled:opacity-50"
+            className="rounded-xl border border-stone/30 px-4 py-2 text-[0.65rem] tracking-[0.1em] text-fog uppercase hover:border-accent disabled:opacity-50"
           >
             {syncing ? "Syncing…" : "Sync metrics"}
           </button>
         </div>
-      </div>
+      </section>
 
       {message && (
         <p className="rounded-lg border border-accent/25 bg-accent/5 px-4 py-3 text-sm text-cream">{message}</p>
@@ -209,7 +260,7 @@ export function MemoryCenterClient() {
 
       <AdminPanel title="Learning timeline" subtitle="Every refresh, memory change, and verified learning event">
         {timeline.length === 0 ? (
-          <p className="text-sm text-muted">Run Refresh Business Knowledge to start building your timeline.</p>
+          <p className="text-sm text-muted">Run Refresh Intelligence to start building your timeline.</p>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             <ul className="space-y-2 max-h-80 overflow-y-auto">
@@ -284,7 +335,7 @@ export function MemoryCenterClient() {
             <div className="py-12 text-center">
               <p className="text-cream">No knowledge yet.</p>
               <p className="mt-2 text-sm text-muted">
-                Press <strong className="text-accent">Refresh Business Knowledge</strong> to scan your entire platform.
+                Press <strong className="text-accent">Refresh Intelligence</strong> to crawl your entire platform.
               </p>
             </div>
           ) : (
@@ -346,17 +397,30 @@ export function MemoryCenterClient() {
             </p>
           </AdminPanel>
 
-          <AdminPanel title="Future automation" subtitle="Scheduled refresh (coming soon)">
+          <AdminPanel title="Refresh automation" subtitle="Control when ÉLEVÉ AI re-crawls the platform">
             <ul className="space-y-2">
-              {REFRESH_AUTOMATION_OPTIONS.map((opt) => (
-                <li key={opt.id} className="flex items-center justify-between text-xs">
-                  <span className={opt.available ? "text-cream" : "text-muted"}>{opt.label}</span>
-                  <span className={opt.available ? "text-emerald-400" : "text-muted"}>
-                    {opt.available ? "Active" : "Soon"}
-                  </span>
+              {automationOptions.map((opt) => (
+                <li key={opt.id} className="flex items-center justify-between gap-3 text-xs">
+                  <span className={opt.enabled ? "text-cream" : "text-muted"}>{opt.label}</span>
+                  <button
+                    type="button"
+                    disabled={automationSaving}
+                    onClick={() => void toggleAutomation(opt.id, !opt.enabled)}
+                    className={cn(
+                      "rounded-full border px-3 py-1 transition-colors",
+                      opt.enabled
+                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                        : "border-stone/25 text-muted hover:border-stone/40"
+                    )}
+                  >
+                    {opt.enabled ? "On" : "Off"}
+                  </button>
                 </li>
               ))}
             </ul>
+            <p className="mt-3 text-[0.65rem] text-muted">
+              Nightly and weekly crons run when enabled. Event triggers fire after bookings, uploads, and CRM updates.
+            </p>
           </AdminPanel>
         </div>
       </div>
@@ -365,35 +429,74 @@ export function MemoryCenterClient() {
 }
 
 function RefreshReportPanel({ report, onDismiss }: { report: RefreshLearnReport; onDismiss: () => void }) {
+  const exec = report.executiveReport;
+
   return (
-    <section className="os-glass rounded-2xl border border-accent/25 p-5">
-      <div className="flex justify-between gap-4">
+    <section className="os-glass rounded-2xl border border-accent/25 p-5 sm:p-6">
+      <div className="flex flex-wrap justify-between gap-4">
         <div>
-          <p className="label-caps text-accent">Refresh complete</p>
-          <p className="mt-2 text-sm text-cream">
-            {report.pagesScanned} pages scanned · {report.memoriesCreated} created · {report.memoriesUpdated} updated ·{" "}
-            {report.memoriesArchived} archived · {report.graphLinksCreated} graph links
+          <p className="label-caps text-accent">Executive Intelligence Report</p>
+          <p className="mt-2 text-sm text-cream">{exec?.summary}</p>
+          <p className="mt-2 text-xs text-fog">
+            {report.routesDiscovered ?? report.pagesScanned} routes · {report.findingsGenerated} knowledge nodes ·{" "}
+            {report.memoriesMerged ?? 0} merged · health {exec?.overallHealthScore ?? "—"}/100
           </p>
         </div>
         <button type="button" onClick={onDismiss} className="text-xs text-muted hover:text-cream">
           Dismiss
         </button>
       </div>
-      {report.whatChanged.length > 0 && (
-        <div className="mt-4">
-          <p className="text-[0.6rem] uppercase text-muted">What changed</p>
-          <ul className="mt-2 space-y-1 text-xs text-fog">
-            {report.whatChanged.slice(0, 6).map((c) => (
-              <li key={c}>• {c}</li>
+
+      {exec && (
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <ReportColumn title="What changed" items={exec.whatChanged} />
+          <ReportColumn title="What improved" items={exec.whatImproved} accent />
+          <ReportColumn title="What declined" items={exec.whatDeclined} warn />
+        </div>
+      )}
+
+      {exec && exec.recommendations.length > 0 && (
+        <div className="mt-6">
+          <p className="text-[0.6rem] uppercase tracking-wider text-accent">Prioritized recommendations</p>
+          <ul className="mt-3 space-y-3">
+            {exec.recommendations.slice(0, 5).map((r) => (
+              <li key={r.id} className="rounded-xl border border-stone/20 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-cream">{r.title}</p>
+                  <span className="text-[0.6rem] text-muted">P{r.priority}</span>
+                </div>
+                <p className="mt-1 text-xs text-fog">{r.detail}</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-[0.6rem] text-muted">
+                  <span>Traffic {r.expectedTrafficIncrease}</span>
+                  <span>·</span>
+                  <span>Conversion {r.expectedConversionIncrease}</span>
+                  <span>·</span>
+                  <span>Revenue {r.expectedRevenueImpact}</span>
+                  <span>·</span>
+                  <span>{r.implementationEffort} effort</span>
+                  <span>·</span>
+                  <span>{Math.round(r.confidence * 100)}% conf</span>
+                </div>
+              </li>
             ))}
           </ul>
         </div>
       )}
+
+      {exec && (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <AuditBucket title="SEO opportunities" items={exec.seoOpportunities} />
+          <AuditBucket title="Conversion blockers" items={exec.conversionBlockers} />
+          <AuditBucket title="Missing CTAs" items={exec.missingCTAs} />
+          <AuditBucket title="Broken links" items={exec.brokenInternalLinks} />
+        </div>
+      )}
+
       {report.issuesFound.length > 0 && (
         <div className="mt-4">
-          <p className="text-[0.6rem] uppercase text-amber-400">Issues found ({report.issuesFound.length})</p>
+          <p className="text-[0.6rem] uppercase text-amber-400">Issues ({report.issuesFound.length})</p>
           <ul className="mt-2 space-y-1 text-xs text-fog">
-            {report.issuesFound.slice(0, 4).map((i) => (
+            {report.issuesFound.slice(0, 6).map((i) => (
               <li key={`${i.page}-${i.title}`}>
                 • [{i.severity}] {i.title} — {i.page}
               </li>
@@ -402,6 +505,51 @@ function RefreshReportPanel({ report, onDismiss }: { report: RefreshLearnReport;
         </div>
       )}
     </section>
+  );
+}
+
+function ReportColumn({
+  title,
+  items,
+  accent,
+  warn,
+}: {
+  title: string;
+  items: string[];
+  accent?: boolean;
+  warn?: boolean;
+}) {
+  if (!items.length) return null;
+  return (
+    <div>
+      <p
+        className={cn(
+          "text-[0.6rem] uppercase",
+          warn ? "text-amber-400" : accent ? "text-emerald-400" : "text-muted"
+        )}
+      >
+        {title}
+      </p>
+      <ul className="mt-2 space-y-1 text-xs text-fog">
+        {items.slice(0, 5).map((c) => (
+          <li key={c}>• {c}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AuditBucket({ title, items }: { title: string; items: string[] }) {
+  if (!items.length) return null;
+  return (
+    <div className="rounded-lg border border-stone/15 p-3">
+      <p className="text-[0.55rem] uppercase text-muted">{title}</p>
+      <ul className="mt-2 space-y-1 text-[0.65rem] text-fog">
+        {items.slice(0, 3).map((i) => (
+          <li key={i} className="line-clamp-2">• {i}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

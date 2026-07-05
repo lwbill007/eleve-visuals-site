@@ -101,5 +101,8 @@ export async function POST(request: Request) {
     console.error("Booking confirmation email failed:", error);
   }
 
+  const { triggerIntelligenceRefreshBackground } = await import("@/lib/ai/memory/knowledge/trigger");
+  triggerIntelligenceRefreshBackground("booking_received");
+
   return NextResponse.json({ ok: true, inquiryId });
 }

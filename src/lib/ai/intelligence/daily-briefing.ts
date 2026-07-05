@@ -16,6 +16,7 @@ import { isAIConfigured } from "../config";
 import { aiComplete } from "../adapter";
 import { systemPromptForTask } from "../prompts/system";
 import type { AIDailyBriefing } from "../types";
+import type { CMODailyBriefing } from "../marketing/types";
 
 function startOfDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -83,6 +84,15 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     getLearningOutcomes(undefined, 5),
     getAnalyticsSummary(30),
   ]);
+
+  let cmoBriefing: CMODailyBriefing | undefined;
+  try {
+    const { getCMOIntelligence } = await import("../marketing/cmo-intelligence");
+    const cmo = await getCMOIntelligence(false);
+    cmoBriefing = cmo.briefing;
+  } catch {
+    /* CMO layer optional */
+  }
 
   const inactiveClients = crm.filter((c) => {
     const days = (Date.now() - new Date(c.lastActivity).getTime()) / 86400000;
@@ -305,6 +315,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       revenue: pipeline.totalValue,
       weekStart: weekStart.toISOString(),
     },
+    cmo: cmoBriefing,
   };
 
   await setCache(cacheKey, briefing, 15 * 60 * 1000);

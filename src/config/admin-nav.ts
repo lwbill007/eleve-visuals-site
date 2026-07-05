@@ -36,7 +36,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
   {
     label: "Marketing",
     items: [
-      { label: "Marketing Studio", href: "/admin/marketing", desc: "AI content generation" },
+      { label: "Marketing Intelligence", href: "/admin/marketing", desc: "CMO command center · memory · learning" },
       { label: "Email", href: "/admin/email", desc: "Campaigns & templates" },
       { label: "Automations", href: "/admin/automations", desc: "Workflow builder" },
       { label: "Forms", href: "/admin/forms", desc: "Intake forms" },
