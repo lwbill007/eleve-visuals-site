@@ -203,7 +203,7 @@ export async function executeAICommand(raw: string): Promise<AICommandResult> {
 
   return {
     type: "navigate",
-    href: "/admin/assistant",
+    href: "/admin/intelligence",
     message: `Opening AI assistant for: "${query}"`,
     label: "Ask ÉLEVÉ AI",
     provider: "rules",

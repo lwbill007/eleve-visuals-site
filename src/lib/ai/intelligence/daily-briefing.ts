@@ -1,5 +1,10 @@
 import { getProactiveBusinessInsights, getOperatorMetrics } from "./business-operator";
 import { syncBusinessMemory } from "../memory/sync";
+import { computeExecutiveScores, legacyScoresFromExecutive } from "./executive-scores";
+import { getExecutiveOpportunities } from "./opportunity-engine";
+import { getExecutiveRisks } from "./risk-center";
+import { getLearningOutcomes } from "../memory/learning";
+import { getAnalyticsSummary } from "@/lib/analytics-server";
 import {
   getAdminCRMContacts,
   getAdminDashboardOS,
@@ -23,7 +28,7 @@ function startOfWeek(d = new Date()) {
 }
 
 export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing> {
-  const cacheKey = "daily-briefing-v3";
+  const cacheKey = "daily-briefing-v4";
   if (!force) {
     const cached = await getCached<AIDailyBriefing>(cacheKey);
     if (cached) return cached;
@@ -45,6 +50,10 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     bookingsYesterday,
     staleBookings,
     upcomingSessions,
+    opportunities,
+    risks,
+    learnings,
+    analytics30,
   ] = await Promise.all([
     getOperatorMetrics(),
     getProactiveBusinessInsights(),
@@ -69,6 +78,10 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       take: 5,
       select: { id: true, title: true, volumeNumber: true, sessionDate: true, status: true },
     }),
+    getExecutiveOpportunities(),
+    getExecutiveRisks(),
+    getLearningOutcomes(undefined, 5),
+    getAnalyticsSummary(30),
   ]);
 
   const inactiveClients = crm.filter((c) => {
@@ -98,36 +111,8 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     proactiveInsights[0]?.title ?? null,
   ].filter(Boolean) as string[];
 
-  const businessHealth = Math.round(
-    (Math.min(100, Math.max(20, 70 + operatorMetrics.month.bookingsChange)) +
-      Math.min(100, operatorMetrics.traffic.conversionRate * 8) +
-      Math.min(100, 100 - operatorMetrics.attention.tasks * 6)) /
-      3
-  );
-
-  const scores = {
-    businessHealth,
-    marketing: Math.min(100, Math.max(15, Math.round(operatorMetrics.traffic.conversionRate * 8 + (operatorMetrics.traffic.trafficChange > 0 ? 10 : 0)))),
-    sales: Math.min(100, Math.max(10, 100 - operatorMetrics.attention.abandonedInquiries * 4)),
-    productivity: Math.min(100, Math.max(10, 100 - operatorMetrics.attention.tasks * 7)),
-    customerSatisfaction: Math.min(
-      100,
-      Math.max(20, Math.round(operatorMetrics.repeatRate + 40))
-    ),
-    growth: Math.min(
-      100,
-      Math.max(
-        10,
-        Math.round(
-          (Math.max(0, operatorMetrics.month.bookingsChange) +
-            Math.max(0, operatorMetrics.revenue.monthChange) +
-            Math.max(0, operatorMetrics.traffic.trafficChange)) /
-            3 +
-            40
-        )
-      )
-    ),
-  };
+  const executiveScores = computeExecutiveScores(operatorMetrics);
+  const scores = legacyScoresFromExecutive(executiveScores);
 
   const potentialLostRevenue =
     operatorMetrics.attention.followUpValue +
@@ -256,6 +241,43 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     })),
     weeklyPriorities: weeklyPriorities.slice(0, 5),
     scores,
+    executiveScores,
+    intelligence: {
+      opportunities: opportunities.slice(0, 6),
+      risks: risks.slice(0, 5),
+      clientsNeedingAttention: inactiveClients.slice(0, 8).map((c) => ({
+        name: c.name,
+        email: c.email,
+        daysSince: Math.round((Date.now() - new Date(c.lastActivity).getTime()) / 86400000),
+        reason: "No activity in 60+ days",
+      })),
+      marketingRecommendations: proactiveInsights
+        .filter((i) => i.category === "marketing")
+        .slice(0, 4)
+        .map((i) => i.title),
+      recentLearnings: learnings.map((l) => l.outcome),
+      websitePerformance: {
+        summary: `${operatorMetrics.traffic.visitors30} visitors (30d), ${operatorMetrics.traffic.conversionRate}% conversion (${operatorMetrics.traffic.conversionChange >= 0 ? "+" : ""}${operatorMetrics.traffic.conversionChange}%)`,
+        conversionRate: operatorMetrics.traffic.conversionRate,
+        topPage: operatorMetrics.traffic.topPage,
+      },
+      portfolioPerformance: {
+        summary: (() => {
+          const p = analytics30.topPages.find((pg) => pg.path.includes("/portfolio"));
+          return p
+            ? `Portfolio ${p.path}: ${p.views} views this month`
+            : "Portfolio traffic data limited — publish or feature work to measure.";
+        })(),
+      },
+      sessionsPerformance: {
+        summary: (() => {
+          const s = analytics30.topPages.find((pg) => pg.path.includes("/sessions"));
+          return s
+            ? `Sessions page: ${s.views} views · ${dashboard.metrics.applications.pending} applications pending review`
+            : `${dashboard.metrics.applications.pending} applications pending · promote open volumes`;
+        })(),
+      },
+    },
     executive: {
       highestRoiAction,
       projectedMonthlyRevenue,

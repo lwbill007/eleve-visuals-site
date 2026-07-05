@@ -3,7 +3,7 @@ import { MemoryCenterClient } from "@/components/admin/ai/MemoryCenterClient";
 
 export default function AdminMemoryPage() {
   return (
-    <AdminShell title="Memory Center">
+    <AdminShell title="Business Knowledge Engine">
       <MemoryCenterClient />
     </AdminShell>
   );

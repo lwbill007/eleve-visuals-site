@@ -183,6 +183,119 @@ export interface AIBriefing {
   forecast?: string;
 }
 
+export interface ExecutiveScore {
+  key: string;
+  label: string;
+  value: number;
+  previousValue?: number;
+  change: number;
+  trend: "up" | "down" | "flat";
+  why: string;
+  evidence: string[];
+  dataSources: string[];
+  confidence: number;
+}
+
+export interface ExecutiveOpportunity {
+  id: string;
+  title: string;
+  detail: string;
+  why: string;
+  category: "revenue" | "marketing" | "sales" | "sessions" | "sponsors" | "operations";
+  expectedRevenue: number;
+  confidence: number;
+  effort: "low" | "medium" | "high";
+  urgency: "critical" | "high" | "medium" | "low";
+  impact: string;
+  evidence: string[];
+  actions: BusinessAction[];
+  estimatedMinutes: number;
+}
+
+export interface ExecutiveRisk {
+  id: string;
+  title: string;
+  detail: string;
+  why: string;
+  category: "revenue" | "marketing" | "sales" | "operations" | "technical" | "crm" | "sessions";
+  severity: "critical" | "high" | "medium" | "low";
+  likelihood: number;
+  potentialImpact: number;
+  evidence: string[];
+  mitigations: BusinessAction[];
+  detectedAt: string;
+}
+
+export interface ExecutiveDecision {
+  id: string;
+  title: string;
+  recommendation: string;
+  confidence: number;
+  expectedOutcome: string;
+  evidence: string[];
+  historicalComparison?: string;
+  riskLevel: "low" | "medium" | "high";
+  estimatedRoi: number;
+  implementationMinutes: number;
+  alternatives: { label: string; tradeoff: string }[];
+  actions: BusinessAction[];
+}
+
+export interface BusinessTimelineEvent {
+  id: string;
+  date: string;
+  title: string;
+  detail: string;
+  category: "learning" | "revenue" | "marketing" | "sessions" | "portfolio" | "seo" | "milestone";
+  impact?: string;
+  source: string;
+  verified: boolean;
+  memoryId?: string;
+}
+
+export interface ExecutiveForecast {
+  metric: string;
+  label: string;
+  current: number;
+  predicted: number;
+  low: number;
+  high: number;
+  confidence: number;
+  horizon: string;
+  why: string;
+  assumptions: string[];
+  unknowns: string[];
+}
+
+export interface ExecutionDraft {
+  id: string;
+  type: AIGenerateTask;
+  title: string;
+  description: string;
+  status: "ready" | "needs_review";
+  href: string;
+  prompt: string;
+  estimatedMinutes: number;
+}
+
+export interface ExecutiveIntelligence {
+  generatedAt: string;
+  scores: ExecutiveScore[];
+  opportunities: ExecutiveOpportunity[];
+  risks: ExecutiveRisk[];
+  decisions: ExecutiveDecision[];
+  timeline: BusinessTimelineEvent[];
+  forecasts: ExecutiveForecast[];
+  executionDrafts: ExecutionDraft[];
+  totalOpportunityRevenue: number;
+  transparency: {
+    dataSources: string[];
+    lastSynced: string;
+    assumptions: string[];
+    unknowns: string[];
+  };
+}
+
 export interface AIDailyBriefing {
   generatedAt: string;
   provider: AIProviderId | "rules";
@@ -218,6 +331,19 @@ export interface AIDailyBriefing {
     productivity: number;
     customerSatisfaction: number;
     growth: number;
+  };
+  /** Full executive scores with evidence — never show unexplained numbers */
+  executiveScores?: ExecutiveScore[];
+  /** Morning briefing intelligence sections */
+  intelligence?: {
+    opportunities: ExecutiveOpportunity[];
+    risks: ExecutiveRisk[];
+    clientsNeedingAttention: { name: string; email: string; daysSince: number; reason: string }[];
+    marketingRecommendations: string[];
+    recentLearnings: string[];
+    websitePerformance: { summary: string; conversionRate: number; topPage: string };
+    portfolioPerformance: { summary: string };
+    sessionsPerformance: { summary: string };
   };
   executive: {
     highestRoiAction: {
@@ -400,6 +526,9 @@ export type AIPageContext =
   | "automations"
   | "reports"
   | "insights"
+  | "intelligence"
+  | "opportunities"
+  | "risks"
   | "assistant"
   | "memory"
   | "general";
@@ -432,10 +561,23 @@ export const PAGE_AI_PROMPTS: Record<AIPageContext, { label: string; prompts: st
   automations: { label: "Automations", prompts: ["Create portrait client workflow", "Booking reminder automation"] },
   reports: { label: "Reports", prompts: ["Generate monthly report", "Revenue forecast", "Marketing report"] },
   insights: { label: "Insights", prompts: ["What actions matter most?", "Explain today's insights"] },
+  intelligence: {
+    label: "Executive Intelligence",
+    prompts: ["What is my highest ROI action today?", "What risks should I address first?", "Explain my business health scores"],
+  },
+  opportunities: {
+    label: "Opportunities",
+    prompts: ["Rank opportunities by revenue", "What should I execute this week?"],
+  },
+  risks: { label: "Risk Center", prompts: ["What could hurt revenue this month?", "Show early warning signals"] },
   assistant: { label: "Assistant", prompts: ["What should I focus on today?", "Summarize the business"] },
   memory: {
-    label: "Memory Center",
-    prompts: ["What does the AI know about my business?", "Which memories influenced today's recommendations?"],
+    label: "Business Knowledge Engine",
+    prompts: [
+      "What does the AI know about my business?",
+      "What changed in the last knowledge refresh?",
+      "Which pages drive the most bookings?",
+    ],
   },
   general: { label: "Admin", prompts: ["What should I focus on today?", "Show me revenue", "Find inactive clients"] },
 };

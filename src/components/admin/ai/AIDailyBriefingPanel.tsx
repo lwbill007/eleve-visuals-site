@@ -139,13 +139,50 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
             </div>
           )}
 
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-6">
+          {briefing.intelligence && (
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-lg border border-stone/20 p-4">
+                <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Risks</p>
+                <ul className="mt-2 space-y-2">
+                  {briefing.intelligence.risks.slice(0, 3).map((r) => (
+                    <li key={r.id} className="text-sm text-cream-dim">
+                      <span className="text-amber-400">{r.severity}</span> — {r.title}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-lg border border-stone/20 p-4">
+                <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Recent AI learnings</p>
+                <ul className="mt-2 space-y-2">
+                  {briefing.intelligence.recentLearnings.length > 0 ? (
+                    briefing.intelligence.recentLearnings.map((l) => (
+                      <li key={l} className="text-sm text-cream-dim">• {l}</li>
+                    ))
+                  ) : (
+                    <li className="text-sm text-muted">Learning accumulates from verified business events.</li>
+                  )}
+                </ul>
+              </div>
+              <div className="rounded-lg border border-stone/20 p-4 lg:col-span-2">
+                <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Performance snapshot</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3 text-xs text-fog">
+                  <p>{briefing.intelligence.websitePerformance.summary}</p>
+                  <p>{briefing.intelligence.portfolioPerformance.summary}</p>
+                  <p>{briefing.intelligence.sessionsPerformance.summary}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
             <ScoreRing label="Business" value={briefing.scores.businessHealth} />
-            <ScoreRing label="Growth" value={briefing.scores.growth} />
+            <ScoreRing label="Revenue" value={briefing.executiveScores?.find((s) => s.key === "revenue")?.value ?? briefing.scores.growth} />
             <ScoreRing label="Marketing" value={briefing.scores.marketing} />
             <ScoreRing label="Sales" value={briefing.scores.sales} />
-            <ScoreRing label="Productivity" value={briefing.scores.productivity} />
+            <ScoreRing label="Brand" value={briefing.executiveScores?.find((s) => s.key === "brand")?.value ?? briefing.scores.growth} />
+            <ScoreRing label="Operations" value={briefing.executiveScores?.find((s) => s.key === "operations")?.value ?? briefing.scores.productivity} />
             <ScoreRing label="Clients" value={briefing.scores.customerSatisfaction} />
+            <ScoreRing label="Productivity" value={briefing.scores.productivity} />
           </div>
         </>
       )}

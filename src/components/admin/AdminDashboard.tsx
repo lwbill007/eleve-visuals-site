@@ -9,9 +9,14 @@ import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import {
   ExecutiveDashboardSkeleton,
   ExecutiveQuickLink,
-  ExecutiveScoreStrip,
   HighestRoiBanner,
 } from "@/components/admin/os/ExecutiveOSComponents";
+import {
+  ExecutiveScoreGrid,
+  OpportunityCard,
+  OpportunityRevenueBanner,
+  RiskCard,
+} from "@/components/admin/os/ExecutiveIntelligenceComponents";
 import {
   AdminActivityFeed,
   AdminBarChart,
@@ -98,8 +103,48 @@ export function AdminDashboard() {
         <HighestRoiBanner {...executive.highestRoiAction} />
       )}
 
-      {briefing && (
-        <ExecutiveScoreStrip scores={briefing.scores} />
+      {briefing?.executiveScores && briefing.executiveScores.length > 0 ? (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="label-caps text-muted">Business health scores</p>
+            <Link href="/admin/intelligence" className="text-xs text-accent hover:underline">
+              Full intelligence →
+            </Link>
+          </div>
+          <ExecutiveScoreGrid scores={briefing.executiveScores} />
+        </div>
+      ) : null}
+
+      {briefing?.intelligence && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <OpportunityRevenueBanner
+            total={briefing.intelligence.opportunities.reduce((s, o) => s + o.expectedRevenue, 0)}
+            count={briefing.intelligence.opportunities.length}
+          />
+          <AdminPanel title="Active risks" subtitle="Early warnings — act before problems compound">
+            <div className="space-y-3">
+              {briefing.intelligence.risks.slice(0, 2).map((r) => (
+                <RiskCard key={r.id} risk={r} />
+              ))}
+              {briefing.intelligence.risks.length === 0 && (
+                <p className="text-sm text-fog">No critical risks detected from current data.</p>
+              )}
+              <Link href="/admin/risks" className="text-xs text-accent hover:underline">
+                Risk Center →
+              </Link>
+            </div>
+          </AdminPanel>
+        </div>
+      )}
+
+      {briefing?.intelligence && briefing.intelligence.opportunities.length > 0 && (
+        <AdminPanel title="Top opportunities" subtitle="Ranked by expected revenue × confidence">
+          <div className="grid gap-3 lg:grid-cols-2">
+            {briefing.intelligence.opportunities.slice(0, 4).map((opp) => (
+              <OpportunityCard key={opp.id} opp={opp} />
+            ))}
+          </div>
+        </AdminPanel>
       )}
 
       {executive && (

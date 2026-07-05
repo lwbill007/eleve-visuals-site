@@ -193,7 +193,10 @@ function resolvePageContext(pathname: string, search = "") {
   if (pathname.startsWith("/admin/automations")) return "automations" as const;
   if (pathname.startsWith("/admin/reports")) return "reports" as const;
   if (pathname.startsWith("/admin/insights")) return "insights" as const;
-  if (pathname.startsWith("/admin/assistant")) return "assistant" as const;
+  if (pathname.startsWith("/admin/intelligence")) return "intelligence" as const;
+  if (pathname.startsWith("/admin/opportunities")) return "opportunities" as const;
+  if (pathname.startsWith("/admin/risks")) return "risks" as const;
+  if (pathname.startsWith("/admin/assistant")) return "intelligence" as const;
   if (pathname.startsWith("/admin/memory")) return "memory" as const;
   if (pathname.startsWith("/admin/submissions") && params.get("type") === "booking") return "bookings" as const;
   return "general" as const;

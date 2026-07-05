@@ -12,3 +12,4 @@ export * from "./sync-sessions";
 export * from "./sync-learning";
 export * from "./workspace";
 export { layerLabel, resolveLayer } from "./utils";
+export * from "./knowledge";

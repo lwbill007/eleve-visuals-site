@@ -7,6 +7,8 @@ import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSCompon
 import { MemoryGraphVisual } from "@/components/admin/ai/MemoryGraphVisual";
 import { MemoryHeatmap } from "@/components/admin/ai/MemoryHeatmap";
 import { MEMORY_LAYERS, type MemoryLayer, type MemoryRecord } from "@/lib/ai/memory/types";
+import type { LearningTimelineEvent, MemoryExplanation, RefreshLearnReport } from "@/lib/ai/memory/knowledge/types";
+import { REFRESH_AUTOMATION_OPTIONS } from "@/lib/ai/memory/knowledge/types";
 import { cn } from "@/lib/utils";
 
 interface MemoryStats {
@@ -46,11 +48,16 @@ export function MemoryCenterClient() {
   const [stats, setStats] = useState<MemoryStats | null>(null);
   const [graph, setGraph] = useState<GraphData | null>(null);
   const [heatmap, setHeatmap] = useState<HeatmapData | null>(null);
+  const [timeline, setTimeline] = useState<LearningTimelineEvent[]>([]);
   const [layer, setLayer] = useState<MemoryLayer | "all">("all");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [selected, setSelected] = useState<MemoryRecord | null>(null);
+  const [explanation, setExplanation] = useState<MemoryExplanation | null>(null);
+  const [lastReport, setLastReport] = useState<RefreshLearnReport | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<LearningTimelineEvent | null>(null);
   const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
@@ -61,11 +68,12 @@ export function MemoryCenterClient() {
       if (query.trim()) params.set("q", query.trim());
       params.set("limit", "60");
 
-      const [listRes, statsRes, graphRes, heatmapRes] = await Promise.all([
+      const [listRes, statsRes, graphRes, heatmapRes, timelineRes] = await Promise.all([
         adminFetch(`/api/admin/ai/memory?${params}`),
         adminFetch("/api/admin/ai/memory?view=stats"),
         adminFetch(`/api/admin/ai/memory/graph${layer !== "all" ? `?layer=${layer}` : ""}`),
         adminFetch("/api/admin/ai/memory?view=heatmap"),
+        adminFetch("/api/admin/ai/memory/learn-timeline?limit=30"),
       ]);
 
       if (listRes.ok) {
@@ -75,6 +83,10 @@ export function MemoryCenterClient() {
       if (statsRes.ok) setStats(await statsRes.json());
       if (graphRes.ok) setGraph(await graphRes.json());
       if (heatmapRes.ok) setHeatmap(await heatmapRes.json());
+      if (timelineRes.ok) {
+        const t = await timelineRes.json();
+        setTimeline(t.events ?? []);
+      }
     } finally {
       setLoading(false);
     }
@@ -85,13 +97,34 @@ export function MemoryCenterClient() {
     return () => clearTimeout(t);
   }, [load, query]);
 
+  async function refreshBusinessKnowledge() {
+    setRefreshing(true);
+    setMessage("");
+    try {
+      const res = await adminFetch("/api/admin/ai/memory/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trigger: "manual" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Refresh failed");
+      setLastReport(data.report);
+      setMessage(data.message ?? "Business knowledge refreshed.");
+      await load();
+    } catch {
+      setMessage("Refresh & Learn failed — check server logs.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function syncMemories() {
     setSyncing(true);
     setMessage("");
     try {
       const res = await adminFetch("/api/admin/ai/memory/sync", { method: "POST" });
       const data = await res.json();
-      setMessage(data.message ?? "Sync complete.");
+      setMessage(data.message ?? "Metrics sync complete.");
       await load();
     } catch {
       setMessage("Sync failed.");
@@ -100,36 +133,67 @@ export function MemoryCenterClient() {
     }
   }
 
-  async function patchMemory(id: string, patch: Record<string, unknown>) {
-    await adminFetch(`/api/admin/ai/memory/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    await load();
-    if (selected?.id === id) setSelected(null);
+  async function loadExplanation(memoryId: string) {
+    const res = await adminFetch(`/api/admin/ai/memory/${memoryId}/explain`);
+    if (res.ok) setExplanation(await res.json());
   }
+
+  async function patchMemory(id: string, patch: Record<string, unknown>) {
+    if (patch.action === "delete") {
+      await adminFetch(`/api/admin/ai/memory/${id}`, { method: "DELETE" });
+    } else {
+      await adminFetch(`/api/admin/ai/memory/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    }
+    await load();
+    if (selected?.id === id) {
+      setSelected(null);
+      setExplanation(null);
+    }
+  }
+
+  useEffect(() => {
+    if (selected) void loadExplanation(selected.id);
+    else setExplanation(null);
+  }, [selected?.id]);
 
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <AdminPageHeader
-          eyebrow="Intelligence Layer"
-          title="Memory Center"
-          description="Structured business knowledge — auditable, searchable, and used before every AI recommendation. Not chat history."
+          eyebrow="Chief Intelligence Officer"
+          title="Business Knowledge Engine"
+          description="ÉLEVÉ AI continuously studies your entire platform — pages, CRM, sessions, portfolio, and pipeline. Every memory is explainable, auditable, and evolves with each refresh."
         />
-        <button
-          type="button"
-          disabled={syncing}
-          onClick={() => void syncMemories()}
-          className="rounded-xl bg-cream px-5 py-3 text-xs tracking-[0.12em] text-ink uppercase transition-colors hover:bg-accent disabled:opacity-50"
-        >
-          {syncing ? "Syncing…" : "Sync from business data"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={refreshing}
+            onClick={() => void refreshBusinessKnowledge()}
+            className="rounded-xl bg-cream px-5 py-3 text-xs tracking-[0.12em] text-ink uppercase transition-colors hover:bg-accent disabled:opacity-50"
+          >
+            {refreshing ? "Learning…" : "Refresh Business Knowledge"}
+          </button>
+          <button
+            type="button"
+            disabled={syncing}
+            onClick={() => void syncMemories()}
+            className="rounded-xl border border-stone/30 px-5 py-3 text-xs tracking-[0.12em] text-fog uppercase hover:border-accent disabled:opacity-50"
+          >
+            {syncing ? "Syncing…" : "Sync metrics"}
+          </button>
+        </div>
       </div>
 
       {message && (
         <p className="rounded-lg border border-accent/25 bg-accent/5 px-4 py-3 text-sm text-cream">{message}</p>
+      )}
+
+      {lastReport && (
+        <RefreshReportPanel report={lastReport} onDismiss={() => setLastReport(null)} />
       )}
 
       {stats && (
@@ -142,6 +206,43 @@ export function MemoryCenterClient() {
           ))}
         </div>
       )}
+
+      <AdminPanel title="Learning timeline" subtitle="Every refresh, memory change, and verified learning event">
+        {timeline.length === 0 ? (
+          <p className="text-sm text-muted">Run Refresh Business Knowledge to start building your timeline.</p>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ul className="space-y-2 max-h-80 overflow-y-auto">
+              {timeline.map((e) => (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEvent(e)}
+                    className={cn(
+                      "w-full rounded-lg border p-3 text-left transition-colors hover:border-accent/35",
+                      selectedEvent?.id === e.id ? "border-accent/50 bg-accent/5" : "border-stone/20"
+                    )}
+                  >
+                    <p className="text-[0.6rem] text-muted uppercase">
+                      {new Date(e.date).toLocaleDateString()} · {e.category}
+                      {e.verified && " · verified"}
+                    </p>
+                    <p className="mt-1 text-sm text-cream">{e.title}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-fog">{e.detail}</p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="rounded-xl border border-stone/20 p-4">
+              {selectedEvent ? (
+                <EventDetail event={selectedEvent} />
+              ) : (
+                <p className="text-sm text-muted">Select an event to see what changed.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </AdminPanel>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-2">
@@ -160,19 +261,19 @@ export function MemoryCenterClient() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search memories…"
+          placeholder="Search knowledge base…"
           className="w-full max-w-md rounded-xl border border-stone/25 bg-charcoal/20 px-4 py-3 text-sm text-cream placeholder:text-muted focus:border-accent focus:outline-none"
         />
       </div>
 
       {heatmap && (
-        <AdminPanel title="Memory heatmap" subtitle="Knowledge activity by layer over the last 8 weeks">
+        <AdminPanel title="Knowledge activity" subtitle="Memory updates by layer over 8 weeks">
           <MemoryHeatmap data={heatmap} />
         </AdminPanel>
       )}
 
       <div className="grid gap-6 lg:grid-cols-12">
-        <AdminPanel title="Memory timeline" subtitle="Most recent structured knowledge" className="lg:col-span-7">
+        <AdminPanel title="Knowledge base" subtitle="Structured business understanding" className="lg:col-span-7">
           {loading ? (
             <div className="space-y-3 animate-pulse">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -181,9 +282,9 @@ export function MemoryCenterClient() {
             </div>
           ) : items.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-cream">No memories yet.</p>
+              <p className="text-cream">No knowledge yet.</p>
               <p className="mt-2 text-sm text-muted">
-                Run <strong className="text-accent">Sync from business data</strong> to build your executive knowledge base.
+                Press <strong className="text-accent">Refresh Business Knowledge</strong> to scan your entire platform.
               </p>
             </div>
           ) : (
@@ -223,22 +324,108 @@ export function MemoryCenterClient() {
 
         <div className="space-y-4 lg:col-span-5">
           {selected ? (
-            <AdminPanel title="Memory detail" subtitle="Source, confidence, and actions">
-              <MemoryDetail memory={selected} onAction={(patch) => void patchMemory(selected.id, patch)} />
+            <AdminPanel title="Memory detail" subtitle="Source, evidence, and explainability">
+              <MemoryDetail
+                memory={selected}
+                explanation={explanation}
+                onAction={(patch) => void patchMemory(selected.id, patch)}
+              />
             </AdminPanel>
           ) : (
-            <AdminPanel title="Select a memory" subtitle="View source, confidence, and audit trail">
+            <AdminPanel title="Select knowledge" subtitle="Explain why · pin · verify · archive">
               <p className="text-sm text-muted">
-                Every AI insight cites structured memories like these. Nothing is hidden — pin, verify, archive, or correct any entry.
+                Every executive recommendation cites memories like these. Use Explain Why to see the full reasoning chain.
               </p>
             </AdminPanel>
           )}
 
-          <AdminPanel title="Knowledge graph" subtitle={`${graph?.nodes.length ?? 0} nodes · ${graph?.edges.length ?? 0} connections`}>
+          <AdminPanel title="Knowledge graph" subtitle={`${graph?.nodes.length ?? 0} nodes · ${graph?.edges.length ?? 0} relationships`}>
             <MemoryGraphVisual data={graph} />
+            <p className="mt-3 text-xs text-muted">
+              Graph updates automatically on each Refresh & Learn — connecting clients, projects, sessions, pages, and revenue.
+            </p>
+          </AdminPanel>
+
+          <AdminPanel title="Future automation" subtitle="Scheduled refresh (coming soon)">
+            <ul className="space-y-2">
+              {REFRESH_AUTOMATION_OPTIONS.map((opt) => (
+                <li key={opt.id} className="flex items-center justify-between text-xs">
+                  <span className={opt.available ? "text-cream" : "text-muted"}>{opt.label}</span>
+                  <span className={opt.available ? "text-emerald-400" : "text-muted"}>
+                    {opt.available ? "Active" : "Soon"}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </AdminPanel>
         </div>
       </div>
+    </div>
+  );
+}
+
+function RefreshReportPanel({ report, onDismiss }: { report: RefreshLearnReport; onDismiss: () => void }) {
+  return (
+    <section className="os-glass rounded-2xl border border-accent/25 p-5">
+      <div className="flex justify-between gap-4">
+        <div>
+          <p className="label-caps text-accent">Refresh complete</p>
+          <p className="mt-2 text-sm text-cream">
+            {report.pagesScanned} pages scanned · {report.memoriesCreated} created · {report.memoriesUpdated} updated ·{" "}
+            {report.memoriesArchived} archived · {report.graphLinksCreated} graph links
+          </p>
+        </div>
+        <button type="button" onClick={onDismiss} className="text-xs text-muted hover:text-cream">
+          Dismiss
+        </button>
+      </div>
+      {report.whatChanged.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[0.6rem] uppercase text-muted">What changed</p>
+          <ul className="mt-2 space-y-1 text-xs text-fog">
+            {report.whatChanged.slice(0, 6).map((c) => (
+              <li key={c}>• {c}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {report.issuesFound.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[0.6rem] uppercase text-amber-400">Issues found ({report.issuesFound.length})</p>
+          <ul className="mt-2 space-y-1 text-xs text-fog">
+            {report.issuesFound.slice(0, 4).map((i) => (
+              <li key={`${i.page}-${i.title}`}>
+                • [{i.severity}] {i.title} — {i.page}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EventDetail({ event }: { event: LearningTimelineEvent }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-[0.6rem] uppercase text-muted">
+        {new Date(event.date).toLocaleString()} · {event.category}
+      </p>
+      <h4 className="font-display text-lg text-cream">{event.title}</h4>
+      <p className="text-sm text-fog">{event.detail}</p>
+      {event.changes && event.changes.length > 0 && (
+        <div>
+          <p className="text-[0.6rem] uppercase text-accent">Changes</p>
+          <ul className="mt-2 space-y-1 text-xs text-fog">
+            {event.changes.map((c) => (
+              <li key={c}>• {c}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {event.confidence !== undefined && (
+        <p className="text-xs text-muted">Confidence: {Math.round(event.confidence * 100)}%</p>
+      )}
     </div>
   );
 }
@@ -247,7 +434,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="os-panel rounded-xl p-4 text-center">
       <p className="font-display text-2xl text-cream">{value}</p>
-      <p className="mt-1 text-[0.55rem] tracking-[0.12em] text-muted uppercase">{label}</p>
+      <p className="mt-1 text-[0.55rem] tracking-[0.14em] text-muted uppercase">{label}</p>
     </div>
   );
 }
@@ -280,16 +467,20 @@ function FilterChip({
 
 function MemoryDetail({
   memory,
+  explanation,
   onAction,
 }: {
   memory: MemoryRecord;
+  explanation: MemoryExplanation | null;
   onAction: (patch: Record<string, unknown>) => void;
 }) {
+  const sourcePage = (memory.value.sourcePage as string) ?? memory.sourceRef.replace("platform:", "");
+
   return (
     <div className="space-y-4">
       <div>
         <p className="text-[0.6rem] tracking-[0.12em] text-muted uppercase">
-          {memory.layer} · {memory.category} · source: {memory.source}
+          {memory.layer} · {memory.category} · {sourcePage || memory.source}
         </p>
         <h3 className="mt-2 font-display text-xl text-cream">{memory.title}</h3>
         {memory.summary && <p className="mt-2 text-sm text-fog">{memory.summary}</p>}
@@ -307,7 +498,54 @@ function MemoryDetail({
         </span>
       </div>
 
-      <pre className="max-h-40 overflow-auto rounded-lg border border-stone/20 bg-ink/50 p-3 text-[0.65rem] text-fog">
+      {explanation && (
+        <details open className="rounded-lg border border-accent/20 bg-accent/5 p-4">
+          <summary className="cursor-pointer text-sm font-medium text-accent">Explain Why</summary>
+          <div className="mt-3 space-y-3 text-xs text-fog">
+            <p>
+              <span className="text-cream">Why it matters:</span> {explanation.whyItMatters}
+            </p>
+            <p>
+              <span className="text-cream">Business area:</span> {explanation.businessArea}
+            </p>
+            {explanation.uncertain && (
+              <p className="text-amber-300">{explanation.uncertaintyNote}</p>
+            )}
+            <div>
+              <p className="text-muted uppercase tracking-wider mb-1">Reasoning chain</p>
+              <ul className="space-y-1">
+                {explanation.reasoningChain.map((r) => (
+                  <li key={r}>→ {r}</li>
+                ))}
+              </ul>
+            </div>
+            {explanation.relatedMemories.length > 0 && (
+              <div>
+                <p className="text-muted uppercase tracking-wider mb-1">Related memories</p>
+                <ul className="space-y-1">
+                  {explanation.relatedMemories.map((r) => (
+                    <li key={r.id}>
+                      {r.title} <span className="text-muted">({r.relationType})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {explanation.analyticsReferenced.length > 0 && (
+              <div>
+                <p className="text-muted uppercase tracking-wider mb-1">Analytics</p>
+                <ul className="space-y-1">
+                  {explanation.analyticsReferenced.map((a) => (
+                    <li key={a}>• {a}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </details>
+      )}
+
+      <pre className="max-h-32 overflow-auto rounded-lg border border-stone/20 bg-ink/50 p-3 text-[0.65rem] text-fog">
         {JSON.stringify(memory.value, null, 2)}
       </pre>
 
