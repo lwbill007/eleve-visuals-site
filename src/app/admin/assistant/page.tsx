@@ -5,11 +5,11 @@ import { AdminPageHeader } from "@/components/admin/os/AdminOSComponents";
 
 export default function AdminAssistantPage() {
   return (
-    <AdminShell title="AI Assistant">
+    <AdminShell title="ÉLEVÉ AI">
       <AdminPageHeader
         eyebrow="Intelligence Layer"
         title="ÉLEVÉ AI"
-        description="Your business partner — bookings, clients, sessions, marketing, and strategy. All answers use live studio data."
+        description="Your executive brain — learns from every booking, campaign, and client interaction. Recommendations use structured memory, live data, and outcome learning."
       />
 
       <div className="mb-8">

@@ -23,13 +23,14 @@ export async function POST(req: Request) {
   const page = context?.page || "general";
   const pageConfig = PAGE_AI_PROMPTS[page];
   const history = await getConversationHistory(page);
-  const memory = await buildMemoryContext();
+  const memory = await buildMemoryContext(message, page);
 
   const systemContext = `${systemPromptForAssistant()}
 
 Current page: ${pageConfig.label}
 Page context: ${JSON.stringify(context?.data ?? {})}
-Memory: ${memory}
+Memory (structured business knowledge — cite when relevant):
+${memory}
 
 Respond with awareness of where the user is in the admin. Be actionable.`;
 

@@ -104,7 +104,11 @@ export interface BusinessInsight {
   severity: "high" | "medium" | "low";
   title: string;
   detail: string;
+  why: string;
   metric?: string;
+  revenueImpact?: number;
+  timeSavedMinutes?: number;
+  priority: number;
   actions: BusinessAction[];
 }
 
@@ -213,17 +217,35 @@ export interface AIDailyBriefing {
     sales: number;
     productivity: number;
     customerSatisfaction: number;
+    growth: number;
+  };
+  executive: {
+    highestRoiAction: {
+      title: string;
+      why: string;
+      revenueImpact: number;
+      timeSavedMinutes: number;
+      href: string;
+      actionLabel: string;
+    } | null;
+    projectedMonthlyRevenue: number;
+    potentialLostRevenue: number;
+    pipelineValue: number;
   };
   recommendedActions: {
     id: string;
     severity: string;
     title: string;
     detail: string;
+    why?: string;
     action: string;
     href: string;
     actions?: BusinessAction[];
     category?: string;
     metric?: string;
+    revenueImpact?: number;
+    timeSavedMinutes?: number;
+    priority?: number;
   }[];
   aiRecommendations: string[];
   forecast: { bookings: string; revenue: number; weekStart: string };
@@ -379,6 +401,7 @@ export type AIPageContext =
   | "reports"
   | "insights"
   | "assistant"
+  | "memory"
   | "general";
 
 export interface AIContextPayload {
@@ -410,5 +433,9 @@ export const PAGE_AI_PROMPTS: Record<AIPageContext, { label: string; prompts: st
   reports: { label: "Reports", prompts: ["Generate monthly report", "Revenue forecast", "Marketing report"] },
   insights: { label: "Insights", prompts: ["What actions matter most?", "Explain today's insights"] },
   assistant: { label: "Assistant", prompts: ["What should I focus on today?", "Summarize the business"] },
+  memory: {
+    label: "Memory Center",
+    prompts: ["What does the AI know about my business?", "Which memories influenced today's recommendations?"],
+  },
   general: { label: "Admin", prompts: ["What should I focus on today?", "Show me revenue", "Find inactive clients"] },
 };

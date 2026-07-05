@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
@@ -73,21 +74,41 @@ export function PipelineClient() {
               <h3 className="text-xs tracking-[0.14em] text-cream-dim uppercase">{col.label}</h3>
               <span className="rounded-full bg-stone/30 px-2 py-0.5 text-xs text-muted">{col.items.length}</span>
             </div>
-            <div className="space-y-2 rounded-xl border border-stone/20 bg-charcoal/10 p-2 min-h-[200px]">
+            <div className="min-h-[200px] space-y-2 rounded-xl border border-stone/20 bg-charcoal/10 p-2">
               {col.items.map((item) => (
                 <div
                   key={item.id}
                   draggable
                   onDragStart={() => setDragging(item.id)}
                   onDragEnd={() => setDragging(null)}
-                  className="cursor-grab rounded-lg border border-stone/25 bg-ink p-3 transition-shadow active:cursor-grabbing hover:border-accent/30 hover:shadow-lg"
+                  className="group cursor-grab rounded-lg border border-stone/25 bg-ink p-3 transition-shadow active:cursor-grabbing hover:border-accent/30 hover:shadow-lg"
                 >
-                  <p className="font-medium text-cream">{item.name}</p>
-                  {item.service && <p className="mt-1 text-xs text-fog">{item.service}</p>}
-                  {item.value > 0 && (
-                    <p className="mt-2 text-xs text-accent">${item.value.toLocaleString()} est.</p>
-                  )}
-                  <p className="mt-2 text-[0.65rem] text-muted">{new Date(item.createdAt).toLocaleDateString()}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      href={`/admin/submissions?type=booking&focus=${item.id}`}
+                      className="min-w-0 flex-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="font-medium text-cream group-hover:text-accent">{item.name}</p>
+                      {item.service && <p className="mt-1 text-xs text-fog">{item.service}</p>}
+                      {item.value > 0 && (
+                        <p className="mt-2 text-xs text-accent">${item.value.toLocaleString()} est.</p>
+                      )}
+                      <p className="mt-2 text-[0.65rem] text-muted">
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </p>
+                    </Link>
+                    {item.email && (
+                      <Link
+                        href={`/admin/crm?search=${encodeURIComponent(item.email)}`}
+                        className="shrink-0 rounded px-1.5 py-0.5 text-[0.6rem] tracking-[0.08em] text-muted uppercase hover:text-accent"
+                        title="Open in CRM"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        CRM
+                      </Link>
+                    )}
+                  </div>
                 </div>
               ))}
               {col.items.length === 0 && (
@@ -98,9 +119,10 @@ export function PipelineClient() {
         ))}
       </div>
 
-      <AdminPanel title="Tip" subtitle="Drag cards between columns to update status instantly.">
+      <AdminPanel title="Workflow" subtitle="Drag to update status · click a card to open the inquiry">
         <p className="text-sm text-fog">
-          Stages map to your existing booking statuses: New → Contacted → Booked → Completed → Inactive.
+          Stages map to booking statuses: New → Contacted → Booked → Completed → Inactive. Speed-to-lead on new
+          inquiries is your highest ROI action.
         </p>
       </AdminPanel>
     </div>

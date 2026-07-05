@@ -15,6 +15,8 @@ import type {
   SelfImprovementItem,
   SessionsOperatorIntel,
 } from "../types";
+import { layerForInsightCategory } from "../memory/sync";
+import { writeMemory } from "../memory/store";
 
 function startOfDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -37,6 +39,56 @@ function action(
   extra?: Partial<BusinessAction>
 ): BusinessAction {
   return { id, label, type, href, ...extra };
+}
+
+/** Working routes — avoid dead-end scaffold pages for one-click actions */
+export const OS_ROUTES = {
+  marketingFollowUp: "/admin/marketing?task=follow_up",
+  marketingCampaign: "/admin/marketing?task=campaign",
+  marketingEmail: "/admin/marketing?task=email_body",
+  marketingReferral: "/admin/marketing?task=campaign&focus=referral",
+  marketingGallery: "/admin/marketing?task=follow_up&focus=gallery-delivery",
+  crm: "/admin/crm",
+  pipeline: "/admin/pipeline",
+  automations: "/admin/automations",
+  notifications: "/admin/notifications",
+} as const;
+
+function parseMetricDollars(metric?: string): number | undefined {
+  if (!metric) return undefined;
+  const match = metric.match(/\$([\d,]+)/);
+  if (match) return parseInt(match[1].replace(/,/g, ""), 10);
+  return undefined;
+}
+
+function defaultTimeSaved(category: BusinessInsight["category"]): number {
+  switch (category) {
+    case "sales":
+      return 25;
+    case "crm":
+      return 30;
+    case "marketing":
+      return 20;
+    case "sessions":
+      return 15;
+    case "operations":
+      return 10;
+    default:
+      return 15;
+  }
+}
+
+function finalizeInsight(
+  insight: Omit<BusinessInsight, "why" | "revenueImpact" | "timeSavedMinutes" | "priority"> &
+    Partial<Pick<BusinessInsight, "why" | "revenueImpact" | "timeSavedMinutes">>
+): BusinessInsight {
+  return {
+    ...insight,
+    why: insight.why ?? insight.detail,
+    revenueImpact: insight.revenueImpact ?? parseMetricDollars(insight.metric),
+    timeSavedMinutes: insight.timeSavedMinutes ?? defaultTimeSaved(insight.category),
+    priority: insight.severity === "high" ? 1 : insight.severity === "medium" ? 2 : 3,
+  };
 }
 
 export async function getOperatorMetrics() {
@@ -190,7 +242,10 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
     getAnalyticsSummary(7),
   ]);
 
-  const insights: BusinessInsight[] = [];
+  const insights: Array<
+    Omit<BusinessInsight, "why" | "revenueImpact" | "timeSavedMinutes" | "priority"> &
+      Partial<Pick<BusinessInsight, "why" | "revenueImpact" | "timeSavedMinutes">>
+  > = [];
   const month = new Date().toLocaleDateString("en-US", { month: "long" });
 
   if (metrics.month.bookingsChange <= -10) {
@@ -206,7 +261,9 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
           task: "launch_campaign",
           prompt: "Recovery campaign for slow booking month",
         }),
-        action("email-warm", "Email Clients", "email_clients", "/admin/email?focus=re-engage"),
+        action("email-warm", "Draft Re-engagement", "email_clients", OS_ROUTES.marketingFollowUp, {
+          task: "follow_up",
+        }),
         action("view-analytics", "View Analytics", "navigate", "/admin/analytics"),
       ],
     });
@@ -271,7 +328,10 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
           task: "campaign",
           prompt: "VIP offer for repeat portrait clients",
         }),
-        action("referrals", "Referral Campaign", "navigate", "/admin/referrals"),
+        action("referrals", "Referral Campaign", "create_campaign", OS_ROUTES.marketingReferral, {
+          task: "campaign",
+          prompt: "Referral campaign for repeat portrait clients",
+        }),
         action("open-crm", "Open CRM", "open_crm", "/admin/crm"),
       ],
     });
@@ -286,7 +346,9 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
       detail: "Past clients and warm leads with no activity in 60+ days. A targeted re-engagement sequence could recover revenue without new ad spend.",
       metric: `$${metrics.attention.followUpValue.toLocaleString()}`,
       actions: [
-        action("email-inactive", "Email Clients", "email_clients", "/admin/email?focus=re-engage"),
+        action("email-inactive", "Draft Re-engagement", "email_clients", OS_ROUTES.marketingFollowUp, {
+          task: "follow_up",
+        }),
         action("schedule", "Schedule Follow-Up", "schedule_followup", "/admin/crm"),
         action("workflow", "Create Workflow", "create_workflow", "/admin/automations"),
       ],
@@ -319,7 +381,10 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
       metric: `${metrics.attention.galleriesAwaiting} pending`,
       actions: [
         action("submissions", "View Bookings", "navigate", "/admin/submissions?type=booking&status=scheduled"),
-        action("email-delivery", "Email Clients", "email_clients", "/admin/email?focus=gallery-delivery"),
+        action("email-delivery", "Gallery Follow-Up", "email_clients", OS_ROUTES.marketingGallery, {
+          task: "follow_up",
+          prompt: "Gallery delivery follow-up email",
+        }),
       ],
     });
   }
@@ -372,7 +437,34 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
   });
 
   const severityOrder = { high: 0, medium: 1, low: 2 };
-  return insights.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  const finalized = insights
+    .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
+    .map(finalizeInsight)
+    .map((insight, index) => ({ ...insight, priority: index + 1 }));
+
+  for (const insight of finalized.slice(0, 8)) {
+    writeMemory({
+      layer: layerForInsightCategory(insight.category),
+      category: "executive_insight",
+      key: insight.id,
+      title: insight.title,
+      summary: insight.why,
+      value: {
+        detail: insight.detail,
+        metric: insight.metric,
+        revenueImpact: insight.revenueImpact,
+        timeSavedMinutes: insight.timeSavedMinutes,
+        severity: insight.severity,
+        actions: insight.actions.map((a) => ({ label: a.label, href: a.href })),
+      },
+      confidence: insight.severity === "high" ? 0.92 : insight.severity === "medium" ? 0.78 : 0.65,
+      importance: insight.priority <= 2 ? 88 : 65,
+      source: "ai",
+      sourceRef: "proactive-insights",
+    }).catch(() => {});
+  }
+
+  return finalized;
 }
 
 export async function getMarketingRecommendations(): Promise<MarketingRecommendation[]> {
@@ -391,7 +483,7 @@ export async function getMarketingRecommendations(): Promise<MarketingRecommenda
       reason: `${metrics.attention.followUpClients} clients inactive 60+ days (~$${metrics.attention.followUpValue.toLocaleString()} potential)`,
       priority: "high",
       actions: [
-        action("draft-email", "Create Campaign", "email_clients", "/admin/email?focus=re-engage"),
+        action("draft-email", "Create Campaign", "email_clients", OS_ROUTES.marketingFollowUp),
         action("gen-email", "Generate Copy", "create_campaign", "/admin/marketing?task=follow_up", {
           task: "follow_up",
         }),
@@ -597,7 +689,9 @@ export function buildSalesRecommendations(input: SalesRecommendationInput): Sale
       detail: `${vipClients.length} repeat/VIP ${vipClients.length === 1 ? "client" : "clients"} — highest referral conversion potential`,
       impact: "medium",
       actions: [
-        action("referrals", "Referral Program", "navigate", "/admin/referrals"),
+        action("referrals", "Referral Campaign", "create_campaign", OS_ROUTES.marketingReferral, {
+          task: "campaign",
+        }),
         action("vip-email", "VIP Email", "email_clients", "/admin/crm"),
       ],
     });
@@ -823,7 +917,11 @@ export async function getSelfImprovementRecommendations(): Promise<SelfImproveme
       title: "Launch referral tracking module",
       detail: `${dashboard.metrics.returningClients} repeat clients — referral program is scaffolded but not active`,
       impact: "New lead channel",
-      actions: [action("referrals", "Referrals Hub", "navigate", "/admin/referrals")],
+      actions: [
+        action("referrals", "Referral Campaign", "create_campaign", OS_ROUTES.marketingReferral, {
+          task: "campaign",
+        }),
+      ],
     },
     {
       id: "performance-cache",
@@ -919,7 +1017,7 @@ export async function getCommandCenterHub(keyword: string): Promise<CommandCente
     hub.summary = `${metrics.attention.followUpClients} need follow-up · ~$${metrics.attention.followUpValue.toLocaleString()} potential`;
     hub.actions = [
       action("crm", "Open CRM", "open_crm", "/admin/crm"),
-      action("email", "Email Clients", "email_clients", "/admin/email?focus=re-engage"),
+      action("email", "Draft Re-engagement", "email_clients", OS_ROUTES.marketingFollowUp, { task: "follow_up" }),
       action("inactive", "Find Inactive", "navigate", "/admin/crm"),
       action("workflow", "Create Workflow", "create_workflow", "/admin/automations"),
     ];

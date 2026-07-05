@@ -16,6 +16,7 @@ export default function AdminReferralsPage() {
           "Unique referral codes per client",
         ]}
         links={[
+          { label: "Referral Campaign", href: "/admin/marketing?task=campaign&focus=referral", desc: "Draft referral messaging in Marketing Studio" },
           { label: "CRM", href: "/admin/crm", desc: "See client source & repeat status" },
           { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Referral source field on inquiries" },
           { label: "AI Insights", href: "/admin/insights", desc: "Re-engagement recommendations" },

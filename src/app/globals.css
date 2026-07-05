@@ -223,6 +223,14 @@ input[type="file"] {
 }
 
 @layer components {
+  .os-panel {
+    @apply border border-stone/20 bg-charcoal/20 backdrop-blur-sm;
+  }
+
+  .os-glass {
+    @apply border border-stone/20 bg-charcoal/25 backdrop-blur-md;
+  }
+
   .admin-touch-btn {
     @apply inline-flex min-h-11 w-full items-center justify-center px-4 py-2.5 text-xs sm:min-h-10 sm:w-auto sm:py-2;
   }

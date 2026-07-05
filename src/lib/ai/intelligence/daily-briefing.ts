@@ -1,4 +1,5 @@
 import { getProactiveBusinessInsights, getOperatorMetrics } from "./business-operator";
+import { syncBusinessMemory } from "../memory/sync";
 import {
   getAdminCRMContacts,
   getAdminDashboardOS,
@@ -22,10 +23,12 @@ function startOfWeek(d = new Date()) {
 }
 
 export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing> {
-  const cacheKey = "daily-briefing-v2";
+  const cacheKey = "daily-briefing-v3";
   if (!force) {
     const cached = await getCached<AIDailyBriefing>(cacheKey);
     if (cached) return cached;
+  } else {
+    syncBusinessMemory().catch(() => {});
   }
 
   const now = new Date();
@@ -111,7 +114,39 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       100,
       Math.max(20, Math.round(operatorMetrics.repeatRate + 40))
     ),
+    growth: Math.min(
+      100,
+      Math.max(
+        10,
+        Math.round(
+          (Math.max(0, operatorMetrics.month.bookingsChange) +
+            Math.max(0, operatorMetrics.revenue.monthChange) +
+            Math.max(0, operatorMetrics.traffic.trafficChange)) /
+            3 +
+            40
+        )
+      )
+    ),
   };
+
+  const potentialLostRevenue =
+    operatorMetrics.attention.followUpValue +
+    operatorMetrics.attention.abandonedInquiries * 1200;
+  const projectedMonthlyRevenue = Math.round(
+    operatorMetrics.revenue.thisMonth * (1 + Math.max(operatorMetrics.revenue.monthChange, -30) / 100)
+  );
+
+  const topInsight = proactiveInsights[0];
+  const highestRoiAction = topInsight
+    ? {
+        title: topInsight.title,
+        why: topInsight.why,
+        revenueImpact: topInsight.revenueImpact ?? potentialLostRevenue,
+        timeSavedMinutes: topInsight.timeSavedMinutes ?? 25,
+        href: topInsight.actions[0]?.href ?? "/admin/insights",
+        actionLabel: topInsight.actions[0]?.label ?? "Take action",
+      }
+    : null;
 
   const aiRecommendations = proactiveInsights.slice(0, 5).map((i) => i.title);
 
@@ -221,16 +256,26 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     })),
     weeklyPriorities: weeklyPriorities.slice(0, 5),
     scores,
+    executive: {
+      highestRoiAction,
+      projectedMonthlyRevenue,
+      potentialLostRevenue,
+      pipelineValue: pipeline.totalValue,
+    },
     recommendedActions: proactiveInsights.slice(0, 8).map((i) => ({
       id: i.id,
       severity: i.severity,
       title: i.title,
       detail: i.detail,
+      why: i.why,
       action: i.actions[0]?.label ?? "Take action",
       href: i.actions[0]?.href ?? "/admin/insights",
       actions: i.actions,
       category: i.category,
       metric: i.metric,
+      revenueImpact: i.revenueImpact,
+      timeSavedMinutes: i.timeSavedMinutes,
+      priority: i.priority,
     })),
     aiRecommendations,
     forecast: {

@@ -1,6 +1,7 @@
 import { getAIConfig, isAIConfigured } from "./config";
 import { aiComplete, aiStream, getActiveProviderLabel } from "./adapter";
 import { isOpenRouterConfigured, probeOpenRouterKey } from "./providers/openrouter-client";
+import { buildMemoryContext } from "./memory";
 import { logAIAction } from "./log";
 import { systemPromptForAssistant, systemPromptForTask, TASK_PROMPTS } from "./prompts/system";
 import { BUSINESS_TOOLS, buildBusinessContextSnapshot, executeBusinessTool } from "./tools/business-data";
@@ -20,6 +21,12 @@ export async function runAIChat(
     ...history.slice(-10),
     { role: "user", content: userMessage },
   ];
+
+  const ragContext = await buildMemoryContext(userMessage, "assistant");
+  messages[0] = {
+    role: "system",
+    content: `${systemPromptForAssistant()}\n\nStructured business memories:\n${ragContext}`,
+  };
 
   const config = getAIConfig();
   let iterations = 0;
@@ -64,8 +71,12 @@ export async function* streamAIChat(
   }
 
   const snapshot = await buildBusinessContextSnapshot();
+  const ragContext = await buildMemoryContext(userMessage, "assistant");
   const messages: AIMessage[] = [
-    { role: "system", content: `${systemPromptForAssistant()}\n\nBusiness snapshot:\n${snapshot}` },
+    {
+      role: "system",
+      content: `${systemPromptForAssistant()}\n\nStructured business memories (RAG):\n${ragContext}\n\nLive business snapshot:\n${snapshot}`,
+    },
     ...history.slice(-8),
     { role: "user", content: userMessage },
   ];

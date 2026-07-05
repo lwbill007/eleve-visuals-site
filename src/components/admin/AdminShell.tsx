@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ADMIN_NAV } from "@/config/admin-nav";
 import { AdminCommandPalette, useCommandPalette } from "@/components/admin/os/AdminCommandPalette";
@@ -23,12 +23,38 @@ export function AdminShell({
   children: React.ReactNode;
   title?: string;
 }) {
+  return (
+    <Suspense fallback={<AdminShellFallback title={title}>{children}</AdminShellFallback>}>
+      <AdminShellInner title={title}>{children}</AdminShellInner>
+    </Suspense>
+  );
+}
+
+function AdminShellFallback({ children, title }: { children: React.ReactNode; title?: string }) {
+  return (
+    <div className="min-h-screen bg-ink">
+      <div className="p-8">
+        {title && <h1 className="font-display text-2xl text-cream">{title}</h1>}
+        <div className="mt-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function AdminShellInner({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  title?: string;
+}) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
 
-  useSetAIPage(resolvePageContext(pathname));
+  useSetAIPage(resolvePageContext(pathname, searchParams.toString()));
 
   useEffect(() => {
     setNavOpen(false);
@@ -70,8 +96,8 @@ export function AdminShell({
       >
         <div className="border-b border-stone/15 p-5">
           <Link href="/admin" className="block">
-            <p className="font-display text-xl tracking-wide text-cream">ÉLEVÉ Control</p>
-            <p className="mt-0.5 text-[0.65rem] tracking-[0.2em] text-accent uppercase">Business OS</p>
+            <p className="font-display text-xl tracking-wide text-cream">ÉLEVÉ OS</p>
+            <p className="mt-0.5 text-[0.65rem] tracking-[0.2em] text-accent uppercase">Business Operating System</p>
           </Link>
         </div>
 
@@ -150,11 +176,13 @@ export function AdminShell({
   );
 }
 
-function resolvePageContext(pathname: string) {
+function resolvePageContext(pathname: string, search = "") {
+  const params = new URLSearchParams(search);
   if (pathname === "/admin") return "dashboard" as const;
   if (pathname.startsWith("/admin/crm/")) return "crm_profile" as const;
   if (pathname.startsWith("/admin/crm")) return "crm" as const;
   if (pathname.startsWith("/admin/pipeline")) return "pipeline" as const;
+  if (pathname.startsWith("/admin/bookings-ai")) return "bookings" as const;
   if (pathname.startsWith("/admin/analytics")) return "analytics" as const;
   if (pathname.startsWith("/admin/marketing")) return "marketing" as const;
   if (pathname.startsWith("/admin/email")) return "email" as const;
@@ -166,7 +194,7 @@ function resolvePageContext(pathname: string) {
   if (pathname.startsWith("/admin/reports")) return "reports" as const;
   if (pathname.startsWith("/admin/insights")) return "insights" as const;
   if (pathname.startsWith("/admin/assistant")) return "assistant" as const;
-  if (pathname.includes("booking") || pathname.startsWith("/admin/submissions?type=booking"))
-    return "bookings" as const;
+  if (pathname.startsWith("/admin/memory")) return "memory" as const;
+  if (pathname.startsWith("/admin/submissions") && params.get("type") === "booking") return "bookings" as const;
   return "general" as const;
 }

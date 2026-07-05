@@ -5,11 +5,11 @@ import { adminFetch } from "@/lib/admin-fetch";
 import type { AIMessage } from "@/lib/ai/types";
 
 const STARTERS = [
-  "What should I focus on today?",
-  "Who hasn't booked in six months?",
-  "Summarize this month's performance.",
-  "Why might bookings be slowing?",
-  "Create a re-engagement campaign idea.",
+  "What patterns should I act on today?",
+  "Which clients are highest revenue risk?",
+  "What does memory say about our best marketing channel?",
+  "Forecast next month based on current data.",
+  "What should I prioritize for ÉLEVÉ Sessions?",
 ];
 
 export function AIAssistantChat({ compact = false }: { compact?: boolean }) {

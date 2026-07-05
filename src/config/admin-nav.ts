@@ -14,7 +14,8 @@ export const ADMIN_NAV: AdminNavSection[] = [
     label: "Command Center",
     items: [
       { label: "Dashboard", href: "/admin", desc: "Business overview" },
-      { label: "ÉLEVÉ AI", href: "/admin/assistant", desc: "Business assistant" },
+      { label: "ÉLEVÉ AI", href: "/admin/assistant", desc: "Executive intelligence layer" },
+      { label: "Memory Center", href: "/admin/memory", desc: "Structured business knowledge" },
       { label: "AI Insights", href: "/admin/insights", desc: "Recommended actions" },
       { label: "Analytics", href: "/admin/analytics", desc: "Traffic & conversions" },
       { label: "Reports", href: "/admin/reports", desc: "AI business intelligence" },
@@ -73,14 +74,14 @@ export const ADMIN_NAV: AdminNavSection[] = [
 ];
 
 export const ADMIN_QUICK_ACTIONS = [
-  { label: "Create Campaign", href: "/admin/email", desc: "Email marketing" },
+  { label: "Create Campaign", href: "/admin/marketing?task=campaign", desc: "AI marketing studio" },
   { label: "Open Applications", href: "/admin/sessions", desc: "Sessions volume settings" },
   { label: "Publish Gallery", href: "/admin/portfolio", desc: "Add portfolio work" },
-  { label: "Add Portfolio", href: "/admin/portfolio", desc: "New project" },
   { label: "Review Pipeline", href: "/admin/pipeline", desc: "Move leads forward" },
-  { label: "Send Newsletter", href: "/admin/email", desc: "Reach your list" },
+  { label: "Draft Follow-Up", href: "/admin/marketing?task=follow_up", desc: "Re-engage warm leads" },
   { label: "Session Applications", href: "/admin/applications", desc: "Review applicants" },
   { label: "Upload Media", href: "/admin/media", desc: "Asset library" },
+  { label: "CEO Insights", href: "/admin/insights", desc: "Prioritized recommendations" },
 ];
 
 export const ADMIN_COMMANDS = ADMIN_NAV.flatMap((section) =>

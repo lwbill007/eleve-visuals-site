@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { getAnalyticsSummary } from "./analytics-server";
+import { getCached, setCache } from "./ai/cache";
 import { normalizeApplicationStatus } from "./types";
 
 function monthKey(d: Date) {
@@ -256,6 +257,17 @@ export async function getAdminDashboardOS() {
       createdAt: a.createdAt.toISOString(),
     })),
   };
+}
+
+export async function getAdminDashboardOSCached(force = false) {
+  const cacheKey = "admin-dashboard-os-v1";
+  if (!force) {
+    const cached = await getCached<Awaited<ReturnType<typeof getAdminDashboardOS>>>(cacheKey);
+    if (cached) return cached;
+  }
+  const data = await getAdminDashboardOS();
+  await setCache(cacheKey, data, 10 * 60 * 1000);
+  return data;
 }
 
 export async function getAdminCRMContacts() {

@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model PortfolioItem {
@@ -258,15 +259,82 @@ model SessionVolume {
 }
 
 model AIMemory {
+  id          String   @id @default(cuid())
+  workspaceId String   @default("default")
+  layer       String   @default("operational")
+  category    String
+  key         String
+  title       String   @default("")
+  summary     String   @default("")
+  value       String   @default("{}")
+  confidence  Float    @default(0.7)
+  importance  Int      @default(50)
+  source      String   @default("system")
+  sourceRef   String   @default("")
+  verified    Boolean  @default(false)
+  pinned      Boolean  @default(false)
+  archived    Boolean  @default(false)
+  tags        String   @default("[]")
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  relationsFrom AIMemoryRelation[] @relation("MemoryFrom")
+  relationsTo   AIMemoryRelation[] @relation("MemoryTo")
+  audits        AIMemoryAudit[]
+
+  @@unique([workspaceId, layer, category, key])
+  @@index([workspaceId, layer, archived, updatedAt])
+  @@index([workspaceId, pinned])
+  @@index([layer, category])
+}
+
+model AIMemoryRelation {
+  id           String   @id @default(cuid())
+  workspaceId  String   @default("default")
+  fromMemoryId String
+  toMemoryId   String
+  relationType String
+  weight       Float    @default(1)
+  metadata     String   @default("{}")
+  createdAt    DateTime @default(now())
+
+  fromMemory AIMemory @relation("MemoryFrom", fields: [fromMemoryId], references: [id], onDelete: Cascade)
+  toMemory   AIMemory @relation("MemoryTo", fields: [toMemoryId], references: [id], onDelete: Cascade)
+
+  @@unique([fromMemoryId, toMemoryId, relationType])
+  @@index([workspaceId, relationType])
+}
+
+model AILearningOutcome {
+  id            String   @id @default(cuid())
+  workspaceId   String   @default("default")
+  domain        String
+  actionType    String
+  actionRef     String   @default("")
+  hypothesis    String   @default("")
+  outcome       String
+  metrics       String   @default("{}")
+  revenueImpact Float?
+  confidence    Float    @default(0.5)
+  memoryIds     String   @default("[]")
+  createdAt     DateTime @default(now())
+
+  @@index([workspaceId, domain, createdAt])
+}
+
+model AIMemoryAudit {
   id        String   @id @default(cuid())
-  category  String
-  key       String
-  value     String   @default("{}")
-  updatedAt DateTime @updatedAt
+  memoryId  String
+  action    String
+  before    String   @default("{}")
+  after     String   @default("{}")
+  actor     String   @default("system")
+  reason    String   @default("")
   createdAt DateTime @default(now())
 
-  @@unique([category, key])
-  @@index([category])
+  memory AIMemory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@index([memoryId, createdAt])
 }
 
 model AIConversation {

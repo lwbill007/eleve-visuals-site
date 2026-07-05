@@ -19,9 +19,10 @@ export default function AdminEmailPage() {
           "Subscriber tags & smart segments",
         ]}
         links={[
+          { label: "Marketing Studio", href: "/admin/marketing?task=email_body", desc: "Generate email copy with AI today" },
           { label: "Notification Settings", href: "/admin/notifications", desc: "Email delivery, webhooks & history" },
           { label: "CRM Contacts", href: "/admin/crm", desc: "Tag clients, models, sponsors & VIPs" },
-          { label: "Automations", href: "/admin/automations", desc: "Welcome sequences & nurture flows" },
+          { label: "Automations", href: "/admin/automations", desc: "Design nurture flows" },
         ]}
       />
       <AdminPanel title="AI Email Studio" subtitle="Generate drafts — review before sending" className="mt-8">

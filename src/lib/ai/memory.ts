@@ -1,38 +1,54 @@
 import { prisma } from "@/lib/db";
+import {
+  buildRAGContext,
+  correctMemory,
+  deleteMemory,
+  getMemory,
+  getMemoryAudits,
+  getMemoryStats,
+  getMemoryTimeline,
+  searchMemories,
+  syncAllMemories,
+  updateMemoryFlags,
+  writeMemory,
+  type MemoryLayer,
+  type MemoryWriteInput,
+} from "./memory/index";
+import { LEGACY_CATEGORY_TO_LAYER } from "./memory/types";
 
+/** @deprecated Use writeMemory from ./memory — kept for backward compatibility */
 export async function getAIMemory(category: string, key: string): Promise<Record<string, unknown> | null> {
-  const row = await prisma.aIMemory.findUnique({
-    where: { category_key: { category, key } },
-  });
-  if (!row) return null;
-  try {
-    return JSON.parse(row.value) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+  const layer = LEGACY_CATEGORY_TO_LAYER[category] ?? "operational";
+  const record = await getMemory(layer, category, key);
+  return record?.value ?? null;
 }
 
-export async function setAIMemory(category: string, key: string, value: Record<string, unknown>): Promise<void> {
-  await prisma.aIMemory.upsert({
-    where: { category_key: { category, key } },
-    create: { category, key, value: JSON.stringify(value) },
-    update: { value: JSON.stringify(value) },
+/** @deprecated Use writeMemory from ./memory */
+export async function setAIMemory(
+  category: string,
+  key: string,
+  value: Record<string, unknown>,
+  opts?: Partial<MemoryWriteInput>
+): Promise<void> {
+  const layer = opts?.layer ?? LEGACY_CATEGORY_TO_LAYER[category] ?? "operational";
+  await writeMemory({
+    layer,
+    category,
+    key,
+    value,
+    title: opts?.title ?? key,
+    summary: opts?.summary,
+    ...opts,
   });
 }
 
-export async function getAIMemoriesByCategory(category: string, limit = 50): Promise<{ key: string; value: Record<string, unknown> }[]> {
-  const rows = await prisma.aIMemory.findMany({
-    where: { category },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
-  });
-  return rows.map((r) => {
-    try {
-      return { key: r.key, value: JSON.parse(r.value) as Record<string, unknown> };
-    } catch {
-      return { key: r.key, value: {} };
-    }
-  });
+export async function getAIMemoriesByCategory(
+  category: string,
+  limit = 50
+): Promise<{ key: string; value: Record<string, unknown> }[]> {
+  const layer = LEGACY_CATEGORY_TO_LAYER[category] ?? "operational";
+  const { items } = await searchMemories({ layer, category, limit });
+  return items.map((m) => ({ key: m.key, value: m.value }));
 }
 
 export async function appendConversationMessage(
@@ -90,11 +106,34 @@ export async function getConversationHistory(page: string): Promise<{ role: stri
   }
 }
 
-export async function buildMemoryContext(): Promise<string> {
-  const [clients, pages, sessions] = await Promise.all([
-    getAIMemoriesByCategory("client", 10),
-    getAIMemoriesByCategory("page", 5),
-    getAIMemoriesByCategory("session", 5),
-  ]);
-  return JSON.stringify({ recentClientContext: clients, pageContext: pages, sessionContext: sessions });
+/** Structured business knowledge for AI context (RAG + recent memories) */
+export async function buildMemoryContext(query?: string, page?: string): Promise<string> {
+  if (query) {
+    return buildRAGContext(query, page);
+  }
+
+  const { items } = await searchMemories({ limit: 12, archived: false });
+  if (items.length === 0) return "No structured memories stored yet. Run Memory Sync from Memory Center.";
+
+  return items
+    .map(
+      (m) =>
+        `[${m.layer}/${m.category}] ${m.title}: ${m.summary || JSON.stringify(m.value).slice(0, 200)} (confidence ${Math.round(m.confidence * 100)}%)`
+    )
+    .join("\n");
 }
+
+export {
+  buildRAGContext,
+  correctMemory,
+  deleteMemory,
+  getMemoryAudits,
+  getMemoryStats,
+  getMemoryTimeline,
+  searchMemories,
+  syncAllMemories,
+  updateMemoryFlags,
+  writeMemory,
+  type MemoryLayer,
+  type MemoryWriteInput,
+};

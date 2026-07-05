@@ -4,8 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { ADMIN_QUICK_ACTIONS } from "@/config/admin-nav";
-import { AIDailyBriefingPanel } from "@/components/admin/ai/AIDailyBriefingPanel";
+import { useBriefingOptional } from "@/components/admin/ai/BriefingProvider";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
+import {
+  ExecutiveDashboardSkeleton,
+  ExecutiveQuickLink,
+  ExecutiveScoreStrip,
+  HighestRoiBanner,
+} from "@/components/admin/os/ExecutiveOSComponents";
 import {
   AdminActivityFeed,
   AdminBarChart,
@@ -50,6 +56,7 @@ function formatCurrency(n: number) {
 
 export function AdminDashboard() {
   useSetAIPage("dashboard");
+  const briefingCtx = useBriefingOptional();
   const [data, setData] = useState<DashboardOS | null>(null);
   const [error, setError] = useState("");
 
@@ -60,38 +67,95 @@ export function AdminDashboard() {
         return res.json();
       })
       .then(setData)
-      .catch(() => setError("Could not load dashboard."));
+      .catch(() => setError("Could not load command center."));
   }, []);
 
+  const briefing = briefingCtx?.briefing;
+  const loading = !data || Boolean(briefingCtx?.loading && !briefing);
+
+  if (loading) {
+    return <ExecutiveDashboardSkeleton />;
+  }
+
   if (!data) {
-    return <p className="text-fog">{error || "Loading command center…"}</p>;
+    return <p className="text-fog">{error || "Could not load command center."}</p>;
   }
 
   const { metrics, charts, activityFeed } = data;
+  const executive = briefing?.executive;
 
   return (
     <div className="space-y-8">
-      <AIDailyBriefingPanel />
-
       <div>
-        <p className="label-caps text-accent">Command Center</p>
-        <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Good to see you.</h2>
-        <p className="mt-2 max-w-2xl text-sm text-fog">
-          Your studio operating system — bookings, sessions, marketing, and performance in one place.
-        </p>
+        <p className="label-caps text-accent">ÉLEVÉ OS</p>
+        <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Executive Command Center</h2>
+        {briefing && (
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-fog">{briefing.summary}</p>
+        )}
       </div>
+
+      {executive?.highestRoiAction && (
+        <HighestRoiBanner {...executive.highestRoiAction} />
+      )}
+
+      {briefing && (
+        <ExecutiveScoreStrip scores={briefing.scores} />
+      )}
+
+      {executive && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <AdminMetricCard
+            label="Projected Monthly Revenue"
+            value={formatCurrency(executive.projectedMonthlyRevenue)}
+            hint="Based on current pipeline trajectory"
+            href="/admin/bookings-ai"
+          />
+          <AdminMetricCard
+            label="Potential Lost Revenue"
+            value={formatCurrency(executive.potentialLostRevenue)}
+            hint="Stale inquiries + inactive clients"
+            href="/admin/pipeline"
+          />
+          <AdminMetricCard
+            label="Pipeline Value"
+            value={formatCurrency(executive.pipelineValue)}
+            hint={metrics.revenue.hint}
+            href="/admin/pipeline"
+          />
+        </div>
+      )}
+
+      {briefing && briefing.weeklyPriorities.length > 0 && (
+        <AdminPanel title="Today's Priorities" subtitle="Ranked by revenue impact">
+          <ul className="space-y-2">
+            {briefing.weeklyPriorities.map((p, i) => (
+              <li key={p} className="flex items-start gap-3 text-sm text-cream">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[0.65rem] text-accent">
+                  {i + 1}
+                </span>
+                {p}
+              </li>
+            ))}
+          </ul>
+        </AdminPanel>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <AdminMetricCard
-          label="Pipeline Value"
-          value={formatCurrency(metrics.revenue.value)}
-          hint={metrics.revenue.hint}
-          href="/admin/pipeline"
+          label="Revenue MTD"
+          value={formatCurrency(briefing?.month.revenue ?? metrics.revenue.value)}
+          hint={
+            briefing
+              ? `${briefing.month.revenueChange >= 0 ? "+" : ""}${briefing.month.revenueChange}% vs last month`
+              : metrics.revenue.hint
+          }
+          delta={briefing?.month.revenueChange ?? metrics.monthlyGrowth}
+          href="/admin/analytics"
         />
         <AdminMetricCard
           label="Bookings"
           value={metrics.bookings.value}
-          hint={`${metrics.bookings.pending} pending`}
+          hint={`${metrics.bookings.pending} pending inquiry`}
           delta={metrics.monthlyGrowth}
           href="/admin/submissions?type=booking"
         />
@@ -99,7 +163,7 @@ export function AdminDashboard() {
         <AdminMetricCard
           label="Visitors (30d)"
           value={metrics.visitors.value.toLocaleString()}
-          hint={`${metrics.visitors.week} this week`}
+          hint={`${metrics.visitors.week} this week · ${metrics.conversionRate}% conv`}
           href="/admin/analytics"
         />
         <AdminMetricCard
@@ -114,30 +178,44 @@ export function AdminDashboard() {
           hint={`${metrics.applications.pending} pending review`}
           href="/admin/applications"
         />
+        <AdminMetricCard label="Returning Clients" value={metrics.returningClients} href="/admin/crm" />
         <AdminMetricCard
-          label="Returning Clients"
-          value={metrics.returningClients}
-          href="/admin/crm"
-        />
-        <AdminMetricCard
-          label="Conversion"
-          value={`${metrics.conversionRate}%`}
-          hint="Inquiry page → submission"
-          href="/admin/analytics"
+          label="Today"
+          value={briefing?.today.bookings ?? "—"}
+          hint={
+            briefing
+              ? `${briefing.today.leads} leads · ${briefing.today.applications} apps · $${briefing.today.revenue.toLocaleString()} pipeline`
+              : "Live activity"
+          }
+          href="/admin/pipeline"
         />
       </div>
 
       {metrics.pendingTasks > 0 && (
         <Link
           href="/admin/pipeline"
-          className="flex items-center justify-between rounded-xl border border-accent/30 bg-accent/5 px-5 py-4 transition-colors hover:bg-accent/10"
+          className="os-panel flex items-center justify-between rounded-xl border border-accent/30 px-5 py-4 transition-colors hover:border-accent/45 hover:bg-accent/5"
         >
           <span className="text-sm text-cream">
-            <span className="font-medium text-accent">{metrics.pendingTasks}</span> pending tasks need attention
+            <span className="font-medium text-accent">{metrics.pendingTasks}</span> urgent tasks need attention
           </span>
-          <span className="text-xs text-accent">Review →</span>
+          <span className="text-xs text-accent">Review pipeline →</span>
         </Link>
       )}
+
+      <div className="grid gap-4 lg:grid-cols-12">
+        <AdminPanel title="Recent Activity" subtitle="Latest business events" className="lg:col-span-7">
+          <AdminActivityFeed items={activityFeed} />
+        </AdminPanel>
+
+        <AdminPanel title="Quick Actions" subtitle="Highest-impact workflows" className="lg:col-span-5">
+          <div className="grid gap-2">
+            {ADMIN_QUICK_ACTIONS.map((action) => (
+              <ExecutiveQuickLink key={action.href + action.label} {...action} />
+            ))}
+          </div>
+        </AdminPanel>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <AdminPanel title="Bookings by Month" subtitle="Last 6 months">
@@ -151,7 +229,7 @@ export function AdminDashboard() {
         </AdminPanel>
         <AdminPanel title="Lead Sources" subtitle="Where bookings originate">
           {charts.leadSources.length === 0 ? (
-            <p className="text-sm text-muted">No source data yet.</p>
+            <p className="text-sm text-muted">No source data yet — add referral source to booking forms.</p>
           ) : (
             <ul className="space-y-3">
               {charts.leadSources.map((s) => (
@@ -162,27 +240,6 @@ export function AdminDashboard() {
               ))}
             </ul>
           )}
-        </AdminPanel>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-12">
-        <AdminPanel title="Recent Activity" subtitle="Latest business events" className="lg:col-span-7">
-          <AdminActivityFeed items={activityFeed} />
-        </AdminPanel>
-
-        <AdminPanel title="Quick Actions" subtitle="Move fast" className="lg:col-span-5">
-          <div className="grid gap-2">
-            {ADMIN_QUICK_ACTIONS.map((action) => (
-              <Link
-                key={action.href + action.label}
-                href={action.href}
-                className="rounded-lg border border-stone/20 px-4 py-3 transition-colors hover:border-accent/30 hover:bg-charcoal/30"
-              >
-                <p className="text-sm text-cream">{action.label}</p>
-                <p className="mt-0.5 text-xs text-muted">{action.desc}</p>
-              </Link>
-            ))}
-          </div>
         </AdminPanel>
       </div>
     </div>
