@@ -9,39 +9,67 @@ import { BusinessActionBar } from "./BusinessActionBar";
 import { useSetAIPage } from "./AIContextProvider";
 import { AdminBarChart, AdminMetricCard, AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
 
+function isBookingIntelligence(value: unknown): value is BookingIntelligence {
+  if (!value || typeof value !== "object") return false;
+  const data = value as BookingIntelligence;
+  return (
+    typeof data.generatedAt === "string" &&
+    typeof data.pipelineValue === "number" &&
+    Array.isArray(data.monthlyTrend)
+  );
+}
+
 export function BookingAssistantPanel() {
   const [intel, setIntel] = useState<BookingIntelligence | null>(null);
   const [sales, setSales] = useState<SalesRecommendation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [salesLoading, setSalesLoading] = useState(false);
 
   useSetAIPage("bookings", intel ? { pipelineValue: intel.pipelineValue } : undefined);
 
-  const load = useCallback((force = false) => {
-    setError(null);
-    Promise.all([
-      adminFetch(`/api/admin/ai/bookings${force ? "?refresh=1" : ""}`).then(async (r) => {
-        if (!r.ok) throw new Error(`Bookings API failed (${r.status})`);
-        return r.json() as Promise<BookingIntelligence>;
-      }),
-      adminFetch("/api/admin/ai/operator").then((r) => (r.ok ? r.json() : { sales: [] })),
-    ])
-      .then(([bookingData, operatorData]) => {
-        if (!bookingData.generatedAt || typeof bookingData.pipelineValue !== "number") {
+  const loadSales = useCallback(async () => {
+    setSalesLoading(true);
+    try {
+      const res = await adminFetch("/api/admin/ai/operator");
+      if (!res.ok) return;
+      const operatorData = (await res.json()) as { sales?: SalesRecommendation[] };
+      setSales(Array.isArray(operatorData.sales) ? operatorData.sales : []);
+    } catch {
+      setSales([]);
+    } finally {
+      setSalesLoading(false);
+    }
+  }, []);
+
+  const load = useCallback(
+    async (force = false) => {
+      setError(null);
+      setRefreshing(force);
+      try {
+        const res = await adminFetch(`/api/admin/ai/bookings${force ? "?refresh=1" : ""}`);
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error || `Bookings API failed (${res.status})`);
+        }
+        const bookingData: unknown = await res.json();
+        if (!isBookingIntelligence(bookingData)) {
           throw new Error("Invalid booking intelligence response");
         }
         setIntel(bookingData);
-        setSales(operatorData.sales ?? []);
-      })
-      .catch((e) => {
+        void loadSales();
+      } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load booking intelligence");
         setIntel(null);
-      })
-      .finally(() => setRefreshing(false));
-  }, []);
+      } finally {
+        setRefreshing(false);
+      }
+    },
+    [loadSales]
+  );
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   if (error) {
@@ -50,7 +78,7 @@ export function BookingAssistantPanel() {
         <p className="text-sm text-red-300">{error}</p>
         <button
           type="button"
-          onClick={() => load(true)}
+          onClick={() => void load(true)}
           className="mt-3 text-xs text-accent uppercase hover:underline"
         >
           Retry
@@ -72,10 +100,7 @@ export function BookingAssistantPanel() {
             <button
               type="button"
               disabled={refreshing}
-              onClick={() => {
-                setRefreshing(true);
-                load(true);
-              }}
+              onClick={() => void load(true)}
               className="rounded-lg border border-stone/30 px-3 py-2 text-xs text-fog uppercase hover:border-accent"
             >
               Refresh
@@ -113,13 +138,13 @@ export function BookingAssistantPanel() {
       {intel.staleInquiries > 0 && (
         <AdminPanel
           title="Needs Follow-Up"
-          subtitle="Open inquiries untouched for 3+ days — speed-to-lead drives conversions"
+          subtitle="Open inquiries with no activity for 3+ days — speed-to-lead drives conversions"
         >
           <ul className="space-y-2">
             {intel.abandonedBookings.map((b) => (
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
                 <span className="text-cream">
-                  {b.name} · {b.status} · {b.daysSince}d ago
+                  {b.name} · {b.status} · {b.daysSince}d idle
                 </span>
                 <div className="flex gap-2">
                   <Link href={b.href} className="text-xs text-accent uppercase hover:underline">
@@ -202,6 +227,12 @@ export function BookingAssistantPanel() {
         </AdminPanel>
       </div>
 
+      {salesLoading && sales.length === 0 && (
+        <AdminPanel title="Sales AI" subtitle="Loading recommendations…">
+          <p className="text-sm text-fog">Pulling upsells and recovery actions…</p>
+        </AdminPanel>
+      )}
+
       {sales.length > 0 && (
         <AdminPanel title="Sales AI" subtitle="Upsells, cross-sells, and recovery opportunities">
           <div className="space-y-4">
@@ -212,7 +243,7 @@ export function BookingAssistantPanel() {
                 </p>
                 <p className="mt-1 text-sm text-cream">{s.title}</p>
                 <p className="mt-1 text-xs text-fog">{s.detail}</p>
-                <BusinessActionBar actions={s.actions} compact className="mt-2" />
+                <BusinessActionBar actions={s.actions ?? []} compact className="mt-2" />
               </div>
             ))}
           </div>

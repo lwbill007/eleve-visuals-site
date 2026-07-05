@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { getCached, setCache } from "../cache";
 import type { BookingIntelligence } from "../types";
 
+const CACHE_KEY = "booking-intelligence-v3";
+
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
@@ -16,11 +18,23 @@ function parseName(data: string, fallback: string): string {
   }
 }
 
+function isValidBookingIntelligence(value: unknown): value is BookingIntelligence {
+  if (!value || typeof value !== "object") return false;
+  const intel = value as BookingIntelligence;
+  return (
+    typeof intel.generatedAt === "string" &&
+    typeof intel.pipelineValue === "number" &&
+    typeof intel.staleInquiries === "number" &&
+    typeof intel.monthBookings === "number" &&
+    Array.isArray(intel.monthlyTrend) &&
+    Array.isArray(intel.abandonedBookings)
+  );
+}
+
 export async function getBookingIntelligence(force = false): Promise<BookingIntelligence> {
-  const cacheKey = "booking-intelligence-v2";
   if (!force) {
-    const cached = await getCached<BookingIntelligence>(cacheKey);
-    if (cached) return cached;
+    const cached = await getCached<BookingIntelligence>(CACHE_KEY);
+    if (cached && isValidBookingIntelligence(cached)) return cached;
   }
 
   const [dashboard, pipeline, bookings] = await Promise.all([
@@ -28,7 +42,14 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
     getAdminPipeline(),
     prisma.submission.findMany({
       where: { type: "booking" },
-      select: { id: true, status: true, data: true, createdAt: true, contactEmail: true, read: true },
+      select: {
+        id: true,
+        status: true,
+        data: true,
+        createdAt: true,
+        updatedAt: true,
+        contactEmail: true,
+      },
     }),
   ]);
 
@@ -57,7 +78,7 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
   const slowMonths = monthlyData.filter((m) => m.count < avg * 0.6).map((m) => m.month);
 
   const pending = bookings.filter((b) => ["new", "contacted"].includes(b.status));
-  const stale = pending.filter((b) => b.createdAt.getTime() < staleCutoff);
+  const stale = pending.filter((b) => b.updatedAt.getTime() < staleCutoff);
 
   const monthBookings = bookings.filter((b) => b.createdAt >= monthStart).length;
 
@@ -108,7 +129,7 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
       id: b.id,
       name: parseName(b.data, b.contactEmail || "Unknown"),
       email: b.contactEmail,
-      daysSince: Math.round((Date.now() - b.createdAt.getTime()) / 86400000),
+      daysSince: Math.round((Date.now() - b.updatedAt.getTime()) / 86400000),
       href: `/admin/submissions?type=booking&focus=${b.id}`,
       status: b.status,
     })),
@@ -118,6 +139,6 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
     conversionTrend: dashboard.metrics.conversionRate,
   };
 
-  await setCache(cacheKey, intel, 15 * 60 * 1000);
+  await setCache(CACHE_KEY, intel, 15 * 60 * 1000);
   return intel;
 }

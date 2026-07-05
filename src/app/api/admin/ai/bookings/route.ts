@@ -9,7 +9,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const force = new URL(request.url).searchParams.get("refresh") === "1";
-  const intel = await getBookingIntelligence(force);
-  return NextResponse.json(intel);
+  try {
+    const force = new URL(request.url).searchParams.get("refresh") === "1";
+    const intel = await getBookingIntelligence(force);
+    return NextResponse.json(intel);
+  } catch (error) {
+    console.error("[bookings-ai]", error);
+    return NextResponse.json({ error: "Failed to load booking intelligence" }, { status: 500 });
+  }
 }
