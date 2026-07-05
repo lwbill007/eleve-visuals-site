@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
-import type { BookingIntelligence, SalesRecommendation } from "@/lib/ai/types";
+import type { BookingIntelligence } from "@/lib/ai/types";
 import { AskAIButton } from "./AskAIPanel";
 import { BusinessActionBar } from "./BusinessActionBar";
 import { useSetAIPage } from "./AIContextProvider";
@@ -15,58 +15,39 @@ function isBookingIntelligence(value: unknown): value is BookingIntelligence {
   return (
     typeof data.generatedAt === "string" &&
     typeof data.pipelineValue === "number" &&
-    Array.isArray(data.monthlyTrend)
+    Array.isArray(data.monthlyTrend) &&
+    Array.isArray(data.salesRecommendations)
   );
 }
 
 export function BookingAssistantPanel() {
   const [intel, setIntel] = useState<BookingIntelligence | null>(null);
-  const [sales, setSales] = useState<SalesRecommendation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [salesLoading, setSalesLoading] = useState(false);
 
   useSetAIPage("bookings", intel ? { pipelineValue: intel.pipelineValue } : undefined);
 
-  const loadSales = useCallback(async () => {
-    setSalesLoading(true);
+  const load = useCallback(async (force = false) => {
+    setError(null);
+    setRefreshing(force);
     try {
-      const res = await adminFetch("/api/admin/ai/operator");
-      if (!res.ok) return;
-      const operatorData = (await res.json()) as { sales?: SalesRecommendation[] };
-      setSales(Array.isArray(operatorData.sales) ? operatorData.sales : []);
-    } catch {
-      setSales([]);
+      const res = await adminFetch(`/api/admin/ai/bookings${force ? "?refresh=1" : ""}`);
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error || `Bookings API failed (${res.status})`);
+      }
+      const bookingData: unknown = await res.json();
+      if (!isBookingIntelligence(bookingData)) {
+        throw new Error("Invalid booking intelligence response");
+      }
+      setIntel(bookingData);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load booking intelligence");
+      setIntel(null);
     } finally {
-      setSalesLoading(false);
+      setRefreshing(false);
     }
   }, []);
-
-  const load = useCallback(
-    async (force = false) => {
-      setError(null);
-      setRefreshing(force);
-      try {
-        const res = await adminFetch(`/api/admin/ai/bookings${force ? "?refresh=1" : ""}`);
-        if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error || `Bookings API failed (${res.status})`);
-        }
-        const bookingData: unknown = await res.json();
-        if (!isBookingIntelligence(bookingData)) {
-          throw new Error("Invalid booking intelligence response");
-        }
-        setIntel(bookingData);
-        void loadSales();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load booking intelligence");
-        setIntel(null);
-      } finally {
-        setRefreshing(false);
-      }
-    },
-    [loadSales]
-  );
 
   useEffect(() => {
     void load();
@@ -88,6 +69,8 @@ export function BookingAssistantPanel() {
   }
 
   if (!intel) return <p className="text-fog">Loading booking intelligence…</p>;
+
+  const sales = intel.salesRecommendations ?? [];
 
   return (
     <div className="space-y-8">
@@ -183,6 +166,23 @@ export function BookingAssistantPanel() {
         </AdminPanel>
       )}
 
+      {sales.length > 0 && (
+        <AdminPanel title="Sales AI" subtitle="Upsells, cross-sells, and recovery opportunities">
+          <div className="space-y-4">
+            {sales.map((s) => (
+              <div key={s.id} className="border-b border-stone/15 pb-4 last:border-0 last:pb-0">
+                <p className="text-[0.6rem] uppercase text-muted">
+                  {s.type.replace("_", " ")} · {s.impact} impact
+                </p>
+                <p className="mt-1 text-sm text-cream">{s.title}</p>
+                <p className="mt-1 text-xs text-fog">{s.detail}</p>
+                <BusinessActionBar actions={s.actions ?? []} compact className="mt-2" />
+              </div>
+            ))}
+          </div>
+        </AdminPanel>
+      )}
+
       <AdminPanel title="Booking Trend">
         <AdminBarChart
           data={intel.monthlyTrend.map((m) => ({ month: m.month, value: m.count }))}
@@ -226,29 +226,6 @@ export function BookingAssistantPanel() {
           </ul>
         </AdminPanel>
       </div>
-
-      {salesLoading && sales.length === 0 && (
-        <AdminPanel title="Sales AI" subtitle="Loading recommendations…">
-          <p className="text-sm text-fog">Pulling upsells and recovery actions…</p>
-        </AdminPanel>
-      )}
-
-      {sales.length > 0 && (
-        <AdminPanel title="Sales AI" subtitle="Upsells, cross-sells, and recovery opportunities">
-          <div className="space-y-4">
-            {sales.slice(0, 5).map((s) => (
-              <div key={s.id} className="border-b border-stone/15 pb-4 last:border-0 last:pb-0">
-                <p className="text-[0.6rem] uppercase text-muted">
-                  {s.type.replace("_", " ")} · {s.impact} impact
-                </p>
-                <p className="mt-1 text-sm text-cream">{s.title}</p>
-                <p className="mt-1 text-xs text-fog">{s.detail}</p>
-                <BusinessActionBar actions={s.actions ?? []} compact className="mt-2" />
-              </div>
-            ))}
-          </div>
-        </AdminPanel>
-      )}
     </div>
   );
 }

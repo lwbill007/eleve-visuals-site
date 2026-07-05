@@ -83,7 +83,7 @@ export async function getOperatorMetrics() {
       where: {
         type: "booking",
         status: { in: ["new", "contacted"] },
-        createdAt: { lt: new Date(Date.now() - 3 * 86400000) },
+        updatedAt: { lt: new Date(Date.now() - 3 * 86400000) },
       },
     }),
   ]);
@@ -481,6 +481,186 @@ export async function getMarketingRecommendations(): Promise<MarketingRecommenda
   return recs;
 }
 
+type SalesRecommendationInput = {
+  crm: Awaited<ReturnType<typeof getAdminCRMContacts>>;
+  pipeline: Awaited<ReturnType<typeof getAdminPipeline>>;
+  staleInquiries: number;
+  monthBookings: number;
+  monthBookingsChange: number;
+};
+
+export function buildSalesRecommendations(input: SalesRecommendationInput): SalesRecommendation[] {
+  const { crm, pipeline, staleInquiries, monthBookings, monthBookingsChange } = input;
+  const stale = staleInquiries;
+
+  const newLeads = pipeline.columns.find((c) => c.id === "new")?.items ?? [];
+  const warmLeads = pipeline.columns.find((c) => c.id === "contacted")?.items ?? [];
+  const scheduled = pipeline.columns.find((c) => c.id === "scheduled")?.items ?? [];
+  const activePipeline = newLeads.length + warmLeads.length;
+
+  const sessionUpsellTargets = crm.filter(
+    (c) =>
+      c.applications === 0 &&
+      (["completed", "booked", "repeat", "vip"].includes(c.status) || c.revenue > 0)
+  );
+  const vipClients = crm.filter(
+    (c) => ["vip", "repeat"].includes(c.status) || (c.revenue > 1500 && c.bookings > 0)
+  );
+
+  const recs: SalesRecommendation[] = [];
+
+  if (stale > 0) {
+    recs.push({
+      id: "recover-abandoned",
+      type: "recovery",
+      title: "Recover stale booking inquiries",
+      detail: `${stale} open ${stale === 1 ? "inquiry" : "inquiries"} idle 3+ days — follow up within 24 hours`,
+      impact: "high",
+      actions: [
+        action("booking-ai", "Booking Assistant", "navigate", "/admin/bookings-ai"),
+        action("follow-up", "Open Pipeline", "navigate", "/admin/pipeline"),
+      ],
+    });
+  }
+
+  if (warmLeads.length > 0) {
+    recs.push({
+      id: "warm-leads",
+      type: "follow_up",
+      title: "Move contacted leads to booked",
+      detail: `${warmLeads.length} in contacted stage — confirm dates and send next steps this week`,
+      impact: "high",
+      actions: [
+        action("pipeline", "Open Pipeline", "navigate", "/admin/pipeline"),
+        action("crm", "Open CRM", "open_crm", "/admin/crm"),
+      ],
+    });
+  } else if (newLeads.length > 0) {
+    recs.push({
+      id: "new-leads",
+      type: "follow_up",
+      title: "Respond to new booking inquiries",
+      detail: `${newLeads.length} new ${newLeads.length === 1 ? "lead" : "leads"} waiting — speed-to-lead wins conversions`,
+      impact: "high",
+      actions: [
+        action("submissions", "View Inquiries", "navigate", "/admin/submissions?type=booking"),
+        action("pipeline", "Open Pipeline", "navigate", "/admin/pipeline"),
+      ],
+    });
+  }
+
+  if (sessionUpsellTargets.length > 0) {
+    recs.push({
+      id: "upsell-sessions",
+      type: "upsell",
+      title: "Upsell ÉLEVÉ Sessions to portrait clients",
+      detail: `${sessionUpsellTargets.length} ${sessionUpsellTargets.length === 1 ? "client hasn't" : "clients haven't"} applied to Sessions yet`,
+      impact: "high",
+      actions: [
+        action("crm-sessions", "Open CRM", "open_crm", "/admin/crm"),
+        action("email-upsell", "Email Campaign", "email_clients", "/admin/marketing?focus=campaign"),
+      ],
+    });
+  } else if (activePipeline > 0) {
+    recs.push({
+      id: "upsell-sessions-pipeline",
+      type: "upsell",
+      title: "Mention ÉLEVÉ Sessions in inquiry replies",
+      detail: `${activePipeline} active ${activePipeline === 1 ? "inquiry" : "inquiries"} — plant Sessions interest while momentum is high`,
+      impact: "medium",
+      actions: [
+        action("sessions", "Sessions Hub", "navigate", "/admin/sessions-hub"),
+        action("marketing", "Draft Copy", "create_campaign", "/admin/marketing?focus=campaign"),
+      ],
+    });
+  }
+
+  if (scheduled.length > 0) {
+    recs.push({
+      id: "cross-sell-album",
+      type: "cross_sell",
+      title: "Album + print package cross-sell",
+      detail: `${scheduled.length} booked ${scheduled.length === 1 ? "client" : "clients"} — offer premium collection upgrade before delivery`,
+      impact: "medium",
+      actions: [
+        action("pipeline", "Open Pipeline", "navigate", "/admin/pipeline"),
+        action("packages", "View Services", "navigate", "/admin/services"),
+      ],
+    });
+  }
+
+  if (vipClients.length > 0) {
+    recs.push({
+      id: "referral-vip",
+      type: "referral",
+      title: "Referral campaign for VIP clients",
+      detail: `${vipClients.length} repeat/VIP ${vipClients.length === 1 ? "client" : "clients"} — highest referral conversion potential`,
+      impact: "medium",
+      actions: [
+        action("referrals", "Referral Program", "navigate", "/admin/referrals"),
+        action("vip-email", "VIP Email", "email_clients", "/admin/crm"),
+      ],
+    });
+  }
+
+  if (monthBookingsChange < 0 && monthBookings > 0) {
+    recs.push({
+      id: "discount-timing",
+      type: "discount",
+      title: "Limited-time booking incentive (slow month)",
+      detail: `${monthBookings} inquiries this month (${monthBookingsChange}% vs last) — a soft mid-week offer can fill gaps`,
+      impact: "high",
+      actions: [
+        action("promo-copy", "Generate Promo Copy", "create_campaign", "/admin/marketing?focus=campaign", {
+          task: "campaign",
+        }),
+      ],
+    });
+  } else if (monthBookings > 0) {
+    recs.push({
+      id: "hold-pricing",
+      type: "discount",
+      title: "Hold pricing — demand is healthy",
+      detail: `${monthBookings} ${monthBookings === 1 ? "inquiry" : "inquiries"} this month — prioritize upsells over discounts`,
+      impact: "low",
+      actions: [
+        action("services", "Review Packages", "navigate", "/admin/services"),
+        action("pipeline", "Open Pipeline", "navigate", "/admin/pipeline"),
+      ],
+    });
+  }
+
+  const impactOrder = { high: 0, medium: 1, low: 2 };
+  recs.sort((a, b) => impactOrder[a.impact] - impactOrder[b.impact]);
+
+  if (recs.length > 0) return recs.slice(0, 6);
+
+  return [
+    {
+      id: "grow-visibility",
+      type: "follow_up",
+      title: "Drive booking inquiries",
+      detail: "Share fresh portfolio work and availability on Instagram — visibility drives the pipeline",
+      impact: "high",
+      actions: [
+        action("marketing", "Marketing Studio", "create_campaign", "/admin/marketing"),
+        action("portfolio", "Update Portfolio", "navigate", "/admin/portfolio"),
+      ],
+    },
+    {
+      id: "promote-sessions",
+      type: "upsell",
+      title: "Promote ÉLEVÉ Sessions",
+      detail: "Feature your latest Volume on the homepage and sessions page to build application momentum",
+      impact: "medium",
+      actions: [
+        action("sessions", "Sessions Hub", "navigate", "/admin/sessions-hub"),
+        action("homepage", "Edit Homepage", "navigate", "/admin/homepage"),
+      ],
+    },
+  ];
+}
+
 export async function getSalesRecommendations(): Promise<SalesRecommendation[]> {
   const [metrics, crm, pipeline] = await Promise.all([
     getOperatorMetrics(),
@@ -488,84 +668,13 @@ export async function getSalesRecommendations(): Promise<SalesRecommendation[]> 
     getAdminPipeline(),
   ]);
 
-  const vipClients = crm.filter((c) => c.status === "vip" || c.status === "repeat");
-  const warmLeads = pipeline.columns.find((c) => c.id === "contacted")?.items ?? [];
-
-  return [
-    {
-      id: "upsell-sessions",
-      type: "upsell",
-      title: "Upsell ÉLEVÉ Sessions to portrait clients",
-      detail: `${crm.filter((c) => c.bookings > 0 && c.applications === 0).length} booked clients haven't applied to Sessions`,
-      impact: "high",
-      actions: [
-        action("crm-sessions", "Open CRM", "open_crm", "/admin/crm"),
-        action("email-upsell", "Email Campaign", "email_clients", "/admin/marketing?focus=campaign"),
-      ],
-    },
-    {
-      id: "cross-sell-album",
-      type: "cross_sell",
-      title: "Album + print package cross-sell",
-      detail: "Offer premium collection upgrade to clients in scheduled status",
-      impact: "medium",
-      actions: [
-        action("pipeline", "Open Pipeline", "navigate", "/admin/pipeline"),
-        action("packages", "View Services", "navigate", "/admin/services"),
-      ],
-    },
-    {
-      id: "recover-abandoned",
-      type: "recovery",
-      title: "Recover abandoned inquiries",
-      detail: `${metrics.attention.abandonedInquiries} booking inquiries need follow-up within 24 hours`,
-      impact: "high",
-      actions: [
-        action("booking-ai", "Booking Assistant", "navigate", "/admin/bookings-ai"),
-        action("follow-up", "Schedule Follow-Up", "schedule_followup", "/admin/pipeline"),
-      ],
-    },
-    {
-      id: "discount-timing",
-      type: "discount",
-      title:
-        metrics.month.bookingsChange < 0
-          ? "Limited-time booking incentive (slow month)"
-          : "Hold pricing — demand is healthy",
-      detail:
-        metrics.month.bookingsChange < 0
-          ? "A soft incentive on mid-week slots can fill gaps without devaluing premium positioning"
-          : `${metrics.month.bookings} inquiries this month — focus on upsells over discounts`,
-      impact: metrics.month.bookingsChange < 0 ? "high" : "low",
-      actions: [
-        action("promo-copy", "Generate Promo Copy", "create_campaign", "/admin/marketing?focus=campaign", {
-          task: "campaign",
-        }),
-      ],
-    },
-    {
-      id: "referral-vip",
-      type: "referral",
-      title: "Referral campaign for VIP clients",
-      detail: `${vipClients.length} repeat/VIP clients — highest referral conversion potential`,
-      impact: "medium",
-      actions: [
-        action("referrals", "Referral Program", "navigate", "/admin/referrals"),
-        action("vip-email", "VIP Email", "email_clients", "/admin/crm"),
-      ],
-    },
-    {
-      id: "warm-leads",
-      type: "follow_up",
-      title: "Prioritize contacted leads",
-      detail: `${warmLeads.length} leads in contacted stage — move to scheduled this week`,
-      impact: "high",
-      actions: [
-        action("pipeline", "Open Pipeline", "navigate", "/admin/pipeline"),
-        action("crm", "Open CRM", "open_crm", "/admin/crm"),
-      ],
-    },
-  ];
+  return buildSalesRecommendations({
+    crm,
+    pipeline,
+    staleInquiries: metrics.attention.abandonedInquiries,
+    monthBookings: metrics.month.bookings,
+    monthBookingsChange: metrics.month.bookingsChange,
+  });
 }
 
 export async function getSessionsOperatorIntel(): Promise<SessionsOperatorIntel> {

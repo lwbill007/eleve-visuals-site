@@ -1,9 +1,10 @@
-import { getAdminDashboardOS, getAdminPipeline } from "@/lib/admin-os-server";
+import { getAdminCRMContacts, getAdminDashboardOS, getAdminPipeline } from "@/lib/admin-os-server";
 import { prisma } from "@/lib/db";
+import { buildSalesRecommendations } from "./business-operator";
 import { getCached, setCache } from "../cache";
 import type { BookingIntelligence } from "../types";
 
-const CACHE_KEY = "booking-intelligence-v3";
+const CACHE_KEY = "booking-intelligence-v4";
 
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -27,7 +28,8 @@ function isValidBookingIntelligence(value: unknown): value is BookingIntelligenc
     typeof intel.staleInquiries === "number" &&
     typeof intel.monthBookings === "number" &&
     Array.isArray(intel.monthlyTrend) &&
-    Array.isArray(intel.abandonedBookings)
+    Array.isArray(intel.abandonedBookings) &&
+    Array.isArray(intel.salesRecommendations)
   );
 }
 
@@ -37,7 +39,7 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
     if (cached && isValidBookingIntelligence(cached)) return cached;
   }
 
-  const [dashboard, pipeline, bookings] = await Promise.all([
+  const [dashboard, pipeline, bookings, crm] = await Promise.all([
     getAdminDashboardOS(),
     getAdminPipeline(),
     prisma.submission.findMany({
@@ -51,6 +53,7 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
         contactEmail: true,
       },
     }),
+    getAdminCRMContacts(),
   ]);
 
   const byMonth = new Map<string, number>();
@@ -137,6 +140,13 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
     promotions,
     pipelineValue: pipeline.totalValue,
     conversionTrend: dashboard.metrics.conversionRate,
+    salesRecommendations: buildSalesRecommendations({
+      crm,
+      pipeline,
+      staleInquiries: stale.length,
+      monthBookings,
+      monthBookingsChange: dashboard.metrics.monthlyGrowth,
+    }),
   };
 
   await setCache(CACHE_KEY, intel, 15 * 60 * 1000);

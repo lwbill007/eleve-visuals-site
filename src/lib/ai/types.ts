@@ -281,6 +281,7 @@ export interface BookingIntelligence {
   promotions: string[];
   pipelineValue: number;
   conversionTrend: number;
+  salesRecommendations: SalesRecommendation[];
 }
 
 export interface WebsiteOptimizationResult {
