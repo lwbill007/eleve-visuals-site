@@ -98,25 +98,17 @@ function parseDatabaseUrl(url: string | undefined) {
 }
 
 async function getMigrationStatus(client: PrismaClient) {
+  let appliedNames: string[] = [];
+  let latest: string | null = null;
+
   try {
     const applied = await client.$queryRaw<Array<{ migration_name: string; finished_at: Date | null }>>`
       SELECT migration_name, finished_at
       FROM "_prisma_migrations"
       ORDER BY finished_at DESC NULLS LAST
     `;
-    const appliedNames = applied.map((r) => r.migration_name);
-    const latest = appliedNames[0] ?? null;
-
-    const fs = await import("node:fs/promises");
-    const path = await import("node:path");
-    const migrationsDir = path.join(process.cwd(), "prisma", "migrations");
-    const entries = await fs.readdir(migrationsDir);
-    const localMigrations = entries
-      .filter((e) => e !== "migration_lock.toml" && !e.startsWith("."))
-      .sort();
-    const pending = localMigrations.filter((m) => !appliedNames.includes(m));
-
-    return { applied: appliedNames.length, pending, latest };
+    appliedNames = applied.map((r) => r.migration_name);
+    latest = appliedNames[0] ?? null;
   } catch (err) {
     return {
       applied: 0,
@@ -125,6 +117,23 @@ async function getMigrationStatus(client: PrismaClient) {
       error: err instanceof Error ? err.message : String(err),
     };
   }
+
+  let pending: string[] = [];
+  try {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const migrationsDir = path.join(process.cwd(), "prisma", "migrations");
+    const entries = await fs.readdir(migrationsDir);
+    const localMigrations = entries
+      .filter((e) => e !== "migration_lock.toml" && !e.startsWith("."))
+      .sort();
+    pending = localMigrations.filter((m) => !appliedNames.includes(m));
+  } catch {
+    // Serverless runtimes (e.g. Vercel) don't bundle prisma/migrations — DB state is authoritative.
+    pending = [];
+  }
+
+  return { applied: appliedNames.length, pending, latest };
 }
 
 async function tableExists(client: PrismaClient, table: string): Promise<boolean> {
