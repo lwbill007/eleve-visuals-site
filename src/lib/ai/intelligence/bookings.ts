@@ -7,9 +7,21 @@ function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export async function getBookingIntelligence(): Promise<BookingIntelligence> {
-  const cached = await getCached<BookingIntelligence>("booking-intelligence");
-  if (cached) return cached;
+function parseName(data: string, fallback: string): string {
+  try {
+    const parsed = JSON.parse(data) as Record<string, unknown>;
+    return String(parsed.fullName || parsed.name || fallback);
+  } catch {
+    return fallback;
+  }
+}
+
+export async function getBookingIntelligence(force = false): Promise<BookingIntelligence> {
+  const cacheKey = "booking-intelligence-v2";
+  if (!force) {
+    const cached = await getCached<BookingIntelligence>(cacheKey);
+    if (cached) return cached;
+  }
 
   const [dashboard, pipeline, bookings] = await Promise.all([
     getAdminDashboardOS(),
@@ -22,6 +34,9 @@ export async function getBookingIntelligence(): Promise<BookingIntelligence> {
 
   const byMonth = new Map<string, number>();
   const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const staleCutoff = Date.now() - 3 * 86400000;
+
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     byMonth.set(monthKey(d), 0);
@@ -39,23 +54,12 @@ export async function getBookingIntelligence(): Promise<BookingIntelligence> {
 
   const avg = monthlyData.reduce((s, m) => s + m.count, 0) / Math.max(monthlyData.length, 1);
   const busyMonths = monthlyData.filter((m) => m.count > avg * 1.2).map((m) => m.month);
-  const slowMonths = monthlyData.filter((m) => m.count < avg * 0.6 && m.count >= 0).map((m) => m.month);
+  const slowMonths = monthlyData.filter((m) => m.count < avg * 0.6).map((m) => m.month);
 
-  const abandoned = bookings.filter(
-    (b) =>
-      ["new", "contacted"].includes(b.status) &&
-      !b.read &&
-      b.createdAt.getTime() < Date.now() - 3 * 86400000
-  );
+  const pending = bookings.filter((b) => ["new", "contacted"].includes(b.status));
+  const stale = pending.filter((b) => b.createdAt.getTime() < staleCutoff);
 
-  const completedEmails = new Set(
-    bookings.filter((b) => b.status === "completed" && b.contactEmail).map((b) => b.contactEmail)
-  );
-  const allEmails = new Set(bookings.filter((b) => b.contactEmail).map((b) => b.contactEmail));
-  const churnRate =
-    allEmails.size > 0
-      ? Math.round(((allEmails.size - completedEmails.size) / allEmails.size) * 100)
-      : 0;
+  const monthBookings = bookings.filter((b) => b.createdAt >= monthStart).length;
 
   const recentAvg = monthlyData.slice(-3).reduce((s, m) => s + m.count, 0) / 3;
   const revenueForecast = Math.round(recentAvg * 1750 * 3);
@@ -71,16 +75,22 @@ export async function getBookingIntelligence(): Promise<BookingIntelligence> {
   if (pipeline.totalValue < 5000) {
     pricingRecommendations.push("Bundle BTS content + prints to increase average booking value");
   }
+  if (pricingRecommendations.length === 0) {
+    pricingRecommendations.push("Hold premium pricing — pipeline value supports current positioning");
+  }
 
   const promotions: string[] = [];
   if (slowMonths.length > 0) {
     promotions.push(`Launch re-engagement campaign before ${slowMonths[0]}`);
   }
-  if (abandoned.length > 3) {
-    promotions.push(`${abandoned.length} abandoned inquiries — send recovery sequence`);
+  if (stale.length > 0) {
+    promotions.push(`${stale.length} stale inquiries — send recovery sequence within 24 hours`);
   }
   if (dashboard.metrics.returningClients < 5) {
     promotions.push("Referral incentive for completed clients");
+  }
+  if (promotions.length === 0) {
+    promotions.push("Feature top portfolio work on Instagram to maintain inquiry flow");
   }
 
   const intel: BookingIntelligence = {
@@ -90,29 +100,24 @@ export async function getBookingIntelligence(): Promise<BookingIntelligence> {
     slowMonths,
     revenueForecast,
     bookingForecast,
-    churnRate,
-    abandonedBookings: abandoned.slice(0, 10).map((b) => {
-      let name = b.contactEmail;
-      try {
-        const d = JSON.parse(b.data) as Record<string, unknown>;
-        name = String(d.fullName || d.name || b.contactEmail);
-      } catch {
-        /* ignore */
-      }
-      return {
-        id: b.id ?? b.contactEmail,
-        name,
-        email: b.contactEmail,
-        daysSince: Math.round((Date.now() - b.createdAt.getTime()) / 86400000),
-        href: `/admin/submissions?type=booking`,
-      };
-    }),
+    pendingInquiries: pending.length,
+    staleInquiries: stale.length,
+    monthBookings,
+    monthGrowth: dashboard.metrics.monthlyGrowth,
+    abandonedBookings: stale.slice(0, 12).map((b) => ({
+      id: b.id,
+      name: parseName(b.data, b.contactEmail || "Unknown"),
+      email: b.contactEmail,
+      daysSince: Math.round((Date.now() - b.createdAt.getTime()) / 86400000),
+      href: `/admin/submissions?type=booking&focus=${b.id}`,
+      status: b.status,
+    })),
     pricingRecommendations,
     promotions,
     pipelineValue: pipeline.totalValue,
-    conversionTrend: dashboard.metrics.monthlyGrowth,
+    conversionTrend: dashboard.metrics.conversionRate,
   };
 
-  await setCache("booking-intelligence", intel, 30 * 60 * 1000);
+  await setCache(cacheKey, intel, 15 * 60 * 1000);
   return intel;
 }

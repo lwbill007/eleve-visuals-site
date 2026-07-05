@@ -270,8 +270,13 @@ export interface BookingIntelligence {
   slowMonths: string[];
   revenueForecast: number;
   bookingForecast: number;
-  churnRate: number;
-  abandonedBookings: { id: string; name: string; email: string; daysSince: number; href: string }[];
+  /** Booking inquiries still in new/contacted status */
+  pendingInquiries: number;
+  /** Inquiries in new/contacted status untouched for 3+ days */
+  staleInquiries: number;
+  monthBookings: number;
+  monthGrowth: number;
+  abandonedBookings: { id: string; name: string; email: string; daysSince: number; href: string; status: string }[];
   pricingRecommendations: string[];
   promotions: string[];
   pipelineValue: number;
