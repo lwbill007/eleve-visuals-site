@@ -1,8 +1,8 @@
 import type { BrandColors } from "@/lib/types";
-import { DEFAULT_BRAND_COLORS } from "@/lib/defaults";
+import { sanitizeBrandColors } from "@/lib/sanitize-brand-colors";
 
 export function BrandThemeStyles({ colors }: { colors?: Partial<BrandColors> }) {
-  const c = { ...DEFAULT_BRAND_COLORS, ...colors };
+  const c = sanitizeBrandColors(colors);
   const css = `:root {
   --color-ink: ${c.ink};
   --color-charcoal: ${c.charcoal};

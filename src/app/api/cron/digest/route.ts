@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { runDigest } from "@/lib/notifications";
 
 /**
- * Periodic digest endpoint. Triggered by Vercel Cron daily; the digest module
- * decides whether to actually send based on the admin's frequency setting.
- *
- * Protected by CRON_SECRET when set. Vercel Cron sends it as a Bearer token.
+ * Periodic digest endpoint. Triggered by Vercel Cron daily.
+ * Requires CRON_SECRET in production (Vercel Cron sends Bearer token).
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
+  const isProd = process.env.NODE_ENV === "production";
+
+  if (isProd && !secret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 503 });
+  }
+
   if (secret) {
     const auth = request.headers.get("authorization");
     if (auth !== `Bearer ${secret}`) {

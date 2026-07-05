@@ -52,6 +52,7 @@ DATABASE_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
 | `OPENROUTER_API_KEY` | AI features | OpenRouter API key for ÉLEVÉ Control AI |
 | `OPENROUTER_MODEL` | Optional | Primary model (default: `qwen/qwen3-32b`) |
 | `AI_PROVIDER` | Optional | `openrouter` (default) or `ollama` for local dev |
+| `CRON_SECRET` | Production cron | Required in production for `/api/cron/digest` |
 
 Generate a secret: `openssl rand -base64 32`
 
@@ -149,7 +150,7 @@ npm run test:e2e
 ## Production deployment (Vercel)
 
 1. Add a **Neon** or **Vercel Postgres** database.
-2. Set environment variables: `DATABASE_URL`, `AUTH_SECRET`, `ADMIN_PASSWORD`, `OPENROUTER_API_KEY`.
+2. Set environment variables: `DATABASE_URL`, `AUTH_SECRET`, `ADMIN_PASSWORD`, `OPENROUTER_API_KEY`, `CRON_SECRET`.
 3. Add **Vercel Blob** — create a **Public** store, connect it to the project (sets `BLOB_READ_WRITE_TOKEN` automatically)
 4. Deploy — migrations run during build; content is **not** overwritten.
 

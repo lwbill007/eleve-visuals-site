@@ -5,11 +5,10 @@ import { generateAIContent } from "../service";
 import type { WebsiteOptimizationResult } from "../types";
 
 export async function analyzeWebsiteOptimization(): Promise<WebsiteOptimizationResult> {
-  const [analytics, dashboard, portfolio, services, homepage] = await Promise.all([
+  const [analytics, dashboard, portfolio, homepage] = await Promise.all([
     getAnalyticsSummary(30),
     getAdminDashboardOS(),
     prisma.portfolioItem.count({ where: { published: true, archived: false } }),
-    prisma.service.count({ where: { published: true } }),
     prisma.siteContent.findUnique({ where: { key: "homepage" } }),
   ]);
 

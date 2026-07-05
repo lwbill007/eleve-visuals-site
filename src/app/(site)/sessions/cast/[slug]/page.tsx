@@ -7,8 +7,12 @@ import { CAST_ROLE_LABELS } from "@/lib/cast";
 export const revalidate = 60;
 
 export async function generateStaticParams() {
-  const slugs = await getProfileSlugs();
-  return slugs.map((slug) => ({ slug }));
+  try {
+    const slugs = await getProfileSlugs();
+    return slugs.map((slug) => ({ slug }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
-import { AIBriefingPanel } from "@/components/admin/ai/AIBriefingPanel";
+import { AIDailyBriefingPanel } from "@/components/admin/ai/AIDailyBriefingPanel";
+import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import { cn } from "@/lib/utils";
@@ -43,9 +44,10 @@ export function InsightsClient() {
         eyebrow="AI Assistant"
         title="Business Insights"
         description="Data-driven recommendations to grow bookings, applications, and repeat clients."
+        action={<AskAIButton />}
       />
 
-      <AIBriefingPanel />
+      <AIDailyBriefingPanel />
 
       {generatedAt && (
         <p className="text-xs text-muted">Updated {new Date(generatedAt).toLocaleString()}</p>

@@ -19,6 +19,9 @@ import { useUploadsActive } from "@/lib/upload-tracker";
 import { saveAdminContent } from "@/lib/admin-save";
 import { DEFAULT_PORTFOLIO_PAGE } from "@/lib/defaults";
 import { PORTFOLIO_CATEGORIES, type AspectRatio, type PortfolioItemDTO, type PortfolioPageContent } from "@/lib/types";
+import { PortfolioAssistantPanel } from "@/components/admin/ai/PortfolioAssistantPanel";
+import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
+import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
 
 const ASPECT_RATIOS: AspectRatio[] = ["portrait", "landscape", "square", "wide"];
@@ -62,6 +65,8 @@ export default function AdminPortfolioPage() {
   const [saving, setSaving] = useState(false);
   const uploadsActive = useUploadsActive();
   const [message, setMessage] = useState("");
+
+  useSetAIPage("portfolio", editing?.id ? { projectId: editing.id, title: editing.title } : undefined);
 
   async function load() {
     const [portfolioRes, contentRes] = await Promise.all([
@@ -142,6 +147,9 @@ export default function AdminPortfolioPage() {
 
   return (
     <AdminShell title="Portfolio">
+      <div className="mb-4 flex justify-end">
+        <AskAIButton />
+      </div>
       <div className="mb-6 -mx-4 flex gap-2 overflow-x-auto border-b border-stone/30 px-4 pb-px sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
         {TABS.map((t) => (
           <button
@@ -546,6 +554,11 @@ export default function AdminPortfolioPage() {
                   Cancel
                 </button>
               </div>
+              {editing.id && (
+                <div className="mt-6 border-t border-stone/20 pt-6">
+                  <PortfolioAssistantPanel portfolioId={editing.id} />
+                </div>
+              )}
             </div>
           )}
 

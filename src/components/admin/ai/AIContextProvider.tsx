@@ -45,7 +45,8 @@ export function useAIContext() {
 
 export function useSetAIPage(page: AIPageContext, data?: Record<string, unknown>, title?: string) {
   const { setPageContext } = useAIContext();
+  const dataKey = data ? JSON.stringify(data) : "";
   useEffect(() => {
     setPageContext(page, data, title);
-  }, [page, title, setPageContext, data]);
+  }, [page, title, dataKey, setPageContext, data]);
 }

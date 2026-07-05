@@ -148,7 +148,7 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
       const seen = new Set<string>();
       setSearchResults(
         merged
-          .filter((r: { href: string; label: string; sub?: string; category?: string }, i: number) => {
+          .filter((r: { href: string; label: string; sub?: string; category?: string }) => {
             const key = `${r.href}-${r.label}`;
             if (seen.has(key)) return false;
             seen.add(key);

@@ -65,6 +65,8 @@ export const ADMIN_NAV: AdminNavSection[] = [
       { label: "Submissions", href: "/admin/submissions", desc: "All inquiries" },
       { label: "Notifications", href: "/admin/notifications", desc: "Delivery & alerts" },
       { label: "Page Copy", href: "/admin/content", desc: "Global copy" },
+      { label: "About Page", href: "/admin/about", desc: "About content" },
+      { label: "Contact Page", href: "/admin/contact", desc: "Contact content" },
       { label: "Settings", href: "/admin/settings", desc: "Brand & SEO" },
     ],
   },

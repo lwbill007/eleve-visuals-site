@@ -4,9 +4,7 @@ import { logAIAction } from "./log";
 import { systemPromptForAssistant, systemPromptForTask, TASK_PROMPTS } from "./prompts/system";
 import { BUSINESS_TOOLS, buildBusinessContextSnapshot, executeBusinessTool } from "./tools/business-data";
 import { getAdminInsights } from "@/lib/admin-os-server";
-import type { AIBriefing, AIGenerateRequest, AIMessage, AIStreamChunk } from "./types";
-
-const briefingCache: { at: number; data: AIBriefing | null } = { at: 0, data: null };
+import type { AIGenerateRequest, AIMessage, AIStreamChunk } from "./types";
 
 export async function runAIChat(
   userMessage: string,
@@ -109,79 +107,6 @@ export async function generateAIContent(request: AIGenerateRequest): Promise<{ c
   return { content: result.content, provider: result.provider };
 }
 
-export async function getAIBriefing(force = false): Promise<AIBriefing> {
-  const config = getAIConfig();
-  if (!force && briefingCache.data && Date.now() - briefingCache.at < config.cacheTtlMs) {
-    return briefingCache.data;
-  }
-
-  const [ruleInsights, dashboard] = await Promise.all([
-    getAdminInsights(),
-    import("@/lib/admin-os-server").then((m) => m.getAdminDashboardOS()),
-  ]);
-
-  const opportunities = ruleInsights.insights.map((i) => ({
-    title: i.title,
-    detail: i.detail,
-    action: i.action,
-    href: i.href,
-  }));
-
-  const scores = {
-    businessHealth: Math.min(100, Math.max(20, 70 + dashboard.metrics.monthlyGrowth)),
-    marketing: Math.min(100, Math.max(15, dashboard.metrics.conversionRate * 8)),
-    sales: Math.min(100, Math.max(10, 100 - dashboard.metrics.bookings.pending * 5)),
-    productivity: Math.min(100, Math.max(10, 100 - dashboard.metrics.pendingTasks * 8)),
-  };
-
-  let summary = `You have ${dashboard.metrics.pendingTasks} pending tasks. ${dashboard.metrics.bookings.pending} booking inquiries need follow-up. ${dashboard.metrics.applications.pending} applications await review.`;
-  let provider: AIBriefing["provider"] = "rules";
-
-  if (isAIConfigured()) {
-    const result = await aiComplete({
-      messages: [
-        {
-          role: "system",
-          content: systemPromptForTask("Write a 2-sentence executive morning briefing for the studio owner."),
-        },
-        {
-          role: "user",
-          content: JSON.stringify({ metrics: dashboard.metrics, insights: ruleInsights.insights.slice(0, 4) }),
-        },
-      ],
-      maxTokens: 300,
-    });
-    if (result?.content) {
-      summary = result.content;
-      provider = result.provider;
-    }
-  }
-
-  const priorities = [
-    dashboard.metrics.pendingTasks > 0 ? `Clear ${dashboard.metrics.pendingTasks} pending tasks` : null,
-    dashboard.metrics.bookings.pending > 0 ? `Follow up on ${dashboard.metrics.bookings.pending} booking inquiries` : null,
-    dashboard.metrics.applications.pending > 0 ? `Review ${dashboard.metrics.applications.pending} session applications` : null,
-    opportunities[0]?.title ?? null,
-  ].filter(Boolean) as string[];
-
-  const briefing: AIBriefing = {
-    generatedAt: new Date().toISOString(),
-    provider,
-    priorities: priorities.slice(0, 5),
-    opportunities,
-    scores,
-    summary,
-    forecast:
-      dashboard.metrics.monthlyGrowth >= 0
-        ? `Bookings trending up ${dashboard.metrics.monthlyGrowth}% vs last month.`
-        : `Bookings down ${Math.abs(dashboard.metrics.monthlyGrowth)}% — prioritize outreach.`,
-  };
-
-  briefingCache.at = Date.now();
-  briefingCache.data = briefing;
-  return briefing;
-}
-
 export async function aiNaturalLanguageSearch(query: string): Promise<{
   interpretation: string;
   results: { label: string; href: string; category: string }[];
@@ -248,13 +173,4 @@ async function fallbackChatResponse(message: string): Promise<string> {
 
   const snap = insights.insights.slice(0, 3).map((i) => `• **${i.title}** — ${i.detail}`).join("\n");
   return `**ÉLEVÉ AI** (rule-based mode)\n\n${snap || "No insights right now. Check /admin/insights."}\n\n${setupHint}`;
-}
-
-export async function explainAnalytics(data: Record<string, unknown>): Promise<string> {
-  const result = await generateAIContent({
-    task: "analytics_explain",
-    prompt: "Explain this analytics data for the studio owner.",
-    context: data,
-  });
-  return result.content;
 }

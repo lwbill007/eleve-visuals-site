@@ -41,7 +41,6 @@ export async function executeAICommand(raw: string): Promise<AICommandResult> {
 
   if (lower.includes("open application") || lower.includes("applications")) {
     const vol = extractVolume(query);
-    const href = vol ? `/admin/applications?volumeId=` : "/admin/applications";
     if (vol) {
       const volume = await prisma.sessionVolume.findFirst({ where: { volumeNumber: vol } });
       return {
