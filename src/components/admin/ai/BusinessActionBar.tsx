@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import type { BusinessAction } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +17,8 @@ const actionStyles: Record<BusinessAction["type"], string> = {
 };
 
 function buildHref(action: BusinessAction): string {
-  const base = action.href?.startsWith("/") ? action.href : `/${action.href ?? ""}`;
+  if (!action.href) return "/admin";
+  const base = action.href.startsWith("/") ? action.href : `/${action.href}`;
   const url = new URL(base, "http://local");
   if (action.task) url.searchParams.set("task", action.task);
   if (action.prompt) url.searchParams.set("prompt", action.prompt);
@@ -28,7 +27,7 @@ function buildHref(action: BusinessAction): string {
 
 const buttonClass = (compact: boolean, type: BusinessAction["type"], className?: string) =>
   cn(
-    "relative z-10 inline-flex cursor-pointer items-center justify-center rounded-lg border transition-colors",
+    "relative z-20 inline-flex cursor-pointer items-center justify-center rounded-lg border transition-colors no-underline",
     compact ? "px-2.5 py-1 text-[0.65rem]" : "px-3 py-1.5 text-xs",
     "tracking-[0.08em] uppercase",
     actionStyles[type] ?? actionStyles.navigate,
@@ -44,26 +43,12 @@ export function BusinessActionButton({
   compact?: boolean;
   className?: string;
 }) {
-  const pathname = usePathname();
   const href = buildHref(action);
-  const targetPath = href.split("?")[0];
-
-  if (targetPath === pathname) {
-    return (
-      <button
-        type="button"
-        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className={buttonClass(compact, action.type, className)}
-      >
-        {action.label}
-      </button>
-    );
-  }
 
   return (
-    <Link href={href} className={buttonClass(compact, action.type, className)}>
+    <a href={href} className={buttonClass(compact, action.type, className)}>
       {action.label}
-    </Link>
+    </a>
   );
 }
 
@@ -78,7 +63,7 @@ export function BusinessActionBar({
 }) {
   if (!actions.length) return null;
   return (
-    <div className={cn("relative z-10 flex flex-wrap gap-2", className)}>
+    <div className={cn("relative z-20 flex flex-wrap gap-2", className)}>
       {actions.map((a) => (
         <BusinessActionButton key={a.id} action={a} compact={compact} />
       ))}

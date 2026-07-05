@@ -73,7 +73,7 @@ export function BookingAssistantPanel() {
   const sales = intel.salesRecommendations ?? [];
 
   return (
-    <div className="space-y-8">
+    <div className="relative z-10 space-y-8">
       <AdminPageHeader
         eyebrow="Sales AI"
         title="Booking Assistant"
@@ -183,6 +183,27 @@ export function BookingAssistantPanel() {
         </AdminPanel>
       )}
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <AdminPanel title="Pricing Recommendations">
+          <ul className="space-y-2">
+            {intel.pricingRecommendations.map((r) => (
+              <li key={r} className="text-sm text-cream-dim">
+                ◆ {r}
+              </li>
+            ))}
+          </ul>
+        </AdminPanel>
+        <AdminPanel title="Promotion Ideas">
+          <ul className="space-y-2">
+            {intel.promotions.map((r) => (
+              <li key={r} className="text-sm text-cream-dim">
+                ◆ {r}
+              </li>
+            ))}
+          </ul>
+        </AdminPanel>
+      </div>
+
       <AdminPanel title="Booking Trend">
         <AdminBarChart
           data={intel.monthlyTrend.map((m) => ({ month: m.month, value: m.count }))}
@@ -205,27 +226,6 @@ export function BookingAssistantPanel() {
           </div>
         </div>
       </AdminPanel>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <AdminPanel title="Pricing Recommendations">
-          <ul className="space-y-2">
-            {intel.pricingRecommendations.map((r) => (
-              <li key={r} className="text-sm text-cream-dim">
-                ◆ {r}
-              </li>
-            ))}
-          </ul>
-        </AdminPanel>
-        <AdminPanel title="Promotion Ideas">
-          <ul className="space-y-2">
-            {intel.promotions.map((r) => (
-              <li key={r} className="text-sm text-cream-dim">
-                ◆ {r}
-              </li>
-            ))}
-          </ul>
-        </AdminPanel>
-      </div>
     </div>
   );
 }

@@ -116,30 +116,34 @@ export function AdminBarChart({
   accent?: boolean;
 }) {
   const max = Math.max(...data.map((d) => Number(d[valueKey])), 1);
+  const maxBarPx = 120;
 
   return (
-    <div className="flex h-44 items-end gap-2 sm:gap-3">
-      {data.map((point, i) => {
-        const value = Number(point[valueKey]);
-        const height = Math.max((value / max) * 100, value > 0 ? 8 : 0);
-        return (
-          <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-            <motion.div
-              initial={{ height: 0 }}
-              animate={{ height: `${height}%` }}
-              transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
-              className={cn(
-                "w-full min-h-[4px] rounded-t-sm",
-                accent ? "bg-accent/80" : "bg-stone/50"
-              )}
-              title={String(value)}
-            />
-            <span className="w-full truncate text-center text-[0.6rem] tracking-wide text-muted uppercase">
-              {String(point[labelKey])}
-            </span>
-          </div>
-        );
-      })}
+    <div className="relative h-44 overflow-hidden">
+      <div className="flex h-full items-end gap-2 sm:gap-3">
+        {data.map((point, i) => {
+          const value = Number(point[valueKey]);
+          const barHeightPx = Math.max(Math.round((value / max) * maxBarPx), value > 0 ? 6 : 0);
+          return (
+            <div key={i} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2">
+              <motion.div
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                style={{ height: barHeightPx, transformOrigin: "bottom center" }}
+                className={cn(
+                  "pointer-events-none w-full rounded-t-sm",
+                  accent ? "bg-accent/80" : "bg-stone/50"
+                )}
+                title={String(value)}
+              />
+              <span className="pointer-events-none w-full truncate text-center text-[0.6rem] tracking-wide text-muted uppercase">
+                {String(point[labelKey])}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

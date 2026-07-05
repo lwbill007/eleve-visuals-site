@@ -71,10 +71,11 @@ export function AskAIPanel() {
   }
 
   return (
-    <AnimatePresence>
-      {panelOpen && (
+    <AnimatePresence mode="wait">
+      {panelOpen ? (
         <>
           <motion.button
+            key="ai-backdrop"
             type="button"
             aria-label="Close AI panel"
             className="fixed inset-0 z-[250] bg-ink/60 backdrop-blur-sm"
@@ -84,6 +85,7 @@ export function AskAIPanel() {
             onClick={closePanel}
           />
           <motion.aside
+            key="ai-panel"
             className="fixed inset-y-0 right-0 z-[260] flex w-full max-w-md flex-col border-l border-stone/25 bg-charcoal shadow-2xl"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
@@ -158,7 +160,7 @@ export function AskAIPanel() {
             </form>
           </motion.aside>
         </>
-      )}
+      ) : null}
     </AnimatePresence>
   );
 }
