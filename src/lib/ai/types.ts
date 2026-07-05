@@ -1,4 +1,4 @@
-export type AIProviderId = "gemini" | "openrouter" | "ollama";
+export type AIProviderId = "openrouter" | "ollama";
 
 export type AIMessageRole = "system" | "user" | "assistant" | "tool";
 

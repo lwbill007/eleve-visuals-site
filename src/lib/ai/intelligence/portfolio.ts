@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isAIConfigured } from "../config";
-import { getAIProvider } from "../providers/registry";
+import { aiComplete } from "../adapter";
 import { generateAIContent } from "../service";
 import type { PortfolioAnalysisResult } from "../types";
 
@@ -61,8 +61,7 @@ export async function analyzePortfolioImages(
 
   if (isAIConfigured() && images.length > 0) {
     try {
-      const ai = getAIProvider();
-      const result = await ai.complete({
+      const result = await aiComplete({
         messages: [
           {
             role: "system",
@@ -77,7 +76,7 @@ export async function analyzePortfolioImages(
         maxTokens: 2000,
       });
 
-      const match = result.content.match(/\[[\s\S]*\]/);
+      const match = result?.content.match(/\[[\s\S]*\]/);
       if (match) {
         const parsed = JSON.parse(match[0]) as {
           url: string;
@@ -132,6 +131,6 @@ export async function analyzePortfolioImages(
     suggestedCategories: [...new Set([category, "Editorial", "Portrait", "Cinematic"].filter(Boolean))],
     homepagePlacement: hero ? "Feature hero on homepage if conversion rate supports this style" : "",
     instagramCarousel: images.filter((i) => !i.blurry && !i.duplicate).map((i) => i.url),
-    provider: isAIConfigured() ? getAIProvider().id : "rules",
+    provider: isAIConfigured() ? "openrouter" : "rules",
   };
 }

@@ -1,16 +1,10 @@
 import { getAIConfig, isAIConfigured } from "./config";
+import { aiComplete, aiStream, getActiveProviderLabel } from "./adapter";
 import { logAIAction } from "./log";
-import { getAIProvider } from "./providers/registry";
 import { systemPromptForAssistant, systemPromptForTask, TASK_PROMPTS } from "./prompts/system";
 import { BUSINESS_TOOLS, buildBusinessContextSnapshot, executeBusinessTool } from "./tools/business-data";
 import { getAdminInsights } from "@/lib/admin-os-server";
-import type {
-  AIBriefing,
-  AICompletionRequest,
-  AIGenerateRequest,
-  AIMessage,
-  AIStreamChunk,
-} from "./types";
+import type { AIBriefing, AIGenerateRequest, AIMessage, AIStreamChunk } from "./types";
 
 const briefingCache: { at: number; data: AIBriefing | null } = { at: 0, data: null };
 
@@ -22,7 +16,6 @@ export async function runAIChat(
     return { content: await fallbackChatResponse(userMessage), provider: "rules" };
   }
 
-  const provider = getAIProvider();
   const messages: AIMessage[] = [
     { role: "system", content: systemPromptForAssistant() },
     ...history.slice(-10),
@@ -34,31 +27,30 @@ export async function runAIChat(
 
   while (iterations < config.maxToolIterations) {
     iterations += 1;
-    const result = await provider.complete({
-      messages,
-      tools: provider.id === "gemini" ? BUSINESS_TOOLS : undefined,
-    });
+    const result = await aiComplete({ messages, tools: BUSINESS_TOOLS });
 
-    if (result.finishReason === "error" || !result.toolCalls?.length) {
+    if (!result || result.finishReason === "error" || !result.toolCalls?.length) {
       await logAIAction("ai_chat", "assistant", userMessage.slice(0, 200));
-      return { content: result.content || "I couldn't generate a response. Please try again.", provider: provider.id };
+      return {
+        content: result?.content || "I couldn't generate a response. Please try again.",
+        provider: result?.provider ?? getActiveProviderLabel(),
+      };
     }
 
     messages.push({ role: "assistant", content: result.content || "Calling tools…" });
 
     for (const call of result.toolCalls) {
       const toolResult = await executeBusinessTool(call.name, call.arguments);
-      messages.push({
-        role: "tool",
-        toolName: call.name,
-        content: toolResult,
-      });
+      messages.push({ role: "tool", toolName: call.name, content: toolResult });
     }
   }
 
-  const final = await provider.complete({ messages });
+  const final = await aiComplete({ messages });
   await logAIAction("ai_chat", "assistant", userMessage.slice(0, 200));
-  return { content: final.content, provider: provider.id };
+  return {
+    content: final?.content || "I couldn't complete that request.",
+    provider: final?.provider ?? getActiveProviderLabel(),
+  };
 }
 
 export async function* streamAIChat(
@@ -72,14 +64,6 @@ export async function* streamAIChat(
     return;
   }
 
-  const provider = getAIProvider();
-  if (!provider.stream) {
-    const result = await runAIChat(userMessage, history);
-    yield { type: "text", text: result.content };
-    yield { type: "done" };
-    return;
-  }
-
   const snapshot = await buildBusinessContextSnapshot();
   const messages: AIMessage[] = [
     { role: "system", content: `${systemPromptForAssistant()}\n\nBusiness snapshot:\n${snapshot}` },
@@ -87,7 +71,7 @@ export async function* streamAIChat(
     { role: "user", content: userMessage },
   ];
 
-  for await (const chunk of provider.stream({ messages })) {
+  for await (const chunk of aiStream({ messages })) {
     yield chunk;
   }
 
@@ -100,20 +84,29 @@ export async function generateAIContent(request: AIGenerateRequest): Promise<{ c
 
   if (!isAIConfigured()) {
     return {
-      content: `[AI provider not configured — add GEMINI_API_KEY to enable generation]\n\nTask: ${request.task}\nPrompt: ${request.prompt}`,
+      content: `[AI not configured — set OPENROUTER_API_KEY to enable generation]\n\nTask: ${request.task}\nPrompt: ${request.prompt}`,
       provider: "rules",
     };
   }
 
-  const provider = getAIProvider();
-  const messages: AIMessage[] = [
-    { role: "system", content: systemPromptForTask(taskPrompt) },
-    { role: "user", content: `${request.prompt}${contextStr}` },
-  ];
+  const result = await aiComplete({
+    messages: [
+      { role: "system", content: systemPromptForTask(taskPrompt) },
+      { role: "user", content: `${request.prompt}${contextStr}` },
+    ],
+    temperature: 0.8,
+  });
 
-  const result = await provider.complete({ messages, temperature: 0.8 });
   await logAIAction("ai_generate", request.task, request.prompt.slice(0, 200));
-  return { content: result.content, provider: provider.id };
+
+  if (!result?.content) {
+    return {
+      content: `[Generation failed — all models unavailable. Using rule-based mode.]\n\nTask: ${request.task}`,
+      provider: "rules",
+    };
+  }
+
+  return { content: result.content, provider: result.provider };
 }
 
 export async function getAIBriefing(force = false): Promise<AIBriefing> {
@@ -145,24 +138,22 @@ export async function getAIBriefing(force = false): Promise<AIBriefing> {
   let provider: AIBriefing["provider"] = "rules";
 
   if (isAIConfigured()) {
-    try {
-      const ai = getAIProvider();
-      const result = await ai.complete({
-        messages: [
-          { role: "system", content: systemPromptForTask("Write a 2-sentence executive morning briefing for the studio owner.") },
-          {
-            role: "user",
-            content: JSON.stringify({ metrics: dashboard.metrics, insights: ruleInsights.insights.slice(0, 4) }),
-          },
-        ],
-        maxTokens: 300,
-      });
-      if (result.content) {
-        summary = result.content;
-        provider = ai.id;
-      }
-    } catch {
-      /* keep rule summary */
+    const result = await aiComplete({
+      messages: [
+        {
+          role: "system",
+          content: systemPromptForTask("Write a 2-sentence executive morning briefing for the studio owner."),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ metrics: dashboard.metrics, insights: ruleInsights.insights.slice(0, 4) }),
+        },
+      ],
+      maxTokens: 300,
+    });
+    if (result?.content) {
+      summary = result.content;
+      provider = result.provider;
     }
   }
 
@@ -213,7 +204,7 @@ export async function aiNaturalLanguageSearch(query: string): Promise<{
   }
 
   if (q.includes("instagram") || q.includes("booking source")) {
-    const snap = await executeBusinessTool("get_business_snapshot", {});
+    await executeBusinessTool("get_business_snapshot", {});
     return {
       interpretation: "Lead sources from booking data",
       results: [{ label: "View analytics", href: "/admin/analytics", category: "Analytics" }],
@@ -242,20 +233,21 @@ async function fallbackChatResponse(message: string): Promise<string> {
   const lower = message.toLowerCase();
   const insights = await getAdminInsights();
   const dashboard = await import("@/lib/admin-os-server").then((m) => m.getAdminDashboardOS());
+  const setupHint = "_Set OPENROUTER_API_KEY for full AI intelligence._";
 
   if (lower.includes("today") || lower.includes("focus")) {
     const top = insights.insights[0];
     return top
-      ? `**Today's priority:** ${top.title}\n\n${top.detail}\n\n→ ${top.action}: ${top.href.replace("/admin", "")}\n\n_Add GEMINI_API_KEY to enable full AI assistant._`
-      : `You're caught up. ${dashboard.metrics.pendingTasks} tasks pending. Review your pipeline at /admin/pipeline.\n\n_Add GEMINI_API_KEY for deeper analysis._`;
+      ? `**Today's priority:** ${top.title}\n\n${top.detail}\n\n→ ${top.action}: ${top.href.replace("/admin", "")}\n\n${setupHint}`
+      : `You're caught up. ${dashboard.metrics.pendingTasks} tasks pending. Review your pipeline at /admin/pipeline.\n\n${setupHint}`;
   }
 
   if (lower.includes("revenue") || lower.includes("booking")) {
-    return `**Bookings:** ${dashboard.metrics.bookings.value} total, ${dashboard.metrics.bookings.pending} pending.\n**Pipeline value:** ~$${dashboard.metrics.revenue.value.toLocaleString()} (estimated).\n**Growth:** ${dashboard.metrics.monthlyGrowth}% vs last month.\n\n_Add GEMINI_API_KEY for personalized recommendations._`;
+    return `**Bookings:** ${dashboard.metrics.bookings.value} total, ${dashboard.metrics.bookings.pending} pending.\n**Pipeline value:** ~$${dashboard.metrics.revenue.value.toLocaleString()} (estimated).\n**Growth:** ${dashboard.metrics.monthlyGrowth}% vs last month.\n\n${setupHint}`;
   }
 
   const snap = insights.insights.slice(0, 3).map((i) => `• **${i.title}** — ${i.detail}`).join("\n");
-  return `**ÉLEVÉ AI** (rule-based mode — configure GEMINI_API_KEY for full intelligence)\n\n${snap || "No insights right now. Check /admin/insights."}\n\nAsk: "What should I focus on today?" or "Summarize this month's performance."`;
+  return `**ÉLEVÉ AI** (rule-based mode)\n\n${snap || "No insights right now. Check /admin/insights."}\n\n${setupHint}`;
 }
 
 export async function explainAnalytics(data: Record<string, unknown>): Promise<string> {

@@ -8,7 +8,7 @@ import { getAnalyticsSummary } from "@/lib/analytics-server";
 import { prisma } from "@/lib/db";
 import { getCached, setCache } from "../cache";
 import { isAIConfigured } from "../config";
-import { getAIProvider } from "../providers/registry";
+import { aiComplete } from "../adapter";
 import { systemPromptForTask } from "../prompts/system";
 import type { AIDailyBriefing } from "../types";
 
@@ -127,8 +127,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
 
   if (isAIConfigured()) {
     try {
-      const ai = getAIProvider();
-      const result = await ai.complete({
+      const result = await aiComplete({
         messages: [
           {
             role: "system",
@@ -154,9 +153,9 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
         ],
         maxTokens: 400,
       });
-      if (result.content) {
+      if (result?.content) {
         summary = result.content;
-        provider = ai.id;
+        provider = result.provider;
       }
     } catch {
       /* keep rule summary */

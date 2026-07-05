@@ -49,8 +49,53 @@ DATABASE_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
 | `BLOB_READ_WRITE_TOKEN` | Prod uploads | Vercel Blob token for admin image uploads |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Optional | Cloudflare Turnstile (pair with secret) |
 | `TURNSTILE_SECRET_KEY` | Optional | Cloudflare Turnstile secret |
+| `OPENROUTER_API_KEY` | AI features | OpenRouter API key for ÉLEVÉ Control AI |
+| `OPENROUTER_MODEL` | Optional | Primary model (default: `qwen/qwen3-32b`) |
+| `AI_PROVIDER` | Optional | `openrouter` (default) or `ollama` for local dev |
 
 Generate a secret: `openssl rand -base64 32`
+
+## ÉLEVÉ Control AI
+
+The admin dashboard includes an AI intelligence layer powered by **OpenRouter**. The application never calls a model directly — all features go through a provider adapter with automatic model fallback.
+
+**Default model chain:** Qwen 3 → DeepSeek → Llama → Mistral. If every model fails, rule-based responses keep the admin working.
+
+### Local setup
+
+Add to `.env`:
+
+```env
+OPENROUTER_API_KEY="sk-or-..."
+OPENROUTER_MODEL="qwen/qwen3-32b"
+```
+
+Optional overrides:
+
+```env
+OPENROUTER_FALLBACK_MODELS="deepseek/deepseek-chat-v3-0324,meta-llama/llama-3.3-70b-instruct,mistralai/mistral-small-3.1-24b-instruct"
+AI_CACHE_TTL_MS="300000"
+```
+
+For offline local development without OpenRouter:
+
+```env
+AI_PROVIDER="ollama"
+OLLAMA_BASE_URL="http://127.0.0.1:11434"
+OLLAMA_MODEL="llama3.2"
+```
+
+### Vercel production
+
+In **Project → Settings → Environment Variables**, set:
+
+| Variable | Value |
+|----------|--------|
+| `OPENROUTER_API_KEY` | Your OpenRouter API key |
+| `OPENROUTER_MODEL` | `qwen/qwen3-32b` (optional) |
+| `NEXT_PUBLIC_SITE_URL` | `https://www.eleve-visuals.com` |
+
+Redeploy after adding variables. No Gemini or Google AI credentials are required.
 
 ## Admin CMS
 
@@ -104,7 +149,7 @@ npm run test:e2e
 ## Production deployment (Vercel)
 
 1. Add a **Neon** or **Vercel Postgres** database.
-2. Set environment variables: `DATABASE_URL`, `AUTH_SECRET`, `ADMIN_PASSWORD`.
+2. Set environment variables: `DATABASE_URL`, `AUTH_SECRET`, `ADMIN_PASSWORD`, `OPENROUTER_API_KEY`.
 3. Add **Vercel Blob** — create a **Public** store, connect it to the project (sets `BLOB_READ_WRITE_TOKEN` automatically)
 4. Deploy — migrations run during build; content is **not** overwritten.
 

@@ -1,28 +1,22 @@
-import { getAIConfig } from "../config";
+import { getAIConfig, getOpenRouterModelChain, isAIConfigured } from "../config";
 import type { AIProvider, AIProviderId } from "../types";
-import { GeminiProvider } from "./gemini";
 import { OpenRouterProvider } from "./openrouter";
 import { OllamaProvider } from "./ollama";
+import { isOpenRouterConfigured } from "./openrouter-client";
 
 const instances: Partial<Record<AIProviderId, AIProvider>> = {};
 
 function createProvider(id: AIProviderId): AIProvider {
-  switch (id) {
-    case "gemini":
-      return new GeminiProvider();
-    case "openrouter":
-      return new OpenRouterProvider();
-    case "ollama":
-      return new OllamaProvider();
-  }
+  if (id === "openrouter") return new OpenRouterProvider();
+  return new OllamaProvider();
 }
 
-/** Returns configured provider, falling back through priority list */
+/** Returns the best configured provider adapter (OpenRouter preferred). */
 export function getAIProvider(preferred?: AIProviderId): AIProvider {
   const config = getAIConfig();
   const order: AIProviderId[] = preferred
-    ? [preferred, config.provider, "gemini", "openrouter", "ollama"]
-    : [config.provider, "gemini", "openrouter", "ollama"];
+    ? [preferred, config.provider, "openrouter", "ollama"]
+    : [config.provider, "openrouter", "ollama"];
 
   const seen = new Set<AIProviderId>();
   for (const id of order) {
@@ -33,16 +27,19 @@ export function getAIProvider(preferred?: AIProviderId): AIProvider {
     if (provider.isConfigured()) return provider;
   }
 
-  if (!instances.gemini) instances.gemini = new GeminiProvider();
-  return instances.gemini;
+  if (!instances.openrouter) instances.openrouter = new OpenRouterProvider();
+  return instances.openrouter;
 }
 
 export function getProviderStatus() {
   const config = getAIConfig();
+  const active = getAIProvider();
   return {
-    active: getAIProvider().id,
-    configured: getAIProvider().isConfigured(),
-    providers: (["gemini", "openrouter", "ollama"] as AIProviderId[]).map((id) => {
+    active: active.isConfigured() ? active.id : "rules",
+    configured: isAIConfigured(),
+    model: active.isConfigured() ? active.model : null,
+    modelChain: isOpenRouterConfigured() ? getOpenRouterModelChain() : [],
+    providers: (["openrouter", "ollama"] as AIProviderId[]).map((id) => {
       const p = createProvider(id);
       return { id, configured: p.isConfigured(), model: p.model };
     }),
