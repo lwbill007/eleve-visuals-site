@@ -4,47 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-const NAV_SECTIONS = [
-  {
-    label: "Overview",
-    items: [{ label: "Dashboard", href: "/admin" }],
-  },
-  {
-    label: "Content",
-    items: [
-      { label: "Homepage", href: "/admin/homepage" },
-      { label: "About", href: "/admin/about" },
-      { label: "Contact", href: "/admin/contact" },
-      { label: "Page Copy", href: "/admin/content" },
-      { label: "Settings", href: "/admin/settings" },
-      { label: "Media Library", href: "/admin/media" },
-    ],
-  },
-  {
-    label: "Collections",
-    items: [
-      { label: "Portfolio", href: "/admin/portfolio" },
-      { label: "Services", href: "/admin/services" },
-      { label: "ÉLEVÉ Sessions", href: "/admin/sessions" },
-      { label: "Testimonials", href: "/admin/testimonials" },
-    ],
-  },
-  {
-    label: "Inquiries",
-    items: [
-      { label: "Booking CRM", href: "/admin/submissions?type=booking" },
-      { label: "Applications", href: "/admin/applications" },
-      { label: "Contact Messages", href: "/admin/submissions?type=contact" },
-      { label: "All Submissions", href: "/admin/submissions" },
-      { label: "Booking Form", href: "/admin/booking" },
-    ],
-  },
-  {
-    label: "System",
-    items: [{ label: "Notifications", href: "/admin/notifications" }],
-  },
-];
+import { ADMIN_NAV } from "@/config/admin-nav";
+import { AdminCommandPalette, useCommandPalette } from "@/components/admin/os/AdminCommandPalette";
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
@@ -62,13 +23,12 @@ export function AdminShell({
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
+  const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
 
-  // Close the mobile drawer whenever the route changes.
   useEffect(() => {
     setNavOpen(false);
   }, [pathname]);
 
-  // Lock body scroll while the mobile drawer is open.
   useEffect(() => {
     if (navOpen) {
       document.body.style.overflow = "hidden";
@@ -86,7 +46,8 @@ export function AdminShell({
 
   return (
     <div className="min-h-screen bg-ink lg:flex">
-      {/* Mobile backdrop */}
+      <AdminCommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+
       {navOpen && (
         <button
           type="button"
@@ -98,43 +59,31 @@ export function AdminShell({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-stone/30 bg-ink transition-transform duration-300 ease-out",
-          "lg:static lg:z-auto lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-stone/20 bg-charcoal/95 backdrop-blur-xl transition-transform duration-300 ease-out lg:static lg:z-auto lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0",
           navOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex items-center justify-between p-6">
-          <div>
-            <Link href="/admin" className="font-display text-xl text-cream">
-              ÉLEVÉ Control
-            </Link>
-            <p className="mt-1 text-xs text-muted">Studio dashboard</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setNavOpen(false)}
-            aria-label="Close menu"
-            className="flex h-10 w-10 items-center justify-center text-2xl text-fog hover:text-cream lg:hidden"
-          >
-            ×
-          </button>
+        <div className="border-b border-stone/15 p-5">
+          <Link href="/admin" className="block">
+            <p className="font-display text-xl tracking-wide text-cream">ÉLEVÉ Control</p>
+            <p className="mt-0.5 text-[0.65rem] tracking-[0.2em] text-accent uppercase">Business OS</p>
+          </Link>
         </div>
-        <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
-          {NAV_SECTIONS.map((section) => (
+
+        <nav className="flex-1 space-y-5 overflow-y-auto px-2 py-4">
+          {ADMIN_NAV.map((section) => (
             <div key={section.label}>
-              <p className="mb-2 px-3 text-[0.6rem] tracking-[0.2em] text-muted uppercase">
-                {section.label}
-              </p>
+              <p className="mb-1.5 px-3 text-[0.55rem] tracking-[0.22em] text-muted uppercase">{section.label}</p>
               <div className="flex flex-col gap-0.5">
                 {section.items.map((item) => (
                   <Link
-                    key={item.href}
+                    key={item.href + item.label}
                     href={item.href}
                     className={cn(
-                      "rounded-sm px-3 py-2.5 text-sm transition-colors",
+                      "rounded-lg px-3 py-2 text-sm transition-all duration-200",
                       isActive(pathname, item.href)
-                        ? "bg-charcoal text-cream"
-                        : "text-fog hover:bg-charcoal/50 hover:text-cream"
+                        ? "bg-ink text-cream shadow-inner"
+                        : "text-fog hover:bg-ink/50 hover:text-cream"
                     )}
                   >
                     {item.label}
@@ -144,39 +93,50 @@ export function AdminShell({
             </div>
           ))}
         </nav>
-        <div className="border-t border-stone/20 p-4">
-          <Link href="/" className="mb-3 block text-sm text-fog hover:text-cream">
+
+        <div className="border-t border-stone/15 p-4">
+          <Link href="/" className="mb-3 block text-sm text-fog transition-colors hover:text-cream">
             ← View site
           </Link>
-          <button
-            type="button"
-            onClick={logout}
-            className="text-sm text-muted hover:text-cream"
-          >
+          <button type="button" onClick={logout} className="text-sm text-muted transition-colors hover:text-cream">
             Sign out
           </button>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-stone/30 bg-ink/95 px-4 py-3.5 backdrop-blur sm:px-6 sm:py-5 lg:px-10">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-stone/20 bg-ink/90 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
           <button
             type="button"
             onClick={() => setNavOpen(true)}
             aria-label="Open menu"
-            className="flex h-10 w-10 shrink-0 items-center justify-center border border-stone/50 text-fog hover:text-cream lg:hidden"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-stone/30 text-fog lg:hidden"
           >
-            <span className="flex flex-col gap-1">
-              <span className="block h-px w-5 bg-current" />
-              <span className="block h-px w-5 bg-current" />
-              <span className="block h-px w-5 bg-current" />
-            </span>
+            ☰
           </button>
-          <h1 className="min-w-0 flex-1 truncate font-display text-xl text-cream sm:text-2xl">
-            {title || "Dashboard"}
-          </h1>
+
+          <h1 className="min-w-0 flex-1 truncate font-display text-xl text-cream sm:text-2xl">{title || "Dashboard"}</h1>
+
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="hidden items-center gap-2 rounded-lg border border-stone/30 px-3 py-2 text-xs text-muted transition-colors hover:border-stone/50 hover:text-fog sm:flex"
+          >
+            <span>Search</span>
+            <kbd className="rounded border border-stone/40 px-1.5 py-0.5 text-[0.6rem]">⌘K</kbd>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            aria-label="Search"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-stone/30 text-fog sm:hidden"
+          >
+            ⌕
+          </button>
         </header>
-        <div className="min-w-0 p-4 sm:p-6 lg:p-10">{children}</div>
+
+        <div className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</div>
       </div>
     </div>
   );

@@ -243,6 +243,14 @@ input[type="file"] {
   .upload-progress-indeterminate {
     animation: upload-slide 1.4s ease-in-out infinite;
   }
+
+  @media print {
+    aside,
+    header,
+    .no-print {
+      display: none !important;
+    }
+  }
 }
 
 .checkbox-row {

@@ -3,177 +3,182 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
+import { ADMIN_QUICK_ACTIONS } from "@/config/admin-nav";
+import {
+  AdminActivityFeed,
+  AdminBarChart,
+  AdminMetricCard,
+  AdminPanel,
+} from "@/components/admin/os/AdminOSComponents";
 
-interface DashboardStats {
-  bookings: { total: number; pending: number; confirmed: number; completed: number };
-  applications: { total: number; new: number };
-  inquiries: { total: number; unread: number; contact: number };
-  content: {
-    portfolio: number;
-    portfolioPublished: number;
-    services: number;
-    servicesPublished: number;
-    testimonials: number;
-    sessions: number;
-    openApplications: number;
+interface DashboardOS {
+  metrics: {
+    revenue: { value: number; label: string; hint: string };
+    bookings: { value: number; pending: number };
+    leads: { value: number; thisMonth: number };
+    visitors: { value: number; week: number };
+    subscribers: { value: number; label: string };
+    applications: { value: number; pending: number };
+    returningClients: number;
+    conversionRate: number;
+    monthlyGrowth: number;
+    pendingTasks: number;
   };
-  analytics: { pageviews7d: number };
-  recentActivity: {
+  charts: {
+    bookingsByMonth: { month: string; value: number }[];
+    applicationsByMonth: { month: string; value: number }[];
+    leadsByMonth: { month: string; value: number }[];
+    visitorsByMonth: { month: string; value: number }[];
+    leadSources: { source: string; count: number }[];
+  };
+  activityFeed: {
     id: string;
-    type: string;
-    status: string;
+    label: string;
+    name?: string;
+    href: string;
     read: boolean;
-    name: string;
     createdAt: string;
   }[];
 }
 
-const QUICK_ACTIONS = [
-  { label: "New Portfolio Project", href: "/admin/portfolio", desc: "Add work to the archive" },
-  { label: "New Service", href: "/admin/services", desc: "Create or edit offerings" },
-  { label: "New Session Volume", href: "/admin/sessions", desc: "Launch a Sessions release" },
-  { label: "Review Inquiries", href: "/admin/submissions?type=booking", desc: "Booking CRM" },
-  { label: "Session Applications", href: "/admin/applications", desc: "Applicant pipeline" },
-  { label: "Edit Homepage", href: "/admin/homepage", desc: "Hero, stats, sections" },
-  { label: "Upload Media", href: "/admin/media", desc: "Central asset library" },
-  { label: "Site Settings", href: "/admin/settings", desc: "SEO, nav, contact" },
-];
-
-function activityLabel(type: string) {
-  if (type === "booking") return "Booking inquiry";
-  if (type === "session") return "Session application";
-  return "Contact message";
-}
-
-function activityHref(type: string) {
-  if (type === "session") return "/admin/applications";
-  return `/admin/submissions?type=${type === "contact" ? "contact" : type}`;
+function formatCurrency(n: number) {
+  if (n >= 1000) return `$${Math.round(n / 100) / 10}k`;
+  return n > 0 ? `$${n.toLocaleString()}` : "—";
 }
 
 export function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [data, setData] = useState<DashboardOS | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    adminFetch("/api/admin/stats")
+    adminFetch("/api/admin/os/dashboard")
       .then((res) => {
         if (!res.ok) throw new Error("Failed");
         return res.json();
       })
-      .then(setStats)
+      .then(setData)
       .catch(() => setError("Could not load dashboard."));
   }, []);
 
-  if (!stats) {
-    return <p className="text-fog">{error || "Loading dashboard..."}</p>;
+  if (!data) {
+    return <p className="text-fog">{error || "Loading command center…"}</p>;
   }
 
-  const metricCards = [
-    { label: "Total bookings", value: stats.bookings.total, href: "/admin/submissions?type=booking" },
-    { label: "Pending inquiries", value: stats.bookings.pending, href: "/admin/submissions?type=booking&status=new" },
-    { label: "Confirmed shoots", value: stats.bookings.confirmed, href: "/admin/submissions?type=booking&status=scheduled" },
-    { label: "Session applications", value: stats.applications.total, href: "/admin/applications" },
-    { label: "Pending review", value: stats.applications.new, href: "/admin/applications?status=pending_review" },
-    { label: "Unread messages", value: stats.inquiries.unread, href: "/admin/submissions" },
-    { label: "Active sessions", value: stats.content.sessions, href: "/admin/sessions" },
-    { label: "Open applications", value: stats.content.openApplications, href: "/admin/sessions" },
-  ];
-
-  const contentCards = [
-    { label: "Portfolio", value: `${stats.content.portfolioPublished}/${stats.content.portfolio}`, href: "/admin/portfolio" },
-    { label: "Services", value: `${stats.content.servicesPublished}/${stats.content.services}`, href: "/admin/services" },
-    { label: "Testimonials", value: stats.content.testimonials, href: "/admin/testimonials" },
-    { label: "7-day pageviews", value: stats.analytics.pageviews7d, href: "/admin" },
-  ];
+  const { metrics, charts, activityFeed } = data;
 
   return (
-    <div className="space-y-10">
-      {error && <p className="text-sm text-red-400">{error}</p>}
-
-      <p className="max-w-2xl text-sm text-fog">
-        ÉLEVÉ Control — your production CMS. Manage bookings, sessions, portfolio, services, and
-        site content from one place.
-      </p>
-
+    <div className="space-y-8">
       <div>
-        <h2 className="label-caps mb-4 text-muted">Operations</h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {metricCards.map((card) => (
-            <Link
-              key={card.label}
-              href={card.href}
-              className="border border-stone/30 p-5 transition-colors hover:border-accent/40 hover:bg-charcoal/20"
-            >
-              <p className="text-xs tracking-[0.12em] text-muted uppercase">{card.label}</p>
-              <p className="mt-2 font-display text-4xl text-cream">{card.value}</p>
-            </Link>
-          ))}
-        </div>
+        <p className="label-caps text-accent">Command Center</p>
+        <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Good to see you.</h2>
+        <p className="mt-2 max-w-2xl text-sm text-fog">
+          Your studio operating system — bookings, sessions, marketing, and performance in one place.
+        </p>
       </div>
 
-      <div>
-        <h2 className="label-caps mb-4 text-muted">Content & Traffic</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {contentCards.map((card) => (
-            <Link
-              key={card.label}
-              href={card.href}
-              className="border border-stone/30 p-5 transition-colors hover:border-stone/60"
-            >
-              <p className="text-xs tracking-[0.12em] text-muted uppercase">{card.label}</p>
-              <p className="mt-2 font-display text-3xl text-cream">{card.value}</p>
-            </Link>
-          ))}
-        </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <AdminMetricCard
+          label="Pipeline Value"
+          value={formatCurrency(metrics.revenue.value)}
+          hint={metrics.revenue.hint}
+          href="/admin/pipeline"
+        />
+        <AdminMetricCard
+          label="Bookings"
+          value={metrics.bookings.value}
+          hint={`${metrics.bookings.pending} pending`}
+          delta={metrics.monthlyGrowth}
+          href="/admin/submissions?type=booking"
+        />
+        <AdminMetricCard label="Leads" value={metrics.leads.value} hint={`${metrics.leads.thisMonth} this month`} href="/admin/crm" />
+        <AdminMetricCard
+          label="Visitors (30d)"
+          value={metrics.visitors.value.toLocaleString()}
+          hint={`${metrics.visitors.week} this week`}
+          href="/admin/analytics"
+        />
+        <AdminMetricCard
+          label="Contacts"
+          value={metrics.subscribers.value}
+          hint={metrics.subscribers.label}
+          href="/admin/crm"
+        />
+        <AdminMetricCard
+          label="Applications"
+          value={metrics.applications.value}
+          hint={`${metrics.applications.pending} pending review`}
+          href="/admin/applications"
+        />
+        <AdminMetricCard
+          label="Returning Clients"
+          value={metrics.returningClients}
+          href="/admin/crm"
+        />
+        <AdminMetricCard
+          label="Conversion"
+          value={`${metrics.conversionRate}%`}
+          hint="Inquiry page → submission"
+          href="/admin/analytics"
+        />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12">
-        <section className="border border-stone/30 p-6 lg:col-span-7">
-          <h2 className="font-display text-xl text-cream">Recent activity</h2>
-          <div className="mt-6 space-y-3">
-            {stats.recentActivity.length === 0 ? (
-              <p className="text-sm text-fog">No submissions yet.</p>
-            ) : (
-              stats.recentActivity.map((item) => (
-                <Link
-                  key={item.id}
-                  href={activityHref(item.type)}
-                  className={`flex items-center justify-between gap-4 border p-4 transition-colors hover:bg-charcoal/20 ${
-                    item.read ? "border-stone/20" : "border-accent/30 bg-charcoal/20"
-                  }`}
-                >
-                  <div>
-                    <p className="text-sm text-cream">
-                      {activityLabel(item.type)}
-                      {item.name && ` · ${item.name}`}
-                      {!item.read && <span className="ml-2 text-accent">New</span>}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {new Date(item.createdAt).toLocaleString()} · {item.status}
-                    </p>
-                  </div>
-                  <span className="text-xs text-accent">View →</span>
-                </Link>
-              ))
-            )}
-          </div>
-        </section>
+      {metrics.pendingTasks > 0 && (
+        <Link
+          href="/admin/pipeline"
+          className="flex items-center justify-between rounded-xl border border-accent/30 bg-accent/5 px-5 py-4 transition-colors hover:bg-accent/10"
+        >
+          <span className="text-sm text-cream">
+            <span className="font-medium text-accent">{metrics.pendingTasks}</span> pending tasks need attention
+          </span>
+          <span className="text-xs text-accent">Review →</span>
+        </Link>
+      )}
 
-        <section className="border border-stone/30 p-6 lg:col-span-5">
-          <h2 className="font-display text-xl text-cream">Quick actions</h2>
-          <div className="mt-6 grid gap-2">
-            {QUICK_ACTIONS.map((action) => (
+      <div className="grid gap-4 lg:grid-cols-2">
+        <AdminPanel title="Bookings by Month" subtitle="Last 6 months">
+          <AdminBarChart data={charts.bookingsByMonth} labelKey="month" valueKey="value" accent />
+        </AdminPanel>
+        <AdminPanel title="Session Applications" subtitle="Volume interest over time">
+          <AdminBarChart data={charts.applicationsByMonth} labelKey="month" valueKey="value" />
+        </AdminPanel>
+        <AdminPanel title="Website Visitors" subtitle="Pageviews by month">
+          <AdminBarChart data={charts.visitorsByMonth} labelKey="month" valueKey="value" />
+        </AdminPanel>
+        <AdminPanel title="Lead Sources" subtitle="Where bookings originate">
+          {charts.leadSources.length === 0 ? (
+            <p className="text-sm text-muted">No source data yet.</p>
+          ) : (
+            <ul className="space-y-3">
+              {charts.leadSources.map((s) => (
+                <li key={s.source} className="flex items-center justify-between gap-4 text-sm">
+                  <span className="truncate text-cream-dim">{s.source}</span>
+                  <span className="shrink-0 font-display text-lg text-cream">{s.count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminPanel>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-12">
+        <AdminPanel title="Recent Activity" subtitle="Latest business events" className="lg:col-span-7">
+          <AdminActivityFeed items={activityFeed} />
+        </AdminPanel>
+
+        <AdminPanel title="Quick Actions" subtitle="Move fast" className="lg:col-span-5">
+          <div className="grid gap-2">
+            {ADMIN_QUICK_ACTIONS.map((action) => (
               <Link
                 key={action.href + action.label}
                 href={action.href}
-                className="border border-stone/30 p-4 transition-colors hover:border-stone/60 hover:bg-charcoal/20"
+                className="rounded-lg border border-stone/20 px-4 py-3 transition-colors hover:border-accent/30 hover:bg-charcoal/30"
               >
                 <p className="text-sm text-cream">{action.label}</p>
-                <p className="mt-1 text-xs text-fog">{action.desc}</p>
+                <p className="mt-0.5 text-xs text-muted">{action.desc}</p>
               </Link>
             ))}
           </div>
-        </section>
+        </AdminPanel>
       </div>
     </div>
   );
