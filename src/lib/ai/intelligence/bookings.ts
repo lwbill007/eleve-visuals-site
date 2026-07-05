@@ -4,7 +4,7 @@ import { buildSalesRecommendations } from "./business-operator";
 import { getCached, setCache } from "../cache";
 import type { BookingIntelligence } from "../types";
 
-const CACHE_KEY = "booking-intelligence-v4";
+const CACHE_KEY = "booking-intelligence-v5";
 
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;

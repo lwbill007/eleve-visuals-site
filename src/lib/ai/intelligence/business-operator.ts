@@ -392,7 +392,7 @@ export async function getMarketingRecommendations(): Promise<MarketingRecommenda
       priority: "high",
       actions: [
         action("draft-email", "Create Campaign", "email_clients", "/admin/email?focus=re-engage"),
-        action("gen-email", "Generate Copy", "create_campaign", "/admin/marketing?focus=follow_up", {
+        action("gen-email", "Generate Copy", "create_campaign", "/admin/marketing?task=follow_up", {
           task: "follow_up",
         }),
       ],
@@ -517,8 +517,8 @@ export function buildSalesRecommendations(input: SalesRecommendationInput): Sale
       detail: `${stale} open ${stale === 1 ? "inquiry" : "inquiries"} idle 3+ days — follow up within 24 hours`,
       impact: "high",
       actions: [
-        action("booking-ai", "Booking Assistant", "navigate", "/admin/bookings-ai"),
-        action("follow-up", "Open Pipeline", "navigate", "/admin/pipeline"),
+        action("pipeline", "Open Pipeline", "navigate", "/admin/pipeline"),
+        action("submissions", "View Inquiries", "navigate", "/admin/submissions?type=booking"),
       ],
     });
   }

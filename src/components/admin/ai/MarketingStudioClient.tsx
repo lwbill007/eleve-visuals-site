@@ -23,6 +23,7 @@ const CHANNELS = [
   { task: "launch_campaign" as const, label: "Launch Campaign", prompt: "Write a Vol. 2 ÉLEVÉ Sessions launch campaign across channels." },
   { task: "threads_post" as const, label: "Threads", prompt: "Write a Threads post about upcoming sessions." },
   { task: "campaign" as const, label: "Re-engagement", prompt: "Write a re-engagement campaign for inactive clients." },
+  { task: "follow_up" as const, label: "Follow-Up Email", prompt: "Write a personal follow-up email for booking inquiries awaiting a response." },
 ];
 
 export function MarketingStudioClient() {

@@ -158,7 +158,7 @@ export function BookingAssistantPanel() {
                 id: "recover-email",
                 label: "Email Campaign",
                 type: "email_clients",
-                href: "/admin/marketing?focus=follow_up",
+                href: "/admin/marketing?task=follow_up",
                 task: "follow_up",
               },
             ]}
