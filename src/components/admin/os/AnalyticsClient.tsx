@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
+import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import {
   AdminBarChart,
   AdminMetricCard,
@@ -23,6 +25,7 @@ interface AnalyticsData {
 }
 
 export function AnalyticsClient() {
+  useSetAIPage("analytics");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [days, setDays] = useState(30);
 
@@ -112,6 +115,22 @@ export function AnalyticsClient() {
         <p className="mt-4 text-sm text-muted">
           Funnel drop-off analysis coming soon. Current conversion rate: {data.totals.conversionRate}%.
         </p>
+      </AdminPanel>
+
+      <AdminPanel title="AI Analysis" subtitle="ÉLEVÉ AI explains your numbers">
+        <AIGeneratePanel
+          task="analytics_explain"
+          label="Analytics insight"
+          prompt="Explain this analytics data with summary, trend, reason, recommendation, opportunity, and risk."
+          context={{
+            periodDays: data.periodDays,
+            totals: data.totals,
+            conversions: data.conversions,
+            topPages: data.topPages,
+            topSources: data.topSources,
+          }}
+          buttonLabel="Explain with AI"
+        />
       </AdminPanel>
     </div>
   );

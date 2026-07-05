@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
+import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
+import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminPageHeader, AdminPanel, AdminStatusBadge } from "@/components/admin/os/AdminOSComponents";
 
 interface Contact {
@@ -22,6 +25,7 @@ interface Contact {
 }
 
 export function CRMClient() {
+  useSetAIPage("crm");
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -49,6 +53,7 @@ export function CRMClient() {
         eyebrow="Revenue"
         title="CRM"
         description="Every person who has interacted with ÉLEVÉ — unified from bookings, applications, and contact forms."
+        action={<AskAIButton />}
       />
 
       <div className="mb-6">
@@ -83,9 +88,11 @@ export function CRMClient() {
               {filtered.map((c) => (
                 <tr key={c.id} className="border-b border-stone/10 transition-colors hover:bg-charcoal/20">
                   <td className="px-4 py-4">
-                    <p className="font-medium text-cream">{c.name || "—"}</p>
-                    <p className="text-xs text-muted">{c.email}</p>
-                    {c.instagram && <p className="text-xs text-fog">@{c.instagram.replace(/^@/, "")}</p>}
+                    <Link href={`/admin/crm/${encodeURIComponent(c.email)}`} className="block group">
+                      <p className="font-medium text-cream group-hover:text-accent">{c.name || "—"}</p>
+                      <p className="text-xs text-muted">{c.email}</p>
+                      {c.instagram && <p className="text-xs text-fog">@{c.instagram.replace(/^@/, "")}</p>}
+                    </Link>
                   </td>
                   <td className="px-4 py-4">
                     <AdminStatusBadge status={c.status} />
@@ -100,6 +107,21 @@ export function CRMClient() {
           </table>
         </div>
       )}
+
+      <AdminPanel title="AI CRM" subtitle="Generate follow-ups and offers — always review before sending">
+        <AIGeneratePanel
+          task="follow_up"
+          label="Follow-up email"
+          prompt="Write a re-engagement email for inactive photography clients who haven't booked in 6 months."
+          buttonLabel="Generate re-engagement email"
+        />
+        <AIGeneratePanel
+          task="campaign"
+          label="Upsell campaign"
+          prompt="Write a campaign promoting portrait sessions to past clients with a luxury ÉLEVÉ tone."
+          buttonLabel="Generate upsell campaign"
+        />
+      </AdminPanel>
 
       <p className="mt-6 text-xs text-muted">
         Need full inquiry detail?{" "}

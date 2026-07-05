@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { AdminMetricCard, AdminPageHeader, AdminPanel, AdminBarChart } from "@/components/admin/os/AdminOSComponents";
 
 export function SessionsHubClient() {
@@ -69,6 +70,27 @@ export function SessionsHubClient() {
           <p className="mt-1 text-sm text-muted">Themes, cast, galleries, featured video, and timeline.</p>
         </Link>
       </div>
+
+      <AdminPanel title="AI Sessions Assistant" subtitle="Applications, schedules, and participant communications">
+        <AIGeneratePanel
+          task="session_email"
+          label="Acceptance email"
+          prompt="Write a warm acceptance email for an ÉLEVÉ Sessions participant with shoot date placeholder and next steps."
+          buttonLabel="Generate acceptance email"
+        />
+        <AIGeneratePanel
+          task="session_email"
+          label="Rejection email"
+          prompt="Write a gracious rejection email for an ÉLEVÉ Sessions applicant, encouraging future applications."
+          buttonLabel="Generate rejection email"
+        />
+        <AIGeneratePanel
+          task="general"
+          label="Shoot checklist"
+          prompt="Create a pre-shoot checklist for an ÉLEVÉ Sessions volume day including call sheet items."
+          buttonLabel="Generate checklist"
+        />
+      </AdminPanel>
     </div>
   );
 }

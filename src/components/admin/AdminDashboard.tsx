@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { ADMIN_QUICK_ACTIONS } from "@/config/admin-nav";
+import { AIDailyBriefingPanel } from "@/components/admin/ai/AIDailyBriefingPanel";
+import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import {
   AdminActivityFeed,
   AdminBarChart,
@@ -47,6 +49,7 @@ function formatCurrency(n: number) {
 }
 
 export function AdminDashboard() {
+  useSetAIPage("dashboard");
   const [data, setData] = useState<DashboardOS | null>(null);
   const [error, setError] = useState("");
 
@@ -68,6 +71,8 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-8">
+      <AIDailyBriefingPanel />
+
       <div>
         <p className="label-caps text-accent">Command Center</p>
         <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Good to see you.</h2>

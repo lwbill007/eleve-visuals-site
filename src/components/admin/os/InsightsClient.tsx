@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AIBriefingPanel } from "@/components/admin/ai/AIBriefingPanel";
+import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +18,7 @@ interface Insight {
 }
 
 export function InsightsClient() {
+  useSetAIPage("insights");
   const [insights, setInsights] = useState<Insight[]>([]);
   const [generatedAt, setGeneratedAt] = useState("");
 
@@ -41,6 +44,8 @@ export function InsightsClient() {
         title="Business Insights"
         description="Data-driven recommendations to grow bookings, applications, and repeat clients."
       />
+
+      <AIBriefingPanel />
 
       {generatedAt && (
         <p className="text-xs text-muted">Updated {new Date(generatedAt).toLocaleString()}</p>

@@ -17,6 +17,7 @@ import {
   type SessionVolumeDTO,
 } from "@/lib/types";
 import { formatApplicationId } from "@/lib/session-application";
+import { ApplicationRankingPanel } from "@/components/admin/ai/ApplicationRankingPanel";
 import { cn } from "@/lib/utils";
 
 interface ApplicationRow {
@@ -217,6 +218,8 @@ export default function ApplicationsClient() {
           </div>
         </div>
       )}
+
+      <ApplicationRankingPanel volumeId={volumeFilter || undefined} />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] xl:items-center">
         <input

@@ -6,6 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ADMIN_NAV } from "@/config/admin-nav";
 import { AdminCommandPalette, useCommandPalette } from "@/components/admin/os/AdminCommandPalette";
+import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
+import { AINotificationsBell } from "@/components/admin/ai/AINotificationsBell";
+import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
@@ -24,6 +27,8 @@ export function AdminShell({
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
+
+  useSetAIPage(resolvePageContext(pathname));
 
   useEffect(() => {
     setNavOpen(false);
@@ -117,12 +122,15 @@ export function AdminShell({
 
           <h1 className="min-w-0 flex-1 truncate font-display text-xl text-cream sm:text-2xl">{title || "Dashboard"}</h1>
 
+          <AskAIButton className="hidden sm:inline-flex" />
+          <AINotificationsBell />
+
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
             className="hidden items-center gap-2 rounded-lg border border-stone/30 px-3 py-2 text-xs text-muted transition-colors hover:border-stone/50 hover:text-fog sm:flex"
           >
-            <span>Search</span>
+            <span>Command</span>
             <kbd className="rounded border border-stone/40 px-1.5 py-0.5 text-[0.6rem]">⌘K</kbd>
           </button>
 
@@ -140,4 +148,25 @@ export function AdminShell({
       </div>
     </div>
   );
+}
+
+function resolvePageContext(pathname: string) {
+  if (pathname === "/admin") return "dashboard" as const;
+  if (pathname.startsWith("/admin/crm/")) return "crm_profile" as const;
+  if (pathname.startsWith("/admin/crm")) return "crm" as const;
+  if (pathname.startsWith("/admin/pipeline")) return "pipeline" as const;
+  if (pathname.startsWith("/admin/analytics")) return "analytics" as const;
+  if (pathname.startsWith("/admin/marketing")) return "marketing" as const;
+  if (pathname.startsWith("/admin/email")) return "email" as const;
+  if (pathname.startsWith("/admin/portfolio")) return "portfolio" as const;
+  if (pathname.startsWith("/admin/applications")) return "applications" as const;
+  if (pathname.startsWith("/admin/sessions")) return "sessions" as const;
+  if (pathname.startsWith("/admin/sponsorship")) return "sponsorship" as const;
+  if (pathname.startsWith("/admin/automations")) return "automations" as const;
+  if (pathname.startsWith("/admin/reports")) return "reports" as const;
+  if (pathname.startsWith("/admin/insights")) return "insights" as const;
+  if (pathname.startsWith("/admin/assistant")) return "assistant" as const;
+  if (pathname.includes("booking") || pathname.startsWith("/admin/submissions?type=booking"))
+    return "bookings" as const;
+  return "general" as const;
 }

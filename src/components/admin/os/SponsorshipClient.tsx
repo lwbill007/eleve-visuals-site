@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { AdminMetricCard, AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
 
 export function SponsorshipClient() {
@@ -56,6 +57,23 @@ export function SponsorshipClient() {
             </li>
           ))}
         </ul>
+      </AdminPanel>
+
+      <AdminPanel title="AI Sponsor Assistant" subtitle="Export-ready sponsor narratives — review before sharing">
+        <AIGeneratePanel
+          task="sponsor_report"
+          label="Sponsor report"
+          prompt="Write a sponsor report summarizing audience growth, engagement, and brand alignment for ÉLEVÉ Visuals."
+          context={data}
+          buttonLabel="Generate sponsor report"
+        />
+        <AIGeneratePanel
+          task="general"
+          label="Sponsorship proposal"
+          prompt="Draft a sponsorship proposal highlighting demographics, session community, and content reach."
+          context={data}
+          buttonLabel="Generate proposal"
+        />
       </AdminPanel>
     </div>
   );

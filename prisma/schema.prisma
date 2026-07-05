@@ -257,6 +257,67 @@ model SessionVolume {
   @@index([volumeNumber])
 }
 
+model AIMemory {
+  id        String   @id @default(cuid())
+  category  String
+  key       String
+  value     String   @default("{}")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([category, key])
+  @@index([category])
+}
+
+model AIConversation {
+  id        String   @id @default(cuid())
+  page      String   @default("")
+  context   String   @default("{}")
+  messages  String   @default("[]")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([page, updatedAt])
+}
+
+model AIAutomation {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  trigger     String   @default("{}")
+  steps       String   @default("[]")
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([enabled])
+}
+
+model AINotification {
+  id        String   @id @default(cuid())
+  type      String
+  severity  String   @default("medium")
+  title     String
+  detail    String   @default("")
+  href      String   @default("")
+  metric    String   @default("")
+  read      Boolean  @default(false)
+  dismissed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([read, dismissed, createdAt])
+}
+
+model AICache {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  payload   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 model CastMember {
   id                   String   @id @default(cuid())
   volumeId             String

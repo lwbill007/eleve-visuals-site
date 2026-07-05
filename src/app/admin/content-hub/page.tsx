@@ -1,5 +1,7 @@
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminModuleScaffold } from "@/components/admin/os/AdminModuleScaffold";
+import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
+import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 
 export default function AdminContentHubPage() {
   return (
@@ -22,6 +24,12 @@ export default function AdminContentHubPage() {
           { label: "ÉLEVÉ Sessions", href: "/admin/sessions", desc: "Volume galleries & BTS" },
         ]}
       />
+      <AdminPanel title="AI Content Studio" subtitle="ÉLEVÉ brand voice — review before publishing" className="mt-8">
+        <AIGeneratePanel task="instagram_caption" label="Instagram" prompt="Write an Instagram caption for a new cinematic portrait gallery with luxury ÉLEVÉ tone." />
+        <AIGeneratePanel task="blog_post" label="Blog" prompt="Write a blog post about the creative process behind ÉLEVÉ Sessions Vol. 1." />
+        <AIGeneratePanel task="seo_meta" label="SEO" prompt="Write SEO title and meta description for the portfolio page." />
+        <AIGeneratePanel task="alt_text" label="Alt text" prompt="Write alt text for a dramatic black-and-white portrait in a studio setting." />
+      </AdminPanel>
     </AdminShell>
   );
 }

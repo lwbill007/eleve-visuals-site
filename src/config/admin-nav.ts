@@ -14,9 +14,10 @@ export const ADMIN_NAV: AdminNavSection[] = [
     label: "Command Center",
     items: [
       { label: "Dashboard", href: "/admin", desc: "Business overview" },
+      { label: "ÉLEVÉ AI", href: "/admin/assistant", desc: "Business assistant" },
       { label: "AI Insights", href: "/admin/insights", desc: "Recommended actions" },
       { label: "Analytics", href: "/admin/analytics", desc: "Traffic & conversions" },
-      { label: "Reports", href: "/admin/reports", desc: "Export business data" },
+      { label: "Reports", href: "/admin/reports", desc: "AI business intelligence" },
     ],
   },
   {
@@ -24,6 +25,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
     items: [
       { label: "Lead Pipeline", href: "/admin/pipeline", desc: "Kanban CRM" },
       { label: "CRM", href: "/admin/crm", desc: "Client profiles" },
+      { label: "Booking Assistant", href: "/admin/bookings-ai", desc: "Forecasts & pricing" },
       { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Booking inquiries" },
       { label: "Referrals", href: "/admin/referrals", desc: "Ambassador program" },
     ],
@@ -31,6 +33,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
   {
     label: "Marketing",
     items: [
+      { label: "Marketing Studio", href: "/admin/marketing", desc: "AI content generation" },
       { label: "Email", href: "/admin/email", desc: "Campaigns & templates" },
       { label: "Automations", href: "/admin/automations", desc: "Workflow builder" },
       { label: "Forms", href: "/admin/forms", desc: "Intake forms" },

@@ -1,5 +1,7 @@
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminModuleScaffold } from "@/components/admin/os/AdminModuleScaffold";
+import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
+import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 
 export default function AdminEmailPage() {
   return (
@@ -22,6 +24,11 @@ export default function AdminEmailPage() {
           { label: "Automations", href: "/admin/automations", desc: "Welcome sequences & nurture flows" },
         ]}
       />
+      <AdminPanel title="AI Email Studio" subtitle="Generate drafts — review before sending" className="mt-8">
+        <AIGeneratePanel task="email_subject" label="Subject lines" prompt="Write subject lines for a newsletter announcing new portfolio work." />
+        <AIGeneratePanel task="email_body" label="Newsletter" prompt="Write a luxury newsletter for ÉLEVÉ Visuals subscribers highlighting recent sessions work." />
+        <AIGeneratePanel task="campaign" label="Re-engagement" prompt="Write a re-engagement campaign for clients who haven't booked in 6 months." />
+      </AdminPanel>
     </AdminShell>
   );
 }
