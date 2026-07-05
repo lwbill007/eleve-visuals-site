@@ -15,6 +15,7 @@ import {
   RiskCard,
   TransparencyPanel,
 } from "@/components/admin/os/ExecutiveIntelligenceComponents";
+import { ExecutiveSynthesisPanel } from "@/components/admin/ai/ExecutiveSynthesisPanel";
 
 const KIND_COLORS: Record<string, string> = {
   fact: "text-emerald-400",
@@ -88,6 +89,12 @@ export function ExecutiveCommandCenter({ os }: { os: ExecutiveOS }) {
       <section className="os-glass rounded-2xl border border-accent/30 p-6">
         <p className="label-caps text-accent">Executive Intelligence System</p>
         <p className="mt-2 max-w-3xl text-sm text-fog">{cc.morningBriefing}</p>
+        {os.embeddingStats && (
+          <p className="mt-2 text-[0.65rem] text-muted">
+            Semantic memory: {os.embeddingStats.chunks} chunks · {os.embeddingStats.memories} memories ·{" "}
+            {os.embeddingStats.mode} embeddings
+          </p>
+        )}
         <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-9">
           <HealthPill label="Business" value={cc.businessHealth} />
           <HealthPill label="Marketing" value={cc.marketingHealth} />
@@ -100,6 +107,8 @@ export function ExecutiveCommandCenter({ os }: { os: ExecutiveOS }) {
           <HealthPill label="Operations" value={cc.operationsHealth} />
         </div>
       </section>
+
+      {os.synthesis && <ExecutiveSynthesisPanel synthesis={os.synthesis} />}
 
       {cc.urgentAlerts.length > 0 && (
         <AdminPanel title="Urgent alerts" subtitle="Requires attention today">

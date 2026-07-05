@@ -71,6 +71,12 @@ export async function PUT(
     });
 
     revalidateSessionPages(data.slug);
+
+    if (data.published) {
+      const { triggerIntelligenceRefreshBackground } = await import("@/lib/ai/memory/knowledge/trigger");
+      triggerIntelligenceRefreshBackground("session_publish");
+    }
+
     return NextResponse.json(mapSessionVolume(item));
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

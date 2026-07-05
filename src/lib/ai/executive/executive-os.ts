@@ -14,6 +14,9 @@ import { buildDecisionEngineContext } from "./decision-engine";
 import { getSelfImprovementLessons } from "./self-improvement";
 import { strengthenKnowledgeGraph, getKnowledgeGraphStats } from "./graph-builder";
 import { syncBusinessMemory } from "../memory/sync";
+import { synthesizeExecutiveBriefing } from "./synthesizer";
+import { getAllExecutiveOpportunities } from "../intelligence/website-opportunities";
+import { getEmbeddingStats } from "../memory/embeddings";
 import type { ExecutiveOS, CommandCenterState } from "./types";
 import { EXECUTIVE_MISSION } from "./types";
 
@@ -22,7 +25,7 @@ function scoreVal(scores: { key: string; value: number }[], key: string, fallbac
 }
 
 export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
-  const cacheKey = "executive-os-v1";
+  const cacheKey = "executive-os-v2";
   if (!force) {
     const cached = await getCached<ExecutiveOS>(cacheKey);
     if (cached) return cached;
@@ -40,6 +43,8 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     selfImprovement,
     graphStats,
     metrics,
+    allOpportunities,
+    embeddingStats,
   ] = await Promise.all([
     getExecutiveIntelligence(force),
     getAIDailyBriefing(force),
@@ -57,7 +62,15 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     getSelfImprovementLessons(10),
     force ? strengthenKnowledgeGraph() : getKnowledgeGraphStats(),
     getOperatorMetrics(),
+    getAllExecutiveOpportunities(),
+    getEmbeddingStats(),
   ]);
+
+  const synthesis = synthesizeExecutiveBriefing({
+    roles,
+    intelligence: { ...intelligence, opportunities: allOpportunities },
+    opportunities: allOpportunities,
+  });
 
   const cmoRole = roles.find((r) => r.id === "cmo");
   void cmoRole;
@@ -94,7 +107,7 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
   }
 
   const commandCenter: CommandCenterState = {
-    morningBriefing: briefing.summary,
+    morningBriefing: synthesis.narrative || briefing.summary,
     businessHealth: scoreVal(execScores, "businessHealth"),
     marketingHealth: scoreVal(execScores, "marketing"),
     salesHealth: scoreVal(execScores, "sales"),
@@ -104,24 +117,38 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     brandHealth: scoreVal(execScores, "brand"),
     clientHealth: scoreVal(execScores, "clientExperience"),
     operationsHealth: scoreVal(execScores, "operations"),
-    topOpportunity: intelligence.opportunities[0] ?? null,
+    topOpportunity: allOpportunities[0] ?? intelligence.opportunities[0] ?? null,
     topRisk: intelligence.risks[0] ?? null,
-    highestRoiTask: briefing.executive.highestRoiAction
+    highestRoiTask: synthesis.topPriorities[0]
       ? {
-          title: briefing.executive.highestRoiAction.title,
-          why: briefing.executive.highestRoiAction.why,
-          revenueImpact: briefing.executive.highestRoiAction.revenueImpact,
-          href: briefing.executive.highestRoiAction.href,
-          confidence: 0.85,
+          title: synthesis.topPriorities[0].title,
+          why: synthesis.topPriorities[0].why,
+          revenueImpact: synthesis.topPriorities[0].expectedRevenue,
+          href: synthesis.topPriorities[0].href,
+          confidence: synthesis.topPriorities[0].confidence,
         }
-      : null,
-    highestPriorityTask: roles[0]
+      : briefing.executive.highestRoiAction
+        ? {
+            title: briefing.executive.highestRoiAction.title,
+            why: briefing.executive.highestRoiAction.why,
+            revenueImpact: briefing.executive.highestRoiAction.revenueImpact,
+            href: briefing.executive.highestRoiAction.href,
+            confidence: 0.85,
+          }
+        : null,
+    highestPriorityTask: synthesis.topPriorities[0]
       ? {
-          title: roles[0].topPriority,
-          href: roles[0].href,
-          urgency: urgentAlerts.length > 0 ? "urgent" : "normal",
+          title: synthesis.topPriorities[0].title,
+          href: synthesis.topPriorities[0].href,
+          urgency: synthesis.topPriorities[0].urgency,
         }
-      : null,
+      : roles[0]
+        ? {
+            title: roles[0].topPriority,
+            href: roles[0].href,
+            urgency: urgentAlerts.length > 0 ? "urgent" : "normal",
+          }
+        : null,
     urgentAlerts,
     scores: execScores,
   };
@@ -131,19 +158,23 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     mission: [...EXECUTIVE_MISSION],
     roles,
     commandCenter,
-    intelligence,
+    intelligence: { ...intelligence, opportunities: allOpportunities },
+    synthesis,
     cmoBriefing: briefing.cmo,
     decisionContext,
     predictions,
     automationQueue: intelligence.executionDrafts,
     selfImprovement,
     knowledgeGraph: graphStats,
+    embeddingStats,
     transparency: {
       dataSources: [
         ...intelligence.transparency.dataSources,
         "Executive role modules (7 directors)",
         "Decision engine cross-checks",
         "Knowledge graph (AIMemory + relations)",
+        `Semantic index (${embeddingStats.chunks} chunks, ${embeddingStats.mode} embeddings)`,
+        "Multi-director synthesis engine",
       ],
       facts: decisionContext.facts,
       predictions: [...decisionContext.predictions, ...predictions.map((p) => `${p.label}: ${p.predicted}`)],

@@ -37,7 +37,7 @@ export function MarketingStudioClient() {
   const [recommendations, setRecommendations] = useState<MarketingRecommendation[]>([]);
   const [cmo, setCmo] = useState<CMOIntelligence | null>(null);
   const [loadingCmo, setLoadingCmo] = useState(true);
-  const [activeTab, setActiveTab] = useState<"command" | "create" | "campaigns" | "learn">("command");
+  const [activeTab, setActiveTab] = useState<"command" | "create" | "calendar" | "campaigns" | "learn">("command");
   const initialIndex = focusTask ? CHANNELS.findIndex((c) => c.task === focusTask) : 0;
   const [active, setActive] = useState(initialIndex >= 0 ? initialIndex : 0);
   const channel = CHANNELS[active];
@@ -99,6 +99,7 @@ export function MarketingStudioClient() {
           [
             ["command", "Command Center"],
             ["create", "Create"],
+            ["calendar", "Content Calendar"],
             ["campaigns", "Campaign Memory"],
             ["learn", "Learning & Tests"],
           ] as const
@@ -150,9 +151,50 @@ export function MarketingStudioClient() {
         </>
       )}
 
+      {activeTab === "calendar" && <ContentCalendarPanel />}
+
       {activeTab === "campaigns" && <CampaignMemoryPanel cmo={cmo} />}
       {activeTab === "learn" && <LearningPanel cmo={cmo} />}
     </div>
+  );
+}
+
+function ContentCalendarPanel() {
+  const [calendar, setCalendar] = useState<{
+    month: string;
+    theme: string;
+    items: { date: string; channel: string; title: string; hook: string; cta: string; rationale: string; confidence: number }[];
+    provider: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    adminFetch("/api/admin/ai/content-calendar?ai=1")
+      .then((r) => r.json())
+      .then(setCalendar)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p className="text-fog">Building content calendar from live analytics…</p>;
+  if (!calendar) return <p className="text-fog">Could not load calendar.</p>;
+
+  return (
+    <AdminPanel title={`Content calendar · ${calendar.month}`} subtitle={calendar.theme}>
+      <div className="space-y-3">
+        {calendar.items.map((item) => (
+          <div key={`${item.date}-${item.title}`} className="rounded-lg border border-stone/20 p-4">
+            <p className="text-[0.6rem] uppercase text-accent">
+              {item.date} · {item.channel}
+            </p>
+            <p className="mt-1 text-sm text-cream">{item.title}</p>
+            <p className="mt-1 text-xs text-fog">{item.hook}</p>
+            <p className="mt-1 text-xs text-muted">CTA: {item.cta}</p>
+            <p className="mt-2 text-xs text-fog">{item.rationale}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-[0.65rem] text-muted">Generated via {calendar.provider}</p>
+    </AdminPanel>
   );
 }
 

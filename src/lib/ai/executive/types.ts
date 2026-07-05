@@ -8,6 +8,7 @@ import type {
   ExecutionDraft,
 } from "../types";
 import type { CMODailyBriefing } from "../marketing/types";
+import type { SynthesizedExecutiveBriefing } from "./synthesizer";
 
 export type ExecutiveRoleId =
   | "ceo"
@@ -103,12 +104,14 @@ export interface ExecutiveOS {
   roles: ExecutiveRoleBrief[];
   commandCenter: CommandCenterState;
   intelligence: ExecutiveIntelligence;
+  synthesis: SynthesizedExecutiveBriefing;
   cmoBriefing?: CMODailyBriefing;
   decisionContext: DecisionEngineContext;
   predictions: ExecutiveForecast[];
   automationQueue: ExecutionDraft[];
   selfImprovement: SelfImprovementLesson[];
   knowledgeGraph: KnowledgeGraphStats;
+  embeddingStats?: { chunks: number; memories: number; mode: "api" | "local" };
   transparency: {
     dataSources: string[];
     facts: string[];

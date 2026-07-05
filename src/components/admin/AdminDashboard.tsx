@@ -6,6 +6,8 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { ADMIN_QUICK_ACTIONS } from "@/config/admin-nav";
 import { useBriefingOptional } from "@/components/admin/ai/BriefingProvider";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
+import { ExecutiveSynthesisPanel } from "@/components/admin/ai/ExecutiveSynthesisPanel";
+import type { ExecutiveOS } from "@/lib/ai/executive/types";
 import {
   ExecutiveDashboardSkeleton,
   ExecutiveQuickLink,
@@ -63,6 +65,7 @@ export function AdminDashboard() {
   useSetAIPage("dashboard");
   const briefingCtx = useBriefingOptional();
   const [data, setData] = useState<DashboardOS | null>(null);
+  const [executiveOs, setExecutiveOs] = useState<ExecutiveOS | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -73,6 +76,11 @@ export function AdminDashboard() {
       })
       .then(setData)
       .catch(() => setError("Could not load command center."));
+
+    adminFetch("/api/admin/ai/executive-os")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((os) => os && setExecutiveOs(os as ExecutiveOS))
+      .catch(() => {});
   }, []);
 
   const briefing = briefingCtx?.briefing;
@@ -94,12 +102,16 @@ export function AdminDashboard() {
       <div>
         <p className="label-caps text-accent">ÉLEVÉ OS</p>
         <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Executive Command Center</h2>
-        {briefing && (
+        {executiveOs?.synthesis?.headline ? (
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-fog">{executiveOs.synthesis.headline}</p>
+        ) : briefing ? (
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-fog">{briefing.summary}</p>
-        )}
+        ) : null}
       </div>
 
-      {executive?.highestRoiAction && (
+      {executiveOs?.synthesis && <ExecutiveSynthesisPanel synthesis={executiveOs.synthesis} />}
+
+      {executive?.highestRoiAction && !executiveOs?.synthesis && (
         <HighestRoiBanner {...executive.highestRoiAction} />
       )}
 

@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   const body = await request.json();
   const message = String(body.message || "").trim();
   const history = Array.isArray(body.history) ? (body.history as AIMessage[]) : [];
+  const role = typeof body.role === "string" ? body.role : undefined;
 
   if (!message) {
     return Response.json({ error: "Message required" }, { status: 400 });
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of streamAIChat(message, history)) {
+        for await (const chunk of streamAIChat(message, history, { role })) {
           if (chunk.type === "text" && chunk.text) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk.text })}\n\n`));
           }

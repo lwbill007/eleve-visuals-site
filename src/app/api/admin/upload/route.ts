@@ -101,6 +101,8 @@ export async function POST(request: Request) {
       }
 
       console.log("[upload-api] success", { url: blobUrl });
+      const { triggerIntelligenceRefreshBackground } = await import("@/lib/ai/memory/knowledge/trigger");
+      triggerIntelligenceRefreshBackground("portfolio_upload");
       return NextResponse.json({ url: blobUrl });
     }
 
@@ -127,6 +129,8 @@ export async function POST(request: Request) {
     }
 
     console.log("[upload-api] local success", { url: localUrl });
+    const { triggerIntelligenceRefreshBackground } = await import("@/lib/ai/memory/knowledge/trigger");
+    triggerIntelligenceRefreshBackground("portfolio_upload");
     return NextResponse.json({ url: localUrl });
   } catch (error) {
     console.error("Upload error:", error);

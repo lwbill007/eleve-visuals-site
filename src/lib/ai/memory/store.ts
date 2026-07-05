@@ -118,6 +118,9 @@ export async function writeMemory(input: MemoryWriteInput): Promise<MemoryRecord
     input.reason ?? ""
   );
 
+  const { indexMemoryEmbeddingBackground } = await import("./embeddings");
+  indexMemoryEmbeddingBackground(record);
+
   return record;
 }
 

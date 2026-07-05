@@ -236,6 +236,24 @@ export function MemoryCenterClient() {
           >
             {syncing ? "Syncing…" : "Sync metrics"}
           </button>
+          <button
+            type="button"
+            disabled={syncing}
+            onClick={async () => {
+              setSyncing(true);
+              const res = await adminFetch("/api/admin/ai/embeddings/reindex", { method: "POST" });
+              const data = res.ok ? await res.json() : null;
+              setMessage(
+                data
+                  ? `Semantic index updated — ${data.chunks} chunks across ${data.indexed} memories.`
+                  : "Embedding reindex failed."
+              );
+              setSyncing(false);
+            }}
+            className="rounded-xl border border-stone/30 px-4 py-2 text-[0.65rem] tracking-[0.1em] text-fog uppercase hover:border-accent disabled:opacity-50"
+          >
+            Reindex embeddings
+          </button>
         </div>
       </section>
 

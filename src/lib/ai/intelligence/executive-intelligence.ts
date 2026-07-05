@@ -1,7 +1,7 @@
 import { getCached, setCache } from "../cache";
 import type { ExecutiveIntelligence } from "../types";
 import { computeExecutiveScores } from "./executive-scores";
-import { getExecutiveOpportunities } from "./opportunity-engine";
+import { getAllExecutiveOpportunities } from "./website-opportunities";
 import { getExecutiveRisks } from "./risk-center";
 import { getExecutiveForecasts } from "./forecasting";
 import { getBusinessTimeline } from "./business-timeline";
@@ -10,7 +10,7 @@ import { getExecutionDrafts } from "./execution-mode";
 import { getOperatorMetrics } from "./business-operator";
 
 export async function getExecutiveIntelligence(force = false): Promise<ExecutiveIntelligence> {
-  const cacheKey = "executive-intelligence-v1";
+  const cacheKey = "executive-intelligence-v2";
   if (!force) {
     const cached = await getCached<ExecutiveIntelligence>(cacheKey);
     if (cached) return cached;
@@ -18,7 +18,7 @@ export async function getExecutiveIntelligence(force = false): Promise<Executive
 
   const metrics = await getOperatorMetrics();
   const [opportunities, risks, forecasts, timeline, executionDrafts] = await Promise.all([
-    getExecutiveOpportunities(),
+    getAllExecutiveOpportunities(),
     getExecutiveRisks(),
     getExecutiveForecasts(),
     getBusinessTimeline(),

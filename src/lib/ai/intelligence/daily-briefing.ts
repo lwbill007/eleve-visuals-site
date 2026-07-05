@@ -1,7 +1,7 @@
 import { getProactiveBusinessInsights, getOperatorMetrics } from "./business-operator";
 import { syncBusinessMemory } from "../memory/sync";
 import { computeExecutiveScores, legacyScoresFromExecutive } from "./executive-scores";
-import { getExecutiveOpportunities } from "./opportunity-engine";
+import { getAllExecutiveOpportunities } from "./website-opportunities";
 import { getExecutiveRisks } from "./risk-center";
 import { getLearningOutcomes } from "../memory/learning";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
@@ -79,7 +79,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       take: 5,
       select: { id: true, title: true, volumeNumber: true, sessionDate: true, status: true },
     }),
-    getExecutiveOpportunities(),
+    getAllExecutiveOpportunities(),
     getExecutiveRisks(),
     getLearningOutcomes(undefined, 5),
     getAnalyticsSummary(30),

@@ -2,6 +2,7 @@ import type { MemoryLayer, MemoryCitation, RetrievedMemory } from "./types";
 import { getLearningSummaryForPrompt } from "./learning";
 import { searchMemories } from "./store";
 import { memorySearchText } from "./utils";
+import { semanticSearchMemories } from "./embeddings";
 
 function tokenize(text: string): string[] {
   return text
@@ -56,20 +57,55 @@ export async function retrieveMemoriesForQuery(
 ): Promise<RetrievedMemory[]> {
   const queryTokens = tokenize(query);
   const layerBoost = new Set(options?.layers ?? []);
+  const limit = options?.limit ?? 8;
 
-  const { items } = await searchMemories({
-    layer: options?.layers,
-    limit: Math.max((options?.limit ?? 8) * 4, 32),
-    archived: false,
-  });
+  const [{ items }, semanticHits] = await Promise.all([
+    searchMemories({
+      layer: options?.layers,
+      limit: Math.max(limit * 4, 32),
+      archived: false,
+    }),
+    semanticSearchMemories(query, {
+      layers: options?.layers,
+      limit: limit * 2,
+    }).catch(() => [] as Awaited<ReturnType<typeof semanticSearchMemories>>),
+  ]);
 
-  const ranked = items
+  const keywordRanked = items
     .map((m) => scoreMemory(m, queryTokens, layerBoost))
-    .filter((r) => r.score >= (options?.minScore ?? 10))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, options?.limit ?? 8);
+    .filter((r) => r.score >= (options?.minScore ?? 10));
 
-  return ranked;
+  const memoryById = new Map(items.map((m) => [m.id, m]));
+  const merged = new Map<string, RetrievedMemory>();
+
+  for (const r of keywordRanked) {
+    merged.set(r.memory.id, r);
+  }
+
+  for (const hit of semanticHits) {
+    if (!hit.memoryId) continue;
+    const mem = memoryById.get(hit.memoryId) ?? items.find((m) => m.id === hit.memoryId);
+    if (!mem) continue;
+    const existing = merged.get(mem.id);
+    const semanticBoost = Math.round(hit.score * 40);
+    if (existing) {
+      merged.set(mem.id, {
+        memory: mem,
+        score: existing.score + semanticBoost,
+        reasons: [...existing.reasons, `Semantic match (${Math.round(hit.score * 100)}%)`].slice(0, 4),
+      });
+    } else {
+      merged.set(mem.id, {
+        memory: mem,
+        score: semanticBoost + mem.importance * 0.2,
+        reasons: [`Semantic match (${Math.round(hit.score * 100)}%)`],
+      });
+    }
+  }
+
+  return [...merged.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
 }
 
 export async function retrieveMemoriesForPage(page: string, limit = 6): Promise<RetrievedMemory[]> {

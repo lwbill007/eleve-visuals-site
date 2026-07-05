@@ -6,4 +6,7 @@ export {
   recordRecommendationFeedback,
   evaluateRecommendationOutcome,
 } from "./self-improvement";
+export { synthesizeExecutiveBriefing } from "./synthesizer";
+export type { SynthesizedExecutiveBriefing, SynthesizedPriority } from "./synthesizer";
+export { AGENT_REGISTRY, resolveAgent, buildAgentSystemMessages } from "./agents";
 export { strengthenKnowledgeGraph, getKnowledgeGraphStats } from "./graph-builder";

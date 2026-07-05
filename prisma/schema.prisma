@@ -337,6 +337,24 @@ model AIMemoryAudit {
   @@index([memoryId, createdAt])
 }
 
+model AIMemoryEmbedding {
+  id          String   @id @default(cuid())
+  workspaceId String   @default("default")
+  memoryId    String?
+  chunkKey    String
+  text        String
+  embedding   String
+  layer       String   @default("operational")
+  category    String   @default("")
+  sourcePage  String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, chunkKey])
+  @@index([workspaceId, memoryId])
+  @@index([workspaceId, layer])
+}
+
 model AIConversation {
   id        String   @id @default(cuid())
   page      String   @default("")

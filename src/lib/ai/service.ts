@@ -3,7 +3,7 @@ import { aiComplete, aiStream, getActiveProviderLabel } from "./adapter";
 import { isOpenRouterConfigured, probeOpenRouterKey } from "./providers/openrouter-client";
 import { buildMemoryContext } from "./memory";
 import { logAIAction } from "./log";
-import { systemPromptForAssistant, systemPromptForTask, TASK_PROMPTS } from "./prompts/system";
+import { systemPromptForTask, TASK_PROMPTS } from "./prompts/system";
 import { BUSINESS_TOOLS, buildBusinessContextSnapshot, executeBusinessTool } from "./tools/business-data";
 import { formatDecisionContextForPrompt, buildDecisionEngineContext } from "./executive/decision-engine";
 import { getAdminInsights } from "@/lib/admin-os-server";
@@ -11,24 +11,27 @@ import type { AIGenerateRequest, AIMessage, AIStreamChunk } from "./types";
 
 export async function runAIChat(
   userMessage: string,
-  history: AIMessage[] = []
+  history: AIMessage[] = [],
+  options?: { role?: string }
 ): Promise<{ content: string; provider: string }> {
   if (!isAIConfigured()) {
     return { content: await fallbackChatResponse(userMessage), provider: "rules" };
   }
 
+  const { resolveAgent, buildAgentSystemMessages } = await import("./executive/agents");
+  const agent = resolveAgent(options?.role);
+  const ragContext = await buildMemoryContext(userMessage, "assistant");
+  const decisionCtx = await buildDecisionEngineContext(userMessage);
+  const agentMessages = buildAgentSystemMessages(agent, [
+    formatDecisionContextForPrompt(decisionCtx),
+    `Structured business memories:\n${ragContext}`,
+  ]);
+
   const messages: AIMessage[] = [
-    { role: "system", content: systemPromptForAssistant() },
+    ...agentMessages,
     ...history.slice(-10),
     { role: "user", content: userMessage },
   ];
-
-  const ragContext = await buildMemoryContext(userMessage, "assistant");
-  const decisionCtx = await buildDecisionEngineContext(userMessage);
-  messages[0] = {
-    role: "system",
-    content: `${systemPromptForAssistant()}\n\n${formatDecisionContextForPrompt(decisionCtx)}\n\nStructured business memories:\n${ragContext}`,
-  };
 
   const config = getAIConfig();
   let iterations = 0;
@@ -63,7 +66,8 @@ export async function runAIChat(
 
 export async function* streamAIChat(
   userMessage: string,
-  history: AIMessage[] = []
+  history: AIMessage[] = [],
+  options?: { role?: string }
 ): AsyncGenerator<AIStreamChunk> {
   if (!isAIConfigured()) {
     const fallback = await fallbackChatResponse(userMessage);
@@ -72,25 +76,20 @@ export async function* streamAIChat(
     return;
   }
 
+  const { resolveAgent, buildAgentSystemMessages } = await import("./executive/agents");
+  const agent = resolveAgent(options?.role);
+
   const snapshot = await buildBusinessContextSnapshot();
   const ragContext = await buildMemoryContext(userMessage, "assistant");
   const decisionCtx = await buildDecisionEngineContext(userMessage);
   const executiveContext = formatDecisionContextForPrompt(decisionCtx);
+  const agentMessages = buildAgentSystemMessages(agent, [
+    executiveContext,
+    `Structured business memories (RAG):\n${ragContext}`,
+    `Live business snapshot:\n${snapshot}`,
+  ]);
   const messages: AIMessage[] = [
-    {
-      role: "system",
-      content: `${systemPromptForAssistant()}
-
-You are the Executive Intelligence System for ÉLEVÉ — NOT a generic chatbot. Every answer must tie to measurable business outcomes: revenue, bookings, client satisfaction, brand value, efficiency.
-
-${executiveContext}
-
-Structured business memories (RAG):
-${ragContext}
-
-Live business snapshot:
-${snapshot}`,
-    },
+    ...agentMessages,
     ...history.slice(-8),
     { role: "user", content: userMessage },
   ];

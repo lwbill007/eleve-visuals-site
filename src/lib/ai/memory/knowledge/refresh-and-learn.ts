@@ -78,6 +78,9 @@ export async function refreshIntelligence(trigger: RefreshTrigger = "manual"): P
 
   const learning = await runLearningPass().catch(() => ({ recorded: 0 }));
 
+  const { reindexAllMemoryEmbeddings } = await import("../embeddings");
+  const embedResult = await reindexAllMemoryEmbeddings(400).catch(() => ({ indexed: 0, chunks: 0 }));
+
   const scanIssues = collectIssues(findings);
   const changeIssues = changesToIssues(platformChanges);
   const issuesFound = [...scanIssues, ...changeIssues];
@@ -161,6 +164,33 @@ export async function refreshIntelligence(trigger: RefreshTrigger = "manual"): P
       uncertainAreas: issuesFound.filter((i) => i.severity === "high").map((i) => `${i.page}: ${i.title}`),
     },
   };
+
+  await writeMemory({
+    workspaceId,
+    layer: "marketing",
+    category: "executive_report",
+    key: "website-health",
+    title: "Website intelligence health",
+    summary: executiveReport.summary,
+    value: {
+      overallHealthScore: executiveReport.overallHealthScore,
+      seoScore: executiveReport.overallHealthScore,
+      uxScore: executiveReport.overallHealthScore,
+      recommendations: executiveReport.recommendations.map((r) => r.title),
+      issues: issuesFound.slice(0, 12).map((i) => ({
+        title: i.title,
+        detail: i.detail,
+        severity: i.severity,
+      })),
+      embeddingsIndexed: embedResult.chunks,
+    },
+    confidence: 0.9,
+    importance: 88,
+    source: "sync",
+    sourceRef: refreshId,
+    tags: ["website-intelligence", "seo", trigger],
+    actor: "refresh-intelligence",
+  });
 
   await writeMemory({
     workspaceId,
