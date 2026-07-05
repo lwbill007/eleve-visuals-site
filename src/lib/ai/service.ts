@@ -5,6 +5,7 @@ import { buildMemoryContext } from "./memory";
 import { logAIAction } from "./log";
 import { systemPromptForAssistant, systemPromptForTask, TASK_PROMPTS } from "./prompts/system";
 import { BUSINESS_TOOLS, buildBusinessContextSnapshot, executeBusinessTool } from "./tools/business-data";
+import { formatDecisionContextForPrompt, buildDecisionEngineContext } from "./executive/decision-engine";
 import { getAdminInsights } from "@/lib/admin-os-server";
 import type { AIGenerateRequest, AIMessage, AIStreamChunk } from "./types";
 
@@ -23,9 +24,10 @@ export async function runAIChat(
   ];
 
   const ragContext = await buildMemoryContext(userMessage, "assistant");
+  const decisionCtx = await buildDecisionEngineContext(userMessage);
   messages[0] = {
     role: "system",
-    content: `${systemPromptForAssistant()}\n\nStructured business memories:\n${ragContext}`,
+    content: `${systemPromptForAssistant()}\n\n${formatDecisionContextForPrompt(decisionCtx)}\n\nStructured business memories:\n${ragContext}`,
   };
 
   const config = getAIConfig();
@@ -72,10 +74,22 @@ export async function* streamAIChat(
 
   const snapshot = await buildBusinessContextSnapshot();
   const ragContext = await buildMemoryContext(userMessage, "assistant");
+  const decisionCtx = await buildDecisionEngineContext(userMessage);
+  const executiveContext = formatDecisionContextForPrompt(decisionCtx);
   const messages: AIMessage[] = [
     {
       role: "system",
-      content: `${systemPromptForAssistant()}\n\nStructured business memories (RAG):\n${ragContext}\n\nLive business snapshot:\n${snapshot}`,
+      content: `${systemPromptForAssistant()}
+
+You are the Executive Intelligence System for ÉLEVÉ — NOT a generic chatbot. Every answer must tie to measurable business outcomes: revenue, bookings, client satisfaction, brand value, efficiency.
+
+${executiveContext}
+
+Structured business memories (RAG):
+${ragContext}
+
+Live business snapshot:
+${snapshot}`,
     },
     ...history.slice(-8),
     { role: "user", content: userMessage },

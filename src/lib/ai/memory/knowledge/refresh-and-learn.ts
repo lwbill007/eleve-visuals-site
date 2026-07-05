@@ -16,6 +16,7 @@ import { mergeDuplicateMemories } from "./duplicate-merger";
 import { buildConversionChains } from "./graph-chains";
 import { generateExecutiveIntelligenceReport } from "./executive-report";
 import { recordAutomationRun, isScheduleEnabled, getIntelligenceAutomationSettings } from "./automation";
+import { strengthenKnowledgeGraph } from "../../executive/graph-builder";
 import type { RefreshLearnReport, RefreshTrigger } from "./types";
 
 export async function refreshIntelligence(trigger: RefreshTrigger = "manual"): Promise<RefreshLearnReport> {
@@ -66,6 +67,8 @@ export async function refreshIntelligence(trigger: RefreshTrigger = "manual"): P
 
   const chainResult = await buildConversionChains(findings, refreshId);
   graphLinksCreated += chainResult.linksCreated;
+
+  await strengthenKnowledgeGraph().catch(() => {});
 
   const syncResult = await syncAllMemories().catch(() => ({
     synced: 0,

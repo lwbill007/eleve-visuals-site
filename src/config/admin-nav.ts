@@ -14,7 +14,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
     label: "Command Center",
     items: [
       { label: "Dashboard", href: "/admin", desc: "Executive command center" },
-      { label: "Executive Intelligence", href: "/admin/intelligence", desc: "Morning briefing, scores, forecasts" },
+      { label: "Executive Intelligence", href: "/admin/intelligence", desc: "Command Center · 7 directors · decision engine" },
       { label: "Opportunities", href: "/admin/opportunities", desc: "Highest ROI actions" },
       { label: "Risk Center", href: "/admin/risks", desc: "Early warnings" },
       { label: "Knowledge Engine", href: "/admin/memory", desc: "Business knowledge & learning" },
@@ -83,7 +83,7 @@ export const ADMIN_QUICK_ACTIONS = [
   { label: "Draft Follow-Up", href: "/admin/marketing?task=follow_up", desc: "Re-engage warm leads" },
   { label: "Session Applications", href: "/admin/applications", desc: "Review applicants" },
   { label: "Upload Media", href: "/admin/media", desc: "Asset library" },
-  { label: "Executive Intelligence", href: "/admin/intelligence", desc: "Morning briefing & strategy" },
+  { label: "Executive Intelligence", href: "/admin/intelligence", desc: "Command Center & executive team" },
 ];
 
 export const ADMIN_COMMANDS = ADMIN_NAV.flatMap((section) =>
