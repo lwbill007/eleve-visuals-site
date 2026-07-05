@@ -1,35 +1,81 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { BusinessActionBar } from "@/components/admin/ai/BusinessActionBar";
+import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminMetricCard, AdminPageHeader, AdminPanel, AdminBarChart } from "@/components/admin/os/AdminOSComponents";
 import type { SessionsOperatorIntel } from "@/lib/ai/types";
 
-export function SessionsHubClient() {
-  const [appStats, setAppStats] = useState<{
-    totalApplications: number;
-    acceptedCount: number;
-    acceptanceRate: number;
-    dailyTrend: { date: string; count: number }[];
-  } | null>(null);
-  const [volumes, setVolumes] = useState(0);
+type AppStats = {
+  totalApplications: number;
+  acceptedCount: number;
+  acceptanceRate: number;
+  dailyTrend: { date: string; count: number }[];
+};
 
+function isSessionsOperatorIntel(value: unknown): value is SessionsOperatorIntel {
+  if (!value || typeof value !== "object") return false;
+  const data = value as SessionsOperatorIntel;
+  return (
+    typeof data.generatedAt === "string" &&
+    Array.isArray(data.suggestedThemes) &&
+    Array.isArray(data.recommendations)
+  );
+}
+
+export function SessionsHubClient() {
+  const [appStats, setAppStats] = useState<AppStats | null>(null);
+  const [volumes, setVolumes] = useState(0);
   const [sessionsIntel, setSessionsIntel] = useState<SessionsOperatorIntel | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useSetAIPage("sessions", sessionsIntel?.openVolume ? { volume: sessionsIntel.openVolume.title } : undefined);
+
+  const load = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const [statsRes, volumesRes, operatorRes] = await Promise.all([
+        adminFetch("/api/admin/applications/stats"),
+        adminFetch("/api/admin/session-volumes"),
+        adminFetch("/api/admin/ai/operator"),
+      ]);
+
+      if (statsRes.ok) {
+        setAppStats((await statsRes.json()) as AppStats);
+      }
+
+      if (volumesRes.ok) {
+        const vols: unknown = await volumesRes.json();
+        setVolumes(Array.isArray(vols) ? vols.length : 0);
+      }
+
+      if (operatorRes.ok) {
+        const operator: unknown = await operatorRes.json();
+        const sessions =
+          operator && typeof operator === "object"
+            ? (operator as { sessions?: unknown }).sessions
+            : undefined;
+        setSessionsIntel(isSessionsOperatorIntel(sessions) ? sessions : null);
+      }
+
+      if (!statsRes.ok && !volumesRes.ok && !operatorRes.ok) {
+        throw new Error("Failed to load sessions hub data");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load sessions hub");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    Promise.all([
-      adminFetch("/api/admin/applications/stats").then((r) => r.json()),
-      adminFetch("/api/admin/session-volumes").then((r) => r.json()),
-      adminFetch("/api/admin/ai/operator").then((r) => r.json()),
-    ]).then(([stats, vols, operator]) => {
-      setAppStats(stats);
-      setVolumes(Array.isArray(vols) ? vols.length : 0);
-      setSessionsIntel(operator.sessions ?? null);
-    });
-  }, []);
+    void load();
+  }, [load]);
 
   const trend =
     appStats?.dailyTrend.map((d) => ({
@@ -37,8 +83,27 @@ export function SessionsHubClient() {
       value: d.count,
     })) ?? [];
 
+  if (loading && !appStats && !sessionsIntel) {
+    return <p className="text-fog">Loading sessions hub…</p>;
+  }
+
+  if (error && !appStats && !sessionsIntel) {
+    return (
+      <AdminPanel>
+        <p className="text-sm text-red-300">{error}</p>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="mt-3 text-xs text-accent uppercase hover:underline"
+        >
+          Retry
+        </button>
+      </AdminPanel>
+    );
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="relative z-10 space-y-8">
       <AdminPageHeader
         eyebrow="ÉLEVÉ Sessions"
         title="Sessions Hub"
@@ -53,18 +118,21 @@ export function SessionsHubClient() {
         }
       />
 
+      {error && (
+        <p className="text-xs text-amber-300">
+          {error}{" "}
+          <button type="button" onClick={() => void load()} className="text-accent uppercase hover:underline">
+            Retry
+          </button>
+        </p>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <AdminMetricCard label="Total Volumes" value={volumes} href="/admin/sessions" />
         <AdminMetricCard label="Applications" value={appStats?.totalApplications ?? "—"} href="/admin/applications" />
         <AdminMetricCard label="Accepted" value={appStats?.acceptedCount ?? "—"} href="/admin/applications" />
         <AdminMetricCard label="Acceptance Rate" value={appStats ? `${appStats.acceptanceRate}%` : "—"} />
       </div>
-
-      {trend.length > 0 && (
-        <AdminPanel title="Applications (14 days)">
-          <AdminBarChart data={trend} labelKey="month" valueKey="value" accent />
-        </AdminPanel>
-      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Link href="/admin/applications" className="rounded-xl border border-stone/25 p-5 hover:border-accent/30">
@@ -86,14 +154,14 @@ export function SessionsHubClient() {
             </p>
           )}
           <p className="mb-3 text-xs text-fog">
-            Suggested themes: {sessionsIntel.suggestedThemes.join(" · ")}
+            Suggested themes: {sessionsIntel.suggestedThemes.join(" · ") || "Add a theme in Volume Editor"}
           </p>
           <div className="space-y-3">
-            {sessionsIntel.recommendations.map((rec) => (
+            {(sessionsIntel.recommendations ?? []).map((rec) => (
               <div key={rec.id} className="rounded-lg border border-stone/20 p-3">
                 <p className="text-sm text-cream">{rec.title}</p>
                 <p className="text-xs text-fog">{rec.detail}</p>
-                <BusinessActionBar actions={rec.actions} compact className="mt-2" />
+                <BusinessActionBar actions={rec.actions ?? []} compact className="mt-2" />
               </div>
             ))}
           </div>
@@ -120,6 +188,12 @@ export function SessionsHubClient() {
           buttonLabel="Generate checklist"
         />
       </AdminPanel>
+
+      {trend.length > 0 && (
+        <AdminPanel title="Applications (14 days)">
+          <AdminBarChart data={trend} labelKey="month" valueKey="value" accent />
+        </AdminPanel>
+      )}
     </div>
   );
 }

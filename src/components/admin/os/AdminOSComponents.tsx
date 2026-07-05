@@ -119,7 +119,7 @@ export function AdminBarChart({
   const maxBarPx = 120;
 
   return (
-    <div className="relative h-44 overflow-hidden">
+    <div className="pointer-events-none relative isolate h-44 overflow-hidden">
       <div className="flex h-full items-end gap-2 sm:gap-3">
         {data.map((point, i) => {
           const value = Number(point[valueKey]);

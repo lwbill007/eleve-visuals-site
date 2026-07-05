@@ -26,6 +26,7 @@ const CHANNELS = [
   { task: "threads_post" as const, label: "Threads", prompt: "Write a Threads post about upcoming sessions." },
   { task: "campaign" as const, label: "Re-engagement", prompt: "Write a re-engagement campaign for inactive clients." },
   { task: "follow_up" as const, label: "Follow-Up Email", prompt: "Write a personal follow-up email for booking inquiries awaiting a response." },
+  { task: "session_email" as const, label: "Sessions Email", prompt: "Write a warm ÉLEVÉ Sessions acceptance or promotion email." },
 ];
 
 export function MarketingStudioClient() {

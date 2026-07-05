@@ -15,7 +15,12 @@ function isBookingIntelligence(value: unknown): value is BookingIntelligence {
   return (
     typeof data.generatedAt === "string" &&
     typeof data.pipelineValue === "number" &&
+    typeof data.staleInquiries === "number" &&
+    typeof data.monthBookings === "number" &&
     Array.isArray(data.monthlyTrend) &&
+    Array.isArray(data.abandonedBookings) &&
+    Array.isArray(data.pricingRecommendations) &&
+    Array.isArray(data.promotions) &&
     Array.isArray(data.salesRecommendations)
   );
 }
@@ -124,7 +129,7 @@ export function BookingAssistantPanel() {
           subtitle="Open inquiries with no activity for 3+ days — speed-to-lead drives conversions"
         >
           <ul className="space-y-2">
-            {intel.abandonedBookings.map((b) => (
+            {(intel.abandonedBookings ?? []).map((b) => (
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
                 <span className="text-cream">
                   {b.name} · {b.status} · {b.daysSince}d idle
@@ -186,7 +191,7 @@ export function BookingAssistantPanel() {
       <div className="grid gap-4 lg:grid-cols-2">
         <AdminPanel title="Pricing Recommendations">
           <ul className="space-y-2">
-            {intel.pricingRecommendations.map((r) => (
+            {(intel.pricingRecommendations ?? []).map((r) => (
               <li key={r} className="text-sm text-cream-dim">
                 ◆ {r}
               </li>
@@ -195,7 +200,7 @@ export function BookingAssistantPanel() {
         </AdminPanel>
         <AdminPanel title="Promotion Ideas">
           <ul className="space-y-2">
-            {intel.promotions.map((r) => (
+            {(intel.promotions ?? []).map((r) => (
               <li key={r} className="text-sm text-cream-dim">
                 ◆ {r}
               </li>

@@ -827,8 +827,9 @@ export async function getSessionsOperatorIntel(): Promise<SessionsOperatorIntel>
           title: `Promote Vol. ${openVolume.volumeNumber} applications`,
           detail: `${appsByVolume.get(openVolume.id) ?? 0} applications so far · ${openVolume.theme || "Open theme"}`,
           actions: [
-            action("promo", "Session Promotion", "create_campaign", "/admin/marketing?focus=session_email", {
+            action("promo", "Session Promotion", "create_campaign", "/admin/marketing?task=session_email", {
               task: "session_email",
+              prompt: `Promote Vol. ${openVolume.volumeNumber} applications`,
             }),
             action("rank", "AI Rank Applications", "navigate", "/admin/applications"),
           ],
