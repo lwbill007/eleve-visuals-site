@@ -28,7 +28,7 @@ function scoreVal(scores: { key: string; value: number }[], key: string, fallbac
 }
 
 export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
-  const cacheKey = "executive-os-v2";
+  const cacheKey = "executive-os-v3";
   if (!force) {
     const cached = await getCached<ExecutiveOS>(cacheKey);
     if (cached) return cached;

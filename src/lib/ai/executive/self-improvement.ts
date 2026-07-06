@@ -2,9 +2,18 @@ import { getLearningOutcomes, recordLearningOutcome } from "../memory/learning";
 import type { SelfImprovementLesson } from "./types";
 
 export async function getSelfImprovementLessons(limit = 15): Promise<SelfImprovementLesson[]> {
-  const outcomes = await getLearningOutcomes(undefined, limit);
+  const outcomes = await getLearningOutcomes(undefined, limit * 3);
+  const seen = new Set<string>();
 
-  return outcomes.map((o) => ({
+  return outcomes
+    .filter((o) => {
+      const key = `${o.domain}:${(o.hypothesis || o.actionType).trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit)
+    .map((o) => ({
     id: o.id,
     question: `Did ${o.actionType} in ${o.domain} work?`,
     outcome: o.outcome,

@@ -31,6 +31,38 @@ function pctChange(current: number, previous: number): number {
   return Math.round(((current - previous) / previous) * 100);
 }
 
+/** Week-over-week % with sane caps — avoids 1000% spikes from tiny baselines. */
+function weekOverWeekPct(current7: number, previous7: number): number {
+  if (previous7 < 5) return current7 >= 10 ? 100 : 0;
+  return Math.min(200, Math.max(-90, pctChange(current7, previous7)));
+}
+
+function viewsInPeriod(
+  pages: { path: string; views: number }[],
+  pathPrefix: string
+): number {
+  return pages
+    .filter((p) => p.path === pathPrefix || p.path.startsWith(`${pathPrefix}/`))
+    .reduce((s, p) => s + p.views, 0);
+}
+
+function sourceVisits(
+  sources: { source: string; visits: number }[],
+  needle: string
+): number {
+  return sources.find((s) => s.source.toLowerCase().includes(needle))?.visits ?? 0;
+}
+
+function estimateInquiryRevenue(
+  views: number,
+  conversionRate: number,
+  avgBookingValue: number,
+  uplift = 1
+): number {
+  const inquiries = views * (conversionRate / 100) * uplift;
+  return Math.round(inquiries * avgBookingValue);
+}
+
 function action(
   id: string,
   label: string,
@@ -177,12 +209,12 @@ export async function getOperatorMetrics() {
     analytics30.totals.conversionRate
   );
 
-  const instagramReferrals = analytics30.topSources.find(
-    (s) => s.source.toLowerCase().includes("instagram")
-  );
-  const instagramPrev = analyticsPrev7.topSources.find((s) =>
+  const instagramReferrals = analytics30.topSources.find((s) =>
     s.source.toLowerCase().includes("instagram")
   );
+  const instagramVisits7 = sourceVisits(analytics7.topSources, "instagram");
+  const instagramVisits14 = sourceVisits(analyticsPrev7.topSources, "instagram");
+  const instagramVisitsPrev7 = Math.max(0, instagramVisits14 - instagramVisits7);
 
   return {
     generatedAt: now.toISOString(),
@@ -221,10 +253,7 @@ export async function getOperatorMetrics() {
       conversionChange,
       topPage: analytics30.topPages[0]?.path ?? "/",
       instagramReferrals: instagramReferrals?.visits ?? 0,
-      instagramChange: pctChange(
-        instagramReferrals?.visits ?? 0,
-        instagramPrev?.visits ?? 0
-      ),
+      instagramChange: weekOverWeekPct(instagramVisits7, instagramVisitsPrev7),
     },
     returningClients: dashboard.metrics.returningClients,
     repeatRate:
@@ -235,12 +264,18 @@ export async function getOperatorMetrics() {
 }
 
 export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]> {
-  const [metrics, dashboard, analytics30, analytics7] = await Promise.all([
+  const [metrics, dashboard, analytics30, analytics7, analytics14] = await Promise.all([
     getOperatorMetrics(),
     getAdminDashboardOS(),
     getAnalyticsSummary(30),
     getAnalyticsSummary(7),
+    getAnalyticsSummary(14),
   ]);
+
+  const avgBookingValue =
+    metrics.month.bookings > 0
+      ? Math.round(metrics.revenue.thisMonth / metrics.month.bookings)
+      : 1500;
 
   const insights: Array<
     Omit<BusinessInsight, "why" | "revenueImpact" | "timeSavedMinutes" | "priority"> &
@@ -269,20 +304,35 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
     });
   }
 
-  const portfolioPage = analytics30.topPages.find((p) => p.path.includes("/portfolio"));
-  const portfolioPrev = analytics7.topPages.find((p) => p.path.includes("/portfolio"));
-  if (portfolioPage) {
-    const portfolioChange = portfolioPrev
-      ? pctChange(portfolioPage.views, portfolioPrev.views)
-      : 0;
-    if (portfolioChange >= 15 || portfolioPage.views > 50) {
+  const portfolioPage = analytics30.topPages.find((p) => p.path.startsWith("/portfolio"));
+  if (portfolioPage && portfolioPage.views >= 30) {
+    const portfolioViews7 = viewsInPeriod(analytics7.topPages, portfolioPage.path);
+    const portfolioViews14 = viewsInPeriod(analytics14.topPages, portfolioPage.path);
+    const portfolioViewsPrev7 = Math.max(0, portfolioViews14 - portfolioViews7);
+    const portfolioChange = weekOverWeekPct(portfolioViews7, portfolioViewsPrev7);
+    const revenueImpact = estimateInquiryRevenue(
+      portfolioPage.views,
+      metrics.traffic.conversionRate,
+      avgBookingValue,
+      0.15
+    );
+
+    if (portfolioChange >= 15 || portfolioPage.views >= 80) {
+      const changeLabel =
+        portfolioViewsPrev7 < 5
+          ? "is gaining traction"
+          : portfolioChange > 0
+            ? `up ${portfolioChange}% week-over-week`
+            : "shifted";
       insights.push({
         id: "portfolio-traffic",
         category: "marketing",
-        severity: portfolioChange >= 30 ? "high" : "medium",
-        title: `Portfolio traffic ${portfolioChange >= 0 ? "increased" : "shifted"}${portfolioChange >= 15 ? ` ${portfolioChange}%` : ""}`,
-        detail: `"${portfolioPage.path}" drove ${portfolioPage.views} views this month. Feature this work on homepage, Instagram, and in your next newsletter.`,
-        metric: `${portfolioPage.views} views`,
+        severity: portfolioChange >= 30 && revenueImpact >= 500 ? "high" : "medium",
+        title: `Portfolio page ${changeLabel}`,
+        detail: `"${portfolioPage.path}" drove ${portfolioPage.views} views (30d). Feature this work on homepage, Instagram, and in your next newsletter to convert interest into inquiries.`,
+        metric: `~$${revenueImpact.toLocaleString()} addressable`,
+        revenueImpact,
+        why: `${portfolioViews7} views this week vs ${portfolioViewsPrev7} prior week. Estimated ${Math.round(portfolioPage.views * (metrics.traffic.conversionRate / 100))} inquiries at current conversion.`,
         actions: [
           action("ig-draft", "Publish Instagram Draft", "instagram_draft", "/admin/marketing?focus=instagram_caption", {
             task: "instagram_caption",
@@ -297,14 +347,21 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
     }
   }
 
-  if (metrics.traffic.instagramReferrals > 0 && metrics.traffic.instagramChange >= 50) {
+  if (metrics.traffic.instagramReferrals > 0 && metrics.traffic.instagramChange >= 25) {
     insights.push({
       id: "instagram-referrals",
       category: "marketing",
       severity: "medium",
       title: "Instagram referrals surged",
-      detail: `${metrics.traffic.instagramReferrals} visits from Instagram (${metrics.traffic.instagramChange >= 100 ? "doubled" : `+${metrics.traffic.instagramChange}%`}). Double down with Reels and session BTS content while momentum is high.`,
-      metric: `${metrics.traffic.instagramReferrals} visits`,
+      detail: `${metrics.traffic.instagramReferrals} visits from Instagram (30d, +${metrics.traffic.instagramChange}% week-over-week). Double down with Reels and session BTS content while momentum is high.`,
+      metric: `~$${estimateInquiryRevenue(metrics.traffic.instagramReferrals, metrics.traffic.conversionRate, avgBookingValue, 0.1).toLocaleString()} est.`,
+      revenueImpact: estimateInquiryRevenue(
+        metrics.traffic.instagramReferrals,
+        metrics.traffic.conversionRate,
+        avgBookingValue,
+        0.1
+      ),
+      why: "Week-over-week Instagram referral growth — capitalize before momentum fades.",
       actions: [
         action("reels", "Create Reel Script", "instagram_draft", "/admin/marketing?focus=tiktok_caption", {
           task: "tiktok_caption",
@@ -475,8 +532,10 @@ export async function getMarketingRecommendations(): Promise<MarketingRecommenda
   ]);
 
   const topPage = analytics.topPages[0]?.path ?? "/portfolio";
-  const recs: MarketingRecommendation[] = [
-    {
+  const recs: MarketingRecommendation[] = [];
+
+  if (metrics.attention.followUpClients > 0) {
+    recs.push({
       id: "email-reengage",
       channel: "email",
       title: "Re-engagement email to inactive clients",
@@ -488,7 +547,10 @@ export async function getMarketingRecommendations(): Promise<MarketingRecommenda
           task: "follow_up",
         }),
       ],
-    },
+    });
+  }
+
+  recs.push(
     {
       id: "instagram-portfolio",
       channel: "instagram",
@@ -567,8 +629,8 @@ export async function getMarketingRecommendations(): Promise<MarketingRecommenda
         action("sponsor", "Create Sponsor PDF", "sponsor_pdf", "/admin/reports?type=sponsor"),
         action("sponsor-page", "Sponsorship Hub", "navigate", "/admin/sponsorship"),
       ],
-    },
-  ];
+    }
+  );
 
   return recs;
 }

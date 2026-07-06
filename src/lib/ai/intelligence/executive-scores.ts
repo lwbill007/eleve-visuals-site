@@ -65,7 +65,13 @@ export function computeExecutiveScores(metrics: OperatorMetrics): ExecutiveScore
 
   const marketingScore = Math.min(
     100,
-    Math.max(15, Math.round(traffic.conversionRate * 8 + (traffic.trafficChange > 0 ? 10 : -5)))
+    Math.max(
+      15,
+      Math.round(
+        traffic.conversionRate * 6 +
+          (traffic.trafficChange > 10 ? 15 : traffic.trafficChange < -15 ? -25 : traffic.trafficChange > 0 ? 8 : -8)
+      )
+    )
   );
 
   const salesScore = Math.min(100, Math.max(10, 100 - attention.abandonedInquiries * 4));

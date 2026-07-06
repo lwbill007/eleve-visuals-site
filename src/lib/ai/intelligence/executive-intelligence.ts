@@ -11,7 +11,7 @@ import { getOperatorMetrics } from "./business-operator";
 import { detectRevenueLeaks } from "../executive/revenue-leaks";
 
 export async function getExecutiveIntelligence(force = false): Promise<ExecutiveIntelligence> {
-  const cacheKey = "executive-intelligence-v2";
+  const cacheKey = "executive-intelligence-v3";
   if (!force) {
     const cached = await getCached<ExecutiveIntelligence>(cacheKey);
     if (cached) return cached;

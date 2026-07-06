@@ -40,7 +40,10 @@ export function synthesizeExecutiveBriefing(input: {
 }): SynthesizedExecutiveBriefing {
   const { roles, intelligence, opportunities } = input;
 
-  const moneyOnTable = opportunities.reduce((s, o) => s + o.expectedRevenue * o.confidence, 0);
+  const revenueOpportunities = opportunities.filter((o) => o.expectedRevenue >= 100);
+  const rankedOpportunities = revenueOpportunities.length > 0 ? revenueOpportunities : opportunities;
+
+  const moneyOnTable = rankedOpportunities.reduce((s, o) => s + o.expectedRevenue * o.confidence, 0);
 
   const rolePriorities = roles.map((r) => ({
     roleId: r.id,
@@ -50,7 +53,7 @@ export function synthesizeExecutiveBriefing(input: {
     rec: r.recommendations[0],
   }));
 
-  const topPriorities: SynthesizedPriority[] = opportunities.slice(0, 6).map((o) => ({
+  const topPriorities: SynthesizedPriority[] = rankedOpportunities.slice(0, 6).map((o) => ({
     id: o.id,
     title: o.title,
     why: o.why,
@@ -102,8 +105,8 @@ export function synthesizeExecutiveBriefing(input: {
       : [];
 
   const agreements = [
-    opportunities[0]
-      ? `Revenue team aligned on: ${opportunities[0].title}`
+    rankedOpportunities[0]
+      ? `Revenue team aligned on: ${rankedOpportunities[0].title}`
       : "No critical revenue gaps detected",
     intelligence.risks[0]
       ? `Risk watch: ${intelligence.risks[0].title}`
@@ -120,7 +123,7 @@ export function synthesizeExecutiveBriefing(input: {
         ? "Business health is strong — focus on growth and brand elevation"
         : `Business health at ${businessScore}/100 — ${topPriorities[0]?.title ?? "review priorities"}`;
 
-  const narrative = buildNarrative(roles, opportunities, intelligence.risks);
+  const narrative = buildNarrative(roles, rankedOpportunities, intelligence.risks);
 
   return {
     generatedAt: new Date().toISOString(),

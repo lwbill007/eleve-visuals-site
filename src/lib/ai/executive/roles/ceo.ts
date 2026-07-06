@@ -26,6 +26,7 @@ export async function buildCEOBrief(): Promise<ExecutiveRoleBrief> {
     healthScore: health,
     confidence: 0.88,
     topPriority:
+      topOpp?.title ??
       topInsight?.title ??
       (metrics.attention.abandonedInquiries > 0
         ? `Recover ${metrics.attention.abandonedInquiries} stale inquiries`

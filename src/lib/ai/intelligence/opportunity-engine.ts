@@ -41,6 +41,13 @@ function insightToOpportunity(insight: BusinessInsight): ExecutiveOpportunity {
   };
 }
 
+function opportunityScore(o: ExecutiveOpportunity): number {
+  const revenueWeight = o.expectedRevenue > 0 ? o.expectedRevenue * o.confidence : 0;
+  const urgencyBonus =
+    o.urgency === "critical" ? 5000 : o.urgency === "high" ? 2000 : o.urgency === "medium" ? 500 : 0;
+  return revenueWeight + urgencyBonus;
+}
+
 export async function getExecutiveOpportunities(): Promise<ExecutiveOpportunity[]> {
   const [insights, metrics] = await Promise.all([
     getProactiveBusinessInsights(),
@@ -122,6 +129,7 @@ export async function getExecutiveOpportunities(): Promise<ExecutiveOpportunity[
   }
 
   return opportunities
-    .sort((a, b) => b.expectedRevenue * b.confidence - a.expectedRevenue * a.confidence)
+    .filter((o) => o.expectedRevenue > 0 || o.urgency === "critical" || o.urgency === "high")
+    .sort((a, b) => opportunityScore(b) - opportunityScore(a))
     .slice(0, 12);
 }
