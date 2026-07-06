@@ -3,7 +3,10 @@ export * from "./charter";
 export * from "./intelligence-layers";
 export * from "./north-star";
 export * from "./revenue-leaks";
+export * from "./operating-system-types";
 export { getExecutiveOS } from "./executive-os";
+export { buildExecutiveOperatingSystem } from "./operating-system";
+export { completeMission, buildTheOneThing } from "./mission-control";
 export { buildDecisionEngineContext, formatDecisionContextForPrompt } from "./decision-engine";
 export {
   getSelfImprovementLessons,

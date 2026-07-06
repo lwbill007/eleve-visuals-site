@@ -21,6 +21,7 @@ import { computeNorthStarMetrics } from "./north-star";
 import { detectRevenueLeaks } from "./revenue-leaks";
 import { generateWeeklyExecutiveReport } from "../intelligence/weekly-executive-report";
 import { getIntelligenceSuite } from "../intelligence/intelligence-suite";
+import { buildExecutiveOperatingSystem } from "./operating-system";
 import type { ExecutiveOS, CommandCenterState } from "./types";
 import { EXECUTIVE_MISSION } from "./types";
 
@@ -29,7 +30,7 @@ function scoreVal(scores: { key: string; value: number }[], key: string, fallbac
 }
 
 export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
-  const cacheKey = "executive-os-v4";
+  const cacheKey = "executive-os-v5";
   if (!force) {
     const cached = await getCached<ExecutiveOS>(cacheKey);
     if (cached) return cached;
@@ -53,6 +54,7 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     revenueLeaks,
     weeklyReport,
     intelligenceSuite,
+    operatingSystem,
   ] = await Promise.all([
     getExecutiveIntelligence(force),
     getAIDailyBriefing(force),
@@ -76,6 +78,7 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     detectRevenueLeaks(),
     generateWeeklyExecutiveReport(),
     getIntelligenceSuite(),
+    buildExecutiveOperatingSystem(),
   ]);
 
   const synthesis = synthesizeExecutiveBriefing({
@@ -183,6 +186,7 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     revenueLeaks,
     weeklyReport,
     intelligenceSuite,
+    operatingSystem,
     transparency: {
       dataSources: [
         ...intelligence.transparency.dataSources,

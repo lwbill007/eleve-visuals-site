@@ -12,6 +12,7 @@ import type { SynthesizedExecutiveBriefing } from "./synthesizer";
 import type { NorthStarMetrics } from "./north-star";
 import type { RevenueLeak } from "./revenue-leaks";
 import type { WeeklyExecutiveReport } from "../intelligence/weekly-executive-report";
+import type { ExecutiveOperatingSystem } from "./operating-system-types";
 
 export type ExecutiveRoleId =
   | "ceo"
@@ -119,6 +120,7 @@ export interface ExecutiveOS {
   revenueLeaks: RevenueLeak[];
   weeklyReport: WeeklyExecutiveReport;
   intelligenceSuite?: import("../types").IntelligenceSuite;
+  operatingSystem: ExecutiveOperatingSystem;
   transparency: {
     dataSources: string[];
     facts: string[];
