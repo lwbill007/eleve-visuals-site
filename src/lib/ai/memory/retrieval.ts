@@ -121,7 +121,11 @@ export async function retrieveMemoriesForPage(page: string, limit = 6): Promise<
     applications: ["sessions", "crm"],
     sponsorship: ["sponsor", "marketing", "business"],
     insights: ["business", "operational", "marketing"],
-    assistant: ["business", "crm", "marketing"],
+    intelligence: ["business", "crm", "marketing", "financial"],
+    opportunities: ["business", "marketing", "financial"],
+    risks: ["business", "operational", "crm"],
+    executive: ["business", "crm", "marketing", "financial"],
+    assistant: ["business", "crm", "marketing", "financial"],
     memory: ["business", "crm", "brand"],
   };
 

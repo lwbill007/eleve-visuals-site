@@ -8,6 +8,7 @@ import { getBusinessTimeline } from "./business-timeline";
 import { opportunitiesToDecisions } from "./decision-framework";
 import { getExecutionDrafts } from "./execution-mode";
 import { getOperatorMetrics } from "./business-operator";
+import { detectRevenueLeaks } from "../executive/revenue-leaks";
 
 export async function getExecutiveIntelligence(force = false): Promise<ExecutiveIntelligence> {
   const cacheKey = "executive-intelligence-v2";
@@ -17,12 +18,13 @@ export async function getExecutiveIntelligence(force = false): Promise<Executive
   }
 
   const metrics = await getOperatorMetrics();
-  const [opportunities, risks, forecasts, timeline, executionDrafts] = await Promise.all([
+  const [opportunities, risks, forecasts, timeline, executionDrafts, revenueLeaks] = await Promise.all([
     getAllExecutiveOpportunities(),
     getExecutiveRisks(),
     getExecutiveForecasts(),
     getBusinessTimeline(),
     getExecutionDrafts(),
+    detectRevenueLeaks(),
   ]);
 
   const scores = computeExecutiveScores(metrics);
@@ -39,6 +41,7 @@ export async function getExecutiveIntelligence(force = false): Promise<Executive
     forecasts,
     executionDrafts,
     totalOpportunityRevenue,
+    revenueLeaks,
     transparency: {
       dataSources: [
         "Prisma submissions & pipeline",

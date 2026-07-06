@@ -288,6 +288,7 @@ export interface ExecutiveIntelligence {
   forecasts: ExecutiveForecast[];
   executionDrafts: ExecutionDraft[];
   totalOpportunityRevenue: number;
+  revenueLeaks?: import("./executive/revenue-leaks").RevenueLeak[];
   transparency: {
     dataSources: string[];
     lastSynced: string;
@@ -572,7 +573,7 @@ export const PAGE_AI_PROMPTS: Record<AIPageContext, { label: string; prompts: st
     prompts: ["Rank opportunities by revenue", "What should I execute this week?"],
   },
   risks: { label: "Risk Center", prompts: ["What could hurt revenue this month?", "Show early warning signals"] },
-  assistant: { label: "Assistant", prompts: ["What should I focus on today?", "Summarize the business"] },
+  assistant: { label: "Executive Intelligence", prompts: ["What is the highest-ROI action today?", "Where are we losing revenue?", "Summarize north star metrics"] },
   memory: {
     label: "Business Knowledge Engine",
     prompts: [

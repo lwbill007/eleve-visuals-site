@@ -9,6 +9,9 @@ import type {
 } from "../types";
 import type { CMODailyBriefing } from "../marketing/types";
 import type { SynthesizedExecutiveBriefing } from "./synthesizer";
+import type { NorthStarMetrics } from "./north-star";
+import type { RevenueLeak } from "./revenue-leaks";
+import type { WeeklyExecutiveReport } from "../intelligence/weekly-executive-report";
 
 export type ExecutiveRoleId =
   | "ceo"
@@ -112,6 +115,9 @@ export interface ExecutiveOS {
   selfImprovement: SelfImprovementLesson[];
   knowledgeGraph: KnowledgeGraphStats;
   embeddingStats?: { chunks: number; memories: number; mode: "api" | "local" };
+  northStar: NorthStarMetrics;
+  revenueLeaks: RevenueLeak[];
+  weeklyReport: WeeklyExecutiveReport;
   transparency: {
     dataSources: string[];
     facts: string[];
@@ -123,14 +129,14 @@ export interface ExecutiveOS {
 }
 
 export const EXECUTIVE_MISSION = [
-  "Increase revenue",
-  "Increase bookings",
-  "Increase client satisfaction",
-  "Increase brand value",
-  "Increase operational efficiency",
-  "Reduce repetitive work",
-  "Protect the brand",
-  "Continuously learn",
+  "More qualified inquiries",
+  "More bookings",
+  "Higher average project value",
+  "Stronger brand perception",
+  "Better customer experience",
+  "Better operational efficiency",
+  "Better decision making",
+  "Sustainable long-term growth",
 ] as const;
 
 export const ROLE_META: Record<

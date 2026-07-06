@@ -110,6 +110,70 @@ export function ExecutiveCommandCenter({ os }: { os: ExecutiveOS }) {
 
       {os.synthesis && <ExecutiveSynthesisPanel synthesis={os.synthesis} />}
 
+      {os.northStar && (
+        <AdminPanel title="North star metrics" subtitle="Every recommendation optimizes these — never vanity metrics">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-lg border border-stone/20 p-3 text-center">
+              <p className="font-display text-xl text-cream">{os.northStar.qualifiedInquiries}</p>
+              <p className="text-[0.55rem] text-muted uppercase">Qualified inquiries</p>
+            </div>
+            <div className="rounded-lg border border-stone/20 p-3 text-center">
+              <p className="font-display text-xl text-cream">{os.northStar.bookingFormCompletionRate}%</p>
+              <p className="text-[0.55rem] text-muted uppercase">Booking completion</p>
+            </div>
+            <div className="rounded-lg border border-stone/20 p-3 text-center">
+              <p className="font-display text-xl text-cream">${os.northStar.averageProjectValue.toLocaleString()}</p>
+              <p className="text-[0.55rem] text-muted uppercase">Avg project value</p>
+            </div>
+            <div className="rounded-lg border border-stone/20 p-3 text-center">
+              <p className="font-display text-xl text-cream">${os.northStar.revenuePerVisitor}</p>
+              <p className="text-[0.55rem] text-muted uppercase">Revenue / visitor</p>
+            </div>
+            <div className="rounded-lg border border-stone/20 p-3 text-center">
+              <p className="font-display text-xl text-cream">${os.northStar.customerLifetimeValue.toLocaleString()}</p>
+              <p className="text-[0.55rem] text-muted uppercase">Customer LTV</p>
+            </div>
+          </div>
+        </AdminPanel>
+      )}
+
+      {os.revenueLeaks && os.revenueLeaks.length > 0 && (
+        <AdminPanel
+          title="Revenue leak detection"
+          subtitle={`~$${Math.round(os.revenueLeaks.reduce((s, l) => s + l.recoveryPotential * l.confidence, 0)).toLocaleString()} recoverable`}
+        >
+          <ul className="space-y-2">
+            {os.revenueLeaks.slice(0, 5).map((leak) => (
+              <li key={leak.id} className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                <p className="text-sm text-cream">{leak.title}</p>
+                <p className="mt-1 text-xs text-fog">{leak.reason}</p>
+                <p className="mt-1 text-xs text-muted">
+                  ~${leak.estimatedLoss.toLocaleString()} at risk · ~${leak.recoveryPotential.toLocaleString()} recoverable ·{" "}
+                  {Math.round(leak.confidence * 100)}% confidence
+                </p>
+              </li>
+            ))}
+          </ul>
+        </AdminPanel>
+      )}
+
+      {os.weeklyReport && (
+        <AdminPanel title="Weekly executive report" subtitle={`Week ending ${os.weeklyReport.weekEnding}`}>
+          <p className="text-sm font-medium text-cream">{os.weeklyReport.headline}</p>
+          <p className="mt-2 text-sm text-fog whitespace-pre-wrap">{os.weeklyReport.narrative}</p>
+          {os.weeklyReport.prioritize.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[0.6rem] uppercase text-accent">Prioritize this week</p>
+              <ul className="mt-2 space-y-1 text-xs text-fog">
+                {os.weeklyReport.prioritize.map((p) => (
+                  <li key={p}>• {p}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </AdminPanel>
+      )}
+
       {cc.urgentAlerts.length > 0 && (
         <AdminPanel title="Urgent alerts" subtitle="Requires attention today">
           <ul className="space-y-2">
@@ -214,7 +278,7 @@ export function ExecutiveCommandCenter({ os }: { os: ExecutiveOS }) {
         </div>
       </AdminPanel>
 
-      <AdminPanel title="Self-improvement" subtitle="What ÉLEVÉ AI learned from outcomes">
+      <AdminPanel title="Self-improvement" subtitle="What the executive intelligence platform learned from outcomes">
         {os.selfImprovement.length === 0 ? (
           <p className="text-sm text-muted">Lessons accumulate as recommendations are acted on and outcomes recorded.</p>
         ) : (

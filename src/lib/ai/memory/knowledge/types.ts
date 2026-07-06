@@ -85,7 +85,7 @@ export interface RefreshLearnReport {
   recommendationsChanged: string[];
   actions: MemoryDiffAction[];
   executiveReport: ExecutiveIntelligenceReport;
-  discoveryMethod: "router" | "hybrid";
+  discoveryMethod: "router" | "hybrid" | "filesystem";
   transparency: {
     dataSources: string[];
     uncertainAreas: string[];

@@ -151,11 +151,12 @@ export async function refreshIntelligence(trigger: RefreshTrigger = "manual"): P
         : [],
     actions: diffResult.actions,
     executiveReport,
-    discoveryMethod: "router",
+    discoveryMethod: "filesystem",
     transparency: {
       dataSources: [
-        "Next.js App Router (filesystem discovery)",
+        "Next.js App Router (automatic filesystem discovery — no hardcoded routes)",
         "Dynamic expansion (portfolio, sessions, cast slugs from database)",
+        "Infrastructure routes (robots.txt, sitemap.xml, 404)",
         "Semantic analysis (purpose, CTAs, pricing, SEO, branding, tone)",
         "CRM, pipeline, sponsorship, analytics",
         "Scan snapshot diff (change detection timeline)",

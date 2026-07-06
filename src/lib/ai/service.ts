@@ -20,7 +20,7 @@ export async function runAIChat(
 
   const { resolveAgent, buildAgentSystemMessages } = await import("./executive/agents");
   const agent = resolveAgent(options?.role);
-  const ragContext = await buildMemoryContext(userMessage, "assistant");
+  const ragContext = await buildMemoryContext(userMessage, "executive");
   const decisionCtx = await buildDecisionEngineContext(userMessage);
   const agentMessages = buildAgentSystemMessages(agent, [
     formatDecisionContextForPrompt(decisionCtx),
@@ -80,7 +80,7 @@ export async function* streamAIChat(
   const agent = resolveAgent(options?.role);
 
   const snapshot = await buildBusinessContextSnapshot();
-  const ragContext = await buildMemoryContext(userMessage, "assistant");
+  const ragContext = await buildMemoryContext(userMessage, "executive");
   const decisionCtx = await buildDecisionEngineContext(userMessage);
   const executiveContext = formatDecisionContextForPrompt(decisionCtx);
   const agentMessages = buildAgentSystemMessages(agent, [

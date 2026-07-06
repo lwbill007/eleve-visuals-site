@@ -17,6 +17,9 @@ import { syncBusinessMemory } from "../memory/sync";
 import { synthesizeExecutiveBriefing } from "./synthesizer";
 import { getAllExecutiveOpportunities } from "../intelligence/website-opportunities";
 import { getEmbeddingStats } from "../memory/embeddings";
+import { computeNorthStarMetrics } from "./north-star";
+import { detectRevenueLeaks } from "./revenue-leaks";
+import { generateWeeklyExecutiveReport } from "../intelligence/weekly-executive-report";
 import type { ExecutiveOS, CommandCenterState } from "./types";
 import { EXECUTIVE_MISSION } from "./types";
 
@@ -45,6 +48,9 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     metrics,
     allOpportunities,
     embeddingStats,
+    northStar,
+    revenueLeaks,
+    weeklyReport,
   ] = await Promise.all([
     getExecutiveIntelligence(force),
     getAIDailyBriefing(force),
@@ -64,6 +70,9 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     getOperatorMetrics(),
     getAllExecutiveOpportunities(),
     getEmbeddingStats(),
+    computeNorthStarMetrics(),
+    detectRevenueLeaks(),
+    generateWeeklyExecutiveReport(),
   ]);
 
   const synthesis = synthesizeExecutiveBriefing({
@@ -167,6 +176,9 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     selfImprovement,
     knowledgeGraph: graphStats,
     embeddingStats,
+    northStar,
+    revenueLeaks,
+    weeklyReport,
     transparency: {
       dataSources: [
         ...intelligence.transparency.dataSources,

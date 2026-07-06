@@ -28,6 +28,12 @@ export async function GET(request: Request) {
   }
 
   const report = await refreshIntelligence(schedule);
+
+  if (schedule === "weekly") {
+    const { generateWeeklyExecutiveReport } = await import("@/lib/ai/intelligence/weekly-executive-report");
+    await generateWeeklyExecutiveReport({ persist: true }).catch(() => {});
+  }
+
   return NextResponse.json({
     ok: true,
     refreshId: report.refreshId,

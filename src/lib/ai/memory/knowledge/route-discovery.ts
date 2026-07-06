@@ -137,44 +137,22 @@ export async function expandDynamicRoutes(templates: DiscoveredRoute[]): Promise
   });
 }
 
+export function discoverInfrastructureRoutes(): DiscoveredRoute[] {
+  const now = new Date().toISOString();
+  return [
+    { path: "/robots.txt", template: "/robots.txt", kind: "public", segment: "robots", filePath: "public/robots.txt", discoveredAt: now },
+    { path: "/sitemap.xml", template: "/sitemap.xml", kind: "public", segment: "sitemap", filePath: "src/app/sitemap.ts", discoveredAt: now },
+    { path: "/404", template: "/404", kind: "public", segment: "not-found", filePath: "src/app/not-found.tsx", discoveredAt: now },
+  ];
+}
+
 export async function discoverPlatformRoutes(): Promise<DiscoveredRoute[]> {
   const templates = await discoverRoutesFromFilesystem();
   const expanded = await expandDynamicRoutes(templates);
 
-  const adminModules = [
-    "/admin/crm",
-    "/admin/pipeline",
-    "/admin/bookings-ai",
-    "/admin/submissions",
-    "/admin/applications",
-    "/admin/marketing",
-    "/admin/email",
-    "/admin/reports",
-    "/admin/analytics",
-    "/admin/memory",
-    "/admin/intelligence",
-    "/admin/opportunities",
-    "/admin/risks",
-    "/admin/forms",
-    "/admin/referrals",
-    "/admin/content-hub",
-    "/admin/sponsorship",
-    "/admin/sessions-hub",
-    "/admin/automations",
-    "/admin/notifications",
-  ];
-
-  const now = new Date().toISOString();
-  for (const p of adminModules) {
-    if (!expanded.some((r) => r.path === p)) {
-      expanded.push({
-        path: p,
-        template: p,
-        kind: "admin",
-        segment: p.split("/").pop() ?? "admin",
-        filePath: `discovered:${p}`,
-        discoveredAt: now,
-      });
+  for (const infra of discoverInfrastructureRoutes()) {
+    if (!expanded.some((r) => r.path === infra.path)) {
+      expanded.push(infra);
     }
   }
 

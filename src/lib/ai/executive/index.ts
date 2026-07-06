@@ -1,4 +1,8 @@
 export * from "./types";
+export * from "./charter";
+export * from "./intelligence-layers";
+export * from "./north-star";
+export * from "./revenue-leaks";
 export { getExecutiveOS } from "./executive-os";
 export { buildDecisionEngineContext, formatDecisionContextForPrompt } from "./decision-engine";
 export {

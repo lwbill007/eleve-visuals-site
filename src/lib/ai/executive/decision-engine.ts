@@ -6,12 +6,15 @@ import { getAdminCRMContacts, getAdminPipeline } from "@/lib/admin-os-server";
 import { getBookingIntelligence } from "../intelligence/bookings";
 import { getStoredPatterns } from "../marketing/learning-engine";
 import { getLearningOutcomes } from "../memory/learning";
+import { computeNorthStarMetrics, formatNorthStarForPrompt } from "./north-star";
+import { detectRevenueLeaks, totalLeakExposure } from "./revenue-leaks";
+import { charterSystemPrompt } from "./charter";
 import type { DecisionEngineContext } from "./types";
 
 export async function buildDecisionEngineContext(query?: string): Promise<DecisionEngineContext> {
   const workspaceId = getWorkspaceId();
 
-  const [metrics, analytics, pipeline, crm, bookings, patterns, learnings, memorySearch] =
+  const [metrics, analytics, pipeline, crm, bookings, patterns, learnings, memorySearch, northStar, leaks] =
     await Promise.all([
       getOperatorMetrics(),
       getAnalyticsSummary(30),
@@ -34,7 +37,11 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
             };
           })
         : searchMemories({ workspaceId, limit: 8 }),
+      computeNorthStarMetrics(),
+      detectRevenueLeaks(),
     ]);
+
+  const leakExposure = totalLeakExposure(leaks);
 
   const facts: string[] = [
     `Revenue MTD: $${metrics.revenue.thisMonth.toLocaleString()} (${metrics.revenue.monthChange >= 0 ? "+" : ""}${metrics.revenue.monthChange}%)`,
@@ -44,6 +51,7 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
     `CRM: ${crm.length} contacts · ${metrics.attention.followUpClients} need follow-up`,
     `Stale inquiries: ${bookings.staleInquiries}`,
     `Top page: ${analytics.topPages[0]?.path ?? "/"} (${analytics.topPages[0]?.views ?? 0} views)`,
+    `Revenue at risk (detected leaks): ~$${Math.round(leakExposure.loss).toLocaleString()} · recoverable ~$${Math.round(leakExposure.recoverable).toLocaleString()}`,
   ];
 
   const predictions: string[] = [
@@ -75,14 +83,19 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
   const metricsSummary = facts.join(" · ");
 
   const whyPreamble = [
-    "Before recommending anything, ÉLEVÉ AI checked:",
+    charterSystemPrompt().split("\n").slice(0, 6).join("\n"),
+    "",
+    "Before recommending anything, ÉLEVÉ Executive Intelligence checked:",
     `• ${memoryHits} relevant memories`,
+    "• North star metrics & revenue leak detection",
     "• Live business metrics & pipeline",
     "• CRM & booking intelligence",
     "• Marketing patterns & learning outcomes",
     "• Website analytics (30d)",
     "",
-    "Every recommendation must cite evidence. Facts vs predictions vs suggestions are labeled.",
+    formatNorthStarForPrompt(northStar),
+    "",
+    "Every recommendation must cite evidence and quantify business impact. Never optimize vanity metrics.",
   ].join("\n");
 
   return {

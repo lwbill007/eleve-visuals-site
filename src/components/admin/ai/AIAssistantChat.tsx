@@ -5,11 +5,11 @@ import { adminFetch } from "@/lib/admin-fetch";
 import type { AIMessage } from "@/lib/ai/types";
 
 const STARTERS = [
-  "What patterns should I act on today?",
-  "Which clients are highest revenue risk?",
-  "What does memory say about our best marketing channel?",
-  "Forecast next month based on current data.",
-  "What should I prioritize for ÉLEVÉ Sessions?",
+  "What is the highest-ROI action to grow revenue today?",
+  "Where are we losing money right now?",
+  "Which north star metrics declined this week?",
+  "What revenue leaks should I fix first?",
+  "What should ÉLEVÉ Sessions prioritize for bookings?",
 ];
 
 export function AIAssistantChat({ compact = false }: { compact?: boolean }) {
@@ -102,7 +102,7 @@ export function AIAssistantChat({ compact = false }: { compact?: boolean }) {
         {messages.length === 0 && (
           <div className="space-y-4 py-6">
             <p className="text-center text-sm text-fog">
-              Ask anything about bookings, clients, sessions, or growth.
+              Executive intelligence console — every response drives bookings, revenue, and brand value.
               {provider && (
                 <span className="mt-1 block text-xs text-muted">Provider: {provider}</span>
               )}
@@ -147,7 +147,7 @@ export function AIAssistantChat({ compact = false }: { compact?: boolean }) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask ÉLEVÉ AI…"
+          placeholder="Ask the executive team…"
           disabled={streaming}
           className="min-w-0 flex-1 rounded-lg border border-stone/30 bg-charcoal/30 px-4 py-3 text-sm text-cream outline-none focus:border-accent/50 disabled:opacity-50"
         />

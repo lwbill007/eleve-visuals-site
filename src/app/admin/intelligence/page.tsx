@@ -30,9 +30,9 @@ export default function ExecutiveIntelligencePage() {
   return (
     <AdminShell title="Executive Intelligence">
       <AdminPageHeader
-        eyebrow="ÉLEVÉ AI · Executive Intelligence System"
+        eyebrow="ÉLEVÉ Executive Intelligence Platform"
         title="Command Center"
-        description="Not a chatbot — a full executive team with perfect memory. Every module drives measurable outcomes: revenue, bookings, satisfaction, brand, efficiency."
+        description="Not a chatbot — a coordinated executive leadership team that grows the business. Every insight drives qualified inquiries, bookings, revenue, and brand value."
         action={
           <button
             type="button"
