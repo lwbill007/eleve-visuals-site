@@ -378,6 +378,215 @@ export interface AIDailyBriefing {
   forecast: { bookings: string; revenue: number; weekStart: string };
   /** Chief Marketing Officer intelligence layer */
   cmo?: import("./marketing/types").CMODailyBriefing;
+  /** Structured morning executive brief */
+  executiveMorning?: ExecutiveMorningBrief;
+}
+
+export type RecommendationPriority = "critical" | "high" | "medium" | "low";
+export type RecommendationDifficulty = "easy" | "moderate" | "hard";
+
+export interface PrioritizedRecommendation {
+  id: string;
+  title: string;
+  detail: string;
+  category: string;
+  estimatedRevenue: number;
+  confidence: number;
+  timeToCompleteMinutes: number;
+  difficulty: RecommendationDifficulty;
+  priority: RecommendationPriority;
+  whyNow: string;
+  evidence: string[];
+  actions: BusinessAction[];
+}
+
+export interface FunnelStepMetric {
+  id: string;
+  label: string;
+  count: number;
+  conversionFromPrevious: number;
+  dropOffRate: number;
+  estimatedRevenueLost: number;
+  insight: string;
+}
+
+export interface RevenueAttributionFunnel {
+  generatedAt: string;
+  periodDays: number;
+  steps: FunnelStepMetric[];
+  totalRevenue: number;
+  totalRecoverable: number;
+  biggestLeak: FunnelStepMetric | null;
+}
+
+export interface WebsiteHeatSection {
+  path: string;
+  label: string;
+  views: number;
+  conversions: number;
+  conversionRate: number;
+  engagementScore: number;
+  insight: string;
+}
+
+export interface WebsiteHeatIntelligence {
+  generatedAt: string;
+  topConverters: WebsiteHeatSection[];
+  ignoredSections: WebsiteHeatSection[];
+  weakCtas: { path: string; issue: string; estimatedLoss: number }[];
+  bestPhotos: { path: string; views: number; dwellProxy: number }[];
+  scrollDropOff: { depth: number; sessions: number }[];
+}
+
+export interface BookingSourceMetric {
+  source: string;
+  inquiries: number;
+  bookings: number;
+  bookingRate: number;
+  revenue: number;
+  revenuePerInquiry: number;
+}
+
+export interface BookingServiceMetric {
+  service: string;
+  inquiries: number;
+  bookingRate: number;
+  avgValue: number;
+}
+
+export interface LostInquiry {
+  id: string;
+  name: string;
+  reason: string;
+  daysSince: number;
+  estimatedValue: number;
+  href: string;
+}
+
+export interface ExtendedBookingIntelligence {
+  generatedAt: string;
+  avgResponseTimeHours: number;
+  avgInquiryToBookingDays: number;
+  bySource: BookingSourceMetric[];
+  byService: BookingServiceMetric[];
+  lostInquiries: LostInquiry[];
+  bookingRate: number;
+}
+
+export interface ContentPostMetric {
+  id: string;
+  title: string;
+  platform: string;
+  revenueGenerated: number;
+  websiteVisits: number;
+  profileVisits: number;
+  shares: number;
+  saves: number;
+  watchTimeSeconds: number;
+  followersGained: number;
+  bookingsInfluenced: number;
+  similarWinners: string[];
+  dataSource: "memory" | "estimated" | "manual";
+}
+
+export interface ContentIntelligenceSummary {
+  generatedAt: string;
+  posts: ContentPostMetric[];
+  topPerformingHooks: string[];
+  recommendation: string;
+  externalConnected: boolean;
+}
+
+export interface ClientIntelProfile {
+  email: string;
+  name: string;
+  lifetimeValue: number;
+  totalSessions: number;
+  lastBooking: string | null;
+  favoriteServices: string[];
+  referralCount: number;
+  birthdayReminder: string | null;
+  upsellOpportunities: string[];
+  followUpReminder: string | null;
+  churnRisk: "low" | "medium" | "high";
+}
+
+export interface ClientIntelligenceSummary {
+  generatedAt: string;
+  clients: ClientIntelProfile[];
+  atRiskCount: number;
+  totalLtv: number;
+}
+
+export interface FinancialIntelligence {
+  generatedAt: string;
+  grossRevenue: number;
+  netProfit: number;
+  monthlyRecurringRevenue: number;
+  averageProjectValue: number;
+  revenuePerVisitor: number;
+  customerAcquisitionCost: number;
+  returnOnAdSpend: number;
+  cashRunwayMonths: number;
+  monthlyGrowthRate: number;
+  confidence: number;
+  assumptions: string[];
+}
+
+export interface PredictiveInsight {
+  id: string;
+  metric: string;
+  trend: string;
+  prediction: string;
+  projectedChange: number;
+  confidence: number;
+  recoveryAction: string;
+  recoveryImpact: string;
+  estimatedRevenue: number;
+}
+
+export interface ExecutiveMemoryEntry {
+  id: string;
+  type: "decision" | "experiment" | "campaign" | "promotion" | "website_change" | "lesson";
+  title: string;
+  outcome: "success" | "failure" | "neutral" | "pending";
+  summary: string;
+  recordedAt: string;
+  tags: string[];
+}
+
+export interface ExecutiveMemorySnapshot {
+  generatedAt: string;
+  decisions: ExecutiveMemoryEntry[];
+  experiments: ExecutiveMemoryEntry[];
+  lessons: ExecutiveMemoryEntry[];
+  avoidSuggestions: string[];
+  provenWins: string[];
+}
+
+export interface ExecutiveMorningBrief {
+  generatedAt: string;
+  biggestWin: string;
+  biggestRevenueLeak: string;
+  biggestOpportunity: string;
+  actionsToday: { title: string; href: string; revenueImpact: number }[];
+  risksToWatch: string[];
+  goalsToday: string[];
+  highestRoiRecommendation: PrioritizedRecommendation | null;
+}
+
+export interface IntelligenceSuite {
+  generatedAt: string;
+  revenueAttribution: RevenueAttributionFunnel;
+  prioritizedRecommendations: PrioritizedRecommendation[];
+  websiteHeat: WebsiteHeatIntelligence;
+  booking: ExtendedBookingIntelligence;
+  content: ContentIntelligenceSummary;
+  clients: ClientIntelligenceSummary;
+  financial: FinancialIntelligence;
+  predictive: PredictiveInsight[];
+  executiveMemory: ExecutiveMemorySnapshot;
+  executiveMorning: ExecutiveMorningBrief;
 }
 
 export interface CRMContactIntelligence {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { recordPageView } from "@/lib/analytics-server";
+import { recordPageView, recordEngagement } from "@/lib/analytics-server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const pageViewSchema = z.object({
@@ -10,6 +10,16 @@ const pageViewSchema = z.object({
   utmMedium: z.string().max(200).nullable().optional(),
   utmCampaign: z.string().max(200).nullable().optional(),
   sessionId: z.string().max(64).nullable().optional(),
+});
+
+const engagementSchema = z.object({
+  event: z.enum(["form_step", "cta_click", "scroll_depth", "section_view"]),
+  path: z.string().trim().min(1).max(500),
+  sessionId: z.string().max(64).nullable().optional(),
+  label: z.string().max(200).optional(),
+  step: z.number().int().min(1).max(20).optional(),
+  depth: z.number().min(0).max(100).optional(),
+  metadata: z.record(z.unknown()).optional(),
 });
 
 export async function POST(request: Request) {
@@ -27,17 +37,29 @@ export async function POST(request: Request) {
   }
 
   const parsed = pageViewSchema.safeParse(body);
-  if (!parsed.success) {
+  if (parsed.success) {
+    if (parsed.data.path.startsWith("/admin") || parsed.data.path.startsWith("/api")) {
+      return NextResponse.json({ ok: true });
+    }
+    try {
+      await recordPageView(parsed.data);
+    } catch {
+      return NextResponse.json({ error: "Failed to record" }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  const engagement = engagementSchema.safeParse(body);
+  if (!engagement.success) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  // Skip admin routes and API routes
-  if (parsed.data.path.startsWith("/admin") || parsed.data.path.startsWith("/api")) {
+  if (engagement.data.path.startsWith("/admin")) {
     return NextResponse.json({ ok: true });
   }
 
   try {
-    await recordPageView(parsed.data);
+    await recordEngagement(engagement.data);
   } catch {
     return NextResponse.json({ error: "Failed to record" }, { status: 500 });
   }

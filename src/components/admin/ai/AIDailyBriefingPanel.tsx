@@ -40,6 +40,24 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
           <p className="label-caps text-accent">CEO Briefing</p>
           <h2 className="mt-2 font-display text-xl text-cream">{briefing.ceoHeadline}</h2>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-cream-dim">{briefing.summary}</p>
+
+          {briefing.executiveMorning && (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                <p className="text-[0.55rem] uppercase text-emerald-400">Biggest win</p>
+                <p className="mt-1 text-xs text-cream">{briefing.executiveMorning.biggestWin}</p>
+              </div>
+              <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                <p className="text-[0.55rem] uppercase text-red-400">Revenue leak</p>
+                <p className="mt-1 text-xs text-cream">{briefing.executiveMorning.biggestRevenueLeak}</p>
+              </div>
+              <div className="rounded-lg border border-accent/20 bg-accent/5 p-3">
+                <p className="text-[0.55rem] uppercase text-accent">Top opportunity</p>
+                <p className="mt-1 text-xs text-cream">{briefing.executiveMorning.biggestOpportunity}</p>
+              </div>
+            </div>
+          )}
+
           <p className="mt-2 text-xs text-muted">
             Updated {new Date(briefing.generatedAt).toLocaleString()}
             {briefing.provider !== "rules" && ` · ${briefing.provider}`}

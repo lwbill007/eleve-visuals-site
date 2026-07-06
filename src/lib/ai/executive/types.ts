@@ -118,6 +118,7 @@ export interface ExecutiveOS {
   northStar: NorthStarMetrics;
   revenueLeaks: RevenueLeak[];
   weeklyReport: WeeklyExecutiveReport;
+  intelligenceSuite?: import("../types").IntelligenceSuite;
   transparency: {
     dataSources: string[];
     facts: string[];

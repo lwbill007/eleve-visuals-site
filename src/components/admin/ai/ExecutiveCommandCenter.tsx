@@ -16,6 +16,7 @@ import {
   TransparencyPanel,
 } from "@/components/admin/os/ExecutiveIntelligenceComponents";
 import { ExecutiveSynthesisPanel } from "@/components/admin/ai/ExecutiveSynthesisPanel";
+import { ExecutiveIntelligenceSuite } from "@/components/admin/ai/ExecutiveIntelligenceSuite";
 
 const KIND_COLORS: Record<string, string> = {
   fact: "text-emerald-400",
@@ -109,6 +110,8 @@ export function ExecutiveCommandCenter({ os }: { os: ExecutiveOS }) {
       </section>
 
       {os.synthesis && <ExecutiveSynthesisPanel synthesis={os.synthesis} />}
+
+      {os.intelligenceSuite && <ExecutiveIntelligenceSuite suite={os.intelligenceSuite} />}
 
       {os.northStar && (
         <AdminPanel title="North star metrics" subtitle="Every recommendation optimizes these — never vanity metrics">

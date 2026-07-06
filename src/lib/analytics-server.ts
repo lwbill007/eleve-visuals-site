@@ -1,6 +1,8 @@
 import { prisma } from "./db";
+import type { Prisma } from "@prisma/client";
 
 export type ConversionType = "booking" | "contact" | "session";
+export type EngagementEvent = "form_step" | "cta_click" | "scroll_depth" | "section_view";
 
 interface PageViewInput {
   path: string;
@@ -9,6 +11,16 @@ interface PageViewInput {
   utmMedium?: string | null;
   utmCampaign?: string | null;
   sessionId?: string | null;
+}
+
+export interface EngagementInput {
+  event: EngagementEvent;
+  path: string;
+  sessionId?: string | null;
+  label?: string;
+  step?: number;
+  depth?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export async function recordPageView(input: PageViewInput) {
@@ -29,7 +41,8 @@ export async function recordConversion(
   conversionType: ConversionType,
   path: string,
   referrer?: string | null,
-  sessionId?: string | null
+  sessionId?: string | null,
+  metadata?: Record<string, unknown>
 ) {
   await prisma.analyticsEvent.create({
     data: {
@@ -38,6 +51,24 @@ export async function recordConversion(
       referrer: referrer?.slice(0, 500) ?? null,
       conversionType,
       sessionId: sessionId?.slice(0, 64) ?? null,
+      metadata: metadata ? (metadata as Prisma.InputJsonValue) : undefined,
+    },
+  });
+}
+
+export async function recordEngagement(input: EngagementInput) {
+  await prisma.analyticsEvent.create({
+    data: {
+      type: "engagement",
+      path: input.path.slice(0, 500),
+      sessionId: input.sessionId?.slice(0, 64) ?? null,
+      metadata: {
+        event: input.event,
+        label: input.label,
+        step: input.step,
+        depth: input.depth,
+        ...input.metadata,
+      } as Prisma.InputJsonValue,
     },
   });
 }

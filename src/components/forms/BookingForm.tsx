@@ -15,7 +15,7 @@ import { FormSpamFields, useFormSpam } from "@/components/forms/FormSpamFields";
 import { BookingProgress } from "@/components/booking/BookingProgress";
 import { SelectableGrid } from "@/components/booking/SelectableCard";
 import { BookingSuccess } from "@/components/booking/BookingSuccess";
-import { trackConversion } from "@/lib/analytics-client";
+import { trackConversion, trackEngagement } from "@/lib/analytics-client";
 import {
   BOOKING_AUTOSAVE_KEY,
   BOOKING_STEPS,
@@ -100,6 +100,16 @@ export function BookingForm({
     const hide = setTimeout(() => setAutosaved(false), 2000);
     return () => clearTimeout(hide);
   }, [autosaved]);
+
+  useEffect(() => {
+    if (submitted) return;
+    trackEngagement({
+      event: "form_step",
+      path: "/book",
+      step,
+      label: BOOKING_STEPS[step - 1]?.label ?? `Step ${step}`,
+    });
+  }, [step, submitted]);
 
   const update = useCallback(<K extends keyof BookingFormData>(
     key: K,

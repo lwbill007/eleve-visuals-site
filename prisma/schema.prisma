@@ -183,6 +183,7 @@ model AnalyticsEvent {
   utmCampaign    String?
   conversionType String?
   sessionId      String?
+  metadata       Json?
   createdAt      DateTime @default(now())
 
   @@index([type, createdAt])

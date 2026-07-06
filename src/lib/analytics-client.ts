@@ -36,6 +36,26 @@ export function trackConversion(type: "booking" | "contact" | "session") {
   }
 }
 
+export function trackEngagement(input: {
+  event: "form_step" | "cta_click" | "scroll_depth" | "section_view";
+  path?: string;
+  label?: string;
+  step?: number;
+  depth?: number;
+  metadata?: Record<string, unknown>;
+}) {
+  fetch("/api/analytics", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...input,
+      path: input.path ?? window.location.pathname,
+      sessionId: getAnalyticsSessionId(),
+    }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 declare global {
   interface Window {
     plausible?: (event: string, options?: { props?: Record<string, string> }) => void;

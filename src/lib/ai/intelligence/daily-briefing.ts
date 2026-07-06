@@ -17,6 +17,7 @@ import { aiComplete } from "../adapter";
 import { systemPromptForTask } from "../prompts/system";
 import type { AIDailyBriefing } from "../types";
 import type { CMODailyBriefing } from "../marketing/types";
+import { buildExecutiveMorningBrief } from "./intelligence-suite";
 
 function startOfDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -29,7 +30,7 @@ function startOfWeek(d = new Date()) {
 }
 
 export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing> {
-  const cacheKey = "daily-briefing-v5";
+  const cacheKey = "daily-briefing-v6";
   if (!force) {
     const cached = await getCached<AIDailyBriefing>(cacheKey);
     if (cached) return cached;
@@ -86,6 +87,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
   ]);
 
   let cmoBriefing: CMODailyBriefing | undefined;
+  const executiveMorning = await buildExecutiveMorningBrief();
   try {
     const { getCMOIntelligence } = await import("../marketing/cmo-intelligence");
     const cmo = await getCMOIntelligence(false);
@@ -316,6 +318,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       weekStart: weekStart.toISOString(),
     },
     cmo: cmoBriefing,
+    executiveMorning,
   };
 
   await setCache(cacheKey, briefing, 15 * 60 * 1000);
