@@ -784,11 +784,12 @@ export const PAGE_AI_PROMPTS: Record<AIPageContext, { label: string; prompts: st
   risks: { label: "Risk Center", prompts: ["What could hurt revenue this month?", "Show early warning signals"] },
   assistant: { label: "Executive Intelligence", prompts: ["What is the highest-ROI action today?", "Where are we losing revenue?", "Summarize north star metrics"] },
   memory: {
-    label: "Business Knowledge Engine",
+    label: "Knowledge Engine",
     prompts: [
-      "What does the AI know about my business?",
-      "What changed in the last knowledge refresh?",
-      "Which pages drive the most bookings?",
+      "What does the cognitive architecture know about my business?",
+      "What changed in the last executive intelligence refresh?",
+      "What unknowns should I resolve first?",
+      "Simulate increasing pricing 15% — what happens?",
     ],
   },
   general: { label: "Admin", prompts: ["What should I focus on today?", "Show me revenue", "Find inactive clients"] },

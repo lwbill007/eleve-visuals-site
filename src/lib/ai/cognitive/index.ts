@@ -9,3 +9,5 @@ export { buildExecutiveReasoning } from "./reasoning";
 export { buildEvidenceCenter } from "./evidence-center";
 export { runStrategySimulation, listSimulationScenarios } from "./strategy-simulator";
 export { buildCognitiveArchitecture, getCognitiveArchitecture } from "./cognitive-architecture";
+export { invalidateIntelligenceCaches } from "./cache";
+export { buildCognitiveContextForPrompt } from "./context-prompt";

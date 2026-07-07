@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { appendConversationMessage, buildMemoryContext, getConversationHistory } from "@/lib/ai/memory";
+import { buildCognitiveContextForPrompt } from "@/lib/ai/cognitive/context-prompt";
 import { streamAIChat } from "@/lib/ai/service";
 import { PAGE_AI_PROMPTS, type AIContextPayload } from "@/lib/ai/types";
 import { systemPromptForAssistant } from "@/lib/ai/prompts/system";
@@ -23,16 +24,21 @@ export async function POST(req: Request) {
   const page = context?.page || "general";
   const pageConfig = PAGE_AI_PROMPTS[page];
   const history = await getConversationHistory(page);
-  const memory = await buildMemoryContext(message, page);
+  const [memory, cognitiveContext] = await Promise.all([
+    buildMemoryContext(message, page),
+    buildCognitiveContextForPrompt(page),
+  ]);
 
   const systemContext = `${systemPromptForAssistant()}
 
+${cognitiveContext}
+
 Current page: ${pageConfig.label}
 Page context: ${JSON.stringify(context?.data ?? {})}
-Memory (structured business knowledge — cite when relevant):
+Memory & cognitive intelligence (cite when relevant):
 ${memory}
 
-Respond with awareness of where the user is in the admin. Be actionable.`;
+Respond with awareness of where the user is in the admin. Reference Business DNA. Be actionable. Quantify revenue impact when possible.`;
 
   const enrichedMessage = context?.data
     ? `${message}\n\n[Page data]\n${JSON.stringify(context.data).slice(0, 4000)}`

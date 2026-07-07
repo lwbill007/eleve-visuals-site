@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { refreshAndLearnBusinessKnowledge } from "@/lib/ai/memory/knowledge";
 import { buildBusinessDNA } from "@/lib/ai/cognitive/business-dna";
+import { invalidateIntelligenceCaches } from "@/lib/ai/cognitive/cache";
 
 export async function POST(req: Request) {
   try {
@@ -12,6 +13,8 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const trigger = (body as { trigger?: string }).trigger ?? "manual";
+
+  await invalidateIntelligenceCaches();
 
   const [report] = await Promise.all([
     refreshAndLearnBusinessKnowledge(

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getExecutiveOS } from "@/lib/ai/executive";
 import { recordRecommendationFeedback } from "@/lib/ai/executive/self-improvement";
+import { invalidateIntelligenceCaches } from "@/lib/ai/cognitive/cache";
 
 export async function GET(request: Request) {
   try {
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
       detail: detail ?? "",
       revenueImpact,
     });
+    await invalidateIntelligenceCaches();
     return NextResponse.json({ ok: true, lesson });
   }
 

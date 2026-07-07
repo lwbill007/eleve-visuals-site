@@ -7,6 +7,7 @@ import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import { MemoryGraphVisual } from "@/components/admin/ai/MemoryGraphVisual";
 import type { CognitiveArchitecture, KnowledgeObject, StrategySimulation } from "@/lib/ai/cognitive/types";
+import type { MemoryExplanation } from "@/lib/ai/memory/knowledge/types";
 import { cn } from "@/lib/utils";
 
 function CognitiveSection({
@@ -53,9 +54,13 @@ function HealthBar({ score, label }: { score: number; label: string }) {
   );
 }
 
-function ObjectCard({ obj }: { obj: KnowledgeObject }) {
+function ObjectCard({ obj, onSelect }: { obj: KnowledgeObject; onSelect?: () => void }) {
   return (
-    <div className="rounded-lg border border-stone/15 p-3 text-xs">
+    <button
+      type="button"
+      onClick={onSelect}
+      className="w-full rounded-lg border border-stone/15 p-3 text-left text-xs transition-colors hover:border-accent/30"
+    >
       <div className="flex items-start justify-between gap-2">
         <p className="text-cream">{obj.title}</p>
         <span className="shrink-0 rounded border border-stone/25 px-1.5 py-0.5 text-[0.55rem] uppercase text-muted">
@@ -66,12 +71,11 @@ function ObjectCard({ obj }: { obj: KnowledgeObject }) {
       <p className="mt-2 text-muted">
         {obj.verified ? "Verified" : "Unverified"} · {Math.round(obj.confidence * 100)}% conf · {obj.relationshipCount} links
       </p>
-    </div>
+    </button>
   );
 }
 
 export function CognitiveArchitectureClient() {
-  useSetAIPage("memory");
   const [arch, setArch] = useState<CognitiveArchitecture | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,11 +83,27 @@ export function CognitiveArchitectureClient() {
   const [simulation, setSimulation] = useState<StrategySimulation | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [objectFilter, setObjectFilter] = useState<string>("all");
+  const [selectedObject, setSelectedObject] = useState<KnowledgeObject | null>(null);
+  const [explanation, setExplanation] = useState<MemoryExplanation | null>(null);
 
-  const load = useCallback(async () => {
+  useSetAIPage(
+    "memory",
+    arch
+      ? {
+          executiveSummary: arch.executiveBriefing.executiveSummary,
+          biggestOpportunity: arch.executiveBriefing.biggestOpportunity,
+          unknownsCount: arch.unknowns.length,
+          knowledgeHealth: arch.knowledgeHealth.find((h) => h.id === "understanding")?.score,
+          graphNodes: arch.graph.totalNodes,
+        }
+      : undefined,
+    "Knowledge Engine"
+  );
+
+  const load = useCallback(async (force = false) => {
     setLoading(true);
     try {
-      const res = await adminFetch("/api/admin/ai/cognitive");
+      const res = await adminFetch(`/api/admin/ai/cognitive${force ? "?refresh=1" : ""}`);
       if (res.ok) setArch(await res.json());
     } finally {
       setLoading(false);
@@ -93,6 +113,24 @@ export function CognitiveArchitectureClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function loadObjectDetail(obj: KnowledgeObject) {
+    setSelectedObject(obj);
+    setExplanation(null);
+    const res = await adminFetch(`/api/admin/ai/memory/${obj.memoryId}/explain`);
+    if (res.ok) setExplanation(await res.json());
+  }
+
+  async function toggleObjectFlag(field: "verified" | "pinned", value: boolean) {
+    if (!selectedObject) return;
+    await adminFetch(`/api/admin/ai/memory/${selectedObject.memoryId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    await load(true);
+    await loadObjectDetail({ ...selectedObject, verified: field === "verified" ? value : selectedObject.verified });
+  }
 
   async function refreshIntelligence() {
     setRefreshing(true);
@@ -106,7 +144,7 @@ export function CognitiveArchitectureClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Refresh failed");
       setMessage(data.message);
-      await load();
+      await load(true);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Refresh failed");
     } finally {
@@ -167,6 +205,18 @@ export function CognitiveArchitectureClient() {
       {message && (
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-cream">{message}</p>
       )}
+
+      <div className="mb-6 flex flex-wrap gap-4 text-xs">
+        <Link href="/admin/intelligence" className="text-accent hover:underline">
+          Command Center →
+        </Link>
+        <Link href="/admin/insights" className="text-accent hover:underline">
+          Insights & Actions →
+        </Link>
+        <Link href="/admin/opportunities" className="text-accent hover:underline">
+          Opportunities →
+        </Link>
+      </div>
 
       <div className="mb-8 flex flex-wrap gap-2">
         {arch.systems.map((s) => (
@@ -377,9 +427,40 @@ export function CognitiveArchitectureClient() {
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {filteredObjects.slice(0, 12).map((o) => (
-              <ObjectCard key={o.id} obj={o} />
+              <ObjectCard key={o.id} obj={o} onSelect={() => void loadObjectDetail(o)} />
             ))}
           </div>
+          {selectedObject && (
+            <AdminPanel title="Knowledge object detail" subtitle={selectedObject.type} className="mt-4">
+              <p className="text-sm text-cream">{selectedObject.title}</p>
+              <p className="mt-2 text-xs text-fog">{selectedObject.summary}</p>
+              <p className="mt-2 text-xs text-muted">{selectedObject.businessImpact}</p>
+              {explanation && (
+                <div className="mt-3 space-y-2 border-t border-stone/15 pt-3 text-xs text-fog">
+                  <p>{explanation.whyItMatters}</p>
+                  {explanation.reasoningChain.map((r) => (
+                    <p key={r}>• {r}</p>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void toggleObjectFlag("verified", !selectedObject.verified)}
+                  className="rounded border border-stone/25 px-3 py-1 text-[0.65rem] uppercase text-fog hover:border-accent"
+                >
+                  {selectedObject.verified ? "Unverify" : "Verify"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void toggleObjectFlag("pinned", true)}
+                  className="rounded border border-stone/25 px-3 py-1 text-[0.65rem] uppercase text-fog hover:border-accent"
+                >
+                  Pin
+                </button>
+              </div>
+            </AdminPanel>
+          )}
         </CognitiveSection>
 
         <CognitiveSection step={next()} title="Evidence Center" subtitle="Verified facts supporting decisions" defaultOpen={false}>

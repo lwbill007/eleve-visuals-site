@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getCached, setCache } from "../cache";
 import { getMemoryGraph } from "../memory/graph";
 import { getWorkspaceId } from "../memory/workspace";
 import {
@@ -339,7 +340,14 @@ export async function buildCognitiveArchitecture(): Promise<CognitiveArchitectur
   };
 }
 
-// Fix duplicate briefing call - simplify buildCognitiveArchitecture
-export async function getCognitiveArchitecture(): Promise<CognitiveArchitecture> {
-  return buildCognitiveArchitecture();
+export async function getCognitiveArchitecture(force = false): Promise<CognitiveArchitecture> {
+  const cacheKey = "cognitive-architecture-v1";
+  if (!force) {
+    const cached = await getCached<CognitiveArchitecture>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const arch = await buildCognitiveArchitecture();
+  await setCache(cacheKey, arch, 10 * 60 * 1000);
+  return arch;
 }

@@ -107,6 +107,14 @@ export function AdminDashboard() {
         ) : briefing ? (
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-fog">{briefing.summary}</p>
         ) : null}
+        <div className="mt-3 flex flex-wrap gap-4 text-xs">
+          <Link href="/admin/intelligence" className="text-accent hover:underline">
+            Command Center →
+          </Link>
+          <Link href="/admin/memory" className="text-accent hover:underline">
+            Knowledge Engine →
+          </Link>
+        </div>
       </div>
 
       {executiveOs?.synthesis && <ExecutiveSynthesisPanel synthesis={executiveOs.synthesis} />}

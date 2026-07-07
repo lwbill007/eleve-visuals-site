@@ -126,7 +126,7 @@ export async function retrieveMemoriesForPage(page: string, limit = 6): Promise<
     risks: ["business", "operational", "crm"],
     executive: ["business", "crm", "marketing", "financial"],
     assistant: ["business", "crm", "marketing", "financial"],
-    memory: ["business", "crm", "brand"],
+    memory: ["business", "crm", "brand", "marketing", "creative", "financial", "operational", "sessions"],
   };
 
   const layers = pageLayerMap[page] ?? ["business", "operational"];
@@ -166,9 +166,11 @@ export function toMemoryCitations(retrieved: RetrievedMemory[]): MemoryCitation[
 }
 
 export async function buildRAGContext(query: string, page?: string): Promise<string> {
-  const [queryMemories, pageMemories] = await Promise.all([
+  const { buildCognitiveContextForPrompt } = await import("../cognitive/context-prompt");
+  const [queryMemories, pageMemories, cognitiveContext] = await Promise.all([
     retrieveMemoriesForQuery(query, { limit: 6 }),
     page ? retrieveMemoriesForPage(page, 4) : Promise.resolve([]),
+    buildCognitiveContextForPrompt(page),
   ]);
 
   const seen = new Set<string>();
@@ -179,7 +181,10 @@ export async function buildRAGContext(query: string, page?: string): Promise<str
     merged.push(r);
   }
 
-  return `${formatRetrievedMemoriesForPrompt(merged.slice(0, 10))}
+  return `${cognitiveContext}
+
+STRUCTURED MEMORIES:
+${formatRetrievedMemoriesForPrompt(merged.slice(0, 10))}
 
 Learning from past outcomes:
 ${await getLearningSummaryForPrompt()}`;

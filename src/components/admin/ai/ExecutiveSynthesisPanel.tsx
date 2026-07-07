@@ -85,7 +85,7 @@ export function ExecutiveSynthesisPanel({ synthesis }: { synthesis: SynthesizedE
           Content calendar →
         </Link>
         <Link href="/admin/memory" className="text-fog hover:text-cream">
-          Knowledge engine →
+          Knowledge Engine →
         </Link>
       </div>
     </section>

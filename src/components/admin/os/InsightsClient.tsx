@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AIDailyBriefingPanel } from "@/components/admin/ai/AIDailyBriefingPanel";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
@@ -59,6 +60,15 @@ export function InsightsClient() {
       />
 
       <AIDailyBriefingPanel />
+
+      <div className="flex flex-wrap gap-3">
+        <Link href="/admin/memory" className="text-xs text-accent hover:underline">
+          Knowledge Engine →
+        </Link>
+        <Link href="/admin/intelligence" className="text-xs text-accent hover:underline">
+          Command Center →
+        </Link>
+      </div>
 
       {generatedAt && (
         <p className="text-xs text-muted">Insights updated {new Date(generatedAt).toLocaleString()}</p>

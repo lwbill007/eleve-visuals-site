@@ -83,7 +83,8 @@ export const ADMIN_QUICK_ACTIONS = [
   { label: "Draft Follow-Up", href: "/admin/marketing?task=follow_up", desc: "Re-engage warm leads" },
   { label: "Session Applications", href: "/admin/applications", desc: "Review applicants" },
   { label: "Upload Media", href: "/admin/media", desc: "Asset library" },
-  { label: "Executive Intelligence", href: "/admin/intelligence", desc: "Command Center & executive team" },
+  { label: "Executive Intelligence", href: "/admin/intelligence", desc: "Command Center & THE ONE THING" },
+  { label: "Knowledge Engine", href: "/admin/memory", desc: "Cognitive architecture · refresh intelligence" },
 ];
 
 export const ADMIN_COMMANDS = ADMIN_NAV.flatMap((section) =>

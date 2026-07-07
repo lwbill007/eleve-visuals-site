@@ -112,15 +112,24 @@ export async function buildMemoryContext(query?: string, page?: string): Promise
     return buildRAGContext(query, page);
   }
 
-  const { items } = await searchMemories({ limit: 12, archived: false });
-  if (items.length === 0) return "No structured memories stored yet. Run Memory Sync from Memory Center.";
+  const { buildCognitiveContextForPrompt } = await import("./cognitive/context-prompt");
+  const [cognitive, { items }] = await Promise.all([
+    buildCognitiveContextForPrompt(page),
+    searchMemories({ limit: 12, archived: false }),
+  ]);
 
-  return items
+  if (items.length === 0) {
+    return `${cognitive}\n\nNo structured memories yet. Run Refresh Executive Intelligence from Knowledge Engine (/admin/memory).`;
+  }
+
+  const memories = items
     .map(
       (m) =>
         `[${m.layer}/${m.category}] ${m.title}: ${m.summary || JSON.stringify(m.value).slice(0, 200)} (confidence ${Math.round(m.confidence * 100)}%)`
     )
     .join("\n");
+
+  return `${cognitive}\n\nRECENT MEMORIES:\n${memories}`;
 }
 
 export {

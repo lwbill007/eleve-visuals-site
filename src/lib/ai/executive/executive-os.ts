@@ -22,6 +22,8 @@ import { detectRevenueLeaks } from "./revenue-leaks";
 import { generateWeeklyExecutiveReport } from "../intelligence/weekly-executive-report";
 import { getIntelligenceSuite } from "../intelligence/intelligence-suite";
 import { buildExecutiveOperatingSystem } from "./operating-system";
+import { invalidateIntelligenceCaches } from "../cognitive/cache";
+import { buildBusinessDNA } from "../cognitive/business-dna";
 import type { ExecutiveOS, CommandCenterState } from "./types";
 import { EXECUTIVE_MISSION } from "./types";
 
@@ -35,8 +37,10 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     const cached = await getCached<ExecutiveOS>(cacheKey);
     if (cached) return cached;
   } else {
+    await invalidateIntelligenceCaches();
     syncBusinessMemory().catch(() => {});
     strengthenKnowledgeGraph().catch(() => {});
+    buildBusinessDNA().catch(() => {});
   }
 
   const [

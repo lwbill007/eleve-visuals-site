@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { completeMission } from "@/lib/ai/executive/mission-control";
+import { invalidateIntelligenceCaches } from "@/lib/ai/cognitive/cache";
 
 export async function POST(req: Request) {
   try {
@@ -23,5 +24,6 @@ export async function POST(req: Request) {
   }
 
   const result = await completeMission(body);
+  await invalidateIntelligenceCaches();
   return NextResponse.json(result);
 }

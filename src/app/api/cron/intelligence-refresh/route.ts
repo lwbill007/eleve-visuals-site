@@ -29,6 +29,10 @@ export async function GET(request: Request) {
 
   const report = await refreshIntelligence(schedule);
 
+  const { buildBusinessDNA } = await import("@/lib/ai/cognitive/business-dna");
+  const { invalidateIntelligenceCaches } = await import("@/lib/ai/cognitive/cache");
+  await Promise.all([buildBusinessDNA(), invalidateIntelligenceCaches()]);
+
   if (schedule === "weekly") {
     const { generateWeeklyExecutiveReport } = await import("@/lib/ai/intelligence/weekly-executive-report");
     await generateWeeklyExecutiveReport({ persist: true }).catch(() => {});
