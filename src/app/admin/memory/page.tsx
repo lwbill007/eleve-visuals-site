@@ -1,10 +1,10 @@
 import { AdminShell } from "@/components/admin/AdminShell";
-import { MemoryCenterClient } from "@/components/admin/ai/MemoryCenterClient";
+import { CognitiveArchitectureClient } from "@/components/admin/ai/CognitiveArchitectureClient";
 
 export default function AdminMemoryPage() {
   return (
-    <AdminShell title="Business Knowledge Engine">
-      <MemoryCenterClient />
+    <AdminShell title="Knowledge Engine">
+      <CognitiveArchitectureClient />
     </AdminShell>
   );
 }

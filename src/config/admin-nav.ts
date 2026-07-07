@@ -17,7 +17,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
       { label: "Executive Intelligence", href: "/admin/intelligence", desc: "Command Center · 7 directors · decision engine" },
       { label: "Opportunities", href: "/admin/opportunities", desc: "Highest ROI actions" },
       { label: "Risk Center", href: "/admin/risks", desc: "Early warnings" },
-      { label: "Knowledge Engine", href: "/admin/memory", desc: "Business knowledge & learning" },
+      { label: "Knowledge Engine", href: "/admin/memory", desc: "Cognitive architecture · Business DNA · graph · learning" },
       { label: "AI Insights", href: "/admin/insights", desc: "Detailed recommendations" },
       { label: "Analytics", href: "/admin/analytics", desc: "Traffic & conversions" },
       { label: "Reports", href: "/admin/reports", desc: "Business intelligence" },

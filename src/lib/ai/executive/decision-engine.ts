@@ -9,12 +9,13 @@ import { getLearningOutcomes } from "../memory/learning";
 import { computeNorthStarMetrics, formatNorthStarForPrompt } from "./north-star";
 import { detectRevenueLeaks, totalLeakExposure } from "./revenue-leaks";
 import { charterSystemPrompt } from "./charter";
+import { getBusinessDNA, formatBusinessDNAForPrompt } from "../cognitive/business-dna";
 import type { DecisionEngineContext } from "./types";
 
 export async function buildDecisionEngineContext(query?: string): Promise<DecisionEngineContext> {
   const workspaceId = getWorkspaceId();
 
-  const [metrics, analytics, pipeline, crm, bookings, patterns, learnings, memorySearch, northStar, leaks] =
+  const [metrics, analytics, pipeline, crm, bookings, patterns, learnings, memorySearch, northStar, leaks, businessDna] =
     await Promise.all([
       getOperatorMetrics(),
       getAnalyticsSummary(30),
@@ -39,6 +40,7 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
         : searchMemories({ workspaceId, limit: 8 }),
       computeNorthStarMetrics(),
       detectRevenueLeaks(),
+      getBusinessDNA(),
     ]);
 
   const leakExposure = totalLeakExposure(leaks);
@@ -84,6 +86,8 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
 
   const whyPreamble = [
     charterSystemPrompt().split("\n").slice(0, 6).join("\n"),
+    "",
+    formatBusinessDNAForPrompt(businessDna),
     "",
     "Before recommending anything, ÉLEVÉ Executive Intelligence checked:",
     `• ${memoryHits} relevant memories`,
