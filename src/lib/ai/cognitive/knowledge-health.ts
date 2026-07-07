@@ -2,13 +2,14 @@ import { prisma } from "@/lib/db";
 import { getEmbeddingStats } from "../memory/embeddings";
 import { getWorkspaceId } from "../memory/workspace";
 import { getLearningOutcomes } from "../memory/learning";
+import { getVerificationStats } from "../memory/verification";
 import type { KnowledgeHealthScore } from "./types";
 
 export async function buildKnowledgeHealth(): Promise<KnowledgeHealthScore[]> {
   const workspaceId = getWorkspaceId();
   const now = Date.now();
 
-  const [total, verified, archived, relations, embeddings, learnings, stale, duplicates] =
+  const [total, verifiedCount, archived, relations, embeddings, learnings, stale, duplicates, verificationStats] =
     await Promise.all([
       prisma.aIMemory.count({ where: { workspaceId, archived: false } }),
       prisma.aIMemory.count({ where: { workspaceId, archived: false, verified: true } }),
@@ -28,6 +29,7 @@ export async function buildKnowledgeHealth(): Promise<KnowledgeHealthScore[]> {
         where: { workspaceId, archived: false },
         having: { key: { _count: { gt: 1 } } },
       }).then((g) => g.length).catch(() => 0),
+      getVerificationStats(),
     ]);
 
   const avgConfidence =
@@ -41,18 +43,17 @@ export async function buildKnowledgeHealth(): Promise<KnowledgeHealthScore[]> {
   const predictionAccuracy =
     learnings.length > 0 ? Math.round((positiveLearnings / learnings.length) * 100) : 50;
 
-  const coverage = Math.min(100, Math.round((total / 200) * 100));
+  const coverage = verificationStats.verifiedPct;
   const freshness = total > 0 ? Math.round(((total - stale) / total) * 100) : 0;
   const confidenceScore = Math.round(avgConfidence * 100);
-  const completeness = Math.min(100, Math.round((relations / Math.max(total, 1)) * 25));
-  const verification = total > 0 ? Math.round((verified / total) * 100) : 0;
+  const completeness = Math.min(100, Math.round((relations / Math.max(total * 0.5, 1)) * 100));
   const consistency = Math.max(0, 100 - duplicates * 5);
   const duplicateRate = total > 0 ? Math.round((duplicates / total) * 100) : 0;
   const embeddingCoverage =
     total > 0 ? Math.min(100, Math.round((embeddings.chunks / total) * 100)) : 0;
   const learningVelocity = Math.min(100, learnings.length * 4);
   const businessUnderstanding = Math.round(
-    (coverage + confidenceScore + verification + embeddingCoverage) / 4
+    (coverage + confidenceScore + verificationStats.verifiedPct + embeddingCoverage) / 4
   );
 
   return [
@@ -61,8 +62,8 @@ export async function buildKnowledgeHealth(): Promise<KnowledgeHealthScore[]> {
       label: "Coverage",
       score: coverage,
       quality: coverage >= 70 ? "calculated" : "incomplete",
-      why: `${total} active knowledge objects across 9 layers`,
-      howToImprove: "Run Refresh Executive Intelligence to scan entire platform",
+      why: `${verificationStats.verified + verificationStats.trusted} verified/trusted of ${total} (${coverage}%)`,
+      howToImprove: "Use Verification Queue — batch approve or run refresh for auto-verify with analytics backing",
     },
     {
       id: "freshness",
@@ -85,15 +86,15 @@ export async function buildKnowledgeHealth(): Promise<KnowledgeHealthScore[]> {
       label: "Completeness",
       score: completeness,
       quality: "calculated",
-      why: `${relations} graph relationships linking ${total} objects`,
+      why: `${relations} graph relationships · target ${Math.round(total * 0.5)} for healthy density`,
       howToImprove: "Strengthen graph during refresh — link clients, pages, bookings, revenue",
     },
     {
       id: "verification",
       label: "Verification",
-      score: verification,
-      quality: verification >= 60 ? "verified" : "incomplete",
-      why: `${verified} of ${total} memories verified by system or admin`,
+      score: verificationStats.verifiedPct,
+      quality: verificationStats.verifiedPct >= 90 ? "verified" : "incomplete",
+      why: `${verificationStats.verified} verified · ${verificationStats.trusted} trusted · ${verificationStats.pending} pending`,
       howToImprove: "Review Unknowns Center and verify critical business facts",
     },
     {

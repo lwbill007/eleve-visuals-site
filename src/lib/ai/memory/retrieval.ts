@@ -28,6 +28,16 @@ function scoreMemory(
     score += 15;
     reasons.push("Verified");
   }
+  if (memory.verificationStatus === "trusted") {
+    score += 30;
+    reasons.push("Trusted institutional knowledge");
+  } else if (memory.verificationStatus === "verified") {
+    score += 20;
+    reasons.push("Verification queue: verified");
+  } else if (memory.verificationStatus === "pending") {
+    score -= 10;
+    reasons.push("Pending verification — lower weight for recommendations");
+  }
   if (layerBoost.has(memory.layer)) {
     score += 20;
     reasons.push(`Relevant ${memory.layer} layer`);

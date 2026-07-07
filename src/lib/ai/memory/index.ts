@@ -14,3 +14,4 @@ export * from "./workspace";
 export { layerLabel, resolveLayer } from "./utils";
 export * from "./knowledge";
 export * from "./embeddings";
+export * from "./verification";

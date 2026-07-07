@@ -16,12 +16,13 @@ export async function POST(req: Request) {
 
   await invalidateIntelligenceCaches();
 
-  const [report] = await Promise.all([
+  const [report, qaReport] = await Promise.all([
     refreshAndLearnBusinessKnowledge(
       trigger as Parameters<typeof refreshAndLearnBusinessKnowledge>[0]
     ),
-    buildBusinessDNA(),
+    import("@/lib/ai/truth/executive-qa").then(({ runExecutiveQA }) => runExecutiveQA().catch(() => null)),
   ]);
+  await buildBusinessDNA();
 
   return NextResponse.json({
     ok: true,
@@ -36,7 +37,9 @@ export async function POST(req: Request) {
         `${report.graphLinksCreated} graph links · ${report.learningOutcomesRecorded} learnings`,
       ],
       healthScore: report.executiveReport.overallHealthScore,
+      qaScore: qaReport?.overallScore,
+      qaIssues: qaReport?.issues?.length ?? 0,
     },
-    message: `Executive intelligence refreshed · ${report.routesDiscovered} routes · health ${report.executiveReport.overallHealthScore}/100`,
+    message: `Executive intelligence refreshed · ${report.routesDiscovered} routes · health ${report.executiveReport.overallHealthScore}/100${qaReport ? ` · QA ${qaReport.overallScore}/100` : ""}`,
   });
 }

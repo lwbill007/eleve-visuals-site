@@ -52,6 +52,7 @@ const PRISMA_TABLES = [
   "AIAutomation",
   "AINotification",
   "AICache",
+  "AIMemoryEmbedding",
   "CastMember",
 ] as const;
 

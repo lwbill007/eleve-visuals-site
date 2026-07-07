@@ -48,6 +48,7 @@ export async function recordRecommendationFeedback(input: {
     revenueImpact: input.revenueImpact,
     confidence: input.worked ? 0.85 : 0.4,
     memoryIds: input.memoryIds,
+    outcomeEvidence: true,
   });
 
   return {
@@ -82,6 +83,7 @@ export async function evaluateRecommendationOutcome(
     outcome: worked ? "positive" : "negative",
     metrics: { revenueDelta, bookingsDelta },
     confidence: worked ? 0.8 : 0.35,
+    outcomeEvidence: true,
   });
 
   return { worked, lesson };

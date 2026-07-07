@@ -92,6 +92,7 @@ export async function getPrioritizedRecommendations(limit = 12): Promise<Priorit
 }
 
 export async function getHighestRoiRecommendation(): Promise<PrioritizedRecommendation | null> {
-  const recs = await getPrioritizedRecommendations(1);
+  const { getGuardedRecommendations } = await import("../truth/recommendation-guardrails");
+  const recs = await getGuardedRecommendations(1);
   return recs[0] ?? null;
 }

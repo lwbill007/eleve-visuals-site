@@ -1,11 +1,47 @@
-import { getPrioritizedRecommendations } from "../intelligence/executive-prioritization";
+import { getGuardedRecommendations, type GuardedRecommendation } from "../truth/recommendation-guardrails";
 import { getOperatorMetrics } from "../intelligence/business-operator";
 import { qualifyMetric } from "./data-quality";
-import type { BusinessAction } from "../types";
 import type { ExecutiveMission } from "./operating-system-types";
 
+function missionFromRec(r: GuardedRecommendation): ExecutiveMission {
+  return {
+    id: `mission-${r.id}`,
+    title: r.title,
+    reasoning: r.whyNow,
+    expectedRevenue: qualifyMetric({
+      value: r.estimatedRevenue,
+      quality: r.confidence > 0.8 ? "calculated" : "estimated",
+      updatedAt: new Date().toISOString(),
+      confidence: r.confidence,
+      lowConfidenceReason:
+        r.confidence < 0.65 ? "Limited historical outcome data for this action type" : undefined,
+      source: r.evidence[0] ?? "Executive prioritization engine",
+    }),
+    expectedBookings: qualifyMetric({
+      value: Math.max(1, Math.round(r.estimatedRevenue / 1500)),
+      quality: "estimated",
+      updatedAt: new Date().toISOString(),
+      confidence: r.confidence * 0.85,
+    }),
+    timeMinutes: r.timeToCompleteMinutes,
+    difficulty: r.difficulty,
+    confidence: r.confidence,
+    evidence: r.evidence,
+    successMetric:
+      r.category === "revenue" || r.category === "sales"
+        ? "Inquiry response or booking moved forward within 48h"
+        : "Measurable traffic or inquiry lift within 7 days",
+    href: r.actions[0]?.href ?? "/admin/opportunities",
+    actions: r.actions,
+    completed: false,
+    confidenceDetail: r.confidenceDetail,
+    deprioritized: r.deprioritized,
+    deprioritizeReason: r.deprioritizeReason,
+  };
+}
+
 export async function buildTheOneThing(): Promise<ExecutiveMission> {
-  const [recs, metrics] = await Promise.all([getPrioritizedRecommendations(3), getOperatorMetrics()]);
+  const [recs, metrics] = await Promise.all([getGuardedRecommendations(3), getOperatorMetrics()]);
 
   const top = recs[0];
   const avgValue =
@@ -80,42 +116,16 @@ export async function buildTheOneThing(): Promise<ExecutiveMission> {
     href: top.actions[0]?.href ?? "/admin/opportunities",
     actions: top.actions,
     completed: false,
+    confidenceDetail: top.confidenceDetail,
+    deprioritized: top.deprioritized,
+    deprioritizeReason: top.deprioritizeReason,
   };
 }
 
 export async function buildTodaysMissions(): Promise<ExecutiveMission[]> {
-  const recs = await getPrioritizedRecommendations(4);
-  const one = await buildTheOneThing();
-
-  return [
-    one,
-    ...recs.slice(1, 4).map((r) => ({
-      id: `mission-${r.id}`,
-      title: r.title,
-      reasoning: r.whyNow,
-      expectedRevenue: qualifyMetric({
-        value: r.estimatedRevenue,
-        quality: "estimated",
-        updatedAt: new Date().toISOString(),
-        confidence: r.confidence,
-        source: r.evidence[0],
-      }),
-      expectedBookings: qualifyMetric({
-        value: Math.max(1, Math.round(r.estimatedRevenue / 1500)),
-        quality: "estimated",
-        updatedAt: new Date().toISOString(),
-        confidence: r.confidence * 0.85,
-      }),
-      timeMinutes: r.timeToCompleteMinutes,
-      difficulty: r.difficulty,
-      confidence: r.confidence,
-      evidence: r.evidence,
-      successMetric: "Progress measurable within 7 days",
-      href: r.actions[0]?.href ?? "/admin/opportunities",
-      actions: r.actions,
-      completed: false,
-    })),
-  ];
+  const [one, recs] = await Promise.all([buildTheOneThing(), getGuardedRecommendations(4)]);
+  const rest = recs.slice(1).map(missionFromRec);
+  return [one, ...rest];
 }
 
 export async function completeMission(input: {

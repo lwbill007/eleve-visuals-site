@@ -85,6 +85,9 @@ export function CognitiveArchitectureClient() {
   const [objectFilter, setObjectFilter] = useState<string>("all");
   const [selectedObject, setSelectedObject] = useState<KnowledgeObject | null>(null);
   const [explanation, setExplanation] = useState<MemoryExplanation | null>(null);
+  const [verifyStats, setVerifyStats] = useState<{ verifiedPct: number; pending: number; targetPct: number } | null>(null);
+  const [verifyQueue, setVerifyQueue] = useState<{ id: string; title: string }[]>([]);
+  const [verifying, setVerifying] = useState(false);
 
   useSetAIPage(
     "memory",
@@ -105,6 +108,12 @@ export function CognitiveArchitectureClient() {
     try {
       const res = await adminFetch(`/api/admin/ai/cognitive${force ? "?refresh=1" : ""}`);
       if (res.ok) setArch(await res.json());
+      const vRes = await adminFetch("/api/admin/ai/memory/verify");
+      if (vRes.ok) {
+        const v = await vRes.json();
+        setVerifyStats(v.stats);
+        setVerifyQueue(v.queue ?? []);
+      }
     } finally {
       setLoading(false);
     }
@@ -130,6 +139,42 @@ export function CognitiveArchitectureClient() {
     });
     await load(true);
     await loadObjectDetail({ ...selectedObject, verified: field === "verified" ? value : selectedObject.verified });
+  }
+
+  async function runAutoVerify() {
+    setVerifying(true);
+    try {
+      const res = await adminFetch("/api/admin/ai/memory/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "auto" }),
+      });
+      const data = await res.json();
+      if (data.stats) setVerifyStats(data.stats);
+      await load(true);
+      setMessage(`Auto-verified ${data.promoted ?? 0} · trusted ${data.trusted ?? 0}`);
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function batchVerifyQueue() {
+    const ids = verifyQueue.slice(0, 20).map((q) => q.id);
+    if (!ids.length) return;
+    setVerifying(true);
+    try {
+      const res = await adminFetch("/api/admin/ai/memory/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "batch", memoryIds: ids, status: "verified" }),
+      });
+      const data = await res.json();
+      if (data.stats) setVerifyStats(data.stats);
+      await load(true);
+      setMessage(`Batch verified ${data.count} memories`);
+    } finally {
+      setVerifying(false);
+    }
   }
 
   async function refreshIntelligence() {
@@ -216,7 +261,38 @@ export function CognitiveArchitectureClient() {
         <Link href="/admin/opportunities" className="text-accent hover:underline">
           Opportunities →
         </Link>
+        <Link href="/admin/qa" className="text-accent hover:underline">
+          Executive QA →
+        </Link>
       </div>
+
+      {verifyStats && (
+        <AdminPanel title="Verification Queue" subtitle={`Target ${verifyStats.targetPct}% verified · currently ${verifyStats.verifiedPct}%`} className="mb-8">
+          <div className="flex flex-wrap gap-2 mb-3">
+            <button
+              type="button"
+              disabled={verifying}
+              onClick={() => void runAutoVerify()}
+              className="rounded-lg border border-emerald-500/30 px-3 py-1.5 text-xs text-emerald-400 uppercase hover:bg-emerald-500/10 disabled:opacity-50"
+            >
+              Auto-verify (evidence-backed)
+            </button>
+            <button
+              type="button"
+              disabled={verifying || verifyQueue.length === 0}
+              onClick={() => void batchVerifyQueue()}
+              className="rounded-lg border border-accent/30 px-3 py-1.5 text-xs text-accent uppercase hover:bg-accent/10 disabled:opacity-50"
+            >
+              Batch verify top 20 pending
+            </button>
+          </div>
+          {verifyStats.verifiedPct < 90 && (
+            <p className="text-xs text-amber-300">
+              {verifyStats.pending} memories pending — recommendations prioritize verified/trusted knowledge only.
+            </p>
+          )}
+        </AdminPanel>
+      )}
 
       <div className="mb-8 flex flex-wrap gap-2">
         {arch.systems.map((s) => (
@@ -295,7 +371,16 @@ export function CognitiveArchitectureClient() {
           </div>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Knowledge Graph" subtitle={`${arch.graph.totalNodes} nodes · ${arch.graph.totalEdges} relationships`} defaultOpen={false}>
+        <CognitiveSection step={next()} title="Knowledge Graph" subtitle={`${arch.graph.totalNodes} nodes · ${arch.graph.totalEdges} relationships · health ${arch.graph.health.healthScore}%`} defaultOpen={false}>
+          <div className="mb-4 rounded-lg border border-stone/20 p-3 text-xs">
+            <p className="text-cream">
+              Graph health: {arch.graph.health.healthScore}% · target {arch.graph.health.targetEdges}+ edges
+            </p>
+            <p className="mt-1 text-fog">{arch.graph.health.explanation}</p>
+            <p className="mt-1 text-muted">
+              Density {arch.graph.health.density.toFixed(2)} · status: {arch.graph.health.status.replace("_", " ")}
+            </p>
+          </div>
           <div className="mb-4 flex flex-wrap items-center gap-1 text-xs text-fog">
             {arch.graph.chainExample.map((node, i) => (
               <span key={`${node}-${i}`} className="flex items-center gap-1">

@@ -1,5 +1,6 @@
 import type { BusinessAction, ExecutiveForecast, ExecutiveOpportunity, ExecutiveRisk } from "../types";
 import type { QualifiedValue } from "./data-quality";
+import type { ExecutiveConfidence } from "../truth/types";
 
 export interface ExecutiveMission {
   id: string;
@@ -15,6 +16,9 @@ export interface ExecutiveMission {
   href: string;
   actions: BusinessAction[];
   completed: boolean;
+  confidenceDetail?: ExecutiveConfidence;
+  deprioritized?: boolean;
+  deprioritizeReason?: string;
 }
 
 export interface ExplainableHealthDomain {

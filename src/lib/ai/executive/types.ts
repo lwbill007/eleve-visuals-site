@@ -100,6 +100,7 @@ export interface KnowledgeGraphStats {
   edges: number;
   layers: Record<string, number>;
   recentLinks: string[];
+  graphHealth?: import("../truth/types").GraphHealth;
 }
 
 export interface ExecutiveOS {

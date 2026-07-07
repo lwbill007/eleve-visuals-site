@@ -5,7 +5,8 @@ import { getRevenueAttributionFunnel } from "../intelligence/revenue-attribution
 import { getWebsiteHeatIntelligence } from "../intelligence/website-heat";
 import { getClientIntelligenceSummary } from "../intelligence/client-intelligence";
 import { getExtendedBookingIntelligence } from "../intelligence/booking-intelligence-ext";
-import { getPrioritizedRecommendations } from "../intelligence/executive-prioritization";
+import { getGuardedRecommendations, type GuardedRecommendation } from "../truth/recommendation-guardrails";
+import type { ExecutiveOpportunity } from "../types";
 import { getExecutiveMemorySnapshot } from "../intelligence/executive-memory-recall";
 import { getLearningOutcomes } from "../memory/learning";
 import { getAdminCRMContacts } from "@/lib/admin-os-server";
@@ -117,6 +118,36 @@ function rankClients(clients: Awaited<ReturnType<typeof getClientIntelligenceSum
   }));
 }
 
+function guardedToOpportunity(r: GuardedRecommendation): ExecutiveOpportunity {
+  const categories = ["revenue", "marketing", "sales", "sessions", "sponsors", "operations"] as const;
+  const category = categories.includes(r.category as (typeof categories)[number])
+    ? (r.category as ExecutiveOpportunity["category"])
+    : "operations";
+
+  return {
+    id: r.id,
+    title: r.title,
+    detail: r.detail,
+    why: r.whyNow,
+    category,
+    expectedRevenue: r.estimatedRevenue,
+    confidence: r.confidence,
+    effort: r.difficulty === "easy" ? "low" : r.difficulty === "hard" ? "high" : "medium",
+    urgency:
+      r.priority === "critical"
+        ? "critical"
+        : r.priority === "high"
+          ? "high"
+          : r.priority === "medium"
+            ? "medium"
+            : "low",
+    impact: r.confidenceDetail.businessImpact,
+    evidence: r.evidence,
+    actions: r.actions,
+    estimatedMinutes: r.timeToCompleteMinutes,
+  };
+}
+
 export async function buildExecutiveOperatingSystem(): Promise<ExecutiveOperatingSystem> {
   const [
     theOneThing,
@@ -143,7 +174,7 @@ export async function buildExecutiveOperatingSystem(): Promise<ExecutiveOperatin
     getWebsiteHeatIntelligence(),
     getClientIntelligenceSummary(12),
     getExtendedBookingIntelligence(),
-    getPrioritizedRecommendations(3),
+    getGuardedRecommendations(3),
     getExecutiveMemorySnapshot(),
     getLearningOutcomes(undefined, 10),
     getExecutiveForecasts(),
@@ -182,7 +213,7 @@ export async function buildExecutiveOperatingSystem(): Promise<ExecutiveOperatin
         institutionalMemory[0]?.lesson ?? "Complete missions to build institutional knowledge",
     },
     healthDomains,
-    highestRoiOpportunity: intelligence.opportunities[0] ?? null,
+    highestRoiOpportunity: recs[0] ? guardedToOpportunity(recs[0]) : intelligence.opportunities[0] ?? null,
     highestRisk: intelligence.risks[0] ?? null,
     criticalNotifications: [
       ...(metrics.attention.abandonedInquiries > 0

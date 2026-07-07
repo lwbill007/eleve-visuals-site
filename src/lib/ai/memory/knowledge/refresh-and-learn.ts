@@ -70,6 +70,9 @@ export async function refreshIntelligence(trigger: RefreshTrigger = "manual"): P
 
   await strengthenKnowledgeGraph().catch(() => {});
 
+  const { runAutoVerification } = await import("../verification");
+  await runAutoVerification().catch(() => ({ promoted: 0, trusted: 0 }));
+
   const syncResult = await syncAllMemories().catch(() => ({
     synced: 0,
     layers: [] as string[],

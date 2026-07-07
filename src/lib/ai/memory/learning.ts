@@ -3,6 +3,10 @@ import type { LearningOutcomeInput } from "./types";
 import { DEFAULT_WORKSPACE_ID } from "./types";
 
 export async function recordLearningOutcome(input: LearningOutcomeInput) {
+  if (!input.outcomeEvidence) {
+    return null;
+  }
+
   return prisma.aILearningOutcome.create({
     data: {
       workspaceId: input.workspaceId ?? DEFAULT_WORKSPACE_ID,

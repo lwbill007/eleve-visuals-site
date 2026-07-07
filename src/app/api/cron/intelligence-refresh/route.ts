@@ -31,7 +31,11 @@ export async function GET(request: Request) {
 
   const { buildBusinessDNA } = await import("@/lib/ai/cognitive/business-dna");
   const { invalidateIntelligenceCaches } = await import("@/lib/ai/cognitive/cache");
-  await Promise.all([buildBusinessDNA(), invalidateIntelligenceCaches()]);
+  const { runExecutiveQA } = await import("@/lib/ai/truth/executive-qa");
+  const [_, qaReport] = await Promise.all([
+    Promise.all([buildBusinessDNA(), invalidateIntelligenceCaches()]),
+    runExecutiveQA().catch(() => null),
+  ]);
 
   if (schedule === "weekly") {
     const { generateWeeklyExecutiveReport } = await import("@/lib/ai/intelligence/weekly-executive-report");
@@ -43,5 +47,7 @@ export async function GET(request: Request) {
     refreshId: report.refreshId,
     pagesScanned: report.pagesScanned,
     healthScore: report.executiveReport.overallHealthScore,
+    qaScore: qaReport?.overallScore,
+    qaIssues: qaReport?.issues?.length ?? 0,
   });
 }

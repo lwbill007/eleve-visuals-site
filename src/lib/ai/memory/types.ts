@@ -50,6 +50,7 @@ export interface MemoryRecord {
   source: MemorySource;
   sourceRef: string;
   verified: boolean;
+  verificationStatus?: "pending" | "verified" | "trusted" | "archived";
   pinned: boolean;
   archived: boolean;
   tags: string[];
@@ -72,6 +73,7 @@ export interface MemoryWriteInput {
   verified?: boolean;
   pinned?: boolean;
   archived?: boolean;
+  verificationStatus?: "pending" | "verified" | "trusted" | "archived";
   tags?: string[];
   actor?: string;
   reason?: string;
@@ -116,6 +118,8 @@ export interface LearningOutcomeInput {
   revenueImpact?: number;
   confidence?: number;
   memoryIds?: string[];
+  /** Set true when learning is tied to a measured business outcome (mission, recommendation feedback). */
+  outcomeEvidence?: boolean;
 }
 
 export interface GraphNode {

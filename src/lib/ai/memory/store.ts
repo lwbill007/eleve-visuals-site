@@ -23,6 +23,7 @@ function mapRow(row: {
   source: string;
   sourceRef: string;
   verified: boolean;
+  verificationStatus?: string;
   pinned: boolean;
   archived: boolean;
   tags: string;
@@ -43,6 +44,7 @@ function mapRow(row: {
     source: row.source as MemoryRecord["source"],
     sourceRef: row.sourceRef,
     verified: row.verified,
+    verificationStatus: row.verificationStatus as MemoryRecord["verificationStatus"],
     pinned: row.pinned,
     archived: row.archived,
     tags: parseJsonArray(row.tags),
@@ -86,6 +88,20 @@ export async function writeMemory(input: MemoryWriteInput): Promise<MemoryRecord
     },
   });
 
+  const verificationStatus =
+    input.archived
+      ? "archived"
+      : input.verified || input.pinned
+        ? input.pinned
+          ? "trusted"
+          : "verified"
+        : input.source === "sync" &&
+            (input.sourceRef?.startsWith("crm:") ||
+              input.sourceRef?.startsWith("submission:") ||
+              input.category === "client")
+          ? "verified"
+          : "pending";
+
   const data = {
     workspaceId,
     layer,
@@ -98,7 +114,14 @@ export async function writeMemory(input: MemoryWriteInput): Promise<MemoryRecord
     importance: input.importance ?? 50,
     source: input.source ?? "system",
     sourceRef: input.sourceRef ?? "",
-    verified: input.verified ?? false,
+    verified: input.verified ?? (verificationStatus === "verified" || verificationStatus === "trusted"),
+    verificationStatus,
+    verifiedAt:
+      verificationStatus === "verified" || verificationStatus === "trusted" ? new Date() : null,
+    verifiedBy:
+      verificationStatus === "verified" || verificationStatus === "trusted"
+        ? input.actor ?? "system"
+        : "",
     pinned: input.pinned ?? false,
     archived: input.archived ?? false,
     tags: JSON.stringify(input.tags ?? []),

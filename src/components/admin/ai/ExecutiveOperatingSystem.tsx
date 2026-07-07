@@ -4,9 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import type { ExecutiveOperatingSystem, ExecutiveMission, ExplainableHealthDomain } from "@/lib/ai/executive/operating-system-types";
+import type { ExecutiveConfidence } from "@/lib/ai/truth/types";
 import type { DataQualityLabel } from "@/lib/ai/executive/data-quality";
 import { QUALITY_LABELS } from "@/lib/ai/executive/data-quality";
 import { BusinessActionBar } from "@/components/admin/ai/BusinessActionBar";
+import { ClickableMetric } from "@/components/admin/ai/MetricExplainPanel";
+import { traceMetric, mapQualityToTruth } from "@/lib/ai/truth/types";
 import { cn } from "@/lib/utils";
 
 const QUALITY_STYLES: Record<DataQualityLabel, string> = {
@@ -58,6 +61,53 @@ function WorkflowSection({
   );
 }
 
+function ConfidenceDetailPanel({ detail }: { detail: ExecutiveConfidence }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-3 border-t border-stone/15 pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="text-[0.6rem] uppercase tracking-wide text-accent hover:underline"
+      >
+        {open ? "Hide" : "Why this recommendation?"} · {Math.round(detail.confidence * 100)}% confidence
+      </button>
+      {open && (
+        <dl className="mt-2 space-y-2 text-xs text-fog">
+          <div>
+            <dt className="text-muted uppercase">Observed</dt>
+            <dd>{detail.observed.join(" · ")}</dd>
+          </div>
+          <div>
+            <dt className="text-muted uppercase">Expected outcome</dt>
+            <dd>{detail.expectedOutcome}</dd>
+          </div>
+          <div>
+            <dt className="text-muted uppercase">Why now</dt>
+            <dd>{detail.whyNow}</dd>
+          </div>
+          <div>
+            <dt className="text-muted uppercase">Why not later</dt>
+            <dd>{detail.whyNotLater}</dd>
+          </div>
+          {detail.unknowns.length > 0 && (
+            <div>
+              <dt className="text-muted uppercase">Unknowns</dt>
+              <dd className="text-amber-300">{detail.unknowns.join(" · ")}</dd>
+            </div>
+          )}
+          {detail.alternatives.length > 0 && (
+            <div>
+              <dt className="text-muted uppercase">Alternatives considered</dt>
+              <dd>{detail.alternatives.join(" · ")}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+    </div>
+  );
+}
+
 function MissionCard({
   mission,
   highlight,
@@ -99,6 +149,9 @@ function MissionCard({
       )}
     >
       {highlight && <p className="text-[0.55rem] tracking-[0.2em] text-accent uppercase mb-2">The One Thing</p>}
+      {mission.deprioritized && mission.deprioritizeReason && (
+        <p className="mb-2 text-xs text-amber-300">⚠ {mission.deprioritizeReason}</p>
+      )}
       <h4 className="text-lg font-medium text-cream">{mission.title}</h4>
       <p className="mt-2 text-sm text-fog">{mission.reasoning}</p>
 
@@ -135,6 +188,8 @@ function MissionCard({
           </ul>
         </div>
       )}
+
+      {mission.confidenceDetail && <ConfidenceDetailPanel detail={mission.confidenceDetail} />}
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
@@ -333,10 +388,20 @@ export function ExecutiveOperatingSystemView({
       <WorkflowSection step={next()} title="Revenue Intelligence" subtitle="Trace every dollar" defaultOpen={false}>
         <RevenueJourneyTree node={os.revenueJourney} />
         <p className="mt-3 text-xs text-muted">
-          Potential pipeline: ${os.salesIntelligence.potentialRevenue.value.toLocaleString()}{" "}
-          <QualityBadge
-            quality={os.salesIntelligence.potentialRevenue.quality}
-            freshness={os.salesIntelligence.potentialRevenue.freshness}
+          Potential pipeline:{" "}
+          <ClickableMetric
+            label="Potential pipeline revenue"
+            metric={traceMetric({
+              value: `$${os.salesIntelligence.potentialRevenue.value.toLocaleString()}`,
+              status: mapQualityToTruth(os.salesIntelligence.potentialRevenue.quality),
+              source: os.salesIntelligence.potentialRevenue.source ?? "Pipeline",
+              table: "Submission",
+              api: "/api/admin/os/pipeline",
+              lastUpdated: os.generatedAt,
+              confidence: os.salesIntelligence.potentialRevenue.confidence ?? 0.75,
+              calculation: "Sum of open booking inquiries × estimated close value",
+              refreshFrequency: "Every intelligence refresh",
+            })}
           />
         </p>
       </WorkflowSection>

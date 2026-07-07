@@ -273,6 +273,9 @@ model AIMemory {
   source      String   @default("system")
   sourceRef   String   @default("")
   verified    Boolean  @default(false)
+  verificationStatus String @default("pending")
+  verifiedAt  DateTime?
+  verifiedBy  String   @default("")
   pinned      Boolean  @default(false)
   archived    Boolean  @default(false)
   tags        String   @default("[]")
@@ -285,6 +288,7 @@ model AIMemory {
 
   @@unique([workspaceId, layer, category, key])
   @@index([workspaceId, layer, archived, updatedAt])
+  @@index([workspaceId, verificationStatus])
   @@index([workspaceId, pinned])
   @@index([layer, category])
 }

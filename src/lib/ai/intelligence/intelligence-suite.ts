@@ -1,5 +1,6 @@
 import { getRevenueAttributionFunnel } from "./revenue-attribution";
-import { getPrioritizedRecommendations, getHighestRoiRecommendation } from "./executive-prioritization";
+import { getGuardedRecommendations } from "../truth/recommendation-guardrails";
+import { getHighestRoiRecommendation } from "./executive-prioritization";
 import { getWebsiteHeatIntelligence } from "./website-heat";
 import { getExtendedBookingIntelligence } from "./booking-intelligence-ext";
 import { getContentIntelligence } from "./content-intelligence";
@@ -14,7 +15,7 @@ import type { ExecutiveMorningBrief, IntelligenceSuite } from "../types";
 
 export async function buildExecutiveMorningBrief(): Promise<ExecutiveMorningBrief> {
   const [recs, leaks, risks, insights, highestRoi] = await Promise.all([
-    getPrioritizedRecommendations(5),
+    getGuardedRecommendations(5),
     detectRevenueLeaks(),
     getExecutiveRisks(),
     getProactiveBusinessInsights(),
@@ -74,7 +75,7 @@ export async function getIntelligenceSuite(): Promise<IntelligenceSuite> {
     executiveMorning,
   ] = await Promise.all([
     getRevenueAttributionFunnel(),
-    getPrioritizedRecommendations(),
+    getGuardedRecommendations(),
     getWebsiteHeatIntelligence(),
     getExtendedBookingIntelligence(),
     getContentIntelligence(),

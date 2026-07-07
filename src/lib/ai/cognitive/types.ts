@@ -196,6 +196,8 @@ export interface GraphGrowthPoint {
   edges: number;
 }
 
+import type { GraphHealth } from "../truth/types";
+
 export interface EvidenceItem {
   id: string;
   title: string;
@@ -219,6 +221,7 @@ export interface CognitiveArchitecture {
     chainExample: string[];
     totalNodes: number;
     totalEdges: number;
+    health: GraphHealth;
   };
   reasoning: ExecutiveReasoning;
   learningPatterns: {

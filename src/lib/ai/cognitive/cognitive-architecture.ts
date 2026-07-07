@@ -7,7 +7,7 @@ import {
   getAutomationOptions,
 } from "../memory/knowledge/automation";
 import { getExecutiveIntelligence } from "../intelligence/executive-intelligence";
-import { getPrioritizedRecommendations } from "../intelligence/executive-prioritization";
+import { getGuardedRecommendations } from "../truth/recommendation-guardrails";
 import { detectRevenueLeaks } from "../executive/revenue-leaks";
 import { buildBusinessDNA } from "./business-dna";
 import { buildKnowledgeObjects } from "./knowledge-objects";
@@ -15,6 +15,7 @@ import { buildUnknowns } from "./unknowns-engine";
 import { buildKnowledgeHealth } from "./knowledge-health";
 import { buildDecisionJournal } from "./decision-journal";
 import { buildLearningPatterns } from "./learning-engine";
+import { computeGraphHealth } from "../truth/integrations";
 import { buildExecutiveReasoning } from "./reasoning";
 import { buildEvidenceCenter } from "./evidence-center";
 import type {
@@ -178,7 +179,7 @@ async function buildExecutiveBriefing(
   lastRefresh: RefreshLearnReport | null
 ): Promise<ExecutiveBriefing> {
   const [recs, intelligence, leaks] = await Promise.all([
-    getPrioritizedRecommendations(3),
+    getGuardedRecommendations(3),
     getExecutiveIntelligence(),
     detectRevenueLeaks(),
   ]);
@@ -315,6 +316,7 @@ export async function buildCognitiveArchitecture(): Promise<CognitiveArchitectur
       chainExample: buildChainExample(graph),
       totalNodes,
       totalEdges,
+      health: computeGraphHealth(totalNodes, totalEdges),
     },
     reasoning,
     learningPatterns,
@@ -341,7 +343,7 @@ export async function buildCognitiveArchitecture(): Promise<CognitiveArchitectur
 }
 
 export async function getCognitiveArchitecture(force = false): Promise<CognitiveArchitecture> {
-  const cacheKey = "cognitive-architecture-v1";
+  const cacheKey = "cognitive-architecture-v2";
   if (!force) {
     const cached = await getCached<CognitiveArchitecture>(cacheKey);
     if (cached) return cached;
