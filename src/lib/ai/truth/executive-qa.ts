@@ -2,7 +2,8 @@ import { runDatabaseHealthCheck } from "@/lib/db-health";
 import { prisma } from "@/lib/db";
 import { getWorkspaceId } from "../memory/workspace";
 import { getVerificationStats } from "../memory/verification";
-import { computeGraphHealth, getIntegrationTruthSources } from "./integrations";
+import { computeGraphHealth } from "./integrations";
+import { getConnectorHealth } from "../platform/connectors";
 import { getEmbeddingStats } from "../memory/embeddings";
 import type { ProductionReadinessReport } from "./types";
 
@@ -44,13 +45,22 @@ export async function runExecutiveQA(baseUrl?: string): Promise<ProductionReadin
     });
   }
 
-  const integrations = getIntegrationTruthSources();
-  const missingIntegrations = integrations.filter((i) => !i.connected && i.id !== "analytics");
+  const connectors = getConnectorHealth();
+  const integrations = connectors.map((c) => ({
+    id: c.id,
+    label: c.label,
+    connected: c.connected,
+    status: c.truthLabel === "verified" ? ("verified" as const) : c.connected ? ("estimated" as const) : ("missing" as const),
+    evidenceTable: c.evidenceTable,
+    lastSync: c.lastUpdate,
+    blocksDecisions: c.blocksDecisions,
+  }));
+  const missingIntegrations = connectors.filter((c) => c.health !== "healthy" && c.id !== "analytics");
   for (const m of missingIntegrations.slice(0, 3)) {
     issues.push({
-      severity: "medium",
-      title: `${m.label} not connected`,
-      fix: `Set env credentials for ${m.id}`,
+      severity: m.health === "disconnected" ? "medium" : "low",
+      title: `${m.label}: ${m.health}`,
+      fix: m.errors[0] ?? `Configure ${m.id}`,
     });
   }
 

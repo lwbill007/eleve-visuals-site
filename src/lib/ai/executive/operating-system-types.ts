@@ -1,6 +1,7 @@
 import type { BusinessAction, ExecutiveForecast, ExecutiveOpportunity, ExecutiveRisk } from "../types";
 import type { QualifiedValue } from "./data-quality";
 import type { ExecutiveConfidence } from "../truth/types";
+import type { ExecutiveRecommendation } from "../platform/recommendation-contract";
 
 export interface ExecutiveMission {
   id: string;
@@ -17,6 +18,7 @@ export interface ExecutiveMission {
   actions: BusinessAction[];
   completed: boolean;
   confidenceDetail?: ExecutiveConfidence;
+  executiveRecommendation?: ExecutiveRecommendation;
   deprioritized?: boolean;
   deprioritizeReason?: string;
 }

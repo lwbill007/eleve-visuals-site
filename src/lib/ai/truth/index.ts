@@ -1,7 +1,14 @@
 export * from "./types";
 export { traceMetric, mapQualityToTruth, TRUTH_STATUS_LABELS } from "./types";
+export { buildTruthValue, qualifyToTruth, TRUTH_LABELS, type TruthLabel, type TruthValue } from "../platform/truth-metadata";
 export { buildExecutiveConfidence } from "./confidence-engine";
 export { getGuardedRecommendations } from "./recommendation-guardrails";
 export type { GuardedRecommendation } from "./recommendation-guardrails";
-export { computeGraphHealth, getIntegrationTruthSources } from "./integrations";
+export { computeGraphHealth } from "./integrations";
+export { getConnectorHealth, intelligenceDegraded } from "../platform/connectors";
 export { runExecutiveQA } from "./executive-qa";
+export { queryBusinessGraph } from "../platform/graph-query";
+export { emitBusinessEvent, getRecentBusinessEvents } from "../platform/business-events";
+export { buildExecutiveRecommendation, rankRecommendations } from "../platform/recommendation-contract";
+export { runVerificationEngine } from "../platform/verification-engine";
+export { PLATFORM_CHARTER } from "../platform";

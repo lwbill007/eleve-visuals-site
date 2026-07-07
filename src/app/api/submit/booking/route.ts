@@ -101,6 +101,15 @@ export async function POST(request: Request) {
     console.error("Booking confirmation email failed:", error);
   }
 
+  const { emitBusinessEvent } = await import("@/lib/ai/platform/business-events");
+  await emitBusinessEvent({
+    type: "booking_created",
+    entityId: inquiryId,
+    entityType: "submission",
+    payload: { type: "booking" },
+    source: "booking_form",
+  });
+
   const { triggerIntelligenceRefreshBackground } = await import("@/lib/ai/memory/knowledge/trigger");
   triggerIntelligenceRefreshBackground("booking_received");
 

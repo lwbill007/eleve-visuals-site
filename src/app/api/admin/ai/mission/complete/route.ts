@@ -24,6 +24,19 @@ export async function POST(req: Request) {
   }
 
   const result = await completeMission(body);
+  const { emitBusinessEvent } = await import("@/lib/ai/platform/business-events");
+  await emitBusinessEvent({
+    type: "mission_completed",
+    entityId: body.missionId,
+    entityType: "mission",
+    payload: {
+      worked: body.worked,
+      revenueImpact: body.revenueImpact,
+      bookingsImpact: body.bookingsImpact,
+    },
+    actor: "admin",
+    source: "command_center",
+  });
   await invalidateIntelligenceCaches();
   return NextResponse.json(result);
 }

@@ -216,6 +216,19 @@ export async function refreshIntelligence(trigger: RefreshTrigger = "manual"): P
 
   await recordAutomationRun(trigger);
 
+  const { emitBusinessEvent } = await import("../../platform/business-events");
+  await emitBusinessEvent({
+    type: "intelligence_refreshed",
+    entityId: refreshId,
+    entityType: "refresh_report",
+    payload: {
+      memoriesCreated: report.memoriesCreated,
+      graphLinksCreated: report.graphLinksCreated,
+      healthScore: report.executiveReport.overallHealthScore,
+    },
+    source: trigger,
+  });
+
   return report;
 }
 

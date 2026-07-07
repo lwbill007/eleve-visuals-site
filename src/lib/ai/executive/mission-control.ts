@@ -35,6 +35,7 @@ function missionFromRec(r: GuardedRecommendation): ExecutiveMission {
     actions: r.actions,
     completed: false,
     confidenceDetail: r.confidenceDetail,
+    executiveRecommendation: r.executiveRecommendation,
     deprioritized: r.deprioritized,
     deprioritizeReason: r.deprioritizeReason,
   };

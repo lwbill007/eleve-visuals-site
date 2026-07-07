@@ -1,13 +1,30 @@
 import { getOperatorMetrics } from "../intelligence/business-operator";
 import { getPrioritizedRecommendations as basePrioritize } from "../intelligence/executive-prioritization";
 import { buildExecutiveConfidence } from "./confidence-engine";
+import { buildExecutiveRecommendation, type ExecutiveRecommendation } from "../platform/recommendation-contract";
 import type { PrioritizedRecommendation } from "../types";
 import type { ExecutiveConfidence } from "./types";
 
 export interface GuardedRecommendation extends PrioritizedRecommendation {
   confidenceDetail: ExecutiveConfidence;
+  executiveRecommendation: ExecutiveRecommendation;
   deprioritized?: boolean;
   deprioritizeReason?: string;
+}
+
+function finalizeGuarded(
+  rec: PrioritizedRecommendation & { deprioritized?: boolean; deprioritizeReason?: string },
+  extra?: { supportingGraphPaths?: string[] }
+): GuardedRecommendation {
+  const confidenceDetail = buildExecutiveConfidence(rec);
+  return {
+    ...rec,
+    confidenceDetail,
+    executiveRecommendation: buildExecutiveRecommendation(
+      { ...rec, confidenceDetail },
+      { supportingGraphPaths: extra?.supportingGraphPaths, owner: "Studio owner" }
+    ),
+  };
 }
 
 function salesRecoveryRec(metrics: Awaited<ReturnType<typeof getOperatorMetrics>>): GuardedRecommendation {
@@ -15,60 +32,41 @@ function salesRecoveryRec(metrics: Awaited<ReturnType<typeof getOperatorMetrics>
   const followUp = metrics.attention.followUpClients;
   const value = metrics.attention.followUpValue || 1500;
 
-  return {
-    id: "guardrail-sales-recovery",
-    title: `Respond to ${stale || followUp || 1} pending booking ${stale === 1 ? "inquiry" : "inquiries"} today`,
-    detail:
-      "Revenue is $0 MTD with active pipeline. Sales recovery outranks SEO and content until inquiries are addressed.",
-    category: "sales",
-    estimatedRevenue: value,
-    confidence: stale > 0 ? 0.82 : 0.65,
-    timeToCompleteMinutes: 25,
-    difficulty: "easy",
-    priority: "critical",
-    whyNow: `Revenue MTD: $${metrics.revenue.thisMonth.toLocaleString()} · ${stale} stale inquiries · guardrail: sales before SEO`,
-    evidence: [
-      `Pipeline follow-up value: ~$${value.toLocaleString()}`,
-      `${followUp} clients need follow-up`,
-      "Production readiness guardrail: revenue=0 + pending inquiries",
-    ],
-    actions: [
-      {
-        id: "submissions",
-        label: "Open booking inquiries",
-        type: "navigate",
-        href: "/admin/submissions?type=booking",
-      },
-      {
-        id: "crm",
-        label: "Open CRM",
-        type: "navigate",
-        href: "/admin/crm",
-      },
-    ],
-    confidenceDetail: {
-      observed: [
-        `Revenue MTD $${metrics.revenue.thisMonth}`,
-        `${stale} abandoned inquiries`,
-        `${metrics.month.bookings} bookings MTD`,
-      ],
-      evidence: ["Submission table", "CRM attention metrics"],
-      supportingMemories: [],
-      supportingAnalytics: ["Business operator metrics"],
+  return finalizeGuarded(
+    {
+      id: "guardrail-sales-recovery",
+      title: `Respond to ${stale || followUp || 1} pending booking ${stale === 1 ? "inquiry" : "inquiries"} today`,
+      detail:
+        "Revenue is $0 MTD with active pipeline. Sales recovery outranks SEO and content until inquiries are addressed.",
+      category: "sales",
+      estimatedRevenue: value,
       confidence: stale > 0 ? 0.82 : 0.65,
-      businessImpact: "Recover existing demand before acquiring new traffic",
-      revenueOpportunity: value,
-      risk: "Delayed response increases churn probability",
-      dependencies: ["CRM access", "Inquiry data in Submission table"],
-      alternatives: ["SEO improvements", "Instagram campaign"],
-      unknowns: stale === 0 ? ["Exact inquiry count may be under-reported"] : [],
-      expectedOutcome: "At least 1 inquiry moved forward within 48h",
-      predictionConfidence: 0.75,
-      whyNow: "Zero revenue with pending demand — highest ROI is conversion, not acquisition",
-      whyNotLater: "Every day without follow-up reduces close probability ~15%",
-      truthStatus: stale > 0 ? "verified" : "estimated",
+      timeToCompleteMinutes: 25,
+      difficulty: "easy",
+      priority: "critical",
+      whyNow: `Revenue MTD: $${metrics.revenue.thisMonth.toLocaleString()} · ${stale} stale inquiries · guardrail: sales before SEO`,
+      evidence: [
+        `Pipeline follow-up value: ~$${value.toLocaleString()}`,
+        `${followUp} clients need follow-up`,
+        "Production readiness guardrail: revenue=0 + pending inquiries",
+      ],
+      actions: [
+        {
+          id: "submissions",
+          label: "Open booking inquiries",
+          type: "navigate",
+          href: "/admin/submissions?type=booking",
+        },
+        {
+          id: "crm",
+          label: "Open CRM",
+          type: "navigate",
+          href: "/admin/crm",
+        },
+      ],
     },
-  };
+    { supportingGraphPaths: ["Inquiry → Submission → CRM → Booking"] }
+  );
 }
 
 function deprioritizeVanity(rec: PrioritizedRecommendation): GuardedRecommendation {
@@ -78,14 +76,13 @@ function deprioritizeVanity(rec: PrioritizedRecommendation): GuardedRecommendati
       rec.title.toLowerCase().includes("meta") ||
       rec.title.toLowerCase().includes("content"));
 
-  return {
+  return finalizeGuarded({
     ...rec,
     deprioritized: isSeoOrContent,
     deprioritizeReason: isSeoOrContent
       ? "Deprioritized: sales recovery required before SEO/content (guardrail)"
       : undefined,
-    confidenceDetail: buildExecutiveConfidence(rec),
-  };
+  });
 }
 
 export async function getGuardedRecommendations(limit = 12): Promise<GuardedRecommendation[]> {
@@ -107,14 +104,16 @@ export async function getGuardedRecommendations(limit = 12): Promise<GuardedReco
       sales,
       ...recs
         .filter((r) => r.id !== sales.id)
-        .map((r) => ({
-          ...r,
-          deprioritized: r.deprioritized || r.category === "marketing",
-          deprioritizeReason:
-            r.deprioritizeReason ??
-            (r.category === "marketing" ? "Sales recovery takes priority" : undefined),
-          priority: r.priority === "critical" ? "medium" : r.priority,
-        })),
+        .map((r) =>
+          finalizeGuarded({
+            ...r,
+            deprioritized: r.deprioritized || r.category === "marketing",
+            deprioritizeReason:
+              r.deprioritizeReason ??
+              (r.category === "marketing" ? "Sales recovery takes priority" : undefined),
+            priority: r.priority === "critical" ? "medium" : r.priority,
+          })
+        ),
     ];
   }
 
@@ -122,6 +121,9 @@ export async function getGuardedRecommendations(limit = 12): Promise<GuardedReco
     const followUp = salesRecoveryRec(metrics);
     followUp.title = "Analyze booking decline — check follow-up speed and form friction";
     followUp.whyNow = `Bookings ${metrics.month.bookingsChange}% MTD — diagnose CRM and funnel before new campaigns`;
+    followUp.executiveRecommendation = buildExecutiveRecommendation(followUp, {
+      supportingGraphPaths: ["Page → Form → Submission → Booking"],
+    });
     recs.unshift(followUp);
   }
 

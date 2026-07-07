@@ -114,35 +114,49 @@ export async function* streamAIChat(
   await logAIAction("ai_chat_stream", "assistant", userMessage.slice(0, 200));
 }
 
-export async function generateAIContent(request: AIGenerateRequest): Promise<{ content: string; provider: string }> {
+export async function generateAIContent(
+  request: AIGenerateRequest
+): Promise<{ content: string; provider: string; ok: boolean; reason?: string }> {
   const taskPrompt = TASK_PROMPTS[request.task] || TASK_PROMPTS.general;
   const contextStr = request.context ? `\nContext:\n${JSON.stringify(request.context, null, 2)}` : "";
 
   if (!isAIConfigured()) {
     return {
-      content: `[AI not configured — set OPENROUTER_API_KEY to enable generation]\n\nTask: ${request.task}\nPrompt: ${request.prompt}`,
-      provider: "rules",
+      content: "",
+      provider: "none",
+      ok: false,
+      reason: "AI provider not configured. Set OPENROUTER_API_KEY (or OLLAMA_BASE_URL) to enable generation.",
     };
   }
 
-  const result = await aiComplete({
-    messages: [
-      { role: "system", content: systemPromptForTask(taskPrompt) },
-      { role: "user", content: `${request.prompt}${contextStr}` },
-    ],
-    temperature: 0.8,
-  });
+  let result: Awaited<ReturnType<typeof aiComplete>> = null;
+  try {
+    result = await aiComplete({
+      messages: [
+        { role: "system", content: systemPromptForTask(taskPrompt) },
+        { role: "user", content: `${request.prompt}${contextStr}` },
+      ],
+      temperature: 0.8,
+    });
+  } catch (err) {
+    await logAIAction("ai_generate_error", request.task, err instanceof Error ? err.message : "unknown");
+    result = null;
+  }
 
   await logAIAction("ai_generate", request.task, request.prompt.slice(0, 200));
 
   if (!result?.content) {
-    return {
-      content: `[Generation failed — all models unavailable. Using rule-based mode.]\n\nTask: ${request.task}`,
-      provider: "rules",
-    };
+    // Explain WHY, per truth-layer principle — never a dead-end failure.
+    let reason = "All AI models were unavailable or returned no content.";
+    if (isOpenRouterConfigured()) {
+      const probe = await probeOpenRouterKey().catch(() => ({ ok: true as const }));
+      if (!probe.ok && probe.error) reason = probe.error;
+      else reason = "OpenRouter accepted the key but every model in the chain failed or timed out. Try again in a moment.";
+    }
+    return { content: "", provider: result?.provider ?? "none", ok: false, reason };
   }
 
-  return { content: result.content, provider: result.provider };
+  return { content: result.content, provider: result.provider, ok: true };
 }
 
 export async function aiNaturalLanguageSearch(query: string): Promise<{
