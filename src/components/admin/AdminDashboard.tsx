@@ -6,7 +6,9 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { ADMIN_QUICK_ACTIONS } from "@/config/admin-nav";
 import { useBriefingOptional } from "@/components/admin/ai/BriefingProvider";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
+import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
 import { ExecutiveSynthesisPanel } from "@/components/admin/ai/ExecutiveSynthesisPanel";
+import { TruthMetricCard } from "@/components/admin/ai/TruthMetricCard";
 import type { ExecutiveOS } from "@/lib/ai/executive/types";
 import {
   ExecutiveDashboardSkeleton,
@@ -65,6 +67,7 @@ export function AdminDashboard() {
   useSetAIPage("dashboard");
   const briefingCtx = useBriefingOptional();
   const [data, setData] = useState<DashboardOS | null>(null);
+  const { context: execContext } = useExecutiveContext();
   const [executiveOs, setExecutiveOs] = useState<ExecutiveOS | null>(null);
   const [error, setError] = useState("");
 
@@ -96,6 +99,7 @@ export function AdminDashboard() {
 
   const { metrics, charts, activityFeed } = data;
   const executive = briefing?.executive;
+  const tm = execContext?.truth.metrics;
 
   return (
     <div className="space-y-8">
@@ -206,54 +210,118 @@ export function AdminDashboard() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminMetricCard
-          label="Revenue MTD"
-          value={formatCurrency(briefing?.month.revenue ?? metrics.revenue.value)}
-          hint={
-            briefing
-              ? `${briefing.month.revenueChange >= 0 ? "+" : ""}${briefing.month.revenueChange}% vs last month`
-              : metrics.revenue.hint
-          }
-          delta={briefing?.month.revenueChange ?? metrics.monthlyGrowth}
-          href="/admin/analytics"
-        />
-        <AdminMetricCard
-          label="Bookings"
-          value={metrics.bookings.value}
-          hint={`${metrics.bookings.pending} pending inquiry`}
-          delta={metrics.monthlyGrowth}
-          href="/admin/submissions?type=booking"
-        />
-        <AdminMetricCard label="Leads" value={metrics.leads.value} hint={`${metrics.leads.thisMonth} this month`} href="/admin/crm" />
-        <AdminMetricCard
-          label="Visitors (30d)"
-          value={metrics.visitors.value.toLocaleString()}
-          hint={`${metrics.visitors.week} this week · ${metrics.conversionRate}% conv`}
-          href="/admin/analytics"
-        />
-        <AdminMetricCard
-          label="Contacts"
-          value={metrics.subscribers.value}
-          hint={metrics.subscribers.label}
-          href="/admin/crm"
-        />
-        <AdminMetricCard
-          label="Applications"
-          value={metrics.applications.value}
-          hint={`${metrics.applications.pending} pending review`}
-          href="/admin/applications"
-        />
-        <AdminMetricCard label="Returning Clients" value={metrics.returningClients} href="/admin/crm" />
-        <AdminMetricCard
-          label="Today"
-          value={briefing?.today.bookings ?? "—"}
-          hint={
-            briefing
-              ? `${briefing.today.leads} leads · ${briefing.today.applications} apps · $${briefing.today.revenue.toLocaleString()} pipeline`
-              : "Live activity"
-          }
-          href="/admin/pipeline"
-        />
+        {tm?.["revenue.mtd"] ? (
+          <TruthMetricCard
+            metric={tm["revenue.mtd"]}
+            hint={
+              briefing
+                ? `${briefing.month.revenueChange >= 0 ? "+" : ""}${briefing.month.revenueChange}% vs last month`
+                : metrics.revenue.hint
+            }
+            delta={briefing?.month.revenueChange ?? metrics.monthlyGrowth}
+            href="/admin/analytics"
+            currency
+          />
+        ) : (
+          <AdminMetricCard
+            label="Revenue MTD"
+            value={formatCurrency(briefing?.month.revenue ?? metrics.revenue.value)}
+            hint={
+              briefing
+                ? `${briefing.month.revenueChange >= 0 ? "+" : ""}${briefing.month.revenueChange}% vs last month`
+                : metrics.revenue.hint
+            }
+            delta={briefing?.month.revenueChange ?? metrics.monthlyGrowth}
+            href="/admin/analytics"
+          />
+        )}
+        {tm?.["bookings.total"] ? (
+          <TruthMetricCard
+            metric={tm["bookings.total"]}
+            hint={`${metrics.bookings.pending} pending inquiry`}
+            delta={metrics.monthlyGrowth}
+            href="/admin/submissions?type=booking"
+          />
+        ) : (
+          <AdminMetricCard
+            label="Bookings"
+            value={metrics.bookings.value}
+            hint={`${metrics.bookings.pending} pending inquiry`}
+            delta={metrics.monthlyGrowth}
+            href="/admin/submissions?type=booking"
+          />
+        )}
+        {tm?.["leads.total"] ? (
+          <TruthMetricCard metric={tm["leads.total"]} hint={`${metrics.leads.thisMonth} this month`} href="/admin/crm" />
+        ) : (
+          <AdminMetricCard label="Leads" value={metrics.leads.value} hint={`${metrics.leads.thisMonth} this month`} href="/admin/crm" />
+        )}
+        {tm?.["traffic.30d"] ? (
+          <TruthMetricCard
+            metric={tm["traffic.30d"]}
+            hint={`${metrics.visitors.week} this week · ${metrics.conversionRate}% conv`}
+            href="/admin/analytics"
+          />
+        ) : (
+          <AdminMetricCard
+            label="Visitors (30d)"
+            value={metrics.visitors.value.toLocaleString()}
+            hint={`${metrics.visitors.week} this week · ${metrics.conversionRate}% conv`}
+            href="/admin/analytics"
+          />
+        )}
+        {tm?.["crm.contacts"] ? (
+          <TruthMetricCard metric={tm["crm.contacts"]} hint={metrics.subscribers.label} href="/admin/crm" />
+        ) : (
+          <AdminMetricCard
+            label="Contacts"
+            value={metrics.subscribers.value}
+            hint={metrics.subscribers.label}
+            href="/admin/crm"
+          />
+        )}
+        {tm?.["sessions.applications"] ? (
+          <TruthMetricCard
+            metric={tm["sessions.applications"]}
+            hint={`${metrics.applications.pending} pending review`}
+            href="/admin/applications"
+          />
+        ) : (
+          <AdminMetricCard
+            label="Applications"
+            value={metrics.applications.value}
+            hint={`${metrics.applications.pending} pending review`}
+            href="/admin/applications"
+          />
+        )}
+        {tm?.["clients.returning"] ? (
+          <TruthMetricCard metric={tm["clients.returning"]} href="/admin/crm" />
+        ) : (
+          <AdminMetricCard label="Returning Clients" value={metrics.returningClients} href="/admin/crm" />
+        )}
+        {tm?.["revenue.today"] ? (
+          <TruthMetricCard
+            metric={tm["revenue.today"]}
+            hint={
+              briefing
+                ? `${briefing.today.leads} leads · ${briefing.today.applications} apps · $${briefing.today.revenue.toLocaleString()} pipeline`
+                : "Live activity"
+            }
+            href="/admin/pipeline"
+            currency
+          />
+        ) : (
+          <AdminMetricCard
+            label="Today"
+            value={briefing?.today.bookings ?? "—"}
+            hint={
+              briefing
+                ? `${briefing.today.leads} leads · ${briefing.today.applications} apps · $${briefing.today.revenue.toLocaleString()} pipeline`
+                : "Live activity"
+            }
+            href="/admin/pipeline"
+          />
+        )}
       </div>
 
       {metrics.pendingTasks > 0 && (

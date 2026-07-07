@@ -63,6 +63,8 @@ export async function retrieveMemoriesForQuery(
     layers?: MemoryLayer[];
     limit?: number;
     minScore?: number;
+    /** When true, exclude pending/unverified memories from results */
+    forRecommendations?: boolean;
   }
 ): Promise<RetrievedMemory[]> {
   const queryTokens = tokenize(query);
@@ -115,6 +117,11 @@ export async function retrieveMemoriesForQuery(
 
   return [...merged.values()]
     .sort((a, b) => b.score - a.score)
+    .filter((r) => {
+      if (!options?.forRecommendations) return true;
+      const s = r.memory.verificationStatus;
+      return s === "verified" || s === "trusted" || (r.memory.pinned && r.memory.verified);
+    })
     .slice(0, limit);
 }
 
@@ -178,7 +185,7 @@ export function toMemoryCitations(retrieved: RetrievedMemory[]): MemoryCitation[
 export async function buildRAGContext(query: string, page?: string): Promise<string> {
   const { buildCognitiveContextForPrompt } = await import("../cognitive/context-prompt");
   const [queryMemories, pageMemories, cognitiveContext] = await Promise.all([
-    retrieveMemoriesForQuery(query, { limit: 6 }),
+    retrieveMemoriesForQuery(query, { limit: 6, forRecommendations: true }),
     page ? retrieveMemoriesForPage(page, 4) : Promise.resolve([]),
     buildCognitiveContextForPrompt(page),
   ]);

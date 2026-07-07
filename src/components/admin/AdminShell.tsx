@@ -9,6 +9,8 @@ import { AdminCommandPalette, useCommandPalette } from "@/components/admin/os/Ad
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { AINotificationsBell } from "@/components/admin/ai/AINotificationsBell";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
+import { ExecutiveContextProvider } from "@/components/admin/ai/ExecutiveContextProvider";
+import { ExecutiveContextBar } from "@/components/admin/ai/ExecutiveContextBar";
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
@@ -76,7 +78,8 @@ function AdminShellInner({
   }
 
   return (
-    <div className="min-h-screen bg-ink lg:flex">
+    <ExecutiveContextProvider>
+      <div className="min-h-screen bg-ink lg:flex">
       <AdminCommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       {navOpen && (
@@ -170,9 +173,12 @@ function AdminShellInner({
           </button>
         </header>
 
+        <ExecutiveContextBar />
+
         <div className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</div>
       </div>
     </div>
+    </ExecutiveContextProvider>
   );
 }
 

@@ -7,8 +7,28 @@ import { prisma } from "@/lib/db";
 import { getWorkspaceId } from "../memory/workspace";
 import { runAutoVerification, getVerificationStats } from "../memory/verification";
 
+export type VerificationLifecycle =
+  | "verified"
+  | "needs_review"
+  | "contradiction"
+  | "outdated"
+  | "archived"
+  | "superseded";
+
+export interface VerificationLifecycleReport {
+  verified: number;
+  needsReview: number;
+  contradiction: number;
+  outdated: number;
+  archived: number;
+  superseded: number;
+  targetPct: number;
+  currentPct: number;
+}
+
 export interface VerificationEngineReport {
   stats: Awaited<ReturnType<typeof getVerificationStats>>;
+  lifecycle: VerificationLifecycleReport;
   contradictions: { memoryId: string; title: string; reason: string }[];
   stale: { memoryId: string; title: string; ageDays: number }[];
   promoted: number;
@@ -59,6 +79,16 @@ export async function runVerificationEngine(): Promise<VerificationEngineReport>
 
   return {
     stats,
+    lifecycle: {
+      verified: stats.verified + stats.trusted,
+      needsReview: stats.pending,
+      contradiction: contradictions.length,
+      outdated: pendingOld.length,
+      archived: stats.archived,
+      superseded: 0,
+      targetPct: stats.targetPct,
+      currentPct: stats.verifiedPct,
+    },
     contradictions,
     stale: pendingOld.map((m) => ({
       memoryId: m.id,

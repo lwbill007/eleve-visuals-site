@@ -4,12 +4,15 @@
  */
 
 export * from "./truth-metadata";
+export * from "./truth-resolver";
 export * from "./recommendation-contract";
 export * from "./graph-ontology";
 export * from "./graph-query";
 export * from "./business-events";
 export * from "./connectors";
 export * from "./verification-engine";
+export * from "./event-graph";
+export * from "./executive-context";
 
 export const PLATFORM_CHARTER = {
   principles: [

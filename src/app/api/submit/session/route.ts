@@ -107,6 +107,19 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { emitBusinessEvent } = await import("@/lib/ai/platform/business-events");
+    await emitBusinessEvent({
+      type: "application_received",
+      entityId: applicationId,
+      entityType: "submission",
+      payload: { volumeId, volumeSlug: volume.slug, email },
+      source: "session_form",
+    });
+  } catch {
+    /* non-blocking */
+  }
+
+  try {
     const referer = request.headers.get("referer") ?? undefined;
     const path = referer ? new URL(referer).pathname : `/sessions/${volume.slug}/apply`;
     await recordConversion("session", path, referer ?? null);

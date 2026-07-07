@@ -27,6 +27,12 @@ export interface TruthMetadata {
   verificationStatus: "unverified" | "pending" | "verified" | "trusted" | "contradicted" | "stale";
   dependencies: string[];
   missingReason?: string;
+  /** Prisma table or primary datastore */
+  table?: string;
+  /** SQL-ish or logical query description */
+  query?: string;
+  lastVerified?: string;
+  owner?: string;
 }
 
 export interface TruthValue<T = string | number> extends TruthMetadata {
@@ -82,6 +88,9 @@ export function buildTruthValue<T extends string | number>(input: {
   displayLabel?: string;
   table?: string;
   api?: string;
+  query?: string;
+  lastVerified?: string;
+  owner?: string;
   refreshFrequency?: string;
 }): TruthValue<T> {
   const label = input.label;
@@ -95,6 +104,9 @@ export function buildTruthValue<T extends string | number>(input: {
     confidence: input.confidence ?? defaultConfidence(label),
     freshness: input.freshness ?? "Live",
     calculation: input.calculation,
+    query: input.query ?? input.calculation,
+    lastVerified: input.lastVerified ?? (label === "verified" ? input.timestamp : undefined),
+    owner: input.owner ?? "ÉLEVÉ OS",
     verificationStatus: input.verificationStatus ?? (label === "verified" ? "verified" : "pending"),
     dependencies: input.dependencies ?? [],
     missingReason: input.missingReason,

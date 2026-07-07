@@ -78,6 +78,8 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<{ logged:
 }
 
 async function processBusinessEventSideEffects(event: BusinessEvent): Promise<void> {
+  const { linkBusinessEventToGraph } = await import("./event-graph");
+  await linkBusinessEventToGraph(event).catch(() => 0);
   const trigger = EVENT_TO_REFRESH_TRIGGER[event.type];
 
   if (event.type === "mission_completed" || event.type === "recommendation_feedback") {
