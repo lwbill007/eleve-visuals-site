@@ -101,57 +101,110 @@ export function AdminDashboard() {
   const executive = briefing?.executive;
   const tm = execContext?.truth.metrics;
 
+  const health = execContext?.health;
+  const sharedRecs = execContext?.recommendations ?? [];
+  const sharedRisks = execContext?.risks ?? [];
+  const oppTotal = sharedRecs.reduce((s, r) => s + r.estimatedRevenue, 0);
+
   return (
     <div className="space-y-8">
       <div>
         <p className="label-caps text-accent">ÉLEVÉ OS</p>
-        <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Executive Command Center</h2>
-        {executiveOs?.synthesis?.headline ? (
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-fog">{executiveOs.synthesis.headline}</p>
-        ) : briefing ? (
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-fog">{briefing.summary}</p>
-        ) : null}
+        <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Home</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-fog">
+          {execContext?.headline ??
+            executiveOs?.synthesis?.headline ??
+            briefing?.summary ??
+            "Your AI operating system — priorities, health, and next actions."}
+        </p>
         <div className="mt-3 flex flex-wrap gap-4 text-xs">
           <Link href="/admin/intelligence" className="text-accent hover:underline">
-            Command Center →
+            AI Briefing →
           </Link>
           <Link href="/admin/memory" className="text-accent hover:underline">
-            Knowledge Engine →
+            Business Brain →
+          </Link>
+          <Link href="/admin/opportunities" className="text-accent hover:underline">
+            Opportunities →
           </Link>
         </div>
       </div>
 
+      {health && (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {(
+            [
+              ["Overall", health.overall],
+              ["Revenue", health.revenue],
+              ["Sales", health.sales],
+              ["Growth", health.growth],
+              ["Data", health.data],
+            ] as const
+          ).map(([label, dim]) => (
+            <div key={label} className="rounded-xl border border-stone/20 bg-charcoal/20 p-4" title={dim.note}>
+              <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">{label}</p>
+              <p className="mt-1 font-display text-3xl text-cream">{dim.score}</p>
+              <p className="mt-1 text-[0.65rem] capitalize text-fog">{dim.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {executiveOs?.synthesis && <ExecutiveSynthesisPanel synthesis={executiveOs.synthesis} />}
 
-      {executive?.highestRoiAction && !executiveOs?.synthesis && (
+      {executive?.highestRoiAction && !executiveOs?.synthesis && !execContext?.nextAction && (
         <HighestRoiBanner {...executive.highestRoiAction} />
       )}
 
       {briefing?.executiveScores && briefing.executiveScores.length > 0 ? (
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <p className="label-caps text-muted">Business health scores</p>
+            <p className="label-caps text-muted">Briefing health scores</p>
             <Link href="/admin/intelligence" className="text-xs text-accent hover:underline">
-              Full intelligence →
+              Full briefing →
             </Link>
           </div>
           <ExecutiveScoreGrid scores={briefing.executiveScores} />
         </div>
       ) : null}
 
-      {briefing?.intelligence && (
+      {(sharedRecs.length > 0 || sharedRisks.length > 0) && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <OpportunityRevenueBanner
-            total={briefing.intelligence.opportunities.reduce((s, o) => s + o.expectedRevenue, 0)}
-            count={briefing.intelligence.opportunities.length}
-          />
-          <AdminPanel title="Active risks" subtitle="Early warnings — act before problems compound">
+          <div className="space-y-3">
+            <OpportunityRevenueBanner total={oppTotal} count={sharedRecs.length} />
+            {sharedRecs.slice(0, 3).map((r) => (
+              <Link
+                key={r.id}
+                href={r.href}
+                className="os-panel block rounded-xl border border-stone/20 p-4 transition-colors hover:border-accent/35"
+              >
+                <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
+                  {r.priority} · {r.category}
+                </p>
+                <p className="mt-1 font-display text-base text-cream">{r.title}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-fog">{r.why}</p>
+                <p className="mt-2 text-[0.65rem] text-emerald-400/90">
+                  {r.estimatedRevenue > 0 ? `~$${r.estimatedRevenue.toLocaleString()}` : "Impact TBD"} ·{" "}
+                  {Math.round(r.confidence * 100)}% · ~{r.timeMinutes} min
+                </p>
+              </Link>
+            ))}
+          </div>
+          <AdminPanel title="Active risks" subtitle="From Truth Layer + connectors — not invented alerts">
             <div className="space-y-3">
-              {briefing.intelligence.risks.slice(0, 2).map((r) => (
-                <RiskCard key={r.id} risk={r} />
+              {sharedRisks.slice(0, 3).map((r) => (
+                <Link
+                  key={r.id}
+                  href={r.href}
+                  className="block rounded-lg border border-stone/15 p-3 transition-colors hover:border-accent/30"
+                >
+                  <p className="text-[0.55rem] tracking-[0.12em] text-amber-300/90 uppercase">{r.severity}</p>
+                  <p className="mt-1 text-sm text-cream">{r.title}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-fog">{r.detail}</p>
+                </Link>
               ))}
-              {briefing.intelligence.risks.length === 0 && (
-                <p className="text-sm text-fog">No critical risks detected from current data.</p>
+              {sharedRisks.length === 0 && (
+                <p className="text-sm text-fog">No elevated risks from current truth signals.</p>
               )}
               <Link href="/admin/risks" className="text-xs text-accent hover:underline">
                 Risk Center →
@@ -161,11 +214,21 @@ export function AdminDashboard() {
         </div>
       )}
 
-      {briefing?.intelligence && briefing.intelligence.opportunities.length > 0 && (
-        <AdminPanel title="Top opportunities" subtitle="Ranked by expected revenue × confidence">
+      {!sharedRecs.length && briefing?.intelligence && briefing.intelligence.opportunities.length > 0 && (
+        <AdminPanel title="Top opportunities" subtitle="From daily briefing (legacy path)">
           <div className="grid gap-3 lg:grid-cols-2">
             {briefing.intelligence.opportunities.slice(0, 4).map((opp) => (
               <OpportunityCard key={opp.id} opp={opp} />
+            ))}
+          </div>
+        </AdminPanel>
+      )}
+
+      {!sharedRisks.length && briefing?.intelligence && (
+        <AdminPanel title="Briefing risks" subtitle="Fallback while context loads">
+          <div className="space-y-3">
+            {briefing.intelligence.risks.slice(0, 2).map((r) => (
+              <RiskCard key={r.id} risk={r} />
             ))}
           </div>
         </AdminPanel>

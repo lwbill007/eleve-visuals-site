@@ -11,7 +11,7 @@ import { getVerificationStats } from "../memory/verification";
 import { getGuardedRecommendations } from "../truth/recommendation-guardrails";
 import { getCached, setCache } from "../cache";
 
-const CACHE_KEY = "executive-context-v3";
+const CACHE_KEY = "executive-context-v4";
 const CACHE_TTL_MS = 60_000;
 
 export type HealthLabel = "strong" | "steady" | "watch" | "critical" | "unknown";
@@ -36,6 +36,17 @@ export interface NextAction {
   href: string;
   actionLabel: string;
   category: string;
+}
+
+/** Risk signal derived from truth/connectors/verification — no fabricated alerts. */
+export interface RiskSignal {
+  id: string;
+  title: string;
+  detail: string;
+  severity: "critical" | "high" | "medium" | "low";
+  evidence: string[];
+  href: string;
+  actionLabel: string;
 }
 
 export interface ExecutiveContext {
@@ -72,8 +83,10 @@ export interface ExecutiveContext {
   headline: string;
   /** The single highest-impact next action (guarded recommendations). */
   nextAction: NextAction | null;
-  /** Top 3 recommendations for the queue strip. */
+  /** Ranked recommendation queue for Opportunity Center + Home. */
   recommendations: NextAction[];
+  /** Derived risk signals for Risk Center + Home. */
+  risks: RiskSignal[];
   /** Overall data-trust score 0-100. */
   trustScore: number;
 }
@@ -128,7 +141,7 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
     resolveMetrics(force),
     Promise.resolve(getConnectorHealth()),
     getVerificationStats(),
-    getGuardedRecommendations(3).catch(() => [] as Awaited<ReturnType<typeof getGuardedRecommendations>>),
+    getGuardedRecommendations(8).catch(() => [] as Awaited<ReturnType<typeof getGuardedRecommendations>>),
   ]);
 
   const healthy = connectorList.filter((c) => c.health === "healthy").length;
@@ -183,6 +196,61 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
   const recommendations = guarded.filter((r) => !r.deprioritized).map(toNextAction);
   const nextAction = recommendations[0] ?? null;
 
+  const risks: RiskSignal[] = [];
+  if (staleInquiries > 0) {
+    risks.push({
+      id: "risk-stale-inquiries",
+      title: `${staleInquiries} stale booking inquir${staleInquiries === 1 ? "y" : "ies"}`,
+      detail: "Leads waiting 3+ days without a response — conversion probability drops daily.",
+      severity: staleInquiries >= 3 ? "critical" : "high",
+      evidence: [
+        `Truth metric attention.staleInquiries = ${staleInquiries}`,
+        "Source: Submission table (verified count)",
+      ],
+      href: "/admin/submissions?type=booking",
+      actionLabel: "Respond now",
+    });
+  }
+  if (revenueMtd === 0 && pipeline > 0) {
+    risks.push({
+      id: "risk-zero-revenue",
+      title: "No settled revenue MTD with open pipeline",
+      detail: `$${pipeline.toLocaleString()} in estimated pipeline — sales recovery before marketing spend.`,
+      severity: "high",
+      evidence: [
+        revenueVerified ? "Revenue verified at $0" : "Revenue estimated at $0 (Stripe disconnected)",
+        `Open pipeline: $${pipeline.toLocaleString()}`,
+      ],
+      href: "/admin/pipeline",
+      actionLabel: "Open pipeline",
+    });
+  }
+  if (verification.verifiedPct < 50 && verification.total > 20) {
+    risks.push({
+      id: "risk-unverified-memory",
+      title: `Knowledge only ${verification.verifiedPct}% verified`,
+      detail: "AI recommendations may rely on unverified memories — review the verification queue.",
+      severity: verification.verifiedPct < 20 ? "high" : "medium",
+      evidence: [
+        `${verification.pending} memories pending`,
+        `Target: ${verification.targetPct}%`,
+      ],
+      href: "/admin/memory",
+      actionLabel: "Verify knowledge",
+    });
+  }
+  for (const label of degradedLabels.slice(0, 3)) {
+    risks.push({
+      id: `risk-connector-${label.toLowerCase().replace(/\s+/g, "-")}`,
+      title: `${label} disconnected or degraded`,
+      detail: "External intelligence incomplete — decisions that depend on this source are blocked or estimated.",
+      severity: "medium",
+      evidence: blockedDecisions.slice(0, 2),
+      href: "/admin/qa",
+      actionLabel: "Check connectors",
+    });
+  }
+
   const headline =
     nextAction?.title ??
     (staleInquiries > 0
@@ -236,6 +304,7 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
     headline,
     nextAction,
     recommendations,
+    risks,
     trustScore,
   };
 
