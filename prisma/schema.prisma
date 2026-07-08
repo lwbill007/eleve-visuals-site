@@ -106,6 +106,30 @@ model Submission {
   @@index([contactEmail])
 }
 
+/// Settled payments from Stripe webhooks (or manual admin entry).
+/// Truth Layer uses these for Verified revenue when present.
+model Payment {
+  id               String   @id @default(cuid())
+  stripeEventId    String   @unique
+  stripePaymentId  String   @default("")
+  amountCents      Int
+  currency         String   @default("usd")
+  status           String   @default("succeeded")
+  customerEmail    String   @default("")
+  description      String   @default("")
+  submissionId     String?
+  source           String   @default("stripe")
+  paidAt           DateTime
+  raw              String   @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([paidAt])
+  @@index([status, paidAt])
+  @@index([customerEmail])
+  @@index([submissionId])
+}
+
 model ActivityLog {
   id        String   @id @default(cuid())
   actor     String   @default("admin")

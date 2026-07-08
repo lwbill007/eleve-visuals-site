@@ -72,22 +72,29 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
   const ga4 = connectors.find((c) => c.id === "ga4");
   const instagram = connectors.find((c) => c.id === "instagram");
 
-  const revenueVerified = stripe?.health === "healthy";
+  const revenueVerified = Boolean(m.revenue.verified);
+  const stripeConnected = stripe?.health === "healthy";
   const trafficVerified = ga4?.health === "healthy";
 
   const metrics: Record<CanonicalMetricId, TruthValue<number>> = {
     "revenue.today": buildTruthValue({
       value: m.revenue.today,
       label: revenueVerified ? "verified" : "estimated",
-      source: revenueVerified ? "Stripe payments" : "Pipeline (Submission deal values)",
-      table: "Submission",
-      calculation: "Sum of pipeline deal values with createdAt >= today",
-      evidence: ["Pipeline column deal values", "Submission table"],
-      dependencies: ["Stripe (for verified revenue)"],
+      source: revenueVerified ? "Stripe Payment table" : "Pipeline (Submission deal values)",
+      table: revenueVerified ? "Payment" : "Submission",
+      calculation: revenueVerified
+        ? "SUM(Payment.amountCents WHERE status=succeeded AND paidAt>=today) / 100"
+        : "Sum of pipeline deal values with createdAt >= today",
+      evidence: revenueVerified
+        ? [`${m.revenue.paymentCount} settled payment(s)`, "Stripe webhook"]
+        : ["Pipeline column deal values", "Submission table"],
+      dependencies: revenueVerified ? ["Stripe webhook"] : ["Stripe (for verified revenue)"],
       verificationStatus: revenueVerified ? "verified" : "pending",
       missingReason: revenueVerified
         ? undefined
-        : "Stripe not connected — revenue derived from pipeline deal estimates, not settled payments.",
+        : stripeConnected
+          ? "Stripe connected but no Payment rows yet — waiting for webhook events."
+          : "Stripe not connected — revenue derived from pipeline deal estimates, not settled payments.",
       timestamp: m.generatedAt,
       freshness: "Live",
       displayLabel: "Revenue Today",
@@ -95,15 +102,21 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
     "revenue.mtd": buildTruthValue({
       value: m.revenue.thisMonth,
       label: revenueVerified ? "verified" : "estimated",
-      source: revenueVerified ? "Stripe + Invoices" : "Pipeline (Submission deal values)",
-      table: "Submission",
-      calculation: "Sum of pipeline deal values with createdAt >= month start",
-      evidence: ["Pipeline deal values MTD", `Change vs last month: ${m.revenue.monthChange}%`],
-      dependencies: ["Stripe", "Invoice table (not implemented)"],
+      source: revenueVerified ? "Stripe Payment table" : "Pipeline (Submission deal values)",
+      table: revenueVerified ? "Payment" : "Submission",
+      calculation: revenueVerified
+        ? "SUM(Payment.amountCents WHERE status=succeeded AND paidAt>=month start) / 100"
+        : "Sum of pipeline deal values with createdAt >= month start",
+      evidence: revenueVerified
+        ? [`${m.revenue.paymentCount} settled payment(s)`, "Stripe webhook"]
+        : ["Pipeline deal values MTD", `Change vs last month: ${m.revenue.monthChange}%`],
+      dependencies: revenueVerified ? ["Stripe webhook"] : ["Stripe", "Payment table"],
       verificationStatus: revenueVerified ? "verified" : "pending",
       missingReason: revenueVerified
         ? undefined
-        : "Stripe/Invoice not connected — MTD revenue is an estimate from pipeline deals.",
+        : stripeConnected
+          ? "Stripe connected but no Payment rows yet — waiting for webhook events."
+          : "Stripe/Payment not connected — MTD revenue is an estimate from pipeline deals.",
       timestamp: m.generatedAt,
       displayLabel: "Revenue (MTD)",
     }),

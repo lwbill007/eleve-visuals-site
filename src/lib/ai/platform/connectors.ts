@@ -94,10 +94,13 @@ const CONNECTOR_DEFS: Omit<
   {
     id: "stripe",
     label: "Stripe",
-    unknownFields: ["payments", "invoices", "refunds", "mrr"],
-    missingPermissions: env("STRIPE_SECRET_KEY") ? [] : ["STRIPE_SECRET_KEY"],
+    unknownFields: ["mrr", "subscriptions"],
+    missingPermissions: [
+      ...(!env("STRIPE_SECRET_KEY") ? ["STRIPE_SECRET_KEY"] : []),
+      ...(!env("STRIPE_WEBHOOK_SECRET") ? ["STRIPE_WEBHOOK_SECRET"] : []),
+    ],
     blocksDecisions: ["Verified revenue", "Cash flow", "LTV"],
-    evidenceTable: "Submission (proxy — Invoice table not implemented)",
+    evidenceTable: "Payment",
   },
   {
     id: "resend",
@@ -195,7 +198,7 @@ function resolveConnector(def: (typeof CONNECTOR_DEFS)[number]): ConnectorHealth
       connected = env("META_ADS_TOKEN");
       break;
     case "stripe":
-      connected = env("STRIPE_SECRET_KEY");
+      connected = env("STRIPE_SECRET_KEY") && env("STRIPE_WEBHOOK_SECRET");
       break;
     case "resend":
       connected = env("RESEND_API_KEY");
@@ -219,7 +222,8 @@ function resolveConnector(def: (typeof CONNECTOR_DEFS)[number]): ConnectorHealth
     def.id === "crm" ||
     def.id === "booking_platform" ||
     def.id === "neon" ||
-    def.id === "resend";
+    def.id === "resend" ||
+    def.id === "stripe";
 
   const health: ConnectorHealth["health"] = !connected
     ? "disconnected"

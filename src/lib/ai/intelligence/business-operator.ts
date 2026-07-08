@@ -5,6 +5,7 @@ import {
 } from "@/lib/admin-os-server";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
 import { prisma } from "@/lib/db";
+import { dollarsFromCents, getPaymentRevenueSummary } from "@/lib/payments";
 import { normalizeApplicationStatus } from "@/lib/types";
 import type {
   BusinessAction,
@@ -129,14 +130,16 @@ export async function getOperatorMetrics() {
   const monthStart = startOfMonth(now);
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  const [dashboard, pipeline, analytics30, analytics7, analyticsPrev7, crm] = await Promise.all([
-    getAdminDashboardOS(),
-    getAdminPipeline(),
-    getAnalyticsSummary(30),
-    getAnalyticsSummary(7),
-    getAnalyticsSummary(14),
-    getAdminCRMContacts(),
-  ]);
+  const [dashboard, pipeline, analytics30, analytics7, analyticsPrev7, crm, payments] =
+    await Promise.all([
+      getAdminDashboardOS(),
+      getAdminPipeline(),
+      getAnalyticsSummary(30),
+      getAnalyticsSummary(7),
+      getAnalyticsSummary(14),
+      getAdminCRMContacts(),
+      getPaymentRevenueSummary(now),
+    ]);
 
   const [
     bookingsToday,
@@ -172,23 +175,35 @@ export async function getOperatorMetrics() {
     }),
   ]);
 
-  const revenueToday = pipeline.columns
+  const pipelineRevenueToday = pipeline.columns
     .flatMap((c) => c.items)
     .filter((i) => new Date(i.createdAt) >= todayStart)
     .reduce((s, i) => s + i.value, 0);
 
-  const revenueThisMonth = pipeline.columns
+  const pipelineRevenueThisMonth = pipeline.columns
     .flatMap((c) => c.items)
     .filter((i) => new Date(i.createdAt) >= monthStart)
     .reduce((s, i) => s + i.value, 0);
 
-  const revenueLastMonth = pipeline.columns
+  const pipelineRevenueLastMonth = pipeline.columns
     .flatMap((c) => c.items)
     .filter((i) => {
       const d = new Date(i.createdAt);
       return d >= lastMonthStart && d < monthStart;
     })
     .reduce((s, i) => s + i.value, 0);
+
+  // Prefer settled Stripe payments when any exist; otherwise pipeline estimates.
+  const useVerifiedRevenue = payments.hasPayments;
+  const revenueToday = useVerifiedRevenue
+    ? dollarsFromCents(payments.todayCents)
+    : pipelineRevenueToday;
+  const revenueThisMonth = useVerifiedRevenue
+    ? dollarsFromCents(payments.thisMonthCents)
+    : pipelineRevenueThisMonth;
+  const revenueLastMonth = useVerifiedRevenue
+    ? dollarsFromCents(payments.lastMonthCents)
+    : pipelineRevenueLastMonth;
 
   const inactiveLeads = crm.filter((c) => {
     const days = (Date.now() - new Date(c.lastActivity).getTime()) / 86400000;
@@ -224,6 +239,8 @@ export async function getOperatorMetrics() {
       lastMonth: revenueLastMonth,
       monthChange: pctChange(revenueThisMonth, revenueLastMonth),
       pipeline: pipeline.totalValue,
+      verified: useVerifiedRevenue,
+      paymentCount: payments.count,
     },
     today: {
       bookings: bookingsToday,

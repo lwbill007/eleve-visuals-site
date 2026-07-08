@@ -121,25 +121,55 @@ export default function ApplicationsClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, focusId]);
 
+  function confirmStatusChange(status: ApplicationStatus, count = 1): boolean {
+    const emails: ApplicationStatus[] = ["accepted", "waitlisted", "declined", "shortlisted", "interview"];
+    if (!emails.includes(status)) return true;
+    const label = APPLICATION_STATUS_LABELS[status];
+    const who = count === 1 ? "this applicant" : `${count} applicants`;
+    return confirm(
+      `Mark ${who} as ${label}?\n\nThey will receive the status email for this volume (if a template is configured).`
+    );
+  }
+
   async function updateRow(id: string, patch: Record<string, unknown>) {
+    if (
+      typeof patch.status === "string" &&
+      !confirmStatusChange(patch.status as ApplicationStatus)
+    ) {
+      return;
+    }
     const res = await adminFetch("/api/admin/submissions", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, ...patch }),
     });
-    if (res.ok) load();
-    else toast("Update failed.", "error");
+    if (res.ok) {
+      if (typeof patch.status === "string") {
+        const s = patch.status as ApplicationStatus;
+        toast(
+          s === "accepted"
+            ? "Accepted — status email queued."
+            : `Marked ${APPLICATION_STATUS_LABELS[s]}.`
+        );
+      }
+      load();
+    } else toast("Update failed.", "error");
   }
 
   async function bulkStatus(status: ApplicationStatus) {
     if (selected.size === 0) return;
+    if (!confirmStatusChange(status, selected.size)) return;
     const res = await adminFetch("/api/admin/applications/bulk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: [...selected], status }),
     });
     if (res.ok) {
-      toast(`Updated ${selected.size} applications.`);
+      toast(
+        status === "accepted"
+          ? `Accepted ${selected.size} — status emails queued.`
+          : `Updated ${selected.size} to ${APPLICATION_STATUS_LABELS[status]}.`
+      );
       setSelected(new Set());
       load();
     } else toast("Bulk update failed.", "error");
@@ -175,9 +205,30 @@ export default function ApplicationsClient() {
   }
 
   const maxTrend = Math.max(...(stats?.dailyTrend.map((d) => d.count) ?? [1]), 1);
+  const needsDecision = items.filter(
+    (i) => i.status === "pending_review" || i.status === "shortlisted" || i.status === "interview"
+  ).length;
 
   return (
     <AdminShell title="Session Applications">
+      {needsDecision > 0 && !statusFilter && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-accent/40 bg-charcoal/40 px-4 py-3">
+          <p className="text-sm text-cream">
+            <span className="font-medium">{needsDecision}</span> application
+            {needsDecision === 1 ? "" : "s"} need a decision
+            {stats?.remainingSpots != null ? ` · ${stats.remainingSpots} spots left` : ""}.
+            Accepting sends the volume acceptance email.
+          </p>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("pending_review")}
+            className="inline-flex min-h-9 items-center border border-accent/50 px-3 py-1.5 text-xs text-accent uppercase"
+          >
+            Review pending
+          </button>
+        </div>
+      )}
+
       {stats && (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="border border-stone/30 p-4">
@@ -400,6 +451,17 @@ export default function ApplicationsClient() {
                         </option>
                       ))}
                     </select>
+                    {(item.status === "pending_review" ||
+                      item.status === "shortlisted" ||
+                      item.status === "interview") && (
+                      <button
+                        type="button"
+                        onClick={() => void updateRow(item.id, { status: "accepted" })}
+                        className="inline-flex min-h-9 w-full items-center justify-center border border-accent/60 bg-accent/10 px-3 py-2 text-xs text-accent uppercase sm:max-w-xs xl:max-w-none"
+                      >
+                        Accept + email
+                      </button>
+                    )}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                       <button
                         type="button"

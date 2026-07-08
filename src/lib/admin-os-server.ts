@@ -383,7 +383,10 @@ export async function getAdminPipeline() {
             (Array.isArray(data.serviceTypes) && (data.serviceTypes as string[])[0]) ||
             (typeof data.serviceType === "string" ? data.serviceType : ""),
           value: estimateBudgetValue(budget) || 0,
+          valueQuality: "estimated" as const,
           createdAt: b.createdAt.toISOString(),
+          updatedAt: b.updatedAt.toISOString(),
+          ageDays: Math.floor((Date.now() - b.updatedAt.getTime()) / 86400000),
         };
       }),
   }));
