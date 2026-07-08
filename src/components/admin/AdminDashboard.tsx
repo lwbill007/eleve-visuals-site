@@ -7,20 +7,12 @@ import { ADMIN_QUICK_ACTIONS } from "@/config/admin-nav";
 import { useBriefingOptional } from "@/components/admin/ai/BriefingProvider";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
-import { ExecutiveSynthesisPanel } from "@/components/admin/ai/ExecutiveSynthesisPanel";
 import { TruthMetricCard } from "@/components/admin/ai/TruthMetricCard";
-import type { ExecutiveOS } from "@/lib/ai/executive/types";
 import {
   ExecutiveDashboardSkeleton,
   ExecutiveQuickLink,
-  HighestRoiBanner,
 } from "@/components/admin/os/ExecutiveOSComponents";
-import {
-  ExecutiveScoreGrid,
-  OpportunityCard,
-  OpportunityRevenueBanner,
-  RiskCard,
-} from "@/components/admin/os/ExecutiveIntelligenceComponents";
+import { OpportunityRevenueBanner } from "@/components/admin/os/ExecutiveIntelligenceComponents";
 import {
   AdminActivityFeed,
   AdminBarChart,
@@ -68,8 +60,8 @@ export function AdminDashboard() {
   const briefingCtx = useBriefingOptional();
   const [data, setData] = useState<DashboardOS | null>(null);
   const { context: execContext } = useExecutiveContext();
-  const [executiveOs, setExecutiveOs] = useState<ExecutiveOS | null>(null);
   const [error, setError] = useState("");
+  const [showTrends, setShowTrends] = useState(false);
 
   useEffect(() => {
     adminFetch("/api/admin/os/dashboard")
@@ -78,12 +70,7 @@ export function AdminDashboard() {
         return res.json();
       })
       .then(setData)
-      .catch(() => setError("Could not load command center."));
-
-    adminFetch("/api/admin/ai/executive-os")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((os) => os && setExecutiveOs(os as ExecutiveOS))
-      .catch(() => {});
+      .catch(() => setError("Could not load home."));
   }, []);
 
   const briefing = briefingCtx?.briefing;
@@ -94,13 +81,12 @@ export function AdminDashboard() {
   }
 
   if (!data) {
-    return <p className="text-fog">{error || "Could not load command center."}</p>;
+    return <p className="text-fog">{error || "Could not load home."}</p>;
   }
 
   const { metrics, charts, activityFeed } = data;
   const executive = briefing?.executive;
   const tm = execContext?.truth.metrics;
-
   const health = execContext?.health;
   const sharedRecs = execContext?.recommendations ?? [];
   const sharedRisks = execContext?.risks ?? [];
@@ -109,25 +95,13 @@ export function AdminDashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="label-caps text-accent">ÉLEVÉ OS</p>
+        <p className="label-caps text-accent">Today</p>
         <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Home</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-fog">
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fog">
           {execContext?.headline ??
-            executiveOs?.synthesis?.headline ??
             briefing?.summary ??
-            "Your AI operating system — priorities, health, and next actions."}
+            "Your next move, business health, and live activity — not a chart wall."}
         </p>
-        <div className="mt-3 flex flex-wrap gap-4 text-xs">
-          <Link href="/admin/intelligence" className="text-accent hover:underline">
-            AI Briefing →
-          </Link>
-          <Link href="/admin/memory" className="text-accent hover:underline">
-            Business Brain →
-          </Link>
-          <Link href="/admin/opportunities" className="text-accent hover:underline">
-            Opportunities →
-          </Link>
-        </div>
       </div>
 
       {health && (
@@ -149,24 +123,6 @@ export function AdminDashboard() {
           ))}
         </div>
       )}
-
-      {executiveOs?.synthesis && <ExecutiveSynthesisPanel synthesis={executiveOs.synthesis} />}
-
-      {executive?.highestRoiAction && !executiveOs?.synthesis && !execContext?.nextAction && (
-        <HighestRoiBanner {...executive.highestRoiAction} />
-      )}
-
-      {briefing?.executiveScores && briefing.executiveScores.length > 0 ? (
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="label-caps text-muted">Briefing health scores</p>
-            <Link href="/admin/intelligence" className="text-xs text-accent hover:underline">
-              Full briefing →
-            </Link>
-          </div>
-          <ExecutiveScoreGrid scores={briefing.executiveScores} />
-        </div>
-      ) : null}
 
       {(sharedRecs.length > 0 || sharedRisks.length > 0) && (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -190,7 +146,7 @@ export function AdminDashboard() {
               </Link>
             ))}
           </div>
-          <AdminPanel title="Active risks" subtitle="From Truth Layer + connectors — not invented alerts">
+          <AdminPanel title="Needs attention" subtitle="From Truth Layer + connectors">
             <div className="space-y-3">
               {sharedRisks.slice(0, 3).map((r) => (
                 <Link
@@ -207,31 +163,11 @@ export function AdminDashboard() {
                 <p className="text-sm text-fog">No elevated risks from current truth signals.</p>
               )}
               <Link href="/admin/risks" className="text-xs text-accent hover:underline">
-                Risk Center →
+                All risks →
               </Link>
             </div>
           </AdminPanel>
         </div>
-      )}
-
-      {!sharedRecs.length && briefing?.intelligence && briefing.intelligence.opportunities.length > 0 && (
-        <AdminPanel title="Top opportunities" subtitle="From daily briefing (legacy path)">
-          <div className="grid gap-3 lg:grid-cols-2">
-            {briefing.intelligence.opportunities.slice(0, 4).map((opp) => (
-              <OpportunityCard key={opp.id} opp={opp} />
-            ))}
-          </div>
-        </AdminPanel>
-      )}
-
-      {!sharedRisks.length && briefing?.intelligence && (
-        <AdminPanel title="Briefing risks" subtitle="Fallback while context loads">
-          <div className="space-y-3">
-            {briefing.intelligence.risks.slice(0, 2).map((r) => (
-              <RiskCard key={r.id} risk={r} />
-            ))}
-          </div>
-        </AdminPanel>
       )}
 
       {executive && (
@@ -239,8 +175,8 @@ export function AdminDashboard() {
           <AdminMetricCard
             label="Projected Monthly Revenue"
             value={formatCurrency(executive.projectedMonthlyRevenue)}
-            hint="Based on current pipeline trajectory"
-            href="/admin/bookings-ai"
+            hint="Estimated from pipeline trajectory"
+            href="/admin/pipeline"
           />
           <AdminMetricCard
             label="Potential Lost Revenue"
@@ -255,21 +191,6 @@ export function AdminDashboard() {
             href="/admin/pipeline"
           />
         </div>
-      )}
-
-      {briefing && briefing.weeklyPriorities.length > 0 && (
-        <AdminPanel title="Today's Priorities" subtitle="Ranked by revenue impact">
-          <ul className="space-y-2">
-            {briefing.weeklyPriorities.map((p, i) => (
-              <li key={p} className="flex items-start gap-3 text-sm text-cream">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[0.65rem] text-accent">
-                  {i + 1}
-                </span>
-                {p}
-              </li>
-            ))}
-          </ul>
-        </AdminPanel>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -289,59 +210,28 @@ export function AdminDashboard() {
           <AdminMetricCard
             label="Revenue MTD"
             value={formatCurrency(briefing?.month.revenue ?? metrics.revenue.value)}
-            hint={
-              briefing
-                ? `${briefing.month.revenueChange >= 0 ? "+" : ""}${briefing.month.revenueChange}% vs last month`
-                : metrics.revenue.hint
-            }
-            delta={briefing?.month.revenueChange ?? metrics.monthlyGrowth}
+            hint={metrics.revenue.hint}
             href="/admin/analytics"
           />
         )}
         {tm?.["bookings.total"] ? (
           <TruthMetricCard
             metric={tm["bookings.total"]}
-            hint={`${metrics.bookings.pending} pending inquiry`}
-            delta={metrics.monthlyGrowth}
+            hint={`${metrics.bookings.pending} pending`}
             href="/admin/submissions?type=booking"
           />
         ) : (
           <AdminMetricCard
             label="Bookings"
             value={metrics.bookings.value}
-            hint={`${metrics.bookings.pending} pending inquiry`}
-            delta={metrics.monthlyGrowth}
+            hint={`${metrics.bookings.pending} pending`}
             href="/admin/submissions?type=booking"
           />
         )}
         {tm?.["leads.total"] ? (
           <TruthMetricCard metric={tm["leads.total"]} hint={`${metrics.leads.thisMonth} this month`} href="/admin/crm" />
         ) : (
-          <AdminMetricCard label="Leads" value={metrics.leads.value} hint={`${metrics.leads.thisMonth} this month`} href="/admin/crm" />
-        )}
-        {tm?.["traffic.30d"] ? (
-          <TruthMetricCard
-            metric={tm["traffic.30d"]}
-            hint={`${metrics.visitors.week} this week · ${metrics.conversionRate}% conv`}
-            href="/admin/analytics"
-          />
-        ) : (
-          <AdminMetricCard
-            label="Visitors (30d)"
-            value={metrics.visitors.value.toLocaleString()}
-            hint={`${metrics.visitors.week} this week · ${metrics.conversionRate}% conv`}
-            href="/admin/analytics"
-          />
-        )}
-        {tm?.["crm.contacts"] ? (
-          <TruthMetricCard metric={tm["crm.contacts"]} hint={metrics.subscribers.label} href="/admin/crm" />
-        ) : (
-          <AdminMetricCard
-            label="Contacts"
-            value={metrics.subscribers.value}
-            hint={metrics.subscribers.label}
-            href="/admin/crm"
-          />
+          <AdminMetricCard label="Leads" value={metrics.leads.value} href="/admin/crm" />
         )}
         {tm?.["sessions.applications"] ? (
           <TruthMetricCard
@@ -353,36 +243,8 @@ export function AdminDashboard() {
           <AdminMetricCard
             label="Applications"
             value={metrics.applications.value}
-            hint={`${metrics.applications.pending} pending review`}
+            hint={`${metrics.applications.pending} pending`}
             href="/admin/applications"
-          />
-        )}
-        {tm?.["clients.returning"] ? (
-          <TruthMetricCard metric={tm["clients.returning"]} href="/admin/crm" />
-        ) : (
-          <AdminMetricCard label="Returning Clients" value={metrics.returningClients} href="/admin/crm" />
-        )}
-        {tm?.["revenue.today"] ? (
-          <TruthMetricCard
-            metric={tm["revenue.today"]}
-            hint={
-              briefing
-                ? `${briefing.today.leads} leads · ${briefing.today.applications} apps · $${briefing.today.revenue.toLocaleString()} pipeline`
-                : "Live activity"
-            }
-            href="/admin/pipeline"
-            currency
-          />
-        ) : (
-          <AdminMetricCard
-            label="Today"
-            value={briefing?.today.bookings ?? "—"}
-            hint={
-              briefing
-                ? `${briefing.today.leads} leads · ${briefing.today.applications} apps · $${briefing.today.revenue.toLocaleString()} pipeline`
-                : "Live activity"
-            }
-            href="/admin/pipeline"
           />
         )}
       </div>
@@ -395,16 +257,15 @@ export function AdminDashboard() {
           <span className="text-sm text-cream">
             <span className="font-medium text-accent">{metrics.pendingTasks}</span> urgent tasks need attention
           </span>
-          <span className="text-xs text-accent">Review pipeline →</span>
+          <span className="text-xs text-accent">Open pipeline →</span>
         </Link>
       )}
 
       <div className="grid gap-4 lg:grid-cols-12">
-        <AdminPanel title="Recent Activity" subtitle="Latest business events" className="lg:col-span-7">
+        <AdminPanel title="Recent activity" subtitle="Latest business events" className="lg:col-span-7">
           <AdminActivityFeed items={activityFeed} />
         </AdminPanel>
-
-        <AdminPanel title="Quick Actions" subtitle="Highest-impact workflows" className="lg:col-span-5">
+        <AdminPanel title="Quick actions" subtitle="Highest-impact workflows" className="lg:col-span-5">
           <div className="grid gap-2">
             {ADMIN_QUICK_ACTIONS.map((action) => (
               <ExecutiveQuickLink key={action.href + action.label} {...action} />
@@ -413,30 +274,41 @@ export function AdminDashboard() {
         </AdminPanel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <AdminPanel title="Bookings by Month" subtitle="Last 6 months">
-          <AdminBarChart data={charts.bookingsByMonth} labelKey="month" valueKey="value" accent />
-        </AdminPanel>
-        <AdminPanel title="Session Applications" subtitle="Volume interest over time">
-          <AdminBarChart data={charts.applicationsByMonth} labelKey="month" valueKey="value" />
-        </AdminPanel>
-        <AdminPanel title="Website Visitors" subtitle="Pageviews by month">
-          <AdminBarChart data={charts.visitorsByMonth} labelKey="month" valueKey="value" />
-        </AdminPanel>
-        <AdminPanel title="Lead Sources" subtitle="Where bookings originate">
-          {charts.leadSources.length === 0 ? (
-            <p className="text-sm text-muted">No source data yet — add referral source to booking forms.</p>
-          ) : (
-            <ul className="space-y-3">
-              {charts.leadSources.map((s) => (
-                <li key={s.source} className="flex items-center justify-between gap-4 text-sm">
-                  <span className="truncate text-cream-dim">{s.source}</span>
-                  <span className="shrink-0 font-display text-lg text-cream">{s.count}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </AdminPanel>
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowTrends((v) => !v)}
+          className="text-xs tracking-[0.1em] text-muted uppercase hover:text-accent"
+        >
+          {showTrends ? "Hide trends" : "Show trends"}
+        </button>
+        {showTrends && (
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <AdminPanel title="Bookings by month" subtitle="Last 6 months">
+              <AdminBarChart data={charts.bookingsByMonth} labelKey="month" valueKey="value" accent />
+            </AdminPanel>
+            <AdminPanel title="Session applications" subtitle="Volume interest">
+              <AdminBarChart data={charts.applicationsByMonth} labelKey="month" valueKey="value" />
+            </AdminPanel>
+            <AdminPanel title="Website visitors" subtitle="Pageviews by month">
+              <AdminBarChart data={charts.visitorsByMonth} labelKey="month" valueKey="value" />
+            </AdminPanel>
+            <AdminPanel title="Lead sources" subtitle="Where bookings originate">
+              {charts.leadSources.length === 0 ? (
+                <p className="text-sm text-muted">No source data yet.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {charts.leadSources.map((s) => (
+                    <li key={s.source} className="flex items-center justify-between gap-4 text-sm">
+                      <span className="truncate text-cream-dim">{s.source}</span>
+                      <span className="shrink-0 font-display text-lg text-cream">{s.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </AdminPanel>
+          </div>
+        )}
       </div>
     </div>
   );

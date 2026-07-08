@@ -3,7 +3,7 @@ import { CognitiveArchitectureClient } from "@/components/admin/ai/CognitiveArch
 
 export default function AdminMemoryPage() {
   return (
-    <AdminShell title="Knowledge Engine">
+    <AdminShell title="Ask ÉLEVÉ">
       <CognitiveArchitectureClient />
     </AdminShell>
   );

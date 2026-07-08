@@ -10,8 +10,7 @@ import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { AINotificationsBell } from "@/components/admin/ai/AINotificationsBell";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { ExecutiveContextProvider } from "@/components/admin/ai/ExecutiveContextProvider";
-import { ExecutiveContextBar } from "@/components/admin/ai/ExecutiveContextBar";
-import { NextActionBar } from "@/components/admin/ai/NextActionBar";
+import { COOBar } from "@/components/admin/ai/COOBar";
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
@@ -150,7 +149,7 @@ function AdminShellInner({
             ☰
           </button>
 
-          <h1 className="min-w-0 flex-1 truncate font-display text-xl text-cream sm:text-2xl">{title || "Dashboard"}</h1>
+          <h1 className="min-w-0 flex-1 truncate font-display text-xl text-cream sm:text-2xl">{title || "Home"}</h1>
 
           <AskAIButton className="hidden sm:inline-flex" />
           <AINotificationsBell />
@@ -174,8 +173,7 @@ function AdminShellInner({
           </button>
         </header>
 
-        <ExecutiveContextBar />
-        <NextActionBar />
+        <COOBar />
 
         <div className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</div>
       </div>

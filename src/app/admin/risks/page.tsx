@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
 import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import { cn } from "@/lib/utils";
+
+const ACK_KEY = "eleve-risk-ack";
 
 const severityStyle = {
   critical: "border-red-500/40 text-red-400",
@@ -17,14 +20,32 @@ const severityStyle = {
 export default function RisksPage() {
   useSetAIPage("risks");
   const { context, loading, refresh } = useExecutiveContext();
-  const risks = context?.risks ?? [];
+  const [acked, setAcked] = useState<Record<string, number>>({});
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      setAcked(JSON.parse(localStorage.getItem(ACK_KEY) || "{}") as Record<string, number>);
+    } catch {
+      setAcked({});
+    }
+    setReady(true);
+  }, []);
+
+  const acknowledge = useCallback((id: string) => {
+    const next = { ...acked, [id]: Date.now() };
+    localStorage.setItem(ACK_KEY, JSON.stringify(next));
+    setAcked(next);
+  }, [acked]);
+
+  const risks = (context?.risks ?? []).filter((r) => !ready || !acked[r.id]);
 
   return (
-    <AdminShell title="Risk Center">
+    <AdminShell title="Risks">
       <AdminPageHeader
-        eyebrow="Early warning system"
+        eyebrow="Needs attention"
         title="What needs attention"
-        description="Risks derived from Truth Layer metrics, verification health, and connector status — not invented alerts."
+        description="Derived from Truth Layer metrics, verification health, and connector status — not invented alerts."
         action={
           <button
             type="button"
@@ -37,12 +58,12 @@ export default function RisksPage() {
       />
 
       {loading && !context ? (
-        <p className="text-fog">Loading risks from Executive Context…</p>
+        <p className="text-fog">Loading risks…</p>
       ) : risks.length === 0 ? (
-        <AdminPanel title="No elevated risks">
+        <AdminPanel title="Clear">
           <p className="text-sm text-fog">
-            No stale inquiries, zero-revenue-with-pipeline, low verification, or degraded connectors detected
-            from current truth signals.
+            No elevated risks right now — or you acknowledged the current set. New signals will appear when
+            truth metrics change.
           </p>
         </AdminPanel>
       ) : (
@@ -61,12 +82,21 @@ export default function RisksPage() {
                   ))}
                 </ul>
               )}
-              <Link
-                href={risk.href}
-                className="mt-4 inline-block rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-[0.65rem] tracking-[0.08em] text-accent uppercase hover:bg-accent/20"
-              >
-                {risk.actionLabel} →
-              </Link>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => acknowledge(risk.id)}
+                  className="rounded-lg border border-stone/25 px-3 py-1.5 text-[0.65rem] tracking-[0.08em] text-fog uppercase hover:border-stone/40 hover:text-cream"
+                >
+                  Acknowledge
+                </button>
+                <Link
+                  href={risk.href}
+                  className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-[0.65rem] tracking-[0.08em] text-accent uppercase hover:bg-accent/20"
+                >
+                  {risk.actionLabel} →
+                </Link>
+              </div>
             </article>
           ))}
         </div>

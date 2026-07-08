@@ -1,10 +1,6 @@
-import { AdminShell } from "@/components/admin/AdminShell";
-import { InsightsClient } from "@/components/admin/os/InsightsClient";
+import { redirect } from "next/navigation";
 
-export default function AdminInsightsPage() {
-  return (
-    <AdminShell title="AI Insights">
-      <InsightsClient />
-    </AdminShell>
-  );
+/** Insights merged into Opportunities — one decision queue. */
+export default function AdminInsightsRedirect() {
+  redirect("/admin/opportunities");
 }

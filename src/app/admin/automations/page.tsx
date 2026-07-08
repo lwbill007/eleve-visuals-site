@@ -3,7 +3,7 @@ import { AutomationsClient } from "@/components/admin/ai/AutomationsClient";
 
 export default function AdminAutomationsPage() {
   return (
-    <AdminShell title="Automations">
+    <AdminShell title="Workflows">
       <AutomationsClient />
     </AdminShell>
   );

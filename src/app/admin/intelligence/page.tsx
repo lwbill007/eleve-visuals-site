@@ -33,11 +33,11 @@ export default function ExecutiveIntelligencePage() {
   const degradedSources = execContext?.connectors.degradedLabels ?? [];
 
   return (
-    <AdminShell title="Executive Intelligence">
+    <AdminShell title="Mission Control">
       <AdminPageHeader
-        eyebrow="ÉLEVÉ Operating System"
-        title="Command Center"
-        description="Not analytics — a decision workflow. Every number answers why it matters, what to do, expected revenue, confidence, and evidence."
+        eyebrow="Deep briefing"
+        title="Mission Control"
+        description="Full executive briefing when you need depth. Day-to-day decisions live on Home and Opportunities."
         action={
           <button
             type="button"
