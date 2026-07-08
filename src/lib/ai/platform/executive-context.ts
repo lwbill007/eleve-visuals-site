@@ -1,17 +1,17 @@
 /**
  * Executive Context — the single shared state every admin page consumes.
  *
- * Unifies Truth Layer + connector health + verification into one payload so
- * pages stop fanning out to 3 separate endpoints and every surface shows the
- * same honest numbers, confidence, and data-source health.
+ * Unifies Truth Layer + connector health + verification + the top guarded
+ * recommendation so every module answers: "What should I do next?"
  */
 
 import { resolveMetrics, type ResolvedMetrics } from "./truth-resolver";
 import { getConnectorHealth } from "./connectors";
 import { getVerificationStats } from "../memory/verification";
+import { getGuardedRecommendations } from "../truth/recommendation-guardrails";
 import { getCached, setCache } from "../cache";
 
-const CACHE_KEY = "executive-context-v2";
+const CACHE_KEY = "executive-context-v3";
 const CACHE_TTL_MS = 60_000;
 
 export type HealthLabel = "strong" | "steady" | "watch" | "critical" | "unknown";
@@ -21,6 +21,21 @@ export interface HealthDimension {
   label: HealthLabel;
   /** Human summary — honest about estimation vs verification. */
   note: string;
+}
+
+/** Compact next-action card shared across every admin page. */
+export interface NextAction {
+  id: string;
+  title: string;
+  why: string;
+  evidence: string[];
+  estimatedRevenue: number;
+  confidence: number;
+  timeMinutes: number;
+  priority: string;
+  href: string;
+  actionLabel: string;
+  category: string;
 }
 
 export interface ExecutiveContext {
@@ -43,9 +58,8 @@ export interface ExecutiveContext {
     trusted: number;
   };
   /**
-   * Composite business health dimensions. Every score is derived ONLY from
-   * data already fetched for this payload (truth metrics + verification +
-   * connectors) — no additional queries, so the fast context stays fast.
+   * Composite business health dimensions. Derived from truth + verification +
+   * connectors — no additional queries beyond the parallel fetch below.
    */
   health: {
     overall: HealthDimension;
@@ -56,7 +70,11 @@ export interface ExecutiveContext {
   };
   /** One-line executive headline summarizing current posture. */
   headline: string;
-  /** Overall data-trust score 0-100 combining verification, connectors, and truth freshness. */
+  /** The single highest-impact next action (guarded recommendations). */
+  nextAction: NextAction | null;
+  /** Top 3 recommendations for the queue strip. */
+  recommendations: NextAction[];
+  /** Overall data-trust score 0-100. */
   trustScore: number;
 }
 
@@ -82,16 +100,35 @@ function computeTrustScore(
   return Math.round(Math.max(0, Math.min(100, score)));
 }
 
+function toNextAction(
+  r: Awaited<ReturnType<typeof getGuardedRecommendations>>[number]
+): NextAction {
+  return {
+    id: r.id,
+    title: r.title,
+    why: r.whyNow || r.detail,
+    evidence: r.evidence.slice(0, 3),
+    estimatedRevenue: r.estimatedRevenue,
+    confidence: r.confidence,
+    timeMinutes: r.timeToCompleteMinutes,
+    priority: r.priority,
+    href: r.actions[0]?.href ?? "/admin/opportunities",
+    actionLabel: r.actions[0]?.label ?? "Open",
+    category: r.category,
+  };
+}
+
 export async function getExecutiveContext(force = false): Promise<ExecutiveContext> {
   if (!force) {
     const cached = await getCached<ExecutiveContext>(CACHE_KEY);
     if (cached) return cached;
   }
 
-  const [truth, connectorList, verification] = await Promise.all([
+  const [truth, connectorList, verification, guarded] = await Promise.all([
     resolveMetrics(force),
     Promise.resolve(getConnectorHealth()),
     getVerificationStats(),
+    getGuardedRecommendations(3).catch(() => [] as Awaited<ReturnType<typeof getGuardedRecommendations>>),
   ]);
 
   const healthy = connectorList.filter((c) => c.health === "healthy").length;
@@ -118,7 +155,6 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
     degradedMetricRatio
   );
 
-  // Health dimensions — derived from already-fetched data (no extra queries).
   const m = truth.metrics;
   const num = (v: number | string | undefined) => (typeof v === "number" ? v : 0);
 
@@ -144,12 +180,16 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
     note,
   });
 
+  const recommendations = guarded.filter((r) => !r.deprioritized).map(toNextAction);
+  const nextAction = recommendations[0] ?? null;
+
   const headline =
-    staleInquiries > 0
+    nextAction?.title ??
+    (staleInquiries > 0
       ? `${staleInquiries} pending inquir${staleInquiries === 1 ? "y" : "ies"} need follow-up — sales recovery is the priority.`
       : revenueMtd > 0
         ? `Revenue tracking${revenueVerified ? " (verified)" : " (estimated from pipeline)"} · ${bookingsMtd} bookings MTD.`
-        : `No settled revenue yet MTD · $${pipeline.toLocaleString()} open pipeline.`;
+        : `No settled revenue yet MTD · $${pipeline.toLocaleString()} open pipeline.`);
 
   const context: ExecutiveContext = {
     generatedAt: new Date().toISOString(),
@@ -174,7 +214,9 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       overall: dim(overallScore, headline),
       revenue: dim(
         revenueScore,
-        revenueVerified ? "Verified revenue from settled payments" : "Estimated from pipeline deal values (Stripe disconnected)"
+        revenueVerified
+          ? "Verified revenue from settled payments"
+          : "Estimated from pipeline deal values (Stripe disconnected)"
       ),
       sales: dim(
         salesScore,
@@ -182,11 +224,18 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       ),
       growth: dim(
         growthScore,
-        traffic30 > 0 ? `${traffic30.toLocaleString()} pageviews / 30d · ${conversion}% conversion` : "No traffic data"
+        traffic30 > 0
+          ? `${traffic30.toLocaleString()} pageviews / 30d · ${conversion}% conversion`
+          : "No traffic data"
       ),
-      data: dim(dataScore, `${verification.verifiedPct}% knowledge verified · ${healthy}/${connectorList.length} sources healthy`),
+      data: dim(
+        dataScore,
+        `${verification.verifiedPct}% knowledge verified · ${healthy}/${connectorList.length} sources healthy`
+      ),
     },
     headline,
+    nextAction,
+    recommendations,
     trustScore,
   };
 

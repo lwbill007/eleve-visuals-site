@@ -11,6 +11,7 @@ import { AINotificationsBell } from "@/components/admin/ai/AINotificationsBell";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { ExecutiveContextProvider } from "@/components/admin/ai/ExecutiveContextProvider";
 import { ExecutiveContextBar } from "@/components/admin/ai/ExecutiveContextBar";
+import { NextActionBar } from "@/components/admin/ai/NextActionBar";
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
@@ -100,7 +101,7 @@ function AdminShellInner({
         <div className="border-b border-stone/15 p-5">
           <Link href="/admin" className="block">
             <p className="font-display text-xl tracking-wide text-cream">ÉLEVÉ OS</p>
-            <p className="mt-0.5 text-[0.65rem] tracking-[0.2em] text-accent uppercase">Business Operating System</p>
+            <p className="mt-0.5 text-[0.65rem] tracking-[0.2em] text-accent uppercase">AI Operating System</p>
           </Link>
         </div>
 
@@ -174,6 +175,7 @@ function AdminShellInner({
         </header>
 
         <ExecutiveContextBar />
+        <NextActionBar />
 
         <div className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</div>
       </div>
