@@ -6,7 +6,10 @@ import { getJwtSecretKey, isAuthConfigured } from "@/lib/auth-secret";
 
 async function verifyAdminToken(token: string) {
   const { payload } = await jwtVerify(token, getJwtSecretKey());
-  if (payload.role !== "admin") throw new Error("Invalid role");
+  const role = payload.role;
+  // Legacy "admin" plus new role ladder
+  const allowed = ["admin", "owner", "operator", "editor", "viewer"];
+  if (typeof role !== "string" || !allowed.includes(role)) throw new Error("Invalid role");
 }
 
 export async function middleware(request: NextRequest) {

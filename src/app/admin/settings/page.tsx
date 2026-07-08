@@ -19,6 +19,17 @@ export default function AdminSettingsPage() {
   const [navigation, setNavigation] = useState<NavigationConfig>(DEFAULT_NAVIGATION);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [access, setAccess] = useState<{
+    session: { role: string; email?: string; name?: string } | null;
+    roles: string[];
+    note: string;
+  } | null>(null);
+
+  useEffect(() => {
+    adminFetch("/api/admin/auth/session-info")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setAccess(d));
+  }, []);
 
   useEffect(() => {
     adminFetch("/api/admin/content")
@@ -55,6 +66,20 @@ export default function AdminSettingsPage() {
   return (
     <AdminShell title="Site Settings">
       <div className="space-y-10">
+        {access && (
+          <section className="border border-stone/30 p-6">
+            <h2 className="mb-2 font-display text-xl">Access & roles</h2>
+            <p className="mb-4 text-sm text-fog">{access.note}</p>
+            <p className="text-sm text-cream">
+              Signed in as{" "}
+              <span className="text-accent">{access.session?.role ?? "—"}</span>
+              {access.session?.email ? ` · ${access.session.email}` : ""}
+            </p>
+            <p className="mt-2 text-xs text-muted">
+              Ladder: {access.roles.join(" → ")}
+            </p>
+          </section>
+        )}
         <section className="border border-stone/30 p-6">
           <h2 className="mb-6 font-display text-xl">Brand & Contact</h2>
           <div className="grid gap-4 md:grid-cols-2">

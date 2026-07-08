@@ -13,6 +13,7 @@ export interface ExecuteTarget {
   actionLabel?: string;
   /** Prefer server inference when omitted. */
   kind?: string;
+  submissionId?: string;
 }
 
 /**
@@ -43,6 +44,7 @@ export function ExecuteButton({
           title: target.title,
           href: target.href,
           kind: target.kind,
+          submissionId: target.submissionId,
         }),
       });
       const data = (await res.json()) as {

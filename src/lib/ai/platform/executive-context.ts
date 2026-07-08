@@ -10,8 +10,11 @@ import { getConnectorHealth } from "./connectors";
 import { getVerificationStats } from "../memory/verification";
 import { getGuardedRecommendations } from "../truth/recommendation-guardrails";
 import { getCached, setCache } from "../cache";
+import { buildConfidencePanel } from "./confidence-panel";
+import { detectRevenueLeaks, totalLeakExposure } from "../executive/revenue-leaks";
+import { getPaymentRevenueSummary } from "@/lib/payments";
 
-const CACHE_KEY = "executive-context-v5";
+const CACHE_KEY = "executive-context-v6";
 const CACHE_TTL_MS = 60_000;
 
 export type HealthLabel = "strong" | "steady" | "watch" | "critical" | "unknown";
@@ -71,8 +74,8 @@ export interface ExecutiveContext {
     trusted: number;
   };
   /**
-   * Composite business health dimensions. Derived from truth + verification +
-   * connectors — no additional queries beyond the parallel fetch below.
+   * Category business health. Each score documents its note (formula evidence).
+   * Overall is a weighted blend — never an opaque vanity number alone.
    */
   health: {
     overall: HealthDimension;
@@ -80,6 +83,24 @@ export interface ExecutiveContext {
     sales: HealthDimension;
     growth: HealthDimension;
     data: HealthDimension;
+    finance: HealthDimension;
+    marketing: HealthDimension;
+    website: HealthDimension;
+    operations: HealthDimension;
+    brand: HealthDimension;
+  };
+  /** Multi-factor confidence panel for the current posture. */
+  confidence: {
+    band: "high" | "medium" | "low" | "blocked";
+    composite: number;
+    factors: { id: string; label: string; score: number; weight: number; note: string }[];
+    blockers: string[];
+  };
+  /** Revenue leak exposure from detector (estimated recovery). */
+  leaks: {
+    loss: number;
+    recoverable: number;
+    count: number;
   };
   /** One-line executive headline summarizing current posture. */
   headline: string;
@@ -164,11 +185,20 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
     if (cached) return cached;
   }
 
-  const [truth, connectorList, verification, guarded] = await Promise.all([
+  const [truth, connectorList, verification, guarded, leakList, payments] = await Promise.all([
     resolveMetrics(force),
     Promise.resolve(getConnectorHealth()),
     getVerificationStats(),
     getGuardedRecommendations(8).catch(() => [] as Awaited<ReturnType<typeof getGuardedRecommendations>>),
+    detectRevenueLeaks().catch(() => []),
+    getPaymentRevenueSummary().catch(() => ({
+      hasPayments: false,
+      count: 0,
+      todayCents: 0,
+      thisMonthCents: 0,
+      lastMonthCents: 0,
+      totalCents: 0,
+    })),
   ]);
 
   const healthy = connectorList.filter((c) => c.health === "healthy").length;
@@ -206,12 +236,46 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
   const conversion = num(m["conversion.rate"]?.value);
   const traffic30 = num(m["traffic.30d"]?.value);
 
-  const revenueScore = revenueMtd > 0 ? 70 : pipeline > 0 ? 45 : 25;
+  const revenueScore = revenueVerified
+    ? revenueMtd > 0
+      ? 85
+      : 50
+    : revenueMtd > 0
+      ? 55
+      : pipeline > 0
+        ? 40
+        : 25;
   const salesScore = staleInquiries === 0 ? 80 : staleInquiries <= 2 ? 55 : 30;
   const growthScore = traffic30 > 0 ? Math.min(80, 40 + Math.min(40, conversion * 8)) : 30;
   const dataScore = trustScore;
+  const financeScore = payments.hasPayments
+    ? Math.min(90, 55 + Math.min(35, payments.count * 5))
+    : revenueVerified
+      ? 60
+      : 28;
+  const marketingScore = growthScore;
+  const websiteScore =
+    conversion > 2 ? 70 : conversion > 0 ? 50 : traffic30 > 0 ? 40 : 25;
+  const operationsScore =
+    staleInquiries === 0 && verification.verifiedPct >= 40
+      ? 75
+      : staleInquiries <= 2
+        ? 50
+        : 30;
+  const brandScore = Math.min(
+    80,
+    35 + (num(m["sessions.applications"]?.value) > 0 ? 20 : 0) + (bookingsMtd > 0 ? 15 : 0)
+  );
   const overallScore = Math.round(
-    revenueScore * 0.35 + salesScore * 0.3 + growthScore * 0.15 + dataScore * 0.2
+    revenueScore * 0.12 +
+      financeScore * 0.13 +
+      salesScore * 0.15 +
+      marketingScore * 0.1 +
+      websiteScore * 0.1 +
+      operationsScore * 0.1 +
+      brandScore * 0.08 +
+      dataScore * 0.12 +
+      growthScore * 0.1
   );
 
   const dim = (score: number, note: string): HealthDimension => ({
@@ -222,6 +286,22 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
 
   const recommendations = guarded.filter((r) => !r.deprioritized).map(toNextAction);
   const nextAction = recommendations[0] ?? null;
+
+  const leakExposure = totalLeakExposure(leakList);
+  const confidence = buildConfidencePanel({
+    verifiedDataPct: verification.verifiedPct,
+    historicalFit: Math.min(100, recommendations.length * 12 + 30),
+    externalSourcesPct: connectorList.length > 0 ? (healthy / connectorList.length) * 100 : 0,
+    predictionStability: 70,
+    knowledgeCoverage: Math.min(100, verification.verifiedPct + 10),
+    missingInfoPenalty: degradedMetricRatio * 100,
+    blockers: [
+      ...(!payments.hasPayments && !revenueVerified ? ["Settled payments missing"] : []),
+      ...(verification.verifiedPct < 20 && verification.total > 20
+        ? ["Knowledge verification below 20%"]
+        : []),
+    ],
+  });
 
   const risks: RiskSignal[] = [];
   if (staleInquiries > 0) {
@@ -306,7 +386,10 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       trusted: verification.trusted,
     },
     health: {
-      overall: dim(overallScore, headline),
+      overall: dim(
+        overallScore,
+        "Weighted: Sales 15% · Finance 13% · Revenue 12% · Data 12% · Marketing/Growth/Website/Ops/Brand"
+      ),
       revenue: dim(
         revenueScore,
         revenueVerified
@@ -327,6 +410,28 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
         dataScore,
         `${verification.verifiedPct}% knowledge verified · ${healthy}/${connectorList.length} sources healthy`
       ),
+      finance: dim(
+        financeScore,
+        payments.hasPayments
+          ? `${payments.count} settled Payment row(s)`
+          : "No Payment rows — cash truth incomplete"
+      ),
+      marketing: dim(marketingScore, "Derived from traffic + conversion until email/ads connect"),
+      website: dim(
+        websiteScore,
+        conversion > 0 ? `${conversion}% conversion` : "Conversion unknown or zero"
+      ),
+      operations: dim(
+        operationsScore,
+        staleInquiries === 0 ? "Inbox clear" : "Follow-up debt present"
+      ),
+      brand: dim(brandScore, "Sessions applications + booking momentum proxy"),
+    },
+    confidence,
+    leaks: {
+      loss: Math.round(leakExposure.loss),
+      recoverable: Math.round(leakExposure.recoverable),
+      count: leakList.length,
     },
     headline,
     nextAction,

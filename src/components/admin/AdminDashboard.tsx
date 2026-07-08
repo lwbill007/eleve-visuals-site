@@ -91,6 +91,8 @@ export function AdminDashboard() {
   const health = execContext?.health;
   const sharedRecs = execContext?.recommendations ?? [];
   const sharedRisks = execContext?.risks ?? [];
+  const confidence = execContext?.confidence;
+  const leaks = execContext?.leaks;
   const oppTotal = sharedRecs.reduce((s, r) => s + r.estimatedRevenue, 0);
 
   return (
@@ -129,9 +131,9 @@ export function AdminDashboard() {
           {(
             [
               ["Overall", health.overall],
-              ["Revenue", health.revenue],
               ["Sales", health.sales],
-              ["Growth", health.growth],
+              ["Finance", health.finance],
+              ["Website", health.website],
               ["Data", health.data],
             ] as const
           ).map(([label, dim]) => (
@@ -141,6 +143,46 @@ export function AdminDashboard() {
               <p className="mt-1 text-[0.65rem] capitalize text-fog">{dim.label}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {(confidence || (leaks && leaks.count > 0)) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {confidence && (
+            <div className="rounded-xl border border-stone/20 bg-charcoal/20 p-4">
+              <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">
+                Confidence · {confidence.band}
+              </p>
+              <p className="mt-1 font-display text-3xl text-cream">{confidence.composite}</p>
+              <ul className="mt-3 space-y-1 text-[0.65rem] text-fog">
+                {confidence.factors.slice(0, 4).map((f) => (
+                  <li key={f.id}>
+                    {f.label}: {f.score}
+                  </li>
+                ))}
+              </ul>
+              {confidence.blockers.length > 0 && (
+                <p className="mt-2 text-[0.65rem] text-amber-300">
+                  Blocked by: {confidence.blockers.join("; ")}
+                </p>
+              )}
+            </div>
+          )}
+          {leaks && leaks.count > 0 && (
+            <Link
+              href="/admin/leaks"
+              className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 transition-colors hover:border-amber-500/50"
+            >
+              <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">Revenue leaks</p>
+              <p className="mt-1 font-display text-3xl text-amber-300">
+                ~${leaks.loss.toLocaleString()}
+              </p>
+              <p className="mt-2 text-xs text-fog">
+                {leaks.count} leak{leaks.count === 1 ? "" : "s"} · recover ~$
+                {leaks.recoverable.toLocaleString()} →
+              </p>
+            </Link>
+          )}
         </div>
       )}
 
