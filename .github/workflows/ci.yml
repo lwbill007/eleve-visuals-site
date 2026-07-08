@@ -50,6 +50,8 @@ jobs:
 
       - run: npx tsc --noEmit
 
+      - run: npm run verify:truth
+
       - run: npm run build
 
       - run: npx playwright install --with-deps chromium

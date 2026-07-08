@@ -28,7 +28,7 @@ export function ExecutiveContextBar() {
 
   if (!context) return null;
 
-  const { trustScore, verification, connectors } = context;
+  const { trustScore, verification, connectors, health } = context;
   const connectorLabel =
     connectors.disconnected > 0
       ? `${connectors.healthy}/${connectors.total} connected`
@@ -36,6 +36,14 @@ export function ExecutiveContextBar() {
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-stone/10 bg-ink/60 px-4 py-1.5 text-[0.65rem] sm:px-6 lg:px-8">
+      {health && (
+        <span className="flex items-center gap-1.5" title={health.overall.note}>
+          <span className="tracking-[0.14em] text-muted uppercase">Health</span>
+          <span className={cn("font-medium", trustColor(health.overall.score))}>
+            {health.overall.score}/100
+          </span>
+        </span>
+      )}
       <span className="flex items-center gap-1.5">
         <span className="tracking-[0.14em] text-muted uppercase">Trust</span>
         <span className={cn("font-medium", trustColor(trustScore))}>{trustScore}/100</span>
