@@ -32,9 +32,11 @@ export async function GET(request: Request) {
   const { buildBusinessDNA } = await import("@/lib/ai/cognitive/business-dna");
   const { invalidateIntelligenceCaches } = await import("@/lib/ai/cognitive/cache");
   const { runExecutiveQA } = await import("@/lib/ai/truth/executive-qa");
-  const [_, qaReport] = await Promise.all([
+  const { runAllSystemAutomations } = await import("@/lib/ai/intelligence/system-automations");
+  const [_, qaReport, automationResults] = await Promise.all([
     Promise.all([buildBusinessDNA(), invalidateIntelligenceCaches()]),
     runExecutiveQA().catch(() => null),
+    runAllSystemAutomations().catch(() => []),
   ]);
 
   if (schedule === "weekly") {
@@ -49,5 +51,14 @@ export async function GET(request: Request) {
     healthScore: report.executiveReport.overallHealthScore,
     qaScore: qaReport?.overallScore,
     qaIssues: qaReport?.issues?.length ?? 0,
+    automations: Array.isArray(automationResults)
+      ? {
+          ran: automationResults.length,
+          notificationsCreated: automationResults.reduce(
+            (s, r) => s + (r.createdNotifications ?? 0),
+            0
+          ),
+        }
+      : null,
   });
 }

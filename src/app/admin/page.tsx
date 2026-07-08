@@ -3,7 +3,7 @@ import { AdminDashboard } from "@/components/admin/AdminDashboard";
 
 export default function AdminPage() {
   return (
-    <AdminShell title="Home">
+    <AdminShell title="Command Center">
       <AdminDashboard />
     </AdminShell>
   );

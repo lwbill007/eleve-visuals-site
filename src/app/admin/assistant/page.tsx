@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Legacy assistant route — executive intelligence is the primary interface */
+/** Legacy assistant → Business Brain */
 export default function AdminAssistantPage() {
-  redirect("/admin/intelligence");
+  redirect("/admin/memory");
 }

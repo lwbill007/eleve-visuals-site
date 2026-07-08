@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
 import { adminFetch } from "@/lib/admin-fetch";
+import { ExecuteButton } from "@/components/admin/ai/ExecuteButton";
+import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
+import { useAdminToast } from "@/components/admin/AdminToast";
 import { cn } from "@/lib/utils";
 
 const SNOOZE_KEY = "eleve-next-action-snooze";
@@ -27,12 +29,10 @@ function trustColor(score: number): string {
   return "text-red-400";
 }
 
-/**
- * Single COO chrome: health + trust + the next action with snooze/done.
- * Replaces stacked ContextBar + NextActionBar.
- */
+/** Single COO chrome: health + trust + next action with snooze/done/execute. */
 export function COOBar() {
   const { context, loading, refresh } = useExecutiveContext();
+  const { toast } = useAdminToast();
   const [hiddenUntil, setHiddenUntil] = useState<Record<string, number>>({});
   const [doneIds, setDoneIds] = useState<Record<string, number>>({});
   const [ready, setReady] = useState(false);
@@ -66,11 +66,12 @@ export function COOBar() {
           }),
         });
       } catch {
-        /* non-blocking — local done still applies */
+        /* non-blocking */
       }
+      toast("Marked done.");
       refresh();
     },
-    [refresh]
+    [refresh, toast]
   );
 
   if (loading && !context) {
@@ -112,12 +113,17 @@ export function COOBar() {
             {verification.verifiedPct}%
           </span>
         </Link>
-        <span className="flex items-center gap-1.5">
+        <Link href="/admin/qa" className="flex items-center gap-1.5 hover:underline">
           <span className="tracking-[0.12em] text-muted uppercase">Sources</span>
-          <span className={cn("font-medium", connectors.disconnected > 0 ? "text-amber-300" : "text-emerald-400")}>
+          <span
+            className={cn(
+              "font-medium",
+              connectors.disconnected > 0 ? "text-amber-300" : "text-emerald-400"
+            )}
+          >
             {connectors.healthy}/{connectors.total}
           </span>
-        </span>
+        </Link>
         {!action && headline && (
           <span className="hidden min-w-0 truncate text-fog lg:inline" title={headline}>
             {headline}
@@ -177,12 +183,16 @@ export function COOBar() {
               >
                 Queue
               </Link>
-              <Link
-                href={action.href}
-                className="rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-[0.65rem] tracking-[0.1em] text-accent uppercase hover:bg-accent/25"
-              >
-                {action.actionLabel} →
-              </Link>
+              <ExecuteButton
+                target={{
+                  id: action.id,
+                  title: action.title,
+                  href: action.href,
+                  actionLabel: action.actionLabel,
+                  kind: action.executeKind,
+                }}
+                onDone={refresh}
+              />
             </div>
           </div>
         </div>

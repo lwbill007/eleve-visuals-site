@@ -7,6 +7,7 @@ import { ADMIN_QUICK_ACTIONS } from "@/config/admin-nav";
 import { useBriefingOptional } from "@/components/admin/ai/BriefingProvider";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
+import { ExecuteButton } from "@/components/admin/ai/ExecuteButton";
 import { TruthMetricCard } from "@/components/admin/ai/TruthMetricCard";
 import {
   ExecutiveDashboardSkeleton,
@@ -95,14 +96,33 @@ export function AdminDashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="label-caps text-accent">Today</p>
-        <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Home</h2>
+        <p className="label-caps text-accent">Command</p>
+        <h2 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Command Center</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fog">
           {execContext?.headline ??
             briefing?.summary ??
-            "Your next move, business health, and live activity — not a chart wall."}
+            "What happened, why, what next, and execute — not a chart wall."}
         </p>
       </div>
+
+      {tm?.["revenue.mtd"] && (
+        <div className="rounded-xl border border-stone/20 bg-charcoal/20 px-4 py-3 text-sm text-fog">
+          Revenue MTD is{" "}
+          <span className="text-cream">
+            {tm["revenue.mtd"].label === "verified" ? "Verified" : "Estimated"}
+          </span>
+          {tm["revenue.mtd"].label !== "verified" && (
+            <>
+              {" "}
+              from pipeline —{" "}
+              <Link href="/admin/qa" className="text-accent hover:underline">
+                connect Stripe for Verified
+              </Link>
+            </>
+          )}
+          .
+        </div>
+      )}
 
       {health && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -129,21 +149,31 @@ export function AdminDashboard() {
           <div className="space-y-3">
             <OpportunityRevenueBanner total={oppTotal} count={sharedRecs.length} />
             {sharedRecs.slice(0, 3).map((r) => (
-              <Link
+              <div
                 key={r.id}
-                href={r.href}
-                className="os-panel block rounded-xl border border-stone/20 p-4 transition-colors hover:border-accent/35"
+                className="os-panel rounded-xl border border-stone/20 p-4"
               >
                 <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
                   {r.priority} · {r.category}
                 </p>
                 <p className="mt-1 font-display text-base text-cream">{r.title}</p>
                 <p className="mt-1 line-clamp-2 text-xs text-fog">{r.why}</p>
-                <p className="mt-2 text-[0.65rem] text-emerald-400/90">
-                  {r.estimatedRevenue > 0 ? `~$${r.estimatedRevenue.toLocaleString()}` : "Impact TBD"} ·{" "}
-                  {Math.round(r.confidence * 100)}% · ~{r.timeMinutes} min
-                </p>
-              </Link>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[0.65rem] text-emerald-400/90">
+                    {r.estimatedRevenue > 0 ? `~$${r.estimatedRevenue.toLocaleString()}` : "Impact TBD"} ·{" "}
+                    {Math.round(r.confidence * 100)}% · ~{r.timeMinutes} min
+                  </p>
+                  <ExecuteButton
+                    target={{
+                      id: r.id,
+                      title: r.title,
+                      href: r.href,
+                      actionLabel: r.actionLabel,
+                      kind: r.executeKind,
+                    }}
+                  />
+                </div>
+              </div>
             ))}
           </div>
           <AdminPanel title="Needs attention" subtitle="From Truth Layer + connectors">

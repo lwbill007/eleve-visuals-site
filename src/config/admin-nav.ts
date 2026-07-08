@@ -10,16 +10,17 @@ export type AdminNavSection = {
 };
 
 /**
- * Launch IA — fewer destinations, clearer jobs.
- * Scaffolds are not in primary nav. Insights redirects to Opportunities.
+ * OS IA — decision-first workspaces (CPO audit).
+ * Command · Work · Make · Grow · Brain · Trust
+ * Theater (draft-only workflows, unavailable modules) stays out of primary nav.
  */
 export const ADMIN_NAV: AdminNavSection[] = [
   {
-    label: "Today",
+    label: "Command",
     items: [
-      { label: "Home", href: "/admin", desc: "Mission · health · next actions" },
-      { label: "Opportunities", href: "/admin/opportunities", desc: "What to do next · ranked by impact" },
-      { label: "Risks", href: "/admin/risks", desc: "What needs attention" },
+      { label: "Command Center", href: "/admin", desc: "Brief · health · execute next" },
+      { label: "Opportunities", href: "/admin/opportunities", desc: "Ranked queue · one-click execute" },
+      { label: "Risks", href: "/admin/risks", desc: "Leaks · attention · blockers" },
     ],
   },
   {
@@ -28,14 +29,14 @@ export const ADMIN_NAV: AdminNavSection[] = [
       { label: "Pipeline", href: "/admin/pipeline", desc: "Deals · stages · follow-ups" },
       { label: "Inbox", href: "/admin/submissions", desc: "All inquiries" },
       { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Booking inquiries" },
-      { label: "Clients", href: "/admin/crm", desc: "People · history · AI notes" },
+      { label: "People", href: "/admin/crm", desc: "Clients · history · AI notes" },
     ],
   },
   {
-    label: "Create",
+    label: "Make",
     items: [
       { label: "Sessions", href: "/admin/sessions-hub", desc: "Volumes · applications hub" },
-      { label: "Applications", href: "/admin/applications", desc: "Applicant pipeline" },
+      { label: "Applications", href: "/admin/applications", desc: "Accept · email · decide" },
       { label: "Volumes", href: "/admin/sessions", desc: "Edit session volumes" },
       { label: "Portfolio", href: "/admin/portfolio", desc: "Work archive" },
       { label: "Media", href: "/admin/media", desc: "Assets" },
@@ -46,35 +47,33 @@ export const ADMIN_NAV: AdminNavSection[] = [
     items: [
       { label: "Marketing", href: "/admin/marketing", desc: "Campaigns · captions · plans" },
       { label: "Analytics", href: "/admin/analytics", desc: "Traffic · conversions" },
-      { label: "Site", href: "/admin/homepage", desc: "Homepage · pages · SEO fields" },
-      { label: "Reports", href: "/admin/reports", desc: "Business reports" },
+      { label: "Website", href: "/admin/homepage", desc: "Homepage · pages · SEO" },
     ],
   },
   {
     label: "Brain",
     items: [
-      { label: "Ask ÉLEVÉ", href: "/admin/memory", desc: "Business Brain · memory · graph" },
-      { label: "Mission Control", href: "/admin/intelligence", desc: "Deep briefing · directors" },
+      { label: "Business Brain", href: "/admin/memory", desc: "Know · decide · simulate" },
     ],
   },
   {
-    label: "System",
+    label: "Trust",
     items: [
-      { label: "Workflows", href: "/admin/automations", desc: "Automations (beta)" },
+      { label: "Missing Intel", href: "/admin/qa", desc: "Connectors · confidence · readiness" },
+      { label: "Automations", href: "/admin/automations", desc: "Runnable system jobs" },
       { label: "Notifications", href: "/admin/notifications", desc: "Delivery & alerts" },
       { label: "Settings", href: "/admin/settings", desc: "Brand · SEO · contact" },
-      { label: "Health", href: "/admin/qa", desc: "Connectors · readiness" },
     ],
   },
 ];
 
 export const ADMIN_QUICK_ACTIONS = [
-  { label: "Do next", href: "/admin/opportunities", desc: "Highest-impact action" },
+  { label: "Execute next", href: "/admin/opportunities", desc: "Highest-impact action" },
   { label: "Open pipeline", href: "/admin/pipeline", desc: "Move deals forward" },
   { label: "Booking inbox", href: "/admin/submissions?type=booking", desc: "Respond to inquiries" },
   { label: "Review applications", href: "/admin/applications", desc: "Sessions applicants" },
-  { label: "Draft campaign", href: "/admin/marketing?task=campaign", desc: "Marketing studio" },
-  { label: "Ask ÉLEVÉ", href: "/admin/memory", desc: "Business Brain" },
+  { label: "Missing intel", href: "/admin/qa", desc: "Fix confidence gaps" },
+  { label: "Business Brain", href: "/admin/memory", desc: "Knowledge · graph" },
 ];
 
 /** Not in primary nav — command palette / deep links only. */
@@ -85,11 +84,9 @@ export const ADMIN_SECONDARY_NAV: AdminNavItem[] = [
   { label: "About page", href: "/admin/about", desc: "About content" },
   { label: "Contact page", href: "/admin/contact", desc: "Contact content" },
   { label: "Sponsorship", href: "/admin/sponsorship", desc: "Sponsor metrics" },
-  { label: "Booking AI", href: "/admin/bookings-ai", desc: "Forecasts (estimated)" },
-  { label: "Referrals (unavailable)", href: "/admin/referrals", desc: "Not shipping yet" },
-  { label: "Email (unavailable)", href: "/admin/email", desc: "Not shipping yet" },
-  { label: "Forms (unavailable)", href: "/admin/forms", desc: "Not shipping yet" },
-  { label: "Content Hub (unavailable)", href: "/admin/content-hub", desc: "Not shipping yet" },
+  { label: "Booking forecasts", href: "/admin/bookings-ai", desc: "Estimated forecasts" },
+  { label: "Reports (draft)", href: "/admin/reports", desc: "AI narrative — not BI" },
+  { label: "Mission Control (legacy)", href: "/admin/intelligence", desc: "Redirects to Brain" },
 ];
 
 export const ADMIN_COMMANDS = [

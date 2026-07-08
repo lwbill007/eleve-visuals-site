@@ -11,7 +11,7 @@ import { getVerificationStats } from "../memory/verification";
 import { getGuardedRecommendations } from "../truth/recommendation-guardrails";
 import { getCached, setCache } from "../cache";
 
-const CACHE_KEY = "executive-context-v4";
+const CACHE_KEY = "executive-context-v5";
 const CACHE_TTL_MS = 60_000;
 
 export type HealthLabel = "strong" | "steady" | "watch" | "critical" | "unknown";
@@ -36,6 +36,8 @@ export interface NextAction {
   href: string;
   actionLabel: string;
   category: string;
+  /** Adapter kind for one-click execute (inferred when omitted). */
+  executeKind?: string;
 }
 
 /** Risk signal derived from truth/connectors/verification — no fabricated alerts. */
@@ -116,6 +118,30 @@ function computeTrustScore(
 function toNextAction(
   r: Awaited<ReturnType<typeof getGuardedRecommendations>>[number]
 ): NextAction {
+  const href = r.actions[0]?.href ?? "/admin/opportunities";
+  const id = r.id.toLowerCase();
+  let executeKind = "navigate";
+  if (id.includes("stale") || href.includes("type=booking")) {
+    executeKind = "mark_stale_bookings_contacted";
+  } else if (href.includes("/admin/pipeline")) {
+    executeKind = "open_pipeline";
+  } else if (href.includes("/admin/applications")) {
+    executeKind = "open_applications";
+  } else if (href.includes("/admin/memory")) {
+    executeKind = "open_memory_verify";
+  } else if (href.includes("/admin/qa")) {
+    executeKind = "open_payments_trust";
+  }
+
+  const actionLabel =
+    executeKind === "mark_stale_bookings_contacted"
+      ? "Mark contacted"
+      : executeKind === "open_memory_verify"
+        ? "Verify"
+        : executeKind === "open_payments_trust"
+          ? "Fix sources"
+          : (r.actions[0]?.label ?? "Execute");
+
   return {
     id: r.id,
     title: r.title,
@@ -125,9 +151,10 @@ function toNextAction(
     confidence: r.confidence,
     timeMinutes: r.timeToCompleteMinutes,
     priority: r.priority,
-    href: r.actions[0]?.href ?? "/admin/opportunities",
-    actionLabel: r.actions[0]?.label ?? "Open",
+    href,
+    actionLabel,
     category: r.category,
+    executeKind,
   };
 }
 
@@ -208,7 +235,7 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
         "Source: Submission table (verified count)",
       ],
       href: "/admin/submissions?type=booking",
-      actionLabel: "Respond now",
+      actionLabel: "Mark contacted",
     });
   }
   if (revenueMtd === 0 && pipeline > 0) {

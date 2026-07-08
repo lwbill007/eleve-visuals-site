@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { ExecuteButton } from "@/components/admin/ai/ExecuteButton";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
 import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
@@ -43,9 +43,9 @@ export default function RisksPage() {
   return (
     <AdminShell title="Risks">
       <AdminPageHeader
-        eyebrow="Needs attention"
+        eyebrow="Command"
         title="What needs attention"
-        description="Derived from Truth Layer metrics, verification health, and connector status — not invented alerts."
+        description="Derived from Truth Layer, verification, and connectors — not invented alerts. Execute when a real fix exists."
         action={
           <button
             type="button"
@@ -90,12 +90,23 @@ export default function RisksPage() {
                 >
                   Acknowledge
                 </button>
-                <Link
-                  href={risk.href}
-                  className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-[0.65rem] tracking-[0.08em] text-accent uppercase hover:bg-accent/20"
-                >
-                  {risk.actionLabel} →
-                </Link>
+                <ExecuteButton
+                  target={{
+                    id: risk.id,
+                    title: risk.title,
+                    href: risk.href,
+                    actionLabel: risk.actionLabel,
+                    kind:
+                      risk.id === "risk-stale-inquiries"
+                        ? "mark_stale_bookings_contacted"
+                        : risk.id === "risk-unverified-memory"
+                          ? "open_memory_verify"
+                          : risk.id.startsWith("risk-connector") || risk.id === "risk-zero-revenue"
+                            ? "open_payments_trust"
+                            : undefined,
+                  }}
+                  onDone={refresh}
+                />
               </div>
             </article>
           ))}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { ExecuteButton } from "@/components/admin/ai/ExecuteButton";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
 import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
@@ -16,11 +17,11 @@ export default function OpportunitiesPage() {
   const total = recs.reduce((s, r) => s + r.estimatedRevenue, 0);
 
   return (
-    <AdminShell title="Opportunity Center">
+    <AdminShell title="Opportunities">
       <AdminPageHeader
-        eyebrow="Opportunity Engine"
+        eyebrow="Command"
         title="What to do next"
-        description="Ranked by expected business impact × confidence. Same queue as every other page — one brain, not a separate dashboard."
+        description="Ranked by impact × confidence. Execute runs a real adapter when possible — otherwise opens the right Work screen."
         action={
           <button
             type="button"
@@ -33,12 +34,11 @@ export default function OpportunitiesPage() {
       />
 
       {loading && !context ? (
-        <p className="text-fog">Loading opportunities from Executive Context…</p>
+        <p className="text-fog">Loading opportunities…</p>
       ) : recs.length === 0 ? (
         <AdminPanel title="No ranked opportunities">
           <p className="text-sm text-fog">
-            The recommendation engine has nothing actionable right now — or all items were deprioritized by
-            sales-recovery guardrails. Check pipeline and Business Brain.
+            Nothing actionable right now — or items were deprioritized by sales-recovery guardrails.
           </p>
           <div className="mt-4 flex gap-3 text-xs">
             <Link href="/admin/pipeline" className="text-accent hover:underline">
@@ -90,12 +90,16 @@ export default function OpportunitiesPage() {
                   <p className="text-[0.65rem] text-muted">
                     {Math.round(r.confidence * 100)}% confidence · ~{r.timeMinutes} min
                   </p>
-                  <Link
-                    href={r.href}
-                    className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-[0.65rem] tracking-[0.08em] text-accent uppercase hover:bg-accent/20"
-                  >
-                    {r.actionLabel} →
-                  </Link>
+                  <ExecuteButton
+                    target={{
+                      id: r.id,
+                      title: r.title,
+                      href: r.href,
+                      actionLabel: r.actionLabel,
+                      kind: r.executeKind,
+                    }}
+                    onDone={refresh}
+                  />
                 </div>
               </article>
             ))}

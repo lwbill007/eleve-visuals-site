@@ -252,17 +252,14 @@ export function CognitiveArchitectureClient() {
       )}
 
       <div className="mb-6 flex flex-wrap gap-4 text-xs">
-        <Link href="/admin/intelligence" className="text-accent hover:underline">
+        <Link href="/admin" className="text-accent hover:underline">
           Command Center →
-        </Link>
-        <Link href="/admin/insights" className="text-accent hover:underline">
-          Insights & Actions →
         </Link>
         <Link href="/admin/opportunities" className="text-accent hover:underline">
           Opportunities →
         </Link>
         <Link href="/admin/qa" className="text-accent hover:underline">
-          Executive QA →
+          Missing Intel →
         </Link>
       </div>
 

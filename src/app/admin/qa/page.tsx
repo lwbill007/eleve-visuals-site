@@ -3,7 +3,7 @@ import { ExecutiveQADashboard } from "@/components/admin/ai/ExecutiveQADashboard
 
 export default function ExecutiveQAPage() {
   return (
-    <AdminShell title="Health">
+    <AdminShell title="Missing Intel">
       <ExecutiveQADashboard />
     </AdminShell>
   );
