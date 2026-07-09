@@ -5,7 +5,15 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { ExecuteButton } from "@/components/admin/ai/ExecuteButton";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
-import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import {
+  WorkspaceAIStrip,
+  WorkspaceEmpty,
+  WorkspaceError,
+  WorkspaceHeader,
+  WorkspaceLoading,
+  WorkspaceRelated,
+} from "@/components/admin/os/WorkspaceFrame";
 import { cn } from "@/lib/utils";
 
 const ACK_KEY = "eleve-risk-ack";
@@ -19,7 +27,7 @@ const severityStyle = {
 
 export default function RisksPage() {
   useSetAIPage("risks");
-  const { context, loading, refresh } = useExecutiveContext();
+  const { context, loading, error, refresh } = useExecutiveContext();
   const [acked, setAcked] = useState<Record<string, number>>({});
   const [ready, setReady] = useState(false);
 
@@ -42,30 +50,26 @@ export default function RisksPage() {
 
   return (
     <AdminShell title="Risks">
-      <AdminPageHeader
+      <WorkspaceHeader
         eyebrow="Command"
         title="What needs attention"
         description="Derived from Truth Layer, verification, and connectors — not invented alerts. Execute when a real fix exists."
-        action={
-          <button
-            type="button"
-            onClick={refresh}
-            className="rounded-lg border border-stone/30 px-3 py-2 text-[0.65rem] tracking-[0.1em] text-fog uppercase hover:border-accent hover:text-accent"
-          >
-            Refresh
-          </button>
-        }
+        onRefresh={() => refresh()}
+        refreshing={loading}
       />
+      <WorkspaceAIStrip />
 
       {loading && !context ? (
-        <p className="text-fog">Loading risks…</p>
+        <WorkspaceLoading />
+      ) : error && !context ? (
+        <WorkspaceError message={error} onRetry={() => refresh()} />
       ) : risks.length === 0 ? (
-        <AdminPanel title="Clear">
-          <p className="text-sm text-fog">
-            No elevated risks right now — or you acknowledged the current set. New signals will appear when
-            truth metrics change.
-          </p>
-        </AdminPanel>
+        <WorkspaceEmpty
+          title="Clear"
+          detail="No elevated risks right now — or you acknowledged the current set. New signals appear when truth metrics change."
+          actionHref="/admin/leaks"
+          actionLabel="Check revenue leaks"
+        />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {risks.map((risk) => (
@@ -112,6 +116,14 @@ export default function RisksPage() {
           ))}
         </div>
       )}
+
+      <WorkspaceRelated
+        links={[
+          { label: "Opportunities", href: "/admin/opportunities", desc: "Execute" },
+          { label: "Leaks", href: "/admin/leaks", desc: "Lost $" },
+          { label: "Missing Intel", href: "/admin/qa", desc: "Connectors" },
+        ]}
+      />
     </AdminShell>
   );
 }

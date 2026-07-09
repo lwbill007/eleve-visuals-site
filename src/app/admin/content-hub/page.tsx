@@ -1,35 +1,68 @@
+"use client";
+
+import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { AdminModuleScaffold } from "@/components/admin/os/AdminModuleScaffold";
 import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import {
+  WorkspaceAIStrip,
+  WorkspaceHeader,
+  WorkspaceRelated,
+} from "@/components/admin/os/WorkspaceFrame";
 
-export default function AdminContentHubPage() {
+export default function ContentHubPage() {
   return (
-    <AdminShell title="Content Hub">
-      <AdminModuleScaffold
-        eyebrow="Content"
-        title="Content Hub"
-        description="One upload, multi-channel distribution — portfolio, social, email, and web."
-        features={[
-          "Upload once → publish everywhere",
-          "Portfolio & website gallery",
-          "Instagram, Stories & Pinterest exports",
-          "Email campaign assets",
-          "Blog draft generation (coming soon)",
-        ]}
+    <AdminShell title="Content studio">
+      <WorkspaceHeader
+        eyebrow="Grow"
+        title="Content studio"
+        description="Generate drafts for social, SEO, and campaigns — then publish via Portfolio, Media, Homepage, or Marketing. This is a live AI workspace, not a blog CMS."
+      />
+      <WorkspaceAIStrip />
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Media", href: "/admin/media", desc: "Assets" },
+          { label: "Portfolio", href: "/admin/portfolio", desc: "Publish work" },
+          { label: "Homepage", href: "/admin/homepage", desc: "Site hero" },
+          { label: "Marketing", href: "/admin/marketing", desc: "Campaigns" },
+        ].map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="rounded-xl border border-stone/25 p-4 transition-colors hover:border-accent/40"
+          >
+            <p className="font-display text-base text-cream">{l.label}</p>
+            <p className="mt-1 text-xs text-muted">{l.desc}</p>
+          </Link>
+        ))}
+      </div>
+
+      <AdminPanel title="AI drafts" subtitle="Review before publishing anywhere">
+        <AIGeneratePanel
+          task="instagram_caption"
+          label="Social caption"
+          prompt="Write an Instagram caption for a new ÉLEVÉ Visuals portfolio drop — cinematic, minimal, luxury."
+        />
+        <AIGeneratePanel
+          task="seo_meta"
+          label="SEO meta"
+          prompt="Write title and meta description for the ÉLEVÉ Visuals homepage targeting luxury photography in the Bay Area."
+        />
+        <AIGeneratePanel
+          task="campaign"
+          label="Campaign outline"
+          prompt="Outline a 5-post content campaign announcing ÉLEVÉ Sessions applications."
+        />
+      </AdminPanel>
+
+      <WorkspaceRelated
         links={[
-          { label: "Media Library", href: "/admin/media", desc: "Central asset storage" },
-          { label: "Portfolio", href: "/admin/portfolio", desc: "Publish work to the site" },
-          { label: "Homepage", href: "/admin/homepage", desc: "Feature new work on hero" },
-          { label: "ÉLEVÉ Sessions", href: "/admin/sessions", desc: "Volume galleries & BTS" },
+          { label: "Email", href: "/admin/email", desc: "Send" },
+          { label: "Business Brain", href: "/admin/memory", desc: "Brand memory" },
+          { label: "Analytics", href: "/admin/analytics", desc: "What performs" },
         ]}
       />
-      <AdminPanel title="AI Content Studio" subtitle="ÉLEVÉ brand voice — review before publishing" className="mt-8">
-        <AIGeneratePanel task="instagram_caption" label="Instagram" prompt="Write an Instagram caption for a new cinematic portrait gallery with luxury ÉLEVÉ tone." />
-        <AIGeneratePanel task="blog_post" label="Blog" prompt="Write a blog post about the creative process behind ÉLEVÉ Sessions Vol. 1." />
-        <AIGeneratePanel task="seo_meta" label="SEO" prompt="Write SEO title and meta description for the portfolio page." />
-        <AIGeneratePanel task="alt_text" label="Alt text" prompt="Write alt text for a dramatic black-and-white portrait in a studio setting." />
-      </AdminPanel>
     </AdminShell>
   );
 }

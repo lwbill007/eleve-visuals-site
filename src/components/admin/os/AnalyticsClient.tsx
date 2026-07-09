@@ -113,7 +113,9 @@ export function AnalyticsClient() {
           ))}
         </div>
         <p className="mt-4 text-sm text-muted">
-          Funnel drop-off analysis coming soon. Current conversion rate: {data.totals.conversionRate}%.
+          Funnel stages above are the intended client journey. Live conversion rate from first-party
+          analytics: {data.totals.conversionRate}%. Step-by-step drop-off counts require form_step
+          events on every stage — until then this rate is the verified end-to-end signal.
         </p>
       </AdminPanel>
 

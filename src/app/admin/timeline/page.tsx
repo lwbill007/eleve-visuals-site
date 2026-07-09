@@ -20,15 +20,23 @@ interface TimelineEvent {
 export default function TimelinePage() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [q, setQ] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await adminFetch("/api/admin/ai/timeline?limit=50");
-    if (res.ok) {
+    setError("");
+    try {
+      const res = await adminFetch("/api/admin/ai/timeline?limit=50");
+      if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       setEvents(data.events ?? []);
+    } catch {
+      setError("Could not load timeline.");
+      setEvents([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -52,9 +60,36 @@ export default function TimelinePage() {
         }
       />
 
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Filter timeline…"
+        className="mb-6 w-full max-w-md border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
+      />
+
       {loading ? (
         <p className="text-fog">Loading timeline…</p>
-      ) : events.length === 0 ? (
+      ) : error ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-6 text-center">
+          <p className="text-sm text-red-300">{error}</p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="mt-4 rounded-lg border border-stone/30 px-4 py-2 text-xs text-fog uppercase"
+          >
+            Retry
+          </button>
+        </div>
+      ) : events.filter((e) => {
+          const n = q.trim().toLowerCase();
+          if (!n) return true;
+          return (
+            e.title.toLowerCase().includes(n) ||
+            e.detail.toLowerCase().includes(n) ||
+            e.category.toLowerCase().includes(n)
+          );
+        }).length === 0 ? (
         <AdminPanel title="Empty">
           <p className="text-sm text-fog">
             No timeline events yet. Complete missions, record payments, or wait for cron intelligence refresh.
@@ -62,7 +97,17 @@ export default function TimelinePage() {
         </AdminPanel>
       ) : (
         <ol className="relative space-y-0 border-l border-stone/25 pl-6">
-          {events.map((e) => (
+          {events
+            .filter((e) => {
+              const n = q.trim().toLowerCase();
+              if (!n) return true;
+              return (
+                e.title.toLowerCase().includes(n) ||
+                e.detail.toLowerCase().includes(n) ||
+                e.category.toLowerCase().includes(n)
+              );
+            })
+            .map((e) => (
             <li key={e.id} className="relative pb-8">
               <span className="absolute -left-[1.4rem] top-1 h-2.5 w-2.5 rounded-full border border-accent bg-ink" />
               <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">

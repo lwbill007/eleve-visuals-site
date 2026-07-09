@@ -25,15 +25,24 @@ export default function EmailPage() {
   const [name, setName] = useState("");
   const [templateId, setTemplateId] = useState("follow_up_booking");
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    const res = await adminFetch("/api/admin/email/send");
-    if (res.ok) {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await adminFetch("/api/admin/email/send");
+      if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       setReady(Boolean(data.ready));
       setTemplates(data.templates ?? []);
       setRecent(data.recent ?? []);
       if (data.templates?.[0]) setTemplateId(data.templates[0].id);
+    } catch {
+      setError("Could not load email workspace.");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -65,7 +74,22 @@ export default function EmailPage() {
         description="Send real follow-ups via Resend. Campaign builder and analytics come later — this is execute-first Email v1."
       />
 
-      {!ready && (
+      {loading ? (
+        <p className="mb-6 text-fog">Loading email…</p>
+      ) : error ? (
+        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-6 text-center">
+          <p className="text-sm text-red-300">{error}</p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="mt-4 rounded-lg border border-stone/30 px-4 py-2 text-xs text-fog uppercase"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      {!loading && !error && !ready && (
         <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-fog">
           Resend not ready — set <code className="text-cream">RESEND_API_KEY</code> and{" "}
           <code className="text-cream">EMAIL_FROM</code>. See{" "}

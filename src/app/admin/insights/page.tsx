@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Insights merged into Opportunities — one decision queue. */
+/** Insights → AI Briefing (CEO brief is the insights surface). */
 export default function AdminInsightsRedirect() {
-  redirect("/admin/opportunities");
+  redirect("/admin/briefing");
 }

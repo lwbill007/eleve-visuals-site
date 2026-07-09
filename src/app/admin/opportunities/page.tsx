@@ -1,54 +1,89 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ExecuteButton } from "@/components/admin/ai/ExecuteButton";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
-import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import { OpportunityRevenueBanner } from "@/components/admin/os/ExecutiveIntelligenceComponents";
+import {
+  WorkspaceAIStrip,
+  WorkspaceEmpty,
+  WorkspaceError,
+  WorkspaceHeader,
+  WorkspaceLoading,
+  WorkspaceRelated,
+} from "@/components/admin/os/WorkspaceFrame";
 import { cn } from "@/lib/utils";
 
 export default function OpportunitiesPage() {
   useSetAIPage("opportunities");
-  const { context, loading, refresh } = useExecutiveContext();
+  const { context, loading, error, refresh } = useExecutiveContext();
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<"impact" | "confidence">("impact");
 
-  const recs = context?.recommendations ?? [];
+  const recs = useMemo(() => {
+    let list = context?.recommendations ?? [];
+    const needle = q.trim().toLowerCase();
+    if (needle) {
+      list = list.filter(
+        (r) =>
+          r.title.toLowerCase().includes(needle) ||
+          r.why.toLowerCase().includes(needle) ||
+          r.category.toLowerCase().includes(needle)
+      );
+    }
+    return [...list].sort((a, b) =>
+      sort === "confidence"
+        ? b.confidence - a.confidence
+        : b.estimatedRevenue - a.estimatedRevenue
+    );
+  }, [context?.recommendations, q, sort]);
+
   const total = recs.reduce((s, r) => s + r.estimatedRevenue, 0);
 
   return (
     <AdminShell title="Opportunities">
-      <AdminPageHeader
+      <WorkspaceHeader
         eyebrow="Command"
         title="What to do next"
         description="Ranked by impact × confidence. Execute runs a real adapter when possible — otherwise opens the right Work screen."
-        action={
-          <button
-            type="button"
-            onClick={refresh}
-            className="rounded-lg border border-stone/30 px-3 py-2 text-[0.65rem] tracking-[0.1em] text-fog uppercase hover:border-accent hover:text-accent"
-          >
-            Refresh
-          </button>
-        }
+        onRefresh={() => refresh()}
+        refreshing={loading}
       />
+      <WorkspaceAIStrip />
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search opportunities…"
+          className="min-w-[12rem] flex-1 border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
+        />
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as "impact" | "confidence")}
+          className="border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
+          aria-label="Sort"
+        >
+          <option value="impact">Sort by $ impact</option>
+          <option value="confidence">Sort by confidence</option>
+        </select>
+      </div>
 
       {loading && !context ? (
-        <p className="text-fog">Loading opportunities…</p>
+        <WorkspaceLoading />
+      ) : error && !context ? (
+        <WorkspaceError message={error} onRetry={() => refresh()} />
       ) : recs.length === 0 ? (
-        <AdminPanel title="No ranked opportunities">
-          <p className="text-sm text-fog">
-            Nothing actionable right now — or items were deprioritized by sales-recovery guardrails.
-          </p>
-          <div className="mt-4 flex gap-3 text-xs">
-            <Link href="/admin/pipeline" className="text-accent hover:underline">
-              Pipeline →
-            </Link>
-            <Link href="/admin/memory" className="text-accent hover:underline">
-              Business Brain →
-            </Link>
-          </div>
-        </AdminPanel>
+        <WorkspaceEmpty
+          title="No ranked opportunities"
+          detail="Nothing actionable right now — or items were deprioritized by sales-recovery guardrails."
+          actionHref="/admin/pipeline"
+          actionLabel="Open pipeline"
+        />
       ) : (
         <div className="space-y-6">
           <OpportunityRevenueBanner total={total} count={recs.length} />
@@ -106,6 +141,23 @@ export default function OpportunitiesPage() {
           </div>
         </div>
       )}
+
+      <div className="mt-6 flex flex-wrap gap-3 text-xs">
+        <Link href="/admin/briefing" className="text-accent hover:underline">
+          AI Briefing →
+        </Link>
+        <Link href="/admin/memory" className="text-accent hover:underline">
+          Business Brain →
+        </Link>
+      </div>
+
+      <WorkspaceRelated
+        links={[
+          { label: "Risks", href: "/admin/risks", desc: "Attention" },
+          { label: "Leaks", href: "/admin/leaks", desc: "Lost $" },
+          { label: "Workboard", href: "/admin/workboard", desc: "Execute ops" },
+        ]}
+      />
     </AdminShell>
   );
 }

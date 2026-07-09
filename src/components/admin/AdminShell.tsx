@@ -12,10 +12,24 @@ import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { ExecutiveContextProvider } from "@/components/admin/ai/ExecutiveContextProvider";
 import { COOBar } from "@/components/admin/ai/COOBar";
 
-function isActive(pathname: string, href: string) {
-  if (href === "/admin") return pathname === "/admin";
-  const base = href.split("?")[0];
-  return pathname === base || pathname.startsWith(`${base}/`);
+function isActive(pathname: string, href: string, search: string) {
+  const [pathPart, queryPart] = href.split("?");
+  if (pathPart === "/admin") return pathname === "/admin";
+
+  const pathMatch = pathname === pathPart || pathname.startsWith(`${pathPart}/`);
+  if (!pathMatch) return false;
+
+  if (!queryPart) {
+    // Prefer exact path items over query-specific siblings (e.g. Inbox vs Bookings)
+    return true;
+  }
+
+  const required = new URLSearchParams(queryPart);
+  const current = new URLSearchParams(search);
+  for (const [key, value] of required.entries()) {
+    if (current.get(key) !== value) return false;
+  }
+  return true;
 }
 
 export function AdminShell({
@@ -109,20 +123,31 @@ function AdminShellInner({
             <div key={section.label}>
               <p className="mb-1.5 px-3 text-[0.55rem] tracking-[0.22em] text-muted uppercase">{section.label}</p>
               <div className="flex flex-col gap-0.5">
-                {section.items.map((item) => (
-                  <Link
-                    key={item.href + item.label}
-                    href={item.href}
-                    className={cn(
-                      "rounded-lg px-3 py-2 text-sm transition-all duration-200",
-                      isActive(pathname, item.href)
-                        ? "bg-ink text-cream shadow-inner"
-                        : "text-fog hover:bg-ink/50 hover:text-cream"
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+                {section.items.map((item) => {
+                  const search = searchParams.toString();
+                  const active = isActive(pathname, item.href, search);
+                  // When both Inbox and Bookings match path, only highlight the more specific query item
+                  const siblings = section.items.filter((s) => s.href.split("?")[0] === item.href.split("?")[0]);
+                  const moreSpecificActive = siblings.some(
+                    (s) => s.href.includes("?") && isActive(pathname, s.href, search) && s.href !== item.href
+                  );
+                  const highlight = active && !(item.href === "/admin/submissions" && moreSpecificActive);
+                  return (
+                    <Link
+                      key={item.href + item.label}
+                      href={item.href}
+                      className={cn(
+                        "rounded-lg px-3 py-2 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+                        highlight
+                          ? "bg-ink text-cream shadow-inner"
+                          : "text-fog hover:bg-ink/50 hover:text-cream"
+                      )}
+                      aria-current={highlight ? "page" : undefined}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -185,9 +210,10 @@ function AdminShellInner({
 function resolvePageContext(pathname: string, search = "") {
   const params = new URLSearchParams(search);
   if (pathname === "/admin") return "dashboard" as const;
+  if (pathname.startsWith("/admin/briefing")) return "dashboard" as const;
   if (pathname.startsWith("/admin/crm/")) return "crm_profile" as const;
   if (pathname.startsWith("/admin/crm")) return "crm" as const;
-  if (pathname.startsWith("/admin/pipeline")) return "pipeline" as const;
+  if (pathname.startsWith("/admin/pipeline") || pathname.startsWith("/admin/workboard")) return "pipeline" as const;
   if (pathname.startsWith("/admin/bookings-ai")) return "bookings" as const;
   if (pathname.startsWith("/admin/analytics")) return "analytics" as const;
   if (pathname.startsWith("/admin/marketing")) return "marketing" as const;
@@ -198,12 +224,11 @@ function resolvePageContext(pathname: string, search = "") {
   if (pathname.startsWith("/admin/sponsorship")) return "sponsorship" as const;
   if (pathname.startsWith("/admin/automations")) return "automations" as const;
   if (pathname.startsWith("/admin/reports")) return "reports" as const;
-  if (pathname.startsWith("/admin/insights")) return "insights" as const;
-  if (pathname.startsWith("/admin/intelligence")) return "intelligence" as const;
+  if (pathname.startsWith("/admin/insights") || pathname.startsWith("/admin/leaks")) return "opportunities" as const;
+  if (pathname.startsWith("/admin/intelligence") || pathname.startsWith("/admin/memory")) return "memory" as const;
   if (pathname.startsWith("/admin/opportunities")) return "opportunities" as const;
   if (pathname.startsWith("/admin/risks")) return "risks" as const;
-  if (pathname.startsWith("/admin/assistant")) return "intelligence" as const;
-  if (pathname.startsWith("/admin/memory")) return "memory" as const;
+  if (pathname.startsWith("/admin/assistant")) return "memory" as const;
   if (pathname.startsWith("/admin/submissions") && params.get("type") === "booking") return "bookings" as const;
   return "general" as const;
 }

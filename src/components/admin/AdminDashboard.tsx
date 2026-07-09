@@ -8,7 +8,9 @@ import { useBriefingOptional } from "@/components/admin/ai/BriefingProvider";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
 import { ExecuteButton } from "@/components/admin/ai/ExecuteButton";
+import { AIDailyBriefingPanel } from "@/components/admin/ai/AIDailyBriefingPanel";
 import { TruthMetricCard } from "@/components/admin/ai/TruthMetricCard";
+import { WorkspaceAIStrip, WorkspaceRelated } from "@/components/admin/os/WorkspaceFrame";
 import {
   ExecutiveDashboardSkeleton,
   ExecutiveQuickLink,
@@ -106,6 +108,22 @@ export function AdminDashboard() {
             "What happened, why, what next, and execute — not a chart wall."}
         </p>
       </div>
+
+      <WorkspaceAIStrip />
+
+      <div className="flex flex-wrap gap-3 text-xs">
+        <Link href="/admin/briefing" className="text-accent hover:underline">
+          Full AI Briefing →
+        </Link>
+        <Link href="/admin/opportunities" className="text-accent hover:underline">
+          Opportunities →
+        </Link>
+        <Link href="/admin/leaks" className="text-accent hover:underline">
+          Revenue leaks →
+        </Link>
+      </div>
+
+      <AIDailyBriefingPanel compact />
 
       {tm?.["revenue.mtd"] && (
         <div className="rounded-xl border border-stone/20 bg-charcoal/20 px-4 py-3 text-sm text-fog">
@@ -382,6 +400,15 @@ export function AdminDashboard() {
           </div>
         )}
       </div>
+
+      <WorkspaceRelated
+        links={[
+          { label: "AI Briefing", href: "/admin/briefing", desc: "Full brief" },
+          { label: "Opportunities", href: "/admin/opportunities", desc: "Execute" },
+          { label: "Workboard", href: "/admin/workboard", desc: "Inbox" },
+          { label: "Business Brain", href: "/admin/memory", desc: "Knowledge" },
+        ]}
+      />
     </div>
   );
 }

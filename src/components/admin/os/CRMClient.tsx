@@ -29,47 +29,104 @@ export function CRMClient() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [sort, setSort] = useState<"activity" | "revenue" | "name">("activity");
+
+  function load() {
+    setLoading(true);
+    setError("");
+    adminFetch("/api/admin/os/crm")
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      })
+      .then((d) => setContacts(d.contacts ?? []))
+      .catch(() => {
+        setError("Could not load clients.");
+        setContacts([]);
+      })
+      .finally(() => setLoading(false));
+  }
 
   useEffect(() => {
-    adminFetch("/api/admin/os/crm")
-      .then((r) => r.json())
-      .then((d) => setContacts(d.contacts ?? []))
-      .finally(() => setLoading(false));
+    load();
   }, []);
 
-  const filtered = contacts.filter((c) => {
-    const q = query.toLowerCase();
-    return (
-      c.name.toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q) ||
-      c.phone.includes(q) ||
-      c.source.toLowerCase().includes(q)
-    );
-  });
+  const filtered = contacts
+    .filter((c) => {
+      const q = query.toLowerCase();
+      return (
+        c.name.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        c.phone.includes(q) ||
+        c.source.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "revenue") return b.revenue - a.revenue;
+      return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+    });
 
   return (
     <div>
       <AdminPageHeader
-        eyebrow="Revenue"
-        title="CRM"
+        eyebrow="Work"
+        title="Clients"
         description="Every person who has interacted with ÉLEVÉ — unified from bookings, applications, and contact forms."
-        action={<AskAIButton />}
+        action={
+          <div className="flex gap-2">
+            <AskAIButton />
+            <button
+              type="button"
+              onClick={load}
+              className="rounded-lg border border-stone/30 px-3 py-2 text-[0.65rem] text-fog uppercase"
+            >
+              Refresh
+            </button>
+          </div>
+        }
       />
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap gap-3">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name, email, phone…"
           className="w-full max-w-md rounded-lg border border-stone/30 bg-charcoal/30 px-4 py-3 text-sm text-cream outline-none focus:border-accent/50"
         />
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as "activity" | "revenue" | "name")}
+          className="rounded-lg border border-stone/30 bg-charcoal/30 px-3 py-2 text-sm text-cream"
+          aria-label="Sort clients"
+        >
+          <option value="activity">Sort by activity</option>
+          <option value="revenue">Sort by revenue</option>
+          <option value="name">Sort by name</option>
+        </select>
       </div>
 
       {loading ? (
-        <p className="text-fog">Loading contacts…</p>
+        <p className="text-fog">Loading clients…</p>
+      ) : error ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-6 text-center">
+          <p className="text-sm text-red-300">{error}</p>
+          <button
+            type="button"
+            onClick={load}
+            className="mt-4 rounded-lg border border-stone/30 px-4 py-2 text-xs text-fog uppercase"
+          >
+            Retry
+          </button>
+        </div>
       ) : filtered.length === 0 ? (
-        <AdminPanel>
-          <p className="text-sm text-muted">No contacts yet. Submissions will automatically create profiles.</p>
+        <AdminPanel title="No clients match">
+          <p className="text-sm text-fog">
+            {contacts.length === 0
+              ? "No contacts yet — bookings and applications create people automatically."
+              : "Try a different search."}
+          </p>
         </AdminPanel>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-stone/25">

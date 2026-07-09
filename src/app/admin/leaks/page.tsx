@@ -26,16 +26,23 @@ export default function LeaksPage() {
   const [leaks, setLeaks] = useState<Leak[]>([]);
   const [exposure, setExposure] = useState({ loss: 0, recoverable: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await adminFetch("/api/admin/ai/leaks");
-    if (res.ok) {
+    setError("");
+    try {
+      const res = await adminFetch("/api/admin/ai/leaks");
+      if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       setLeaks(data.leaks ?? []);
       setExposure(data.exposure ?? { loss: 0, recoverable: 0 });
+    } catch {
+      setError("Could not load revenue leaks.");
+      setLeaks([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -74,6 +81,17 @@ export default function LeaksPage() {
 
       {loading ? (
         <p className="text-fog">Scanning for leaks…</p>
+      ) : error ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-6 text-center">
+          <p className="text-sm text-red-300">{error}</p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="mt-4 rounded-lg border border-stone/30 px-4 py-2 text-xs text-fog uppercase"
+          >
+            Retry
+          </button>
+        </div>
       ) : leaks.length === 0 ? (
         <AdminPanel title="No leaks detected">
           <p className="text-sm text-fog">
