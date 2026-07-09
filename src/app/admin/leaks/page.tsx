@@ -1,12 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ExecuteButton } from "@/components/admin/ai/ExecuteButton";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
-import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import {
+  WorkspaceChrome,
+  WorkspaceEmpty,
+  WorkspaceError,
+  WorkspaceLoading,
+} from "@/components/admin/os/WorkspaceFrame";
 import { cn } from "@/lib/utils";
 
 interface Leak {
@@ -51,99 +56,86 @@ export default function LeaksPage() {
 
   return (
     <AdminShell title="Revenue Leaks">
-      <AdminPageHeader
-        eyebrow="Command"
+      <WorkspaceChrome
+        eyebrow="Command · Revenue"
         title="Revenue Leak Detector"
-        description="Where money is being lost — estimated recovery, evidence, and one-click paths to fix. Labels are Estimated unless noted."
-        action={
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="rounded-lg border border-stone/30 px-3 py-2 text-[0.65rem] text-fog uppercase"
-          >
-            Refresh
-          </button>
-        }
-      />
-
-      <div className="mb-8 grid gap-3 sm:grid-cols-2">
-        <AdminPanel title="Potential loss (est.)">
-          <p className="font-display text-3xl text-amber-300">
-            ${Math.round(exposure.loss).toLocaleString()}
-          </p>
-        </AdminPanel>
-        <AdminPanel title="Recoverable (confidence-weighted)">
-          <p className="font-display text-3xl text-emerald-400">
-            ${Math.round(exposure.recoverable).toLocaleString()}
-          </p>
-        </AdminPanel>
-      </div>
-
-      {loading ? (
-        <p className="text-fog">Scanning for leaks…</p>
-      ) : error ? (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-6 text-center">
-          <p className="text-sm text-red-300">{error}</p>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="mt-4 rounded-lg border border-stone/30 px-4 py-2 text-xs text-fog uppercase"
-          >
-            Retry
-          </button>
+        description="Where money is being lost, why (evidence), what to recover next — and whether ÉLEVÉ can execute the fix. Amounts are Estimated unless noted."
+        onRefresh={() => void load()}
+        refreshing={loading}
+        related={[
+          { label: "Risks", href: "/admin/risks", desc: "Threats" },
+          { label: "Workboard", href: "/admin/workboard", desc: "Act" },
+          { label: "Payments", href: "/admin/payments", desc: "Ledger" },
+          { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
+        ]}
+      >
+        <div className="mb-8 grid gap-3 sm:grid-cols-2">
+          <AdminPanel title="Potential loss (est.)">
+            <p className="font-display text-3xl text-amber-300">
+              ${Math.round(exposure.loss).toLocaleString()}
+            </p>
+          </AdminPanel>
+          <AdminPanel title="Recoverable (confidence-weighted)">
+            <p className="font-display text-3xl text-emerald-400">
+              ${Math.round(exposure.recoverable).toLocaleString()}
+            </p>
+          </AdminPanel>
         </div>
-      ) : leaks.length === 0 ? (
-        <AdminPanel title="No leaks detected">
-          <p className="text-sm text-fog">
-            Detector found nothing above threshold — or data is too thin. Check{" "}
-            <Link href="/admin/risks" className="text-accent hover:underline">
-              Risks
-            </Link>
-            .
-          </p>
-        </AdminPanel>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {leaks.map((leak) => (
-            <article key={leak.id} className="os-panel rounded-xl border border-stone/20 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <span className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
-                  {leak.category}
-                </span>
-                <p className="font-display text-xl text-amber-300">
-                  ~${leak.estimatedLoss.toLocaleString()}
+
+        {loading && leaks.length === 0 ? (
+          <WorkspaceLoading />
+        ) : error && leaks.length === 0 ? (
+          <WorkspaceError message={error} onRetry={() => void load()} />
+        ) : leaks.length === 0 ? (
+          <WorkspaceEmpty
+            title="No leaks detected"
+            detail="Detector found nothing above threshold — or data is too thin. Check Risks for related exposure, or refresh after more bookings land."
+            actionHref="/admin/risks"
+            actionLabel="Open risks"
+          />
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {leaks.map((leak) => (
+              <article key={leak.id} className="os-panel rounded-xl border border-stone/20 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <span className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
+                    {leak.category}
+                  </span>
+                  <p className="font-display text-xl text-amber-300">
+                    ~${leak.estimatedLoss.toLocaleString()}
+                  </p>
+                </div>
+                <h3 className="mt-2 font-display text-lg text-cream">{leak.title}</h3>
+                <p className="mt-2 text-sm text-fog">{leak.reason}</p>
+                <p className="mt-2 text-[0.65rem] text-muted">
+                  Recover ~${leak.recoveryPotential.toLocaleString()} ·{" "}
+                  {Math.round(leak.confidence * 100)}% confidence
                 </p>
-              </div>
-              <h3 className="mt-2 font-display text-lg text-cream">{leak.title}</h3>
-              <p className="mt-2 text-sm text-fog">{leak.reason}</p>
-              <p className="mt-2 text-[0.65rem] text-muted">
-                Recover ~${leak.recoveryPotential.toLocaleString()} ·{" "}
-                {Math.round(leak.confidence * 100)}% confidence
-              </p>
-              {leak.evidence.length > 0 && (
-                <ul className="mt-3 space-y-1 text-[0.7rem] text-muted">
-                  {leak.evidence.slice(0, 3).map((e) => (
-                    <li key={e}>• {e}</li>
-                  ))}
-                </ul>
-              )}
-              <div className="mt-4 flex flex-wrap gap-2">
-                {leak.actions[0] && (
-                  <ExecuteButton
-                    target={{
-                      id: leak.id,
-                      title: leak.title,
-                      href: leak.actions[0].href,
-                      actionLabel: leak.actions[0].label,
-                    }}
-                    className={cn("text-[0.65rem]")}
-                  />
+                {leak.evidence.length > 0 && (
+                  <ul className="mt-3 space-y-1 text-[0.7rem] text-muted">
+                    {leak.evidence.slice(0, 3).map((e) => (
+                      <li key={e}>• {e}</li>
+                    ))}
+                  </ul>
                 )}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {leak.actions[0] && (
+                    <ExecuteButton
+                      target={{
+                        id: leak.id,
+                        title: leak.title,
+                        href: leak.actions[0].href,
+                        actionLabel: leak.actions[0].label,
+                      }}
+                      className={cn("text-[0.65rem]")}
+                    />
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

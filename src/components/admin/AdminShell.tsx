@@ -174,7 +174,12 @@ function AdminShellInner({
             ☰
           </button>
 
-          <h1 className="min-w-0 flex-1 truncate font-display text-xl text-cream sm:text-2xl">{title || "Home"}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-xl text-cream sm:text-2xl">{title || "Home"}</h1>
+            <p className="mt-0.5 hidden text-[0.6rem] tracking-[0.12em] text-muted uppercase sm:block">
+              ÉLEVÉ OS · ⌘K to jump
+            </p>
+          </div>
 
           <AskAIButton className="hidden sm:inline-flex" />
           <AINotificationsBell />
@@ -183,6 +188,7 @@ function AdminShellInner({
             type="button"
             onClick={() => setPaletteOpen(true)}
             className="hidden items-center gap-2 rounded-lg border border-stone/30 px-3 py-2 text-xs text-muted transition-colors hover:border-stone/50 hover:text-fog sm:flex"
+            aria-keyshortcuts="Meta+K Control+K"
           >
             <span>Command</span>
             <kbd className="rounded border border-stone/40 px-1.5 py-0.5 text-[0.6rem]">⌘K</kbd>

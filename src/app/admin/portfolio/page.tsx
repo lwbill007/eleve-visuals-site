@@ -22,6 +22,7 @@ import { PORTFOLIO_CATEGORIES, type AspectRatio, type PortfolioItemDTO, type Por
 import { PortfolioAssistantPanel } from "@/components/admin/ai/PortfolioAssistantPanel";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
+import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
 import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
 
 const ASPECT_RATIOS: AspectRatio[] = ["portrait", "landscape", "square", "wide"];
@@ -147,9 +148,18 @@ export default function AdminPortfolioPage() {
 
   return (
     <AdminShell title="Portfolio">
-      <div className="mb-4 flex justify-end">
-        <AskAIButton />
-      </div>
+      <WorkspaceChrome
+        eyebrow="Make · Portfolio"
+        title="Portfolio"
+        description="What: projects, galleries, and portfolio page settings. Why: publish cinematic work that converts. Next: add or edit a project, then feature it on Homepage. AI can help draft captions and case-study copy."
+        extra={<AskAIButton />}
+        related={[
+          { label: "Media", href: "/admin/media", desc: "Assets" },
+          { label: "Sessions", href: "/admin/sessions", desc: "Volumes" },
+          { label: "Content hub", href: "/admin/content-hub", desc: "Drafts" },
+          { label: "Marketing", href: "/admin/marketing", desc: "Campaigns" },
+        ]}
+      >
       <div className="mb-6 -mx-4 flex gap-2 overflow-x-auto border-b border-stone/30 px-4 pb-px sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
         {TABS.map((t) => (
           <button
@@ -633,6 +643,7 @@ export default function AdminPortfolioPage() {
           {message && tab === "projects" && <p className="mt-6 text-sm text-accent">{message}</p>}
         </>
       )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

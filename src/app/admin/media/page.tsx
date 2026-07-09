@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminField, AdminInput } from "@/components/admin/AdminForm";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
+import { WorkspaceChrome, WorkspaceToolbar } from "@/components/admin/os/WorkspaceFrame";
 import { adminFetch } from "@/lib/admin-fetch";
 import { uploadMediaFile } from "@/lib/upload-client";
 import { ADMIN_MEDIA_ACCEPT } from "@/lib/upload-constants";
@@ -126,11 +127,17 @@ export default function AdminMediaPage() {
 
   return (
     <AdminShell title="Media Library">
+      <WorkspaceChrome
+        eyebrow="Make · Media"
+        title="Media Library"
+        description="What: centralized images and video for the whole site. Why: reuse assets without re-uploading. Next: upload or search, then attach from Portfolio or Homepage editors. AI can suggest alt text — you approve before saving."
+        related={[
+          { label: "Portfolio", href: "/admin/portfolio", desc: "Projects" },
+          { label: "Homepage", href: "/admin/homepage", desc: "Hero & CTA" },
+          { label: "Content hub", href: "/admin/content-hub", desc: "Drafts" },
+        ]}
+      >
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <p className="text-sm text-fog">
-          Centralized media for the entire site. Upload here or from any editor — all assets are
-          indexed for reuse.
-        </p>
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -182,13 +189,10 @@ export default function AdminMediaPage() {
         </div>
       )}
 
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by filename, alt text, or URL..."
-        className="mb-4 w-full max-w-md border border-stone/50 bg-charcoal px-4 py-2.5 text-sm text-cream"
-        aria-label="Search media"
+      <WorkspaceToolbar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search by filename, alt text, or URL..."
       />
 
       {message && (
@@ -268,6 +272,7 @@ export default function AdminMediaPage() {
           {search ? "No media matches your search." : "No media yet. Upload images or videos from any admin editor."}
         </p>
       )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

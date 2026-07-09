@@ -9,6 +9,7 @@ import {
   SaveBar,
   StringListEditor,
 } from "@/components/admin/AdminForm";
+import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
 import { adminFetch } from "@/lib/admin-fetch";
 import { saveAdminContent } from "@/lib/admin-save";
 import { DEFAULT_BRAND_COLORS, DEFAULT_NAVIGATION, DEFAULT_SITE_CONFIG } from "@/lib/defaults";
@@ -65,6 +66,16 @@ export default function AdminSettingsPage() {
 
   return (
     <AdminShell title="Site Settings">
+      <WorkspaceChrome
+        eyebrow="Trust · Settings"
+        title="Site Settings"
+        description="What: brand, contact, SEO, colors, and navigation. Why: keep the public site consistent and trustworthy. Next: save, then spot-check Homepage and Notifications. AI can suggest SEO copy — you approve before it goes live."
+        related={[
+          { label: "QA", href: "/admin/qa", desc: "Checks" },
+          { label: "Notifications", href: "/admin/notifications", desc: "Alerts" },
+          { label: "Automations", href: "/admin/automations", desc: "Workflows" },
+        ]}
+      >
       <div className="space-y-10">
         {access && (
           <section className="border border-stone/30 p-6">
@@ -277,6 +288,7 @@ export default function AdminSettingsPage() {
       </div>
 
       <SaveBar onSave={handleSave} saving={saving} message={message} />
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

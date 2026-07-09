@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminField, AdminInput, SaveBar, StringListEditor } from "@/components/admin/AdminForm";
-import { AdminPageSkeleton } from "@/components/admin/AdminPageSkeleton";
 import { TimeStamp } from "@/components/admin/TimeStamp";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import {
+  WorkspaceChrome,
+  WorkspaceLoading,
+} from "@/components/admin/os/WorkspaceFrame";
 import { adminFetch } from "@/lib/admin-fetch";
 import { saveAdminContent } from "@/lib/admin-save";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/defaults";
@@ -23,6 +26,12 @@ import type {
   WebhookConfig,
   WebhookType,
 } from "@/lib/types";
+
+const NOTIFICATIONS_RELATED = [
+  { label: "Automations", href: "/admin/automations", desc: "System jobs" },
+  { label: "QA", href: "/admin/qa", desc: "Missing intel" },
+  { label: "Settings", href: "/admin/settings", desc: "Integrations" },
+];
 
 interface ProviderStatus {
   email: { provider: string; configured: boolean };
@@ -374,21 +383,23 @@ export default function AdminNotificationsPage() {
     setSettings({ ...settings, webhooks });
   }
 
-  if (loading) {
-    return (
-      <AdminShell title="Notifications">
-        <AdminPageSkeleton />
-      </AdminShell>
-    );
-  }
-
   return (
     <AdminShell title="Notifications">
-      <p className="mb-6 max-w-2xl text-sm text-fog">
-        Instant alerts for every form submission across email, SMS, push, and webhooks — with
-        delivery tracking, analytics, and a full audit trail.
-      </p>
-
+      <WorkspaceChrome
+        eyebrow="System"
+        title="Notifications"
+        description="What: alerts for every form submission across email, SMS, push, and webhooks. Why: never miss a lead. Next: configure channels and review delivery history. AI can help triage — delivery stays on these providers."
+        onRefresh={() => {
+          void loadHistory();
+          void loadAnalytics();
+        }}
+        refreshing={loading}
+        related={NOTIFICATIONS_RELATED}
+      >
+      {loading ? (
+        <WorkspaceLoading rows={5} />
+      ) : (
+      <>
       {analytics && (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
@@ -863,6 +874,9 @@ export default function AdminNotificationsPage() {
         message={message}
         autosaveNote={dirty ? "Unsaved changes" : ""}
       />
+      </>
+      )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

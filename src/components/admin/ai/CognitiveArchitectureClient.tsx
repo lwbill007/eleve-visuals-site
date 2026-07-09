@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
-import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import {
+  WorkspaceChrome,
+  WorkspaceError,
+  WorkspaceLoading,
+  WorkspaceButton,
+} from "@/components/admin/os/WorkspaceFrame";
 import { MemoryGraphVisual } from "@/components/admin/ai/MemoryGraphVisual";
 import type { CognitiveArchitecture, KnowledgeObject, StrategySimulation } from "@/lib/ai/cognitive/types";
 import type { MemoryExplanation } from "@/lib/ai/memory/knowledge/types";
@@ -103,17 +109,24 @@ export function CognitiveArchitectureClient() {
     "Knowledge Engine"
   );
 
+  const [error, setError] = useState("");
+
   const load = useCallback(async (force = false) => {
     setLoading(true);
+    setError("");
     try {
       const res = await adminFetch(`/api/admin/ai/cognitive${force ? "?refresh=1" : ""}`);
-      if (res.ok) setArch(await res.json());
+      if (!res.ok) throw new Error("Failed to load cognitive architecture.");
+      setArch(await res.json());
       const vRes = await adminFetch("/api/admin/ai/memory/verify");
       if (vRes.ok) {
         const v = await vRes.json();
         setVerifyStats(v.stats);
         setVerifyQueue(v.queue ?? []);
       }
+    } catch {
+      setError("Failed to load cognitive architecture.");
+      if (!force) setArch(null);
     } finally {
       setLoading(false);
     }
@@ -211,11 +224,38 @@ export function CognitiveArchitectureClient() {
     }
   }
 
+  const related = [
+    { label: "Timeline", href: "/admin/timeline", desc: "Activity" },
+    { label: "Briefing", href: "/admin/briefing", desc: "Daily brief" },
+    { label: "Opportunities", href: "/admin/opportunities", desc: "Execute" },
+    { label: "QA", href: "/admin/qa", desc: "Missing intel" },
+  ];
+
   if (loading && !arch) {
-    return <p className="text-fog">Loading cognitive architecture…</p>;
+    return (
+      <WorkspaceChrome
+        eyebrow="ÉLEVÉ Cognitive Architecture"
+        title="Knowledge Engine"
+        description="What: permanent intelligence layer. Why: every recommendation and prediction. Next: refresh executive intelligence. AI builds and scores knowledge — you verify."
+        related={related}
+      >
+        <WorkspaceLoading rows={5} />
+      </WorkspaceChrome>
+    );
   }
 
-  if (!arch) return <p className="text-fog">Failed to load cognitive architecture.</p>;
+  if (!arch) {
+    return (
+      <WorkspaceChrome
+        eyebrow="ÉLEVÉ Cognitive Architecture"
+        title="Knowledge Engine"
+        description="What: permanent intelligence layer. Why: every recommendation and prediction. Next: refresh executive intelligence. AI builds and scores knowledge — you verify."
+        related={related}
+      >
+        <WorkspaceError message={error || "Failed to load cognitive architecture."} onRetry={() => void load()} />
+      </WorkspaceChrome>
+    );
+  }
 
   let step = 0;
   const next = () => ++step;
@@ -230,38 +270,22 @@ export function CognitiveArchitectureClient() {
     .sort((a, b) => b[1] - a[1]);
 
   return (
-    <div>
-      <AdminPageHeader
-        eyebrow="ÉLEVÉ Cognitive Architecture"
-        title="Knowledge Engine"
-        description="Not a memory list — the permanent intelligence layer powering every recommendation, prediction, and business decision."
-        action={
-          <button
-            type="button"
-            disabled={refreshing}
-            onClick={() => void refreshIntelligence()}
-            className="rounded-lg bg-accent px-4 py-2 text-xs font-medium text-ink uppercase hover:bg-cream disabled:opacity-50"
-          >
-            {refreshing ? "Scanning platform…" : "Refresh Executive Intelligence"}
-          </button>
-        }
-      />
-
+    <WorkspaceChrome
+      eyebrow="ÉLEVÉ Cognitive Architecture"
+      title="Knowledge Engine"
+      description="What: permanent intelligence layer powering recommendations. Why: decisions need verified knowledge. Next: refresh intelligence or verify pending memories. AI scans and scores — you verify and pin."
+      onRefresh={() => void refreshIntelligence()}
+      refreshing={refreshing}
+      extra={
+        <WorkspaceButton variant="primary" onClick={() => void refreshIntelligence()} disabled={refreshing}>
+          {refreshing ? "Scanning…" : "Refresh intelligence"}
+        </WorkspaceButton>
+      }
+      related={related}
+    >
       {message && (
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-cream">{message}</p>
       )}
-
-      <div className="mb-6 flex flex-wrap gap-4 text-xs">
-        <Link href="/admin" className="text-accent hover:underline">
-          Command Center →
-        </Link>
-        <Link href="/admin/opportunities" className="text-accent hover:underline">
-          Opportunities →
-        </Link>
-        <Link href="/admin/qa" className="text-accent hover:underline">
-          Missing Intel →
-        </Link>
-      </div>
 
       {verifyStats && (
         <AdminPanel title="Verification Queue" subtitle={`Target ${verifyStats.targetPct}% verified · currently ${verifyStats.verifiedPct}%`} className="mb-8">
@@ -623,6 +647,6 @@ export function CognitiveArchitectureClient() {
           </div>
         </CognitiveSection>
       </div>
-    </div>
+    </WorkspaceChrome>
   );
 }

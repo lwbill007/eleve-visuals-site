@@ -6,10 +6,9 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import {
-  WorkspaceAIStrip,
-  WorkspaceHeader,
+  WorkspaceChrome,
   WorkspaceLoading,
-  WorkspaceRelated,
+  WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
 
 const HUBS = [
@@ -66,52 +65,45 @@ export default function FormsHubPage() {
 
   return (
     <AdminShell title="Forms">
-      <WorkspaceHeader
+      <WorkspaceChrome
         eyebrow="Website"
         title="Forms hub"
-        description="Every intake touchpoint — open the live editor for each form. Submissions land in Inbox and tag Clients."
-      />
-      <WorkspaceAIStrip />
-
-      {loading ? (
-        <WorkspaceLoading rows={3} />
-      ) : (
-        <>
-          <input
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search forms…"
-            className="mb-6 w-full max-w-md border border-stone/40 bg-charcoal px-3 py-2.5 text-sm text-cream"
-            aria-label="Search forms"
-          />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((h) => (
-              <Link
-                key={h.id}
-                href={h.href}
-                className="rounded-xl border border-stone/25 p-5 transition-colors hover:border-accent/40"
-              >
-                <p className="font-display text-lg text-cream">{h.label}</p>
-                <p className="mt-2 text-sm text-fog">{h.desc}</p>
-              </Link>
-            ))}
-          </div>
-          {filtered.length === 0 && (
-            <AdminPanel title="No matches">
-              <p className="text-sm text-fog">Try another search term.</p>
-            </AdminPanel>
-          )}
-        </>
-      )}
-
-      <WorkspaceRelated
-        links={[
+        description="What: every intake touchpoint. Why: control how leads enter. Next: open a live editor. AI can draft form copy and FAQ."
+        related={[
           { label: "Inbox", href: "/admin/submissions", desc: "Responses" },
           { label: "Clients", href: "/admin/crm", desc: "People" },
           { label: "Homepage", href: "/admin/homepage", desc: "Site" },
         ]}
-      />
+      >
+        {loading ? (
+          <WorkspaceLoading rows={3} />
+        ) : (
+          <>
+            <WorkspaceToolbar
+              search={q}
+              onSearch={setQ}
+              searchPlaceholder="Search forms…"
+            />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((h) => (
+                <Link
+                  key={h.id}
+                  href={h.href}
+                  className="rounded-xl border border-stone/25 p-5 transition-colors hover:border-accent/40"
+                >
+                  <p className="font-display text-lg text-cream">{h.label}</p>
+                  <p className="mt-2 text-sm text-fog">{h.desc}</p>
+                </Link>
+              ))}
+            </div>
+            {filtered.length === 0 && (
+              <AdminPanel title="No matches">
+                <p className="text-sm text-fog">Try another search term.</p>
+              </AdminPanel>
+            )}
+          </>
+        )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

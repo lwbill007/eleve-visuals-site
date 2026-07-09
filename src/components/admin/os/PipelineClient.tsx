@@ -6,12 +6,11 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import {
-  WorkspaceAIStrip,
+  WorkspaceChrome,
   WorkspaceEmpty,
   WorkspaceError,
-  WorkspaceHeader,
   WorkspaceLoading,
-  WorkspaceRelated,
+  WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
 import { cn } from "@/lib/utils";
 
@@ -107,24 +106,24 @@ export function PipelineClient() {
   const totalItems = columns.reduce((s, c) => s + c.items.length, 0);
 
   return (
-    <div>
-      <WorkspaceHeader
-        eyebrow="Work"
-        title="Pipeline"
-        description={`Deal board for booking inquiries. Values are estimated from budget ranges — not settled payments. Pipeline: ~$${totalValue.toLocaleString()} est.`}
-        onRefresh={() => void load()}
-        refreshing={loading}
-      />
-      <WorkspaceAIStrip />
-
-      <div className="mb-4 flex flex-wrap gap-3">
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search deals…"
-          className="min-w-[12rem] flex-1 border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
-        />
+    <WorkspaceChrome
+      eyebrow="Work"
+      title="Pipeline"
+      description={`What: deal board for booking inquiries. Why: speed-to-lead. Next: drag stages or mark contacted. AI can prioritize stale deals. Pipeline: ~$${totalValue.toLocaleString()} est.`}
+      onRefresh={() => void load()}
+      refreshing={loading}
+      related={[
+        { label: "Workboard", href: "/admin/workboard", desc: "Stale first" },
+        { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Inbox" },
+        { label: "Clients", href: "/admin/crm", desc: "People" },
+        { label: "Payments", href: "/admin/payments", desc: "Verified $" },
+      ]}
+    >
+      <WorkspaceToolbar
+        search={q}
+        onSearch={setQ}
+        searchPlaceholder="Search deals…"
+      >
         <label className="flex items-center gap-2 text-xs text-fog">
           <input
             type="checkbox"
@@ -133,7 +132,7 @@ export function PipelineClient() {
           />
           Stale 3+ days
         </label>
-      </div>
+      </WorkspaceToolbar>
 
       {loading ? (
         <WorkspaceLoading rows={3} />
@@ -244,15 +243,6 @@ export function PipelineClient() {
           budget ranges until Stripe payments are connected.
         </p>
       </AdminPanel>
-
-      <WorkspaceRelated
-        links={[
-          { label: "Workboard", href: "/admin/workboard", desc: "Stale first" },
-          { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Inbox" },
-          { label: "Clients", href: "/admin/crm", desc: "People" },
-          { label: "Payments", href: "/admin/payments", desc: "Verified $" },
-        ]}
-      />
-    </div>
+    </WorkspaceChrome>
   );
 }

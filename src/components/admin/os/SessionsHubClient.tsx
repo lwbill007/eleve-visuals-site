@@ -6,7 +6,13 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { BusinessActionBar } from "@/components/admin/ai/BusinessActionBar";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
-import { AdminMetricCard, AdminPageHeader, AdminPanel, AdminBarChart } from "@/components/admin/os/AdminOSComponents";
+import { AdminMetricCard, AdminPanel, AdminBarChart } from "@/components/admin/os/AdminOSComponents";
+import {
+  WorkspaceButton,
+  WorkspaceChrome,
+  WorkspaceError,
+  WorkspaceLoading,
+} from "@/components/admin/os/WorkspaceFrame";
 import type { SessionsOperatorIntel } from "@/lib/ai/types";
 
 type AppStats = {
@@ -84,42 +90,34 @@ export function SessionsHubClient() {
     })) ?? [];
 
   if (loading && !appStats && !sessionsIntel) {
-    return <p className="text-fog">Loading sessions hub…</p>;
+    return <WorkspaceLoading />;
   }
 
   if (error && !appStats && !sessionsIntel) {
-    return (
-      <AdminPanel>
-        <p className="text-sm text-red-300">{error}</p>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="mt-3 text-xs text-accent uppercase hover:underline"
-        >
-          Retry
-        </button>
-      </AdminPanel>
-    );
+    return <WorkspaceError message={error} onRetry={() => void load()} />;
   }
 
   return (
-    <div className="relative z-10 space-y-8">
-      <AdminPageHeader
-        eyebrow="ÉLEVÉ Sessions"
-        title="Sessions Hub"
-        description="Applications, volumes, and community growth in one place."
-        action={
-          <Link
-            href="/admin/sessions"
-            className="rounded-lg border border-stone/30 px-4 py-2 text-xs tracking-[0.12em] text-cream uppercase hover:border-accent"
-          >
-            Manage Volumes
-          </Link>
-        }
-      />
-
+    <WorkspaceChrome
+      eyebrow="Make · Sessions"
+      title="Sessions Hub"
+      description="What happened with applications, why volumes need attention, and what to do next — accept, edit, or draft emails."
+      onRefresh={() => void load()}
+      refreshing={loading}
+      extra={
+        <WorkspaceButton href="/admin/sessions" variant="secondary">
+          Manage volumes
+        </WorkspaceButton>
+      }
+      related={[
+        { label: "Applications", href: "/admin/applications", desc: "Decide" },
+        { label: "Volumes", href: "/admin/sessions", desc: "Edit" },
+        { label: "Portfolio", href: "/admin/portfolio", desc: "Publish" },
+        { label: "Business Brain", href: "/admin/memory", desc: "Context" },
+      ]}
+    >
       {error && (
-        <p className="text-xs text-amber-300">
+        <p className="mb-4 text-xs text-amber-300">
           {error}{" "}
           <button type="button" onClick={() => void load()} className="text-accent uppercase hover:underline">
             Retry
@@ -134,7 +132,7 @@ export function SessionsHubClient() {
         <AdminMetricCard label="Acceptance Rate" value={appStats ? `${appStats.acceptanceRate}%` : "—"} />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <Link href="/admin/applications" className="rounded-xl border border-stone/25 p-5 hover:border-accent/30">
           <p className="font-display text-lg text-cream">Application Pipeline</p>
           <p className="mt-1 text-sm text-muted">Review, accept, waitlist, and decline applicants.</p>
@@ -146,11 +144,12 @@ export function SessionsHubClient() {
       </div>
 
       {sessionsIntel && (
-        <AdminPanel title="Sessions AI" subtitle="Themes, sponsors, pairings & marketing strategy">
+        <AdminPanel title="Sessions AI" subtitle="Themes, sponsors, pairings & marketing strategy" className="mt-8">
           {sessionsIntel.openVolume && (
             <p className="mb-4 text-sm text-cream-dim">
               Vol. {sessionsIntel.openVolume.volumeNumber} — {sessionsIntel.openVolume.title} ·{" "}
-              {sessionsIntel.openVolume.applications} applications · Theme: {sessionsIntel.openVolume.theme || "TBD"}
+              {sessionsIntel.openVolume.applications} applications · Theme:{" "}
+              {sessionsIntel.openVolume.theme || "TBD"}
             </p>
           )}
           <p className="mb-3 text-xs text-fog">
@@ -168,7 +167,7 @@ export function SessionsHubClient() {
         </AdminPanel>
       )}
 
-      <AdminPanel title="AI Sessions Assistant" subtitle="Applications, schedules, and participant communications">
+      <AdminPanel title="AI Sessions Assistant" subtitle="Applications, schedules, and participant communications" className="mt-8">
         <AIGeneratePanel
           task="session_email"
           label="Acceptance email"
@@ -190,10 +189,10 @@ export function SessionsHubClient() {
       </AdminPanel>
 
       {trend.length > 0 && (
-        <AdminPanel title="Applications (14 days)">
+        <AdminPanel title="Applications (14 days)" className="mt-8">
           <AdminBarChart data={trend} labelKey="month" valueKey="value" accent />
         </AdminPanel>
       )}
-    </div>
+    </WorkspaceChrome>
   );
 }

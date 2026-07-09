@@ -7,6 +7,13 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { TimeStamp } from "@/components/admin/TimeStamp";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import {
+  WorkspaceChrome,
+  WorkspaceEmpty,
+  WorkspaceError,
+  WorkspaceLoading,
+  WorkspaceToolbar,
+} from "@/components/admin/os/WorkspaceFrame";
+import {
   APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
   APPLICATION_STATUS_COLORS,
@@ -240,22 +247,32 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
   const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const focusHandled = useRef(false);
 
   const load = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (typeFilter) params.set("type", typeFilter);
-    if (statusFilter) params.set("status", statusFilter);
-    if (search.trim()) params.set("q", search.trim());
-    const qs = params.toString();
-    const url = qs ? `/api/admin/submissions?${qs}` : "/api/admin/submissions";
-    const res = await adminFetch(url);
-    if (res.ok) {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      if (typeFilter) params.set("type", typeFilter);
+      if (statusFilter) params.set("status", statusFilter);
+      if (search.trim()) params.set("q", search.trim());
+      const qs = params.toString();
+      const url = qs ? `/api/admin/submissions?${qs}` : "/api/admin/submissions";
+      const res = await adminFetch(url);
+      if (!res.ok) throw new Error("Failed");
       const data = (await res.json()) as Submission[];
       setItems(data);
       setNoteDrafts(
         Object.fromEntries(data.map((item) => [item.id, item.notes || ""]))
       );
+    } catch {
+      setError("Could not load submissions.");
+      setItems([]);
+    } finally {
+      setLoading(false);
     }
   }, [typeFilter, statusFilter, search]);
 
@@ -358,18 +375,43 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
           ? "Contact Messages"
           : "All Submissions";
 
+  const chromeTitle =
+    typeFilter === "booking"
+      ? "Bookings"
+      : typeFilter === "session"
+        ? "Session Applications"
+        : typeFilter === "contact"
+          ? "Contact Messages"
+          : "Inbox";
+
+  const chromeEyebrow =
+    typeFilter === "booking" ? "Work · Bookings" : "Work · Inbox";
+
+  const chromeDescription =
+    typeFilter === "booking"
+      ? "What: booking inquiries and CRM statuses. Why: speed-to-lead converts. Next: open unread, update status, add notes. AI can draft follow-ups from the inquiry."
+      : "What: every form response in one inbox. Why: nothing falls through. Next: triage unread and update status. AI can summarize threads and draft replies.";
+
   return (
     <AdminShell title={pageTitle}>
-      <div className="mb-6">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search name, email, message..."
-          className="mb-4 w-full max-w-md border border-stone/50 bg-charcoal px-4 py-2.5 text-sm text-cream"
-          aria-label="Search submissions"
-        />
-      </div>
+      <WorkspaceChrome
+        eyebrow={chromeEyebrow}
+        title={chromeTitle}
+        description={chromeDescription}
+        onRefresh={() => void load()}
+        refreshing={loading}
+        related={[
+          { label: "Workboard", href: "/admin/workboard", desc: "Stale first" },
+          { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
+          { label: "CRM", href: "/admin/crm", desc: "People" },
+          { label: "Email", href: "/admin/email", desc: "Send" },
+        ]}
+      >
+      <WorkspaceToolbar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search name, email, message..."
+      />
       <div className="mb-6 flex flex-wrap items-center gap-2">
         {!forcedType &&
           ["all", "booking", "session", "contact"].map((t) => (
@@ -453,6 +495,18 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
         )}
       </div>
 
+      {loading && items.length === 0 ? (
+        <WorkspaceLoading rows={4} />
+      ) : error && items.length === 0 ? (
+        <WorkspaceError message={error} onRetry={() => void load()} />
+      ) : items.length === 0 ? (
+        <WorkspaceEmpty
+          title="No submissions yet"
+          detail="Form responses appear here as they arrive. Check Forms hub if intake looks empty."
+          actionHref="/admin/forms"
+          actionLabel="Open forms hub"
+        />
+      ) : (
       <div className="space-y-3">
         {items.map((item) => (
           <div
@@ -602,10 +656,9 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
             )}
           </div>
         ))}
-        {items.length === 0 && (
-          <p className="py-12 text-center text-fog">No submissions yet.</p>
-        )}
       </div>
+      )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

@@ -6,7 +6,14 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
-import { AdminPageHeader, AdminPanel, AdminStatusBadge } from "@/components/admin/os/AdminOSComponents";
+import { AdminPanel, AdminStatusBadge } from "@/components/admin/os/AdminOSComponents";
+import {
+  WorkspaceChrome,
+  WorkspaceEmpty,
+  WorkspaceError,
+  WorkspaceLoading,
+  WorkspaceToolbar,
+} from "@/components/admin/os/WorkspaceFrame";
 
 interface Contact {
   id: string;
@@ -69,65 +76,52 @@ export function CRMClient() {
     });
 
   return (
-    <div>
-      <AdminPageHeader
-        eyebrow="Work"
-        title="Clients"
-        description="Every person who has interacted with ÉLEVÉ — unified from bookings, applications, and contact forms."
-        action={
-          <div className="flex gap-2">
-            <AskAIButton />
-            <button
-              type="button"
-              onClick={load}
-              className="rounded-lg border border-stone/30 px-3 py-2 text-[0.65rem] text-fog uppercase"
-            >
-              Refresh
-            </button>
-          </div>
-        }
-      />
-
-      <div className="mb-6 flex flex-wrap gap-3">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name, email, phone…"
-          className="w-full max-w-md rounded-lg border border-stone/30 bg-charcoal/30 px-4 py-3 text-sm text-cream outline-none focus:border-accent/50"
-        />
+    <WorkspaceChrome
+      eyebrow="Work · Clients"
+      title="Clients"
+      description="What happened with every person who touched ÉLEVÉ, why they matter (LTV & activity), and what to do next — follow up or re-engage."
+      onRefresh={load}
+      refreshing={loading}
+      extra={<AskAIButton />}
+      related={[
+        { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
+        { label: "Workboard", href: "/admin/workboard", desc: "Inbox" },
+        { label: "Email", href: "/admin/email", desc: "Send" },
+        { label: "Business Brain", href: "/admin/memory", desc: "Context" },
+      ]}
+    >
+      <WorkspaceToolbar
+        search={query}
+        onSearch={setQuery}
+        searchPlaceholder="Search by name, email, phone…"
+      >
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as "activity" | "revenue" | "name")}
-          className="rounded-lg border border-stone/30 bg-charcoal/30 px-3 py-2 text-sm text-cream"
+          className="rounded-lg border border-stone/30 bg-charcoal/30 px-3 py-2.5 text-sm text-cream"
           aria-label="Sort clients"
         >
           <option value="activity">Sort by activity</option>
           <option value="revenue">Sort by revenue</option>
           <option value="name">Sort by name</option>
         </select>
-      </div>
+      </WorkspaceToolbar>
 
-      {loading ? (
-        <p className="text-fog">Loading clients…</p>
-      ) : error ? (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-6 text-center">
-          <p className="text-sm text-red-300">{error}</p>
-          <button
-            type="button"
-            onClick={load}
-            className="mt-4 rounded-lg border border-stone/30 px-4 py-2 text-xs text-fog uppercase"
-          >
-            Retry
-          </button>
-        </div>
+      {loading && contacts.length === 0 ? (
+        <WorkspaceLoading />
+      ) : error && contacts.length === 0 ? (
+        <WorkspaceError message={error} onRetry={load} />
       ) : filtered.length === 0 ? (
-        <AdminPanel title="No clients match">
-          <p className="text-sm text-fog">
-            {contacts.length === 0
-              ? "No contacts yet — bookings and applications create people automatically."
-              : "Try a different search."}
-          </p>
-        </AdminPanel>
+        <WorkspaceEmpty
+          title={contacts.length === 0 ? "No clients yet" : "No clients match"}
+          detail={
+            contacts.length === 0
+              ? "Bookings and applications create people automatically. Once leads arrive, they appear here with LTV and activity."
+              : "Try a different search or sort."
+          }
+          actionHref={contacts.length === 0 ? "/admin/pipeline" : undefined}
+          actionLabel={contacts.length === 0 ? "Open pipeline" : undefined}
+        />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-stone/25">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -145,10 +139,12 @@ export function CRMClient() {
               {filtered.map((c) => (
                 <tr key={c.id} className="border-b border-stone/10 transition-colors hover:bg-charcoal/20">
                   <td className="px-4 py-4">
-                    <Link href={`/admin/crm/${encodeURIComponent(c.email)}`} className="block group">
+                    <Link href={`/admin/crm/${encodeURIComponent(c.email)}`} className="group block">
                       <p className="font-medium text-cream group-hover:text-accent">{c.name || "—"}</p>
                       <p className="text-xs text-muted">{c.email}</p>
-                      {c.instagram && <p className="text-xs text-fog">@{c.instagram.replace(/^@/, "")}</p>}
+                      {c.instagram && (
+                        <p className="text-xs text-fog">@{c.instagram.replace(/^@/, "")}</p>
+                      )}
                     </Link>
                   </td>
                   <td className="px-4 py-4">
@@ -156,8 +152,12 @@ export function CRMClient() {
                   </td>
                   <td className="px-4 py-4 text-fog">{c.source}</td>
                   <td className="px-4 py-4 text-cream">{c.bookings}</td>
-                  <td className="px-4 py-4 text-cream">{c.revenue > 0 ? `$${c.revenue.toLocaleString()}` : "—"}</td>
-                  <td className="px-4 py-4 text-muted">{new Date(c.lastActivity).toLocaleDateString()}</td>
+                  <td className="px-4 py-4 text-cream">
+                    {c.revenue > 0 ? `$${c.revenue.toLocaleString()}` : "—"}
+                  </td>
+                  <td className="px-4 py-4 text-muted">
+                    {new Date(c.lastActivity).toLocaleDateString()}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -165,7 +165,7 @@ export function CRMClient() {
         </div>
       )}
 
-      <AdminPanel title="AI CRM" subtitle="Generate follow-ups and offers — always review before sending">
+      <AdminPanel title="AI CRM" subtitle="Generate follow-ups and offers — always review before sending" className="mt-8">
         <AIGeneratePanel
           task="follow_up"
           label="Follow-up email"
@@ -179,13 +179,6 @@ export function CRMClient() {
           buttonLabel="Generate upsell campaign"
         />
       </AdminPanel>
-
-      <p className="mt-6 text-xs text-muted">
-        Need full inquiry detail?{" "}
-        <Link href="/admin/submissions" className="text-accent hover:underline">
-          Open submissions →
-        </Link>
-      </p>
-    </div>
+    </WorkspaceChrome>
   );
 }

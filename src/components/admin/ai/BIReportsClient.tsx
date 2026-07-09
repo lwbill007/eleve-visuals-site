@@ -6,7 +6,8 @@ import { adminFetch } from "@/lib/admin-fetch";
 import type { AIReportType } from "@/lib/ai/types";
 import { AskAIButton } from "./AskAIPanel";
 import { useSetAIPage } from "./AIContextProvider";
-import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
 
 const REPORT_TYPES: { type: AIReportType; label: string }[] = [
   { type: "monthly", label: "Monthly Business Report" },
@@ -37,13 +38,21 @@ export function BIReportsClient() {
   }
 
   return (
-    <div className="space-y-8">
-      <AdminPageHeader
-        eyebrow="Command Center"
-        title="AI Business Intelligence"
-        description="Automated reports from live studio data."
-        action={<AskAIButton />}
-      />
+    <WorkspaceChrome
+      eyebrow="Command Center"
+      title="AI Business Intelligence"
+      description="What: AI narrative reports from live studio data. Why: executive storytelling, not a BI warehouse. Next: generate a draft and review before sharing. AI writes the narrative — you verify numbers."
+      extra={<AskAIButton />}
+      related={[
+        { label: "Analytics", href: "/admin/analytics", desc: "Live metrics" },
+        { label: "Payments", href: "/admin/payments", desc: "Verified $" },
+        { label: "Briefing", href: "/admin/briefing", desc: "Daily brief" },
+      ]}
+    >
+      <div className="mb-6 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-fog">
+        These reports are <span className="text-cream">AI narrative drafts</span> — not a BI warehouse or
+        audited financials. Cross-check figures in Analytics and Payments before sharing externally.
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {REPORT_TYPES.map((r) => (
@@ -63,15 +72,19 @@ export function BIReportsClient() {
       </div>
 
       {report && (
-        <AdminPanel title={REPORT_TYPES.find((r) => r.type === report.type)?.label ?? "Report"} subtitle={`Provider: ${report.provider} · DRAFT`}>
+        <AdminPanel
+          title={REPORT_TYPES.find((r) => r.type === report.type)?.label ?? "Report"}
+          subtitle={`Provider: ${report.provider} · DRAFT`}
+          className="mt-8"
+        >
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-cream-dim">{report.content}</p>
         </AdminPanel>
       )}
 
-      <AdminPanel title="Website Optimization" subtitle="AI review of conversion, SEO, and UX">
+      <AdminPanel title="Website Optimization" subtitle="AI review of conversion, SEO, and UX" className="mt-8">
         <WebsiteOptimizationSection />
       </AdminPanel>
-    </div>
+    </WorkspaceChrome>
   );
 }
 

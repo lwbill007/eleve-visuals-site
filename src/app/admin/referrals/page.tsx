@@ -6,12 +6,12 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import {
-  WorkspaceAIStrip,
+  WorkspaceChrome,
   WorkspaceEmpty,
   WorkspaceError,
-  WorkspaceHeader,
   WorkspaceLoading,
-  WorkspaceRelated,
+  WorkspaceToolbar,
+  WorkspaceButton,
 } from "@/components/admin/os/WorkspaceFrame";
 
 interface ContactRow {
@@ -81,103 +81,93 @@ export default function ReferralsHubPage() {
 
   return (
     <AdminShell title="Referrals">
-      <WorkspaceHeader
+      <WorkspaceChrome
         eyebrow="Grow"
         title="Referrals hub"
-        description="Live referral / source attribution from CRM contacts and booking inquiries — not a separate rewards program yet."
+        description="What: live referral/source attribution from CRM. Why: know what channels convert. Next: draft a referral campaign or fix source capture on booking. AI can draft the campaign."
         onRefresh={() => void load()}
         refreshing={loading}
         extra={
-          <Link
-            href="/admin/marketing?task=campaign&focus=referral"
-            className="rounded-lg border border-accent/40 px-3 py-2 text-[0.65rem] text-accent uppercase"
-          >
+          <WorkspaceButton href="/admin/marketing?task=campaign&focus=referral" variant="primary">
             Draft campaign
-          </Link>
+          </WorkspaceButton>
         }
-      />
-      <WorkspaceAIStrip />
-
-      {loading ? (
-        <WorkspaceLoading />
-      ) : error ? (
-        <WorkspaceError message={error} onRetry={() => void load()} />
-      ) : (
-        <div className="space-y-8">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {bySource.slice(0, 6).map(([source, count]) => (
-              <AdminPanel key={source} title={source}>
-                <p className="font-display text-3xl text-cream">{count}</p>
-                <p className="text-xs text-muted">contacts with this source</p>
-              </AdminPanel>
-            ))}
-            {bySource.length === 0 && (
-              <WorkspaceEmpty
-                title="No referral sources yet"
-                detail="When bookings include a referral/source field, they appear here. Capture source on the booking form."
-                actionHref="/admin/booking"
-                actionLabel="Edit booking form"
-              />
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <input
-              type="search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search name, email, source…"
-              className="min-w-[12rem] flex-1 border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
-            />
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as "source" | "name")}
-              className="border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
-              aria-label="Sort"
-            >
-              <option value="source">Sort by source</option>
-              <option value="name">Sort by name</option>
-            </select>
-          </div>
-
-          {withSource.length === 0 ? (
-            <WorkspaceEmpty
-              title="No matching contacts"
-              detail="Try clearing search, or open Clients to review all people."
-              actionHref="/admin/crm"
-              actionLabel="Open Clients"
-            />
-          ) : (
-            <ul className="divide-y divide-stone/15 rounded-xl border border-stone/20">
-              {withSource.slice(0, 40).map((c) => (
-                <li key={c.id || c.email} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-                  <div>
-                    <p className="text-sm text-cream">{c.name}</p>
-                    <p className="text-xs text-muted">
-                      {c.email} · {c.source}
-                    </p>
-                  </div>
-                  <Link
-                    href={`/admin/crm/${encodeURIComponent(c.email)}`}
-                    className="text-xs text-accent hover:underline"
-                  >
-                    Profile →
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      <WorkspaceRelated
-        links={[
+        related={[
           { label: "Clients", href: "/admin/crm", desc: "Full CRM" },
           { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Inquiries" },
           { label: "Marketing", href: "/admin/marketing", desc: "Campaigns" },
           { label: "Analytics", href: "/admin/analytics", desc: "Sources" },
         ]}
-      />
+      >
+        {loading ? (
+          <WorkspaceLoading />
+        ) : error ? (
+          <WorkspaceError message={error} onRetry={() => void load()} />
+        ) : (
+          <div className="space-y-8">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {bySource.slice(0, 6).map(([source, count]) => (
+                <AdminPanel key={source} title={source}>
+                  <p className="font-display text-3xl text-cream">{count}</p>
+                  <p className="text-xs text-muted">contacts with this source</p>
+                </AdminPanel>
+              ))}
+              {bySource.length === 0 && (
+                <WorkspaceEmpty
+                  title="No referral sources yet"
+                  detail="When bookings include a referral/source field, they appear here. Capture source on the booking form."
+                  actionHref="/admin/booking"
+                  actionLabel="Edit booking form"
+                />
+              )}
+            </div>
+
+            <WorkspaceToolbar
+              search={q}
+              onSearch={setQ}
+              searchPlaceholder="Search name, email, source…"
+            >
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as "source" | "name")}
+                className="rounded-lg border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
+                aria-label="Sort"
+              >
+                <option value="source">Sort by source</option>
+                <option value="name">Sort by name</option>
+              </select>
+            </WorkspaceToolbar>
+
+            {withSource.length === 0 ? (
+              <WorkspaceEmpty
+                title="No matching contacts"
+                detail="Try clearing search, or open Clients to review all people."
+                actionHref="/admin/crm"
+                actionLabel="Open Clients"
+              />
+            ) : (
+              <ul className="divide-y divide-stone/15 rounded-xl border border-stone/20">
+                {withSource.slice(0, 40).map((c) => (
+                  <li key={c.id || c.email} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                    <div>
+                      <p className="text-sm text-cream">{c.name}</p>
+                      <p className="text-xs text-muted">
+                        {c.email} · {c.source}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/admin/crm/${encodeURIComponent(c.email)}`}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      Profile →
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

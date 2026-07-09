@@ -11,6 +11,7 @@ import {
   SaveBar,
   StringListEditor,
 } from "@/components/admin/AdminForm";
+import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
 import { saveAdminContent } from "@/lib/admin-save";
@@ -82,11 +83,17 @@ export default function AdminHomepagePage() {
 
   return (
     <AdminShell title="Homepage">
-      <p className="mb-8 text-sm text-fog">
-        Cinematic homepage control center. Portfolio, services, sessions, and testimonials are
-        managed in their respective admin sections — use Featured toggles and ordering there.
-      </p>
-
+      <WorkspaceChrome
+        eyebrow="Grow · Website"
+        title="Homepage"
+        description="What: hero, sections, and CTA copy for the public site. Why: control first impression without code. Next: save, then verify Featured work in Portfolio and Media. AI can draft section copy — you approve before publish."
+        related={[
+          { label: "Media", href: "/admin/media", desc: "Assets" },
+          { label: "Portfolio", href: "/admin/portfolio", desc: "Featured work" },
+          { label: "Analytics", href: "/admin/analytics", desc: "What converts" },
+          { label: "Forms", href: "/admin/forms", desc: "Lead capture" },
+        ]}
+      >
       <div className="space-y-10">
         <section className="border border-stone/30 p-6">
           <h2 className="mb-6 font-display text-xl">Hero</h2>
@@ -482,6 +489,7 @@ export default function AdminHomepagePage() {
       </div>
 
       <SaveBar onSave={handleSave} saving={saving} message={message} />
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

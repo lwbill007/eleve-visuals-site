@@ -7,7 +7,12 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { TimeStamp } from "@/components/admin/TimeStamp";
 import { useAdminToast } from "@/components/admin/AdminToast";
-import { AdminListSkeleton } from "@/components/admin/AdminPageSkeleton";
+import {
+  WorkspaceChrome,
+  WorkspaceEmpty,
+  WorkspaceLoading,
+  WorkspaceToolbar,
+} from "@/components/admin/os/WorkspaceFrame";
 import {
   APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
@@ -211,6 +216,19 @@ export default function ApplicationsClient() {
 
   return (
     <AdminShell title="Session Applications">
+      <WorkspaceChrome
+        eyebrow="Sessions"
+        title="Session Applications"
+        description="What: applicants for ÉLEVÉ Sessions volumes. Why: fill roles with the right talent. Next: review pending, accept/waitlist, export. AI can rank applicants by fit."
+        onRefresh={() => void load()}
+        refreshing={loading}
+        related={[
+          { label: "Sessions hub", href: "/admin/sessions-hub", desc: "Overview" },
+          { label: "Volumes", href: "/admin/sessions", desc: "Manage volumes" },
+          { label: "Email", href: "/admin/email", desc: "Status emails" },
+          { label: "Portfolio", href: "/admin/portfolio", desc: "Publish" },
+        ]}
+      >
       {needsDecision > 0 && !statusFilter && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-accent/40 bg-charcoal/40 px-4 py-3">
           <p className="text-sm text-cream">
@@ -272,18 +290,15 @@ export default function ApplicationsClient() {
 
       <ApplicationRankingPanel volumeId={volumeFilter || undefined} />
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] xl:items-center">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search applicants..."
-          className="w-full border border-stone/50 bg-charcoal px-4 py-2.5 text-sm text-cream sm:col-span-2 xl:col-span-1"
-        />
+      <WorkspaceToolbar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search applicants..."
+      >
         <select
           value={volumeFilter}
           onChange={(e) => setVolumeFilter(e.target.value)}
-          className="w-full border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream"
+          className="w-full rounded-lg border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream sm:w-auto"
         >
           <option value="">All sessions</option>
           {volumes.map((v) => (
@@ -295,7 +310,7 @@ export default function ApplicationsClient() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="w-full border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream"
+          className="w-full rounded-lg border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream sm:w-auto"
         >
           <option value="">All roles</option>
           {SESSION_APPLICATION_ROLES.map((r) => (
@@ -307,7 +322,7 @@ export default function ApplicationsClient() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-full border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream"
+          className="w-full rounded-lg border border-stone/50 bg-charcoal px-3 py-2.5 text-sm text-cream sm:w-auto"
         >
           <option value="">All statuses</option>
           {APPLICATION_STATUSES.map((s) => (
@@ -319,11 +334,11 @@ export default function ApplicationsClient() {
         <button
           type="button"
           onClick={exportCsv}
-          className="w-full border border-stone/50 px-3 py-2.5 text-xs text-fog uppercase sm:col-span-2 xl:col-span-1"
+          className="w-full rounded-lg border border-stone/50 px-3 py-2.5 text-xs text-fog uppercase sm:w-auto"
         >
           Export CSV
         </button>
-      </div>
+      </WorkspaceToolbar>
 
       {selected.size > 0 && (
         <div className="mb-4 flex flex-wrap gap-2 border border-accent/30 bg-charcoal/30 p-3">
@@ -342,7 +357,14 @@ export default function ApplicationsClient() {
       )}
 
       {loading ? (
-        <AdminListSkeleton count={6} />
+        <WorkspaceLoading rows={6} />
+      ) : items.length === 0 ? (
+        <WorkspaceEmpty
+          title="No applications yet"
+          detail="Session applications appear here when applicants submit. Check volumes if intake should be open."
+          actionHref="/admin/sessions"
+          actionLabel="Open volumes"
+        />
       ) : (
         <div className="space-y-3">
           {items.map((item) => {
@@ -564,11 +586,9 @@ export default function ApplicationsClient() {
               </div>
             );
           })}
-          {items.length === 0 && (
-            <p className="py-16 text-center text-fog">No applications yet.</p>
-          )}
         </div>
       )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

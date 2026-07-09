@@ -6,7 +6,14 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
-import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import {
+  WorkspaceButton,
+  WorkspaceChrome,
+  WorkspaceEmpty,
+  WorkspaceError,
+  WorkspaceLoading,
+} from "@/components/admin/os/WorkspaceFrame";
 
 interface Template {
   id: string;
@@ -68,100 +75,114 @@ export default function EmailPage() {
 
   return (
     <AdminShell title="Email">
-      <AdminPageHeader
-        eyebrow="Grow"
+      <WorkspaceChrome
+        eyebrow="Grow · Email"
         title="Email"
-        description="Send real follow-ups via Resend. Campaign builder and analytics come later — this is execute-first Email v1."
-      />
-
-      {loading ? (
-        <p className="mb-6 text-fog">Loading email…</p>
-      ) : error ? (
-        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-6 text-center">
-          <p className="text-sm text-red-300">{error}</p>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="mt-4 rounded-lg border border-stone/30 px-4 py-2 text-xs text-fog uppercase"
-          >
-            Retry
-          </button>
-        </div>
-      ) : null}
-
-      {!loading && !error && !ready && (
-        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-fog">
-          Resend not ready — set <code className="text-cream">RESEND_API_KEY</code> and{" "}
-          <code className="text-cream">EMAIL_FROM</code>. See{" "}
-          <Link href="/admin/qa" className="text-accent hover:underline">
-            Missing Intel
-          </Link>
-          .
-        </div>
-      )}
-
-      <AdminPanel title="Send template" className="mb-8">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <input
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            placeholder="Recipient email"
-            className="border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
-          />
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name (optional)"
-            className="border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
-          />
-          <select
-            value={templateId}
-            onChange={(e) => setTemplateId(e.target.value)}
-            className="border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream sm:col-span-2"
-          >
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} — {t.subject}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="button"
-          disabled={sending || !to || !ready}
-          onClick={() => void send()}
-          className="mt-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-2 text-xs text-accent uppercase disabled:opacity-40"
-        >
-          {sending ? "Sending…" : "Send email"}
-        </button>
-      </AdminPanel>
-
-      <AdminPanel title="Recent sends" className="mb-8">
-        {recent.length === 0 ? (
-          <p className="text-sm text-muted">No email sends logged yet.</p>
+        description="What was sent, why a follow-up is due, and what to do next — send a template or draft with AI. Execute-first Email v1."
+        onRefresh={() => void load()}
+        refreshing={loading}
+        related={[
+          { label: "Workboard", href: "/admin/workboard", desc: "Inbox" },
+          { label: "Clients", href: "/admin/crm", desc: "People" },
+          { label: "Marketing", href: "/admin/marketing", desc: "Campaigns" },
+          { label: "Missing Intel", href: "/admin/qa", desc: "Setup" },
+        ]}
+      >
+        {loading && templates.length === 0 ? (
+          <WorkspaceLoading />
+        ) : error ? (
+          <WorkspaceError message={error} onRetry={() => void load()} />
         ) : (
-          <ul className="space-y-2 text-sm">
-            {recent.map((r) => (
-              <li key={r.id} className="flex flex-wrap justify-between gap-2 border-b border-stone/15 py-2">
-                <span className="text-cream">
-                  {r.recipient || "—"} · {r.subject || r.status}
-                </span>
-                <span className="text-xs text-muted">
-                  {r.status} · {new Date(r.createdAt).toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </AdminPanel>
+          <>
+            {!ready && (
+              <div
+                className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-fog"
+                role="status"
+              >
+                Resend not ready — set <code className="text-cream">RESEND_API_KEY</code> and{" "}
+                <code className="text-cream">EMAIL_FROM</code>. See{" "}
+                <Link href="/admin/qa" className="text-accent hover:underline">
+                  Missing Intel
+                </Link>
+                .
+              </div>
+            )}
 
-      <AdminPanel title="AI draft (review before send)">
-        <AIGeneratePanel
-          task="email_body"
-          label="Draft body"
-          prompt="Write a short luxury follow-up email for a booking inquiry that has been waiting 3 days."
-        />
-      </AdminPanel>
+            <AdminPanel title="Send template" className="mb-8">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  placeholder="Recipient email"
+                  aria-label="Recipient email"
+                  className="rounded-lg border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
+                />
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Name (optional)"
+                  aria-label="Recipient name"
+                  className="rounded-lg border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
+                />
+                <select
+                  value={templateId}
+                  onChange={(e) => setTemplateId(e.target.value)}
+                  aria-label="Email template"
+                  className="rounded-lg border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream sm:col-span-2"
+                >
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} — {t.subject}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-3">
+                <WorkspaceButton
+                  variant="primary"
+                  disabled={sending || !to || !ready}
+                  onClick={() => void send()}
+                >
+                  {sending ? "Sending…" : "Send email"}
+                </WorkspaceButton>
+              </div>
+            </AdminPanel>
+
+            <AdminPanel title="Recent sends" className="mb-8">
+              {recent.length === 0 ? (
+                <WorkspaceEmpty
+                  title="No sends yet"
+                  detail="Send a template above. Successful sends appear here with status and timestamp."
+                />
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {recent.map((r) => (
+                    <li
+                      key={r.id}
+                      className="flex flex-wrap justify-between gap-2 border-b border-stone/15 py-2"
+                    >
+                      <span className="text-cream">
+                        {r.recipient || "—"} · {r.subject || r.status}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {r.status} · {new Date(r.createdAt).toLocaleString()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </AdminPanel>
+
+            <AdminPanel title="AI draft (review before send)">
+              <AIGeneratePanel
+                task="email_body"
+                label="Draft body"
+                prompt="Write a short luxury follow-up email for a booking inquiry that has been waiting 3 days."
+              />
+            </AdminPanel>
+          </>
+        )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

@@ -6,7 +6,12 @@ import { AIGeneratePanel } from "./AIGeneratePanel";
 import { AskAIButton } from "./AskAIPanel";
 import { BusinessActionBar } from "./BusinessActionBar";
 import { useSetAIPage } from "./AIContextProvider";
-import { AdminPageHeader, AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import {
+  WorkspaceButton,
+  WorkspaceChrome,
+  WorkspaceLoading,
+} from "@/components/admin/os/WorkspaceFrame";
 import { adminFetch } from "@/lib/admin-fetch";
 import type { MarketingRecommendation } from "@/lib/ai/types";
 import type { CMOIntelligence } from "@/lib/ai/marketing/types";
@@ -74,27 +79,21 @@ export function MarketingStudioClient() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <AdminPageHeader
-          eyebrow="Chief Marketing Officer"
-          title="Marketing Intelligence"
-          description="ÉLEVÉ AI thinks, plans, tests, learns, and remembers — every campaign becomes institutional knowledge. Not a content bot. A CMO with perfect memory."
-        />
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={loadingCmo}
-            onClick={() => void refreshCMO()}
-            className="rounded-xl bg-cream px-5 py-3 text-xs tracking-[0.12em] text-ink uppercase hover:bg-accent disabled:opacity-50"
-          >
-            {loadingCmo ? "Analyzing…" : "Refresh CMO Intel"}
-          </button>
-          <AskAIButton />
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 border-b border-stone/20 pb-4">
+    <WorkspaceChrome
+      eyebrow="Grow · Marketing"
+      title="Marketing Intelligence"
+      description="What performed, why it worked, what to publish next — and whether ÉLEVÉ can draft it for you. Every campaign becomes institutional memory."
+      onRefresh={() => void refreshCMO()}
+      refreshing={loadingCmo}
+      extra={<AskAIButton />}
+      related={[
+        { label: "Content studio", href: "/admin/content", desc: "Assets" },
+        { label: "Email", href: "/admin/email", desc: "Send" },
+        { label: "Analytics", href: "/admin/analytics", desc: "Funnel" },
+        { label: "Business Brain", href: "/admin/memory", desc: "Context" },
+      ]}
+    >
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-stone/20 pb-4" role="tablist" aria-label="Marketing views">
         {(
           [
             ["command", "Command Center"],
@@ -107,10 +106,14 @@ export function MarketingStudioClient() {
           <button
             key={id}
             type="button"
+            role="tab"
+            aria-selected={activeTab === id}
             onClick={() => setActiveTab(id)}
             className={cn(
-              "rounded-full border px-4 py-2 text-xs tracking-[0.1em] uppercase transition-colors",
-              activeTab === id ? "border-accent bg-accent/10 text-accent" : "border-stone/25 text-muted hover:text-cream"
+              "rounded-lg border px-4 py-2 text-xs tracking-[0.1em] uppercase transition-colors",
+              activeTab === id
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-stone/25 text-muted hover:text-cream"
             )}
           >
             {label}
@@ -124,19 +127,15 @@ export function MarketingStudioClient() {
 
       {activeTab === "create" && (
         <>
-          <div className="flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             {CHANNELS.map((c, i) => (
-              <button
+              <WorkspaceButton
                 key={c.label}
-                type="button"
+                variant={i === active ? "primary" : "secondary"}
                 onClick={() => setActive(i)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs transition-colors",
-                  i === active ? "border-accent bg-accent/10 text-cream" : "border-stone/30 text-fog hover:border-accent/40"
-                )}
               >
                 {c.label}
-              </button>
+              </WorkspaceButton>
             ))}
           </div>
           <AdminPanel title={channel.label} subtitle="Generate draft — auto-saved as campaign case study">
@@ -152,10 +151,9 @@ export function MarketingStudioClient() {
       )}
 
       {activeTab === "calendar" && <ContentCalendarPanel />}
-
       {activeTab === "campaigns" && <CampaignMemoryPanel cmo={cmo} />}
       {activeTab === "learn" && <LearningPanel cmo={cmo} />}
-    </div>
+    </WorkspaceChrome>
   );
 }
 
@@ -175,8 +173,14 @@ function ContentCalendarPanel() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p className="text-fog">Building content calendar from live analytics…</p>;
-  if (!calendar) return <p className="text-fog">Could not load calendar.</p>;
+  if (loading) return <WorkspaceLoading rows={3} />;
+  if (!calendar) {
+    return (
+      <p className="text-sm text-fog" role="status">
+        Could not load calendar — refresh CMO intel or check analytics data.
+      </p>
+    );
+  }
 
   return (
     <AdminPanel title={`Content calendar · ${calendar.month}`} subtitle={calendar.theme}>
@@ -208,9 +212,15 @@ function CMOCommandCenter({
   recommendations: MarketingRecommendation[];
 }) {
   if (loading && !cmo) {
-    return <div className="h-48 animate-pulse rounded-2xl bg-stone/10" />;
+    return <WorkspaceLoading rows={5} />;
   }
-  if (!cmo) return <p className="text-sm text-muted">CMO intelligence unavailable.</p>;
+  if (!cmo) {
+    return (
+      <p className="text-sm text-muted" role="status">
+        CMO intelligence unavailable — refresh or check Business Brain connectivity.
+      </p>
+    );
+  }
 
   const { briefing, brand, revenueAttribution, predictions, transparency } = cmo;
 
