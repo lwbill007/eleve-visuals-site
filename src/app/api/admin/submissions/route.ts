@@ -192,8 +192,9 @@ export async function PATCH(request: Request) {
 
     await prisma.submission.update({ where: { id }, data });
 
+    let emailSent: boolean | null = null;
     if (typeof data.status === "string" && existing.type === "session" && isApplicationStatus(data.status)) {
-      void notifyApplicationStatusChange(id, data.status, existing.status);
+      emailSent = await notifyApplicationStatusChange(id, data.status, existing.status);
       if (data.status === "accepted" && existing.sessionVolumeId) {
         const volume = await prisma.sessionVolume.findUnique({
           where: { id: existing.sessionVolumeId },
@@ -205,7 +206,7 @@ export async function PATCH(request: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, emailSent });
   } catch (error) {
     console.error("Submission PATCH failed:", error);
     return NextResponse.json({ error: "Update failed" }, { status: 400 });

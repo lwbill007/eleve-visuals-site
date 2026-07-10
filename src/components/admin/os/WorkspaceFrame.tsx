@@ -74,7 +74,7 @@ export function WorkspaceRelated({
 
 /** Compact AI posture strip from shared Executive Context. */
 export function WorkspaceAIStrip({ className }: { className?: string }) {
-  const { context, loading, refresh } = useExecutiveContext();
+  const { context, loading, error, refresh } = useExecutiveContext();
   if (loading && !context) {
     return (
       <div
@@ -83,7 +83,23 @@ export function WorkspaceAIStrip({ className }: { className?: string }) {
       />
     );
   }
-  if (!context) return null;
+  if (!context) {
+    if (!error) return null;
+    return (
+      <div
+        role="alert"
+        className={cn(
+          "mb-6 flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between",
+          className
+        )}
+      >
+        <p className="text-sm text-amber-200">Business Brain unavailable — {error}</p>
+        <WorkspaceButton variant="secondary" onClick={() => refresh()}>
+          Retry
+        </WorkspaceButton>
+      </div>
+    );
+  }
   const action = context.nextAction;
   const health = context.health?.overall;
   return (

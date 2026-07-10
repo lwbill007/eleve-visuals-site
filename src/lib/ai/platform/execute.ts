@@ -37,7 +37,7 @@ function inferKind(input: ExecuteRequest): ExecuteKind {
   if (input.kind) return input.kind;
   const id = input.recommendationId.toLowerCase();
   const href = (input.href ?? "").toLowerCase();
-  if (id.includes("stale") || href.includes("type=booking")) return "mark_stale_bookings_contacted";
+  if (id.includes("stale")) return "mark_stale_bookings_contacted";
   if (href.includes("/admin/pipeline")) return "open_pipeline";
   if (href.includes("/admin/applications")) return "open_applications";
   if (href.includes("/admin/memory")) return "open_memory_verify";

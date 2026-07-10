@@ -57,6 +57,8 @@ export function CRMClient() {
 
   useEffect(() => {
     load();
+    // Mount-only load; refresh is explicit via WorkspaceChrome onRefresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = contacts

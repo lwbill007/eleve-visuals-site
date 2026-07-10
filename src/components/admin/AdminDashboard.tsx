@@ -98,8 +98,8 @@ export function AdminDashboard() {
   }, [load]);
 
   const briefing = briefingCtx?.briefing;
-  const waitingBriefing = Boolean(briefingCtx?.loading && !briefing);
-  const loading = loadingDash || waitingBriefing;
+  // Don't block Command Center on briefing — dashboard metrics are the primary payload.
+  const loading = loadingDash;
 
   const description =
     execContext?.headline ??

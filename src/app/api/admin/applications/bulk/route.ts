@@ -24,12 +24,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
+  const existing = await prisma.submission.findMany({
+    where: { id: { in: ids }, type: "session" },
+    select: { id: true, status: true },
+  });
+  const previousById = Object.fromEntries(existing.map((s) => [s.id, s.status]));
+
   await prisma.submission.updateMany({
     where: { id: { in: ids }, type: "session" },
     data: { status },
   });
 
-  void notifyBulkApplicationStatusChanges(ids, status);
+  const emailResult = await notifyBulkApplicationStatusChanges(ids, status, previousById);
 
   if (status === "accepted") {
     const submissions = await prisma.submission.findMany({
@@ -45,5 +51,11 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, updated: ids.length });
+  return NextResponse.json({
+    ok: true,
+    updated: ids.length,
+    emailSent: emailResult.sent,
+    emailFailed: emailResult.failed,
+    emailSkipped: emailResult.skipped,
+  });
 }

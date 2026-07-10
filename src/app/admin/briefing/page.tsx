@@ -18,6 +18,7 @@ export default function BriefingPage() {
   const loading = ctx?.loading ?? true;
   const briefing = ctx?.briefing;
   const refresh = ctx?.refresh;
+  const error = ctx?.error;
 
   return (
     <AdminShell title="AI Briefing">
@@ -38,7 +39,7 @@ export default function BriefingPage() {
           <WorkspaceLoading rows={5} />
         ) : !briefing ? (
           <WorkspaceError
-            message="Briefing unavailable — check AI provider / database connectivity."
+            message={error || "Briefing unavailable — check AI provider / database connectivity."}
             onRetry={refresh ? () => void refresh() : undefined}
           />
         ) : (

@@ -23,38 +23,39 @@ function statusMessage(
   }
 }
 
+/** Returns true if email sent, false if send failed/skipped, null if no email was attempted. */
 export async function notifyApplicationStatusChange(
   submissionId: string,
   status: ApplicationStatus,
   previousStatus?: string
-) {
-  if (previousStatus === status) return;
+): Promise<boolean | null> {
+  if (previousStatus === status) return null;
 
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
   });
 
-  if (!submission || submission.type !== "session") return;
+  if (!submission || submission.type !== "session") return null;
 
   const volume = submission.sessionVolumeId
     ? await prisma.sessionVolume.findUnique({ where: { id: submission.sessionVolumeId } })
     : null;
-  if (!volume) return;
+  if (!volume) return null;
 
   let data: Record<string, unknown>;
   try {
     data = JSON.parse(submission.data) as Record<string, unknown>;
   } catch {
-    return;
+    return null;
   }
 
   const email = typeof data.email === "string" ? data.email.trim() : "";
   const name = typeof data.fullName === "string" ? data.fullName : "Applicant";
-  if (!email) return;
+  if (!email) return null;
 
   const settings = parseApplicationSettings(volume.applicationSettings);
   const message = statusMessage(status, settings.emailTemplates);
-  if (!message) return;
+  if (!message) return null;
 
   const siteConfig = await getSiteConfig();
   const mail = applicationStatusEmail({
@@ -63,7 +64,7 @@ export async function notifyApplicationStatusChange(
     message,
   });
 
-  await sendEmail({
+  return sendEmail({
     to: email,
     subject: mail.subject,
     html: mail.html,
@@ -73,13 +74,22 @@ export async function notifyApplicationStatusChange(
 
 export async function notifyBulkApplicationStatusChanges(
   ids: string[],
-  status: ApplicationStatus
+  status: ApplicationStatus,
+  previousById?: Record<string, string>
 ) {
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
   for (const id of ids) {
     try {
-      await notifyApplicationStatusChange(id, status);
+      const result = await notifyApplicationStatusChange(id, status, previousById?.[id]);
+      if (result === true) sent += 1;
+      else if (result === false) failed += 1;
+      else skipped += 1;
     } catch (error) {
       console.error("Application status email failed:", id, error);
+      failed += 1;
     }
   }
+  return { sent, failed, skipped };
 }

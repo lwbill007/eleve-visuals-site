@@ -305,6 +305,7 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
       body: JSON.stringify({ id, read }),
     });
     if (res.ok) load();
+    else toast("Could not update read state.", "error");
   }
 
   async function updateStatus(id: string, status: InquiryStatus | ApplicationStatus) {

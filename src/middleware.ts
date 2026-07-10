@@ -18,10 +18,13 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/api/admin")) {
     // Vercel Blob posts upload-completed webhooks here with x-vercel-signature (no admin cookie).
+    // Require a non-empty signature; @vercel/blob handleUpload verifies it in-route.
+    const blobSignature = request.headers.get("x-vercel-signature");
     if (
       pathname === "/api/admin/upload/client" &&
       request.method === "POST" &&
-      request.headers.get("x-vercel-signature")
+      blobSignature &&
+      blobSignature.length >= 16
     ) {
       return NextResponse.next();
     }

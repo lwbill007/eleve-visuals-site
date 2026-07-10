@@ -5,6 +5,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import {
   WorkspaceChrome,
+  WorkspaceError,
   WorkspaceLoading,
   WorkspaceButton,
 } from "@/components/admin/os/WorkspaceFrame";
@@ -35,16 +36,30 @@ export function ExecutiveQADashboard() {
   const [report, setReport] = useState<ProductionReadinessReport | null>(null);
   const [missing, setMissing] = useState<MissingIntelResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const [qaRes, missRes] = await Promise.all([
         adminFetch("/api/admin/ai/qa"),
         adminFetch("/api/admin/ai/missing-intel"),
       ]);
+      if (!qaRes.ok && !missRes.ok) {
+        throw new Error("Could not load Missing Intelligence.");
+      }
       if (qaRes.ok) setReport(await qaRes.json());
+      else setReport(null);
       if (missRes.ok) setMissing(await missRes.json());
+      else setMissing(null);
+      if (!qaRes.ok || !missRes.ok) {
+        setError("Partial load — some Trust panels failed. Retry to refresh.");
+      }
+    } catch (e) {
+      setReport(null);
+      setMissing(null);
+      setError(e instanceof Error ? e.message : "Could not load Missing Intelligence.");
     } finally {
       setLoading(false);
     }
@@ -77,8 +92,18 @@ export function ExecutiveQADashboard() {
     >
       {loading && !report && !missing ? (
         <WorkspaceLoading rows={4} />
+      ) : error && !report && !missing ? (
+        <WorkspaceError message={error} onRetry={() => void load()} />
       ) : (
         <>
+          {error && (
+            <p className="mb-4 text-xs text-amber-300" role="status">
+              {error}{" "}
+              <button type="button" onClick={() => void load()} className="text-accent uppercase hover:underline">
+                Retry
+              </button>
+            </p>
+          )}
           {missing && (
             <div className="mb-6 rounded-xl border border-stone/20 bg-charcoal/20 px-4 py-3 text-sm text-fog">
               Payments:{" "}

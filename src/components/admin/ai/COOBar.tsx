@@ -31,7 +31,7 @@ function trustColor(score: number): string {
 
 /** Single COO chrome: health + trust + next action with snooze/done/execute. */
 export function COOBar() {
-  const { context, loading, refresh } = useExecutiveContext();
+  const { context, loading, error, refresh } = useExecutiveContext();
   const { toast } = useAdminToast();
   const [hiddenUntil, setHiddenUntil] = useState<Record<string, number>>({});
   const [doneIds, setDoneIds] = useState<Record<string, number>>({});
@@ -82,7 +82,24 @@ export function COOBar() {
     );
   }
 
-  if (!context) return null;
+  if (!context) {
+    if (!error) return null;
+    return (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/25 bg-amber-500/5 px-4 py-2 sm:px-6 lg:px-8"
+      >
+        <p className="text-[0.7rem] text-amber-200">COO context unavailable — {error}</p>
+        <button
+          type="button"
+          onClick={() => refresh()}
+          className="rounded-lg border border-stone/30 px-2.5 py-1 text-[0.6rem] tracking-[0.1em] text-fog uppercase hover:border-accent hover:text-accent"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const { trustScore, verification, connectors, health, nextAction, headline } = context;
   const now = Date.now();

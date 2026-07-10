@@ -151,11 +151,18 @@ export default function ApplicationsClient() {
     if (res.ok) {
       if (typeof patch.status === "string") {
         const s = patch.status as ApplicationStatus;
-        toast(
-          s === "accepted"
-            ? "Accepted — status email queued."
-            : `Marked ${APPLICATION_STATUS_LABELS[s]}.`
-        );
+        const payload = (await res.json().catch(() => ({}))) as { emailSent?: boolean | null };
+        if (s === "accepted") {
+          toast(
+            payload.emailSent === true
+              ? "Accepted — status email sent."
+              : payload.emailSent === false
+                ? "Accepted — email failed (check Resend / EMAIL_FROM)."
+                : "Accepted — no status email for this change."
+          );
+        } else {
+          toast(`Marked ${APPLICATION_STATUS_LABELS[s]}.`);
+        }
       }
       load();
     } else toast("Update failed.", "error");
@@ -170,11 +177,21 @@ export default function ApplicationsClient() {
       body: JSON.stringify({ ids: [...selected], status }),
     });
     if (res.ok) {
-      toast(
-        status === "accepted"
-          ? `Accepted ${selected.size} — status emails queued.`
-          : `Updated ${selected.size} to ${APPLICATION_STATUS_LABELS[status]}.`
-      );
+      const payload = (await res.json().catch(() => ({}))) as {
+        emailSent?: number;
+        emailFailed?: number;
+      };
+      if (status === "accepted") {
+        const sent = payload.emailSent ?? 0;
+        const failed = payload.emailFailed ?? 0;
+        toast(
+          failed > 0
+            ? `Accepted ${selected.size} — ${sent} emailed, ${failed} failed.`
+            : `Accepted ${selected.size} — ${sent} status email${sent === 1 ? "" : "s"} sent.`
+        );
+      } else {
+        toast(`Updated ${selected.size} to ${APPLICATION_STATUS_LABELS[status]}.`);
+      }
       setSelected(new Set());
       load();
     } else toast("Bulk update failed.", "error");

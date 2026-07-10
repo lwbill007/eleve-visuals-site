@@ -14,7 +14,7 @@ import { buildConfidencePanel } from "./confidence-panel";
 import { detectRevenueLeaks, totalLeakExposure } from "../executive/revenue-leaks";
 import { getPaymentRevenueSummary } from "@/lib/payments";
 
-const CACHE_KEY = "executive-context-v6";
+const CACHE_KEY = "executive-context-v7";
 const CACHE_TTL_MS = 60_000;
 
 export type HealthLabel = "strong" | "steady" | "watch" | "critical" | "unknown";
@@ -142,7 +142,9 @@ function toNextAction(
   const href = r.actions[0]?.href ?? "/admin/opportunities";
   const id = r.id.toLowerCase();
   let executeKind = "navigate";
-  if (id.includes("stale") || href.includes("type=booking")) {
+  // Only batch-mark when the recommendation is explicitly about stale inquiries —
+  // booking inbox links must navigate, not mutate every aging lead.
+  if (id.includes("stale")) {
     executeKind = "mark_stale_bookings_contacted";
   } else if (href.includes("/admin/pipeline")) {
     executeKind = "open_pipeline";
@@ -150,7 +152,7 @@ function toNextAction(
     executeKind = "open_applications";
   } else if (href.includes("/admin/memory")) {
     executeKind = "open_memory_verify";
-  } else if (href.includes("/admin/qa")) {
+  } else if (href.includes("/admin/qa") || href.includes("/admin/payments")) {
     executeKind = "open_payments_trust";
   }
 
