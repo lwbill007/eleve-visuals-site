@@ -13,8 +13,10 @@ import { getCached, setCache } from "../cache";
 import { buildConfidencePanel } from "./confidence-panel";
 import { detectRevenueLeaks, totalLeakExposure } from "../executive/revenue-leaks";
 import { getPaymentRevenueSummary } from "@/lib/payments";
+import { buildCostOfIgnore, type CostOfIgnore } from "./cost-of-ignore";
+import { getLearningOutcomes } from "../memory/learning";
 
-const CACHE_KEY = "executive-context-v8";
+const CACHE_KEY = "executive-context-v9";
 const CACHE_TTL_MS = 60_000;
 
 export type HealthLabel = "strong" | "steady" | "watch" | "critical" | "unknown";
@@ -41,6 +43,18 @@ export interface NextAction {
   category: string;
   /** Adapter kind for one-click execute (inferred when omitted). */
   executeKind?: string;
+  /** What happens if the user does nothing. */
+  costOfIgnore: CostOfIgnore;
+  /** Expected outcome if acted on. */
+  expectedOutcome: string;
+  /** Reasoning chain (why now). */
+  reasoning: string;
+  /** Prediction statement. */
+  prediction: string;
+  decisionStatus?: "pending" | "accepted" | "completed" | "rejected";
+  learningStatus?: "waiting" | "learned" | "none";
+  actualOutcome?: string;
+  actualRevenue?: number;
 }
 
 /** Risk signal derived from truth/connectors/verification — no fabricated alerts. */
@@ -52,6 +66,13 @@ export interface RiskSignal {
   evidence: string[];
   href: string;
   actionLabel: string;
+  /** Potential $ impact if unresolved. */
+  potentialImpact: number;
+  confidence: number;
+  costOfIgnore: CostOfIgnore;
+  expectedOutcome: string;
+  reasoning: string;
+  prediction: string;
 }
 
 export interface ExecutiveContext {
@@ -142,7 +163,8 @@ function computeTrustScore(
 }
 
 function toNextAction(
-  r: Awaited<ReturnType<typeof getGuardedRecommendations>>[number]
+  r: Awaited<ReturnType<typeof getGuardedRecommendations>>[number],
+  learningByRef: Map<string, { outcome: string; revenueImpact?: number | null; status: "waiting" | "learned" }>
 ): NextAction {
   const href = r.actions[0]?.href ?? "/admin/opportunities";
   const id = r.id.toLowerCase();
@@ -170,19 +192,59 @@ function toNextAction(
           ? "Fix sources"
           : (r.actions[0]?.label ?? "Execute");
 
+  const costOfIgnore = buildCostOfIgnore({
+    estimatedRevenue: r.estimatedRevenue,
+    confidence: r.confidence,
+    category: r.category,
+    priority: r.priority,
+    evidence: r.evidence,
+    why: r.whyNow || r.detail,
+    kind: "opportunity",
+  });
+
+  const er = r.executiveRecommendation;
+  const learn = learningByRef.get(r.id) ?? learningByRef.get(r.title);
+  const expectedOutcome =
+    er?.confidenceDetail?.expectedOutcome ||
+    (r.estimatedRevenue > 0
+      ? `Capture ~$${r.estimatedRevenue.toLocaleString()} opportunity`
+      : er?.successMetric || "Advance the recommended action");
+
+  // Close the learning loop: adjust displayed confidence from historical outcomes
+  let adjustedConfidence = r.confidence;
+  if (learn?.status === "learned") {
+    adjustedConfidence =
+      learn.outcome === "positive"
+        ? Math.min(0.95, r.confidence + 0.04)
+        : learn.outcome === "negative"
+          ? Math.max(0.35, r.confidence - 0.08)
+          : r.confidence;
+  }
+
   return {
     id: r.id,
     title: r.title,
     why: r.whyNow || r.detail,
-    evidence: r.evidence.slice(0, 3),
+    evidence: r.evidence.slice(0, 6),
     estimatedRevenue: r.estimatedRevenue,
-    confidence: r.confidence,
+    confidence: Math.round(adjustedConfidence * 100) / 100,
     timeMinutes: r.timeToCompleteMinutes,
     priority: r.priority,
     href,
     actionLabel,
     category: r.category,
     executeKind,
+    costOfIgnore,
+    expectedOutcome,
+    reasoning: er?.reasoning || r.whyNow || r.detail,
+    prediction:
+      r.estimatedRevenue > 0
+        ? `+$${r.estimatedRevenue.toLocaleString()} if executed within the decay window`
+        : expectedOutcome,
+    decisionStatus: learn?.status === "learned" ? "completed" : learn?.status === "waiting" ? "accepted" : "pending",
+    learningStatus: learn?.status ?? "none",
+    actualOutcome: learn?.status === "learned" ? learn.outcome : undefined,
+    actualRevenue: learn?.revenueImpact ?? undefined,
   };
 }
 
@@ -194,7 +256,8 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
 
   const partialErrors: { source: string; message: string }[] = [];
 
-  const [truth, connectorList, verification, guarded, leakList, payments] = await Promise.all([
+  const [truth, connectorList, verification, guarded, leakList, payments, learningOutcomes] =
+    await Promise.all([
     resolveMetrics(force),
     Promise.resolve(getConnectorHealth()),
     getVerificationStats(),
@@ -226,7 +289,24 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
         totalCents: 0,
       };
     }),
+    getLearningOutcomes("executive", 40).catch(() => []),
   ]);
+
+  const learningByRef = new Map<
+    string,
+    { outcome: string; revenueImpact?: number | null; status: "waiting" | "learned" }
+  >();
+  for (const o of learningOutcomes) {
+    const status: "waiting" | "learned" =
+      o.outcome === "neutral" ? "waiting" : "learned";
+    const entry = {
+      outcome: o.outcome,
+      revenueImpact: o.revenueImpact,
+      status,
+    };
+    if (o.actionType) learningByRef.set(o.actionType, entry);
+    if (o.actionRef) learningByRef.set(o.actionRef, entry);
+  }
 
   const healthy = connectorList.filter((c) => c.health === "healthy").length;
   const degraded = connectorList.filter((c) => c.health === "degraded").length;
@@ -311,7 +391,7 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
     note,
   });
 
-  const recommendations = guarded.filter((r) => !r.deprioritized).map(toNextAction);
+  const recommendations = guarded.filter((r) => !r.deprioritized).map((r) => toNextAction(r, learningByRef));
   const nextAction = recommendations[0] ?? null;
 
   const leakExposure = totalLeakExposure(leakList);
@@ -332,56 +412,119 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
 
   const risks: RiskSignal[] = [];
   if (staleInquiries > 0) {
+    const potentialImpact = Math.round(
+      (num(m["attention.followUpValue"]?.value) || 1500) * Math.min(staleInquiries, 5)
+    );
+    const evidence = [
+      `Truth metric attention.staleInquiries = ${staleInquiries}`,
+      "Source: Submission table (verified count)",
+    ];
     risks.push({
       id: "risk-stale-inquiries",
       title: `${staleInquiries} stale booking inquir${staleInquiries === 1 ? "y" : "ies"}`,
       detail: "Leads waiting 3+ days without a response — conversion probability drops daily.",
       severity: staleInquiries >= 3 ? "critical" : "high",
-      evidence: [
-        `Truth metric attention.staleInquiries = ${staleInquiries}`,
-        "Source: Submission table (verified count)",
-      ],
+      evidence,
       href: "/admin/submissions?type=booking",
       actionLabel: "Mark contacted",
+      potentialImpact,
+      confidence: 0.88,
+      costOfIgnore: buildCostOfIgnore({
+        estimatedRevenue: potentialImpact,
+        potentialImpact,
+        confidence: 0.88,
+        severity: staleInquiries >= 3 ? "critical" : "high",
+        category: "sales",
+        evidence,
+        why: "Unanswered demand cools daily",
+        kind: "risk",
+      }),
+      expectedOutcome: "Recover warm pipeline before leads go cold",
+      reasoning: "Response latency is the highest-leverage sales variable for a studio with open inquiries.",
+      prediction: `Ignoring risks ~$${Math.round(potentialImpact * 0.72).toLocaleString()} opportunity loss`,
     });
   }
   if (revenueMtd === 0 && pipeline > 0) {
+    const evidence = [
+      revenueVerified ? "Revenue verified at $0" : "Revenue estimated at $0 (Stripe disconnected)",
+      `Open pipeline: $${pipeline.toLocaleString()}`,
+    ];
     risks.push({
       id: "risk-zero-revenue",
       title: "No settled revenue MTD with open pipeline",
       detail: `$${pipeline.toLocaleString()} in estimated pipeline — sales recovery before marketing spend.`,
       severity: "high",
-      evidence: [
-        revenueVerified ? "Revenue verified at $0" : "Revenue estimated at $0 (Stripe disconnected)",
-        `Open pipeline: $${pipeline.toLocaleString()}`,
-      ],
+      evidence,
       href: "/admin/pipeline",
       actionLabel: "Open pipeline",
+      potentialImpact: Math.round(pipeline * 0.4),
+      confidence: revenueVerified ? 0.9 : 0.7,
+      costOfIgnore: buildCostOfIgnore({
+        estimatedRevenue: Math.round(pipeline * 0.4),
+        potentialImpact: Math.round(pipeline * 0.4),
+        confidence: revenueVerified ? 0.9 : 0.7,
+        severity: "high",
+        category: "revenue",
+        evidence,
+        kind: "risk",
+      }),
+      expectedOutcome: "Convert open pipeline into settled revenue",
+      reasoning: "Pipeline without cash conversion is a false sense of health.",
+      prediction: `~$${Math.round(pipeline * 0.4).toLocaleString()} at risk if sales stall`,
     });
   }
   if (verification.verifiedPct < 50 && verification.total > 20) {
+    const evidence = [
+      `${verification.pending} memories pending`,
+      `Target: ${verification.targetPct}%`,
+    ];
     risks.push({
       id: "risk-unverified-memory",
       title: `Knowledge only ${verification.verifiedPct}% verified`,
       detail: "AI recommendations may rely on unverified memories — review the verification queue.",
       severity: verification.verifiedPct < 20 ? "high" : "medium",
-      evidence: [
-        `${verification.pending} memories pending`,
-        `Target: ${verification.targetPct}%`,
-      ],
+      evidence,
       href: "/admin/memory",
       actionLabel: "Verify knowledge",
+      potentialImpact: 0,
+      confidence: 0.8,
+      costOfIgnore: buildCostOfIgnore({
+        estimatedRevenue: 0,
+        confidence: 0.8,
+        severity: verification.verifiedPct < 20 ? "high" : "medium",
+        category: "operations",
+        evidence,
+        why: "Unverified knowledge quietly lowers recommendation trust",
+        kind: "risk",
+      }),
+      expectedOutcome: "Raise knowledge trust so recommendations stay explainable",
+      reasoning: "Business Brain confidence is capped by verification coverage.",
+      prediction: "Composite AI confidence stays medium/low until verified ≥ target",
     });
   }
   for (const label of degradedLabels.slice(0, 3)) {
+    const evidence = blockedDecisions.slice(0, 2);
     risks.push({
       id: `risk-connector-${label.toLowerCase().replace(/\s+/g, "-")}`,
       title: `${label} disconnected or degraded`,
       detail: "External intelligence incomplete — decisions that depend on this source are blocked or estimated.",
       severity: "medium",
-      evidence: blockedDecisions.slice(0, 2),
+      evidence: evidence.length ? evidence : [`${label} health ≠ healthy`],
       href: "/admin/qa",
       actionLabel: "Check connectors",
+      potentialImpact: 0,
+      confidence: 0.85,
+      costOfIgnore: buildCostOfIgnore({
+        estimatedRevenue: 0,
+        confidence: 0.85,
+        severity: "medium",
+        category: "technical",
+        evidence: evidence.length ? evidence : [`${label} disconnected`],
+        kind: "risk",
+      }),
+      expectedOutcome: "Restore source so blocked decisions become Verified",
+      reasoning: "Missing connectors force Estimated/Unknown labels on dependent claims.",
+      prediction: "Related forecasts remain capped until reconnect",
     });
   }
 

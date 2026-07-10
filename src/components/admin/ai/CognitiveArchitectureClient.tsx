@@ -106,7 +106,7 @@ export function CognitiveArchitectureClient() {
           graphNodes: arch.graph.totalNodes,
         }
       : undefined,
-    "Knowledge Engine"
+    "Business Brain"
   );
 
   const [error, setError] = useState("");
@@ -234,9 +234,9 @@ export function CognitiveArchitectureClient() {
   if (loading && !arch) {
     return (
       <WorkspaceChrome
-        eyebrow="ÉLEVÉ Cognitive Architecture"
-        title="Knowledge Engine"
-        description="What: permanent intelligence layer. Why: every recommendation and prediction. Next: refresh executive intelligence. AI builds and scores knowledge — you verify."
+        eyebrow="Brain · Knowledge Engine"
+        title="Business Brain"
+        description="Permanent executive reasoning. Every event becomes knowledge, prediction, and decision — you verify what the AI proposes."
         related={related}
       >
         <WorkspaceLoading rows={5} />
@@ -247,9 +247,9 @@ export function CognitiveArchitectureClient() {
   if (!arch) {
     return (
       <WorkspaceChrome
-        eyebrow="ÉLEVÉ Cognitive Architecture"
-        title="Knowledge Engine"
-        description="What: permanent intelligence layer. Why: every recommendation and prediction. Next: refresh executive intelligence. AI builds and scores knowledge — you verify."
+        eyebrow="Brain · Knowledge Engine"
+        title="Business Brain"
+        description="Permanent executive reasoning. Every event becomes knowledge, prediction, and decision — you verify what the AI proposes."
         related={related}
       >
         <WorkspaceError message={error || "Failed to load cognitive architecture."} onRetry={() => void load()} />
@@ -271,9 +271,9 @@ export function CognitiveArchitectureClient() {
 
   return (
     <WorkspaceChrome
-      eyebrow="ÉLEVÉ Cognitive Architecture"
-      title="Knowledge Engine"
-      description="What: permanent intelligence layer powering recommendations. Why: decisions need verified knowledge. Next: refresh intelligence or verify pending memories. AI scans and scores — you verify and pin."
+      eyebrow="Brain · Knowledge Engine"
+      title="Business Brain"
+      description="Permanent executive reasoning. Every event becomes knowledge, prediction, and decision — you verify and pin what the AI proposes."
       onRefresh={() => void refreshIntelligence()}
       refreshing={refreshing}
       extra={
@@ -461,42 +461,85 @@ export function CognitiveArchitectureClient() {
           </div>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Learning Engine" subtitle="Patterns that strengthen future recommendations" defaultOpen={false}>
+        <CognitiveSection step={next()} title="Learning Engine" subtitle="Recent learnings — the AI visibly evolves" defaultOpen>
           <ul className="space-y-2">
-            {arch.learningPatterns.map((p) => (
-              <li key={p.pattern} className="rounded border border-stone/15 p-3 text-xs">
-                <p className="text-cream">{p.pattern}</p>
-                <p className="mt-1 text-fog">{p.businessImpact}</p>
-                <p className="mt-1 text-muted">{p.source} · {Math.round(p.confidence * 100)}%</p>
-              </li>
-            ))}
+            {arch.learningPatterns.length === 0 ? (
+              <li className="text-xs text-fog">No learnings yet — Execute a recommendation to start the loop.</li>
+            ) : (
+              arch.learningPatterns.map((p) => (
+                <li key={p.pattern} className="rounded border border-stone/15 p-3 text-xs">
+                  <p className="text-cream">{p.pattern}</p>
+                  <p className="mt-1 text-fog">{p.businessImpact}</p>
+                  <p className="mt-1 text-muted">{p.source} · {Math.round(p.confidence * 100)}%</p>
+                </li>
+              ))
+            )}
           </ul>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Decision Journal" subtitle="Every recommendation tracked forever" defaultOpen={false}>
+        <CognitiveSection step={next()} title="Decision Journal" subtitle="Every Execute is recorded forever" defaultOpen={false}>
           <ul className="space-y-2">
-            {arch.decisionJournal.map((d) => (
-              <li key={d.id} className="rounded border border-stone/15 p-3 text-xs">
-                <p className="text-cream">{d.recommendation}</p>
-                <p className="mt-1 text-fog">
-                  {d.status} · {d.outcome ?? "pending"}
-                  {d.revenueImpact ? ` · $${d.revenueImpact}` : ""}
-                </p>
-                {d.lesson && <p className="mt-1 text-muted">{d.lesson}</p>}
-              </li>
-            ))}
+            {arch.decisionJournal.length === 0 ? (
+              <li className="text-xs text-fog">No decisions yet — Execute from Opportunities or Command Center.</li>
+            ) : (
+              arch.decisionJournal.map((d) => (
+                <li key={d.id} className="rounded border border-stone/15 p-3 text-xs">
+                  <p className="text-cream">{d.recommendation}</p>
+                  <p className="mt-1 text-fog">
+                    {d.status}
+                    {d.outcome ? ` · ${d.outcome}` : ""}
+                    {d.expectedROI ? ` · expected ~$${d.expectedROI.toLocaleString()}` : ""}
+                    {d.revenueImpact ? ` · actual ~$${d.revenueImpact.toLocaleString()}` : ""}
+                    {d.predictionAccuracy != null
+                      ? ` · ${Math.round(d.predictionAccuracy * 100)}% accuracy`
+                      : ""}
+                  </p>
+                  {d.expectedOutcome && (
+                    <p className="mt-1 text-muted">Expected: {d.expectedOutcome}</p>
+                  )}
+                  {d.lesson && <p className="mt-1 text-muted">{d.lesson}</p>}
+                </li>
+              ))
+            )}
           </ul>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Unknowns Center" subtitle="Actively reducing uncertainty">
+        <CognitiveSection step={next()} title="Unknowns Center" subtitle="Genuine gaps only — never invented">
           <ul className="space-y-2">
-            {arch.unknowns.map((u) => (
-              <li key={u.id} className={cn("rounded border p-3 text-xs", u.severity === "high" ? "border-red-500/25 bg-red-500/5" : "border-stone/15")}>
-                <p className="text-cream">{u.title}</p>
-                <p className="mt-1 text-fog">{u.detail}</p>
-                <p className="mt-1 text-accent">Resolve: {u.howToResolve}</p>
-              </li>
-            ))}
+            {arch.unknowns.length === 0 ? (
+              <li className="text-xs text-fog">No material unknowns — connectors and data look complete.</li>
+            ) : (
+              arch.unknowns.map((u) => (
+                <li
+                  key={u.id}
+                  className={cn(
+                    "rounded border p-3 text-xs",
+                    u.severity === "high" ? "border-red-500/25 bg-red-500/5" : "border-stone/15"
+                  )}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="text-cream">{u.title}</p>
+                    <span className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">{u.status}</span>
+                  </div>
+                  <p className="mt-1 text-fog">{u.detail}</p>
+                  <p className="mt-2 text-cream-dim">
+                    <span className="text-muted">Why it matters · </span>
+                    {u.whyItMatters}
+                  </p>
+                  <p className="mt-1 text-cream-dim">
+                    <span className="text-muted">Impact · </span>
+                    {u.businessImpact}
+                  </p>
+                  <p className="mt-1 text-emerald-400/90">
+                    <span className="text-muted">After resolve · </span>
+                    {u.estimatedImprovement}
+                  </p>
+                  <Link href={u.connectHref} className="mt-2 inline-block text-accent hover:underline">
+                    {u.connectAction} →
+                  </Link>
+                </li>
+              ))
+            )}
           </ul>
         </CognitiveSection>
 

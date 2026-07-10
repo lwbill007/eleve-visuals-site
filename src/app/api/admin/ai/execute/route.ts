@@ -15,6 +15,10 @@ export async function POST(request: Request) {
     kind?: ExecuteKind;
     href?: string;
     submissionId?: string;
+    evidence?: string[];
+    confidence?: number;
+    expectedRevenue?: number;
+    expectedOutcome?: string;
   };
 
   if (!body.recommendationId) {
@@ -28,6 +32,10 @@ export async function POST(request: Request) {
       kind: body.kind,
       href: body.href,
       submissionId: body.submissionId,
+      evidence: body.evidence,
+      confidence: body.confidence,
+      expectedRevenue: body.expectedRevenue,
+      expectedOutcome: body.expectedOutcome,
     });
     return NextResponse.json(result);
   } catch (err) {

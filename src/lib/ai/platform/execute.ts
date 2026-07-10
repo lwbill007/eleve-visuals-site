@@ -1,11 +1,13 @@
 /**
  * Recommendation execute adapters — turn "Do next" into real work where possible.
+ * Every Execute permanently records a Decision Journal entry.
  * Navigation remains the fallback; never pretend an action ran if it did not.
  */
 
 import { prisma } from "@/lib/db";
 import { completeMission } from "@/lib/ai/executive/mission-control";
 import { emitBusinessEvent } from "@/lib/ai/platform/business-events";
+import { recordDecisionOnExecute } from "@/lib/ai/platform/decision-recorder";
 
 export type ExecuteKind =
   | "navigate"
@@ -23,6 +25,10 @@ export interface ExecuteRequest {
   kind?: ExecuteKind;
   href?: string;
   submissionId?: string;
+  evidence?: string[];
+  confidence?: number;
+  expectedRevenue?: number;
+  expectedOutcome?: string;
 }
 
 export interface ExecuteResult {
@@ -31,6 +37,7 @@ export interface ExecuteResult {
   message: string;
   href?: string;
   affected?: number;
+  decisionId?: string;
 }
 
 function inferKind(input: ExecuteRequest): ExecuteKind {
@@ -48,17 +55,43 @@ function inferKind(input: ExecuteRequest): ExecuteKind {
   return "navigate";
 }
 
+async function journal(input: ExecuteRequest, kind: ExecuteKind) {
+  try {
+    return await recordDecisionOnExecute({
+      recommendationId: input.recommendationId,
+      title: input.title ?? input.recommendationId,
+      evidence: input.evidence,
+      confidence: input.confidence,
+      expectedRevenue: input.expectedRevenue,
+      expectedOutcome: input.expectedOutcome,
+      executeKind: kind,
+      href: input.href,
+    });
+  } catch (err) {
+    console.error("[execute] decision journal", err);
+    return null;
+  }
+}
+
 export async function executeRecommendation(input: ExecuteRequest): Promise<ExecuteResult> {
   const kind = inferKind(input);
+  const decision = await journal(input, kind);
+  const decisionId = decision?.id;
 
   switch (kind) {
     case "mark_booking_contacted": {
       if (!input.submissionId) {
-        return { ok: false, kind, message: "Missing submission id.", href: input.href };
+        return { ok: false, kind, message: "Missing submission id.", href: input.href, decisionId };
       }
       const existing = await prisma.submission.findUnique({ where: { id: input.submissionId } });
       if (!existing || existing.type !== "booking") {
-        return { ok: false, kind, message: "Booking not found.", href: "/admin/submissions?type=booking" };
+        return {
+          ok: false,
+          kind,
+          message: "Booking not found.",
+          href: "/admin/submissions?type=booking",
+          decisionId,
+        };
       }
       await prisma.submission.update({
         where: { id: input.submissionId },
@@ -68,14 +101,16 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
         missionId: input.recommendationId,
         title: input.title ?? "Marked booking contacted",
         worked: true,
+        revenueImpact: input.expectedRevenue,
         notes: `Executed mark_booking_contacted on ${input.submissionId}`,
       });
       return {
         ok: true,
         kind,
-        message: "Marked contacted.",
+        message: "Marked contacted · Decision recorded.",
         href: `/admin/submissions?type=booking&focus=${input.submissionId}`,
         affected: 1,
+        decisionId,
       };
     }
 
@@ -97,10 +132,11 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
           kind,
           message:
             stale.length > 0
-              ? "Stale bookings already contacted — open inbox to reply."
-              : "No stale bookings found.",
+              ? "Stale bookings already contacted — open inbox to reply. Decision recorded."
+              : "No stale bookings found. Decision recorded.",
           href: "/admin/submissions?type=booking",
           affected: 0,
+          decisionId,
         };
       }
       await prisma.submission.updateMany({
@@ -111,6 +147,7 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
         missionId: input.recommendationId,
         title: input.title ?? "Stale bookings marked contacted",
         worked: true,
+        revenueImpact: input.expectedRevenue,
         notes: `Marked ${toTouch.length} stale bookings contacted`,
       });
       void emitBusinessEvent({
@@ -122,9 +159,10 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
       return {
         ok: true,
         kind,
-        message: `Marked ${toTouch.length} stale booking${toTouch.length === 1 ? "" : "s"} contacted. Reply next.`,
+        message: `Marked ${toTouch.length} stale booking${toTouch.length === 1 ? "" : "s"} contacted · Decision recorded.`,
         href: "/admin/submissions?type=booking",
         affected: toTouch.length,
+        decisionId,
       };
     }
 
@@ -133,26 +171,58 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
         missionId: input.recommendationId,
         title: input.title ?? "Mission completed",
         worked: true,
+        revenueImpact: input.expectedRevenue,
         notes: "Executed from recommendation adapter",
       });
-      return { ok: true, kind, message: "Marked complete.", href: input.href };
+      return {
+        ok: true,
+        kind,
+        message: "Marked complete · Decision recorded.",
+        href: input.href,
+        decisionId,
+      };
     }
 
     case "open_pipeline":
-      return { ok: true, kind, message: "Opening pipeline.", href: "/admin/pipeline" };
+      return {
+        ok: true,
+        kind,
+        message: "Opening pipeline · Decision recorded.",
+        href: "/admin/pipeline",
+        decisionId,
+      };
     case "open_applications":
-      return { ok: true, kind, message: "Opening applications.", href: "/admin/applications" };
+      return {
+        ok: true,
+        kind,
+        message: "Opening applications · Decision recorded.",
+        href: "/admin/applications",
+        decisionId,
+      };
     case "open_memory_verify":
-      return { ok: true, kind, message: "Opening verification queue.", href: "/admin/memory" };
+      return {
+        ok: true,
+        kind,
+        message: "Opening verification queue · Decision recorded.",
+        href: "/admin/memory",
+        decisionId,
+      };
     case "open_payments_trust":
-      return { ok: true, kind, message: "Opening Trust / connectors.", href: "/admin/qa" };
+      return {
+        ok: true,
+        kind,
+        message: "Opening Trust / connectors · Decision recorded.",
+        href: "/admin/qa",
+        decisionId,
+      };
     case "navigate":
     default:
       return {
         ok: true,
         kind: "navigate",
-        message: "Opening destination.",
+        message: "Opening destination · Decision recorded.",
         href: input.href || "/admin",
+        decisionId,
       };
   }
 }

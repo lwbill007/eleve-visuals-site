@@ -15,7 +15,7 @@ import type { DecisionEngineContext } from "./types";
 export async function buildDecisionEngineContext(query?: string): Promise<DecisionEngineContext> {
   const workspaceId = getWorkspaceId();
 
-  const [metrics, analytics, pipeline, crm, bookings, patterns, learnings, memorySearch, northStar, leaks, businessDna] =
+  const [metrics, analytics, pipeline, crm, bookings, patterns, learnings, memorySearch, northStar, leaks, businessDna, connectors] =
     await Promise.all([
       getOperatorMetrics(),
       getAnalyticsSummary(30),
@@ -41,6 +41,9 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
       computeNorthStarMetrics(),
       detectRevenueLeaks(),
       getBusinessDNA(),
+      Promise.resolve(
+        (await import("../platform/connectors")).getConnectorHealth()
+      ),
     ]);
 
   const leakExposure = totalLeakExposure(leaks);
@@ -75,11 +78,15 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
     (l) => `${l.domain}: ${l.hypothesis || l.actionType} → ${l.outcome}`
   );
 
-  const unknowns: string[] = [
-    "External ad spend ROI (not connected)",
-    "Offline referral attribution",
-    "Unlogged client conversations",
-  ];
+  const unknowns: string[] = connectors
+    .filter(
+      (c) =>
+        !["analytics", "crm", "booking_platform", "neon", "vercel"].includes(c.id) &&
+        c.health !== "healthy" &&
+        (c.blocksDecisions.length > 0 || !c.connected)
+    )
+    .slice(0, 6)
+    .map((c) => `${c.label}: ${c.connected ? c.health : "not connected"}`);
 
   const memoryHits = memorySearch.items.length;
   const metricsSummary = facts.join(" · ");

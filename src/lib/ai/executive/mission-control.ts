@@ -136,8 +136,11 @@ export async function completeMission(input: {
   revenueImpact?: number;
   bookingsImpact?: number;
   notes?: string;
-}): Promise<{ ok: boolean; lesson: string }> {
+  expectedRevenue?: number;
+}): Promise<{ ok: boolean; lesson: string; accuracy?: number }> {
   const { recordRecommendationFeedback } = await import("./self-improvement");
+  const { recordDecisionOutcome } = await import("../platform/decision-recorder");
+
   const lesson = await recordRecommendationFeedback({
     recommendationId: input.missionId,
     title: input.title,
@@ -150,29 +153,39 @@ export async function completeMission(input: {
     revenueImpact: input.revenueImpact,
   });
 
+  const outcome = await recordDecisionOutcome({
+    recommendationId: input.missionId,
+    title: input.title,
+    worked: input.worked,
+    actualRevenue: input.revenueImpact,
+    expectedRevenue: input.expectedRevenue ?? input.revenueImpact,
+    notes: input.notes,
+  });
+
   const { writeMemory } = await import("../memory/store");
   await writeMemory({
     layer: "business",
     category: "mission_outcome",
     key: `${input.missionId}-${Date.now()}`,
     title: `Mission: ${input.title}`,
-    summary: lesson.lesson,
+    summary: outcome.lesson || lesson.lesson,
     value: {
       missionId: input.missionId,
       worked: input.worked,
       revenueImpact: input.revenueImpact,
       bookingsImpact: input.bookingsImpact,
       notes: input.notes,
+      accuracy: outcome.accuracy,
     },
     confidence: input.worked ? 0.9 : 0.4,
     importance: 85,
     source: "user",
     sourceRef: input.missionId,
     verified: true,
-    tags: ["mission", "executive-os", input.worked ? "success" : "failure"],
+    tags: ["mission", "executive-os", input.worked ? "success" : "failure", "learning"],
     actor: "mission-control",
     reason: "Mission completion tracked for learning loop",
   });
 
-  return { ok: true, lesson: lesson.lesson };
+  return { ok: true, lesson: outcome.lesson || lesson.lesson, accuracy: outcome.accuracy };
 }

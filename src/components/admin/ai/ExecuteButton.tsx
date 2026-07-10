@@ -14,11 +14,16 @@ export interface ExecuteTarget {
   /** Prefer server inference when omitted. */
   kind?: string;
   submissionId?: string;
+  evidence?: string[];
+  confidence?: number;
+  expectedRevenue?: number;
+  expectedOutcome?: string;
 }
 
 /**
  * One-click execute for recommendations. Runs a real adapter when possible;
  * otherwise navigates. Never claims success without a server ok.
+ * Every Execute permanently records a Decision Journal entry.
  */
 export function ExecuteButton({
   target,
@@ -45,6 +50,10 @@ export function ExecuteButton({
           href: target.href,
           kind: target.kind,
           submissionId: target.submissionId,
+          evidence: target.evidence,
+          confidence: target.confidence,
+          expectedRevenue: target.expectedRevenue,
+          expectedOutcome: target.expectedOutcome,
         }),
       });
       const data = (await res.json()) as {
@@ -52,6 +61,7 @@ export function ExecuteButton({
         message?: string;
         href?: string;
         error?: string;
+        decisionId?: string;
       };
       if (!res.ok || !data.ok) {
         toast(data.error || data.message || "Execute failed.", "error");

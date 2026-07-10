@@ -6,6 +6,7 @@ import { getExecutiveRisks } from "./risk-center";
 import { getLearningOutcomes } from "../memory/learning";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
 import { getAdminDashboardOSCached, getAdminCRMContacts, getAdminPipeline } from "@/lib/admin-os-server";
+import { getSiteConfig } from "@/lib/content";
 import { prisma } from "@/lib/db";
 import { getCached, setCache } from "../cache";
 import { isAIConfigured } from "../config";
@@ -26,7 +27,7 @@ function startOfWeek(d = new Date()) {
 }
 
 export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing> {
-  const cacheKey = "daily-briefing-v6";
+  const cacheKey = "daily-briefing-v7";
   if (!force) {
     const cached = await getCached<AIDailyBriefing>(cacheKey);
     if (cached) return cached;
@@ -141,9 +142,12 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       }
     : null;
 
+  const siteConfig = await getSiteConfig().catch(() => null);
+  const creator = siteConfig?.creator?.trim() || "Bill";
+
   const aiRecommendations = proactiveInsights.slice(0, 5).map((i) => i.title);
 
-  let summary = `Good morning. Today: ${operatorMetrics.today.bookings} booking${operatorMetrics.today.bookings === 1 ? "" : "s"}, ${operatorMetrics.today.applications} application${operatorMetrics.today.applications === 1 ? "" : "s"}, ~$${operatorMetrics.revenue.today.toLocaleString()} pipeline value. This month: ~$${operatorMetrics.revenue.thisMonth.toLocaleString()} (${operatorMetrics.revenue.monthChange >= 0 ? "+" : ""}${operatorMetrics.revenue.monthChange}%). ${operatorMetrics.attention.followUpClients} clients need follow-up. Top priority: ${weeklyPriorities[0] ?? "Review insights dashboard"}.`;
+  let summary = `Good morning, ${creator}. Today: ${operatorMetrics.today.bookings} booking${operatorMetrics.today.bookings === 1 ? "" : "s"}, ${operatorMetrics.today.applications} application${operatorMetrics.today.applications === 1 ? "" : "s"}, ~$${operatorMetrics.revenue.today.toLocaleString()} pipeline value. This month: ~$${operatorMetrics.revenue.thisMonth.toLocaleString()} (${operatorMetrics.revenue.monthChange >= 0 ? "+" : ""}${operatorMetrics.revenue.monthChange}%). ${operatorMetrics.attention.followUpClients} clients need follow-up. Top priority: ${weeklyPriorities[0] ?? "Protect speed-to-lead"}.`;
   let provider: AIDailyBriefing["provider"] = "rules";
 
   if (isAIConfigured()) {
@@ -153,12 +157,13 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
           {
             role: "system",
             content: systemPromptForTask(
-              "You are the CEO briefing voice for ÉLEVÉ Visuals, a premium portrait studio. Write a 3-sentence executive morning briefing. Lead with revenue and the single highest-impact action today. Be specific with numbers. No generic advice."
+              `You are the CEO briefing voice for ÉLEVÉ Visuals, addressing ${creator} by name. Write a 3-sentence executive morning briefing. Open with "Good morning, ${creator}." Lead with revenue and the single highest-impact action today. Be specific with numbers. No generic advice.`
             ),
           },
           {
             role: "user",
             content: JSON.stringify({
+              creator,
               revenueToday: operatorMetrics.revenue.today,
               revenueMonth: operatorMetrics.revenue.thisMonth,
               revenueChange: operatorMetrics.revenue.monthChange,

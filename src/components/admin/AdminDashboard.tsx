@@ -22,6 +22,7 @@ import {
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/os/AdminOSComponents";
+import { DEFAULT_SITE_CONFIG } from "@/lib/defaults";
 
 interface DashboardOS {
   metrics: {
@@ -101,16 +102,21 @@ export function AdminDashboard() {
   // Don't block Command Center on briefing — dashboard metrics are the primary payload.
   const loading = loadingDash;
 
+  const creator = DEFAULT_SITE_CONFIG.creator || "Bill";
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? `Good morning, ${creator}` : hour < 17 ? `Good afternoon, ${creator}` : `Good evening, ${creator}`;
+
   const description =
     execContext?.headline ??
     briefing?.summary ??
-    "What happened across the studio, why it matters, what to do next, and whether AI can execute — not a chart wall.";
+    "What happened, why it matters, what to do next, the money at stake, the cost of ignoring it, and how confident we are.";
 
   if (loading) {
     return (
       <WorkspaceChrome
-        eyebrow="Command"
-        title="Command Center"
+        eyebrow="Command · Executive"
+        title={greeting}
         description={description}
         onRefresh={load}
         refreshing
@@ -124,8 +130,8 @@ export function AdminDashboard() {
   if (!data) {
     return (
       <WorkspaceChrome
-        eyebrow="Command"
-        title="Command Center"
+        eyebrow="Command · Executive"
+        title={greeting}
         description={description}
         onRefresh={load}
         related={RELATED}
@@ -143,47 +149,188 @@ export function AdminDashboard() {
   const sharedRisks = execContext?.risks ?? [];
   const confidence = execContext?.confidence;
   const leaks = execContext?.leaks;
+  const next = execContext?.nextAction ?? sharedRecs[0] ?? null;
   const oppTotal = sharedRecs.reduce((s, r) => s + r.estimatedRevenue, 0);
+  const ignoreCost =
+    next?.costOfIgnore?.estimatedRevenueLoss ??
+    ((next?.estimatedRevenue ?? 0) > 0
+      ? next!.estimatedRevenue
+      : (leaks?.loss ?? executive?.potentialLostRevenue ?? 0));
 
   return (
     <WorkspaceChrome
-      eyebrow="Command"
-      title="Command Center"
+      eyebrow="Command · Executive"
+      title={greeting}
       description={description}
       onRefresh={load}
       refreshing={loadingDash}
       related={RELATED}
     >
-      <div className="space-y-8">
-        <div className="flex flex-wrap gap-3 text-xs">
-          <Link href="/admin/briefing" className="text-accent hover:underline">
-            Full AI Briefing →
-          </Link>
-          <Link href="/admin/opportunities" className="text-accent hover:underline">
-            Opportunities →
-          </Link>
-          <Link href="/admin/leaks" className="text-accent hover:underline">
-            Revenue leaks →
-          </Link>
+      <div className="space-y-10">
+        {/* First viewport: one executive composition — six questions */}
+        <section className="rounded-2xl border border-accent/25 bg-accent/[0.03] p-5 sm:p-7">
+          <p className="text-[0.55rem] tracking-[0.16em] text-accent uppercase">Top priority today</p>
+          {next ? (
+            <>
+              <h2 className="mt-2 max-w-3xl font-display text-2xl text-cream sm:text-3xl">{next.title}</h2>
+              <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <dt className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">What happened</dt>
+                  <dd className="mt-1 text-sm text-cream-dim">{execContext?.headline ?? briefing?.summary ?? next.title}</dd>
+                </div>
+                <div>
+                  <dt className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">Why</dt>
+                  <dd className="mt-1 text-sm text-cream-dim">{next.why}</dd>
+                </div>
+                <div>
+                  <dt className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">What to do next</dt>
+                  <dd className="mt-1 text-sm text-cream-dim">{next.actionLabel}</dd>
+                </div>
+                <div>
+                  <dt className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">Money involved</dt>
+                  <dd className="mt-1 font-display text-xl text-emerald-400">
+                    {next.estimatedRevenue > 0
+                      ? `~$${next.estimatedRevenue.toLocaleString()}`
+                      : oppTotal > 0
+                        ? `~$${oppTotal.toLocaleString()} in queue`
+                        : "Impact TBD"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">If ignored</dt>
+                  <dd className="mt-1 text-sm text-amber-200/90">
+                    {next.costOfIgnore?.estimatedRevenueLoss != null &&
+                    next.costOfIgnore.estimatedRevenueLoss > 0
+                      ? `−$${next.costOfIgnore.estimatedRevenueLoss.toLocaleString()}`
+                      : ignoreCost > 0
+                        ? `~$${Math.round(ignoreCost).toLocaleString()} at risk`
+                        : "Opportunity cost rises as leads go cold"}
+                    {next.costOfIgnore?.estimatedTimeLoss ? (
+                      <span className="mt-1 block text-[0.65rem] text-muted">
+                        {next.costOfIgnore.estimatedTimeLoss}
+                      </span>
+                    ) : null}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">Confidence</dt>
+                  <dd className="mt-1 font-display text-xl text-cream">
+                    {Math.round(next.confidence * 100)}%
+                    {confidence ? (
+                      <span className="ml-2 text-xs font-sans tracking-normal text-muted uppercase">
+                        · OS {confidence.band}
+                      </span>
+                    ) : null}
+                  </dd>
+                </div>
+              </dl>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <ExecuteButton
+                  target={{
+                    id: next.id,
+                    title: next.title,
+                    href: next.href,
+                    actionLabel: next.actionLabel,
+                    kind: next.executeKind,
+                    evidence: next.evidence,
+                    confidence: next.confidence,
+                    expectedRevenue: next.estimatedRevenue,
+                    expectedOutcome: next.expectedOutcome,
+                  }}
+                />
+                <Link href="/admin/opportunities" className="text-xs text-accent hover:underline">
+                  All opportunities →
+                </Link>
+                <Link href="/admin/briefing" className="text-xs text-muted hover:text-accent hover:underline">
+                  Full briefing →
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div className="mt-3">
+              <h2 className="font-display text-2xl text-cream">No urgent priority</h2>
+              <p className="mt-2 max-w-xl text-sm text-fog">
+                Business Brain has nothing ranked above the fold. Review risks, leaks, or refresh intelligence.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3 text-xs">
+                <Link href="/admin/risks" className="text-accent hover:underline">
+                  Risks →
+                </Link>
+                <Link href="/admin/leaks" className="text-accent hover:underline">
+                  Leaks →
+                </Link>
+                <Link href="/admin/memory" className="text-accent hover:underline">
+                  Business Brain →
+                </Link>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {health && (
+            <div className="rounded-xl border border-stone/20 bg-charcoal/20 p-4" title={health.overall.note}>
+              <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">Business health</p>
+              <p className="mt-1 font-display text-3xl text-cream">{health.overall.score}</p>
+              <p className="mt-1 text-[0.65rem] capitalize text-fog">{health.overall.label}</p>
+            </div>
+          )}
+          {tm?.["revenue.mtd"] ? (
+            <TruthMetricCard metric={tm["revenue.mtd"]} href="/admin/payments" currency />
+          ) : (
+            <AdminMetricCard
+              label="Revenue MTD"
+              value={formatCurrency(briefing?.month.revenue ?? metrics.revenue.value)}
+              href="/admin/payments"
+            />
+          )}
+          {executive ? (
+            <AdminMetricCard
+              label="Forecast"
+              value={formatCurrency(executive.projectedMonthlyRevenue)}
+              hint="Estimated trajectory"
+              href="/admin/pipeline"
+            />
+          ) : confidence ? (
+            <div className="rounded-xl border border-stone/20 bg-charcoal/20 p-4">
+              <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">AI confidence</p>
+              <p className="mt-1 font-display text-3xl text-cream">{confidence.composite}</p>
+              <p className="mt-1 text-[0.65rem] uppercase text-fog">{confidence.band}</p>
+            </div>
+          ) : null}
+          {leaks && leaks.count > 0 ? (
+            <Link
+              href="/admin/leaks"
+              className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 transition-colors hover:border-amber-500/50"
+            >
+              <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">Biggest risk · $</p>
+              <p className="mt-1 font-display text-3xl text-amber-300">~${leaks.loss.toLocaleString()}</p>
+              <p className="mt-1 text-[0.65rem] text-fog">{leaks.count} leaks →</p>
+            </Link>
+          ) : sharedRisks[0] ? (
+            <Link
+              href={sharedRisks[0].href}
+              className="rounded-xl border border-stone/20 bg-charcoal/20 p-4 transition-colors hover:border-accent/40"
+            >
+              <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">Biggest risk</p>
+              <p className="mt-2 line-clamp-2 text-sm text-cream">{sharedRisks[0].title}</p>
+            </Link>
+          ) : (
+            <div className="rounded-xl border border-stone/20 bg-charcoal/20 p-4">
+              <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">Risk posture</p>
+              <p className="mt-2 text-sm text-fog">Clear — no elevated signals</p>
+            </div>
+          )}
         </div>
 
         <AIDailyBriefingPanel compact />
 
-        {tm?.["revenue.mtd"] && (
+        {tm?.["revenue.mtd"] && tm["revenue.mtd"].label !== "verified" && (
           <div className="rounded-xl border border-stone/20 bg-charcoal/20 px-4 py-3 text-sm text-fog">
-            Revenue MTD is{" "}
-            <span className="text-cream">
-              {tm["revenue.mtd"].label === "verified" ? "Verified" : "Estimated"}
-            </span>
-            {tm["revenue.mtd"].label !== "verified" && (
-              <>
-                {" "}
-                from pipeline —{" "}
-                <Link href="/admin/qa" className="text-accent hover:underline">
-                  connect Stripe for Verified
-                </Link>
-              </>
-            )}
+            Revenue MTD is <span className="text-cream">Estimated</span> from pipeline —{" "}
+            <Link href="/admin/qa" className="text-accent hover:underline">
+              connect Stripe for Verified
+            </Link>
             .
           </div>
         )}
@@ -253,18 +400,24 @@ export function AdminDashboard() {
             <div className="space-y-3">
               <OpportunityRevenueBanner total={oppTotal} count={sharedRecs.length} />
               {sharedRecs.slice(0, 3).map((r) => (
-                <div
-                  key={r.id}
-                  className="os-panel rounded-xl border border-stone/20 p-4"
-                >
+                <div key={r.id} className="os-panel rounded-xl border border-stone/20 p-4">
                   <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
                     {r.priority} · {r.category}
                   </p>
                   <p className="mt-1 font-display text-base text-cream">{r.title}</p>
                   <p className="mt-1 line-clamp-2 text-xs text-fog">{r.why}</p>
+                  <p className="mt-2 text-[0.65rem] text-amber-200/80">
+                    Ignore −$
+                    {(r.costOfIgnore?.estimatedRevenueLoss ?? Math.round(r.estimatedRevenue * 0.7)).toLocaleString()}
+                    {" · "}
+                    {r.evidence.length} evidence
+                    {r.decisionStatus && r.decisionStatus !== "pending"
+                      ? ` · Decision ${r.decisionStatus}`
+                      : ""}
+                  </p>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[0.65rem] text-emerald-400/90">
-                      {r.estimatedRevenue > 0 ? `~$${r.estimatedRevenue.toLocaleString()}` : "Impact TBD"} ·{" "}
+                      {r.estimatedRevenue > 0 ? `+$${r.estimatedRevenue.toLocaleString()}` : "Impact TBD"} ·{" "}
                       {Math.round(r.confidence * 100)}% · ~{r.timeMinutes} min
                     </p>
                     <ExecuteButton
@@ -274,6 +427,10 @@ export function AdminDashboard() {
                         href: r.href,
                         actionLabel: r.actionLabel,
                         kind: r.executeKind,
+                        evidence: r.evidence,
+                        confidence: r.confidence,
+                        expectedRevenue: r.estimatedRevenue,
+                        expectedOutcome: r.expectedOutcome,
                       }}
                     />
                   </div>

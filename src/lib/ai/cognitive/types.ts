@@ -139,15 +139,32 @@ export interface DecisionJournalEntry {
   lesson?: string;
   recordedAt: string;
   domain: string;
+  /** Expected outcome at execute time */
+  expectedOutcome?: string;
+  expectedROI?: number;
+  evidenceCount?: number;
+  confidence?: number;
+  executeKind?: string;
 }
 
 export interface UnknownItem {
   id: string;
   category: string;
   title: string;
+  /** Current state — e.g. Not connected */
+  status: string;
   detail: string;
+  /** Why this gap matters for executive decisions */
+  whyItMatters: string;
+  /** Business impact if left unresolved */
+  businessImpact: string;
+  /** Estimated improvement after resolving (e.g. +27% forecast accuracy) */
+  estimatedImprovement: string;
   severity: "high" | "medium" | "low";
   howToResolve: string;
+  /** Connect / fix action label */
+  connectAction: string;
+  connectHref: string;
   blocksDecisions: string[];
 }
 
