@@ -101,6 +101,9 @@ model Submission {
 
   @@index([type, status])
   @@index([type, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([read, type])
   @@index([sessionVolumeId, type])
   @@index([starred, type])
   @@index([contactEmail])

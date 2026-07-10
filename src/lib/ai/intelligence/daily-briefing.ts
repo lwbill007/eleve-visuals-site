@@ -5,11 +5,7 @@ import { getAllExecutiveOpportunities } from "./website-opportunities";
 import { getExecutiveRisks } from "./risk-center";
 import { getLearningOutcomes } from "../memory/learning";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
-import {
-  getAdminCRMContacts,
-  getAdminDashboardOS,
-  getAdminPipeline,
-} from "@/lib/admin-os-server";
+import { getAdminDashboardOSCached, getAdminCRMContacts, getAdminPipeline } from "@/lib/admin-os-server";
 import { prisma } from "@/lib/db";
 import { getCached, setCache } from "../cache";
 import { isAIConfigured } from "../config";
@@ -59,7 +55,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
   ] = await Promise.all([
     getOperatorMetrics(),
     getProactiveBusinessInsights(),
-    getAdminDashboardOS(),
+    getAdminDashboardOSCached(),
     getAdminCRMContacts(),
     getAdminPipeline(),
     prisma.submission.count({

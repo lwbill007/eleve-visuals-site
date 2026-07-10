@@ -14,7 +14,7 @@ import { buildConfidencePanel } from "./confidence-panel";
 import { detectRevenueLeaks, totalLeakExposure } from "../executive/revenue-leaks";
 import { getPaymentRevenueSummary } from "@/lib/payments";
 
-const CACHE_KEY = "executive-context-v7";
+const CACHE_KEY = "executive-context-v8";
 const CACHE_TTL_MS = 60_000;
 
 export type HealthLabel = "strong" | "steady" | "watch" | "critical" | "unknown";
@@ -102,6 +102,11 @@ export interface ExecutiveContext {
     recoverable: number;
     count: number;
   };
+  /**
+   * Non-fatal subsystem failures while building context.
+   * UI should show uncertainty — never pretend empty means healthy.
+   */
+  partialErrors?: { source: string; message: string }[];
   /** One-line executive headline summarizing current posture. */
   headline: string;
   /** The single highest-impact next action (guarded recommendations). */
@@ -187,20 +192,40 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
     if (cached) return cached;
   }
 
+  const partialErrors: { source: string; message: string }[] = [];
+
   const [truth, connectorList, verification, guarded, leakList, payments] = await Promise.all([
     resolveMetrics(force),
     Promise.resolve(getConnectorHealth()),
     getVerificationStats(),
-    getGuardedRecommendations(8).catch(() => [] as Awaited<ReturnType<typeof getGuardedRecommendations>>),
-    detectRevenueLeaks().catch(() => []),
-    getPaymentRevenueSummary().catch(() => ({
-      hasPayments: false,
-      count: 0,
-      todayCents: 0,
-      thisMonthCents: 0,
-      lastMonthCents: 0,
-      totalCents: 0,
-    })),
+    getGuardedRecommendations(8).catch((e: unknown) => {
+      partialErrors.push({
+        source: "recommendations",
+        message: e instanceof Error ? e.message : "Recommendations unavailable",
+      });
+      return [] as Awaited<ReturnType<typeof getGuardedRecommendations>>;
+    }),
+    detectRevenueLeaks().catch((e: unknown) => {
+      partialErrors.push({
+        source: "leaks",
+        message: e instanceof Error ? e.message : "Leak detector unavailable",
+      });
+      return [];
+    }),
+    getPaymentRevenueSummary().catch((e: unknown) => {
+      partialErrors.push({
+        source: "payments",
+        message: e instanceof Error ? e.message : "Payment summary unavailable",
+      });
+      return {
+        hasPayments: false,
+        count: 0,
+        todayCents: 0,
+        thisMonthCents: 0,
+        lastMonthCents: 0,
+        totalCents: 0,
+      };
+    }),
   ]);
 
   const healthy = connectorList.filter((c) => c.health === "healthy").length;
@@ -435,6 +460,7 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       recoverable: Math.round(leakExposure.recoverable),
       count: leakList.length,
     },
+    partialErrors: partialErrors.length > 0 ? partialErrors : undefined,
     headline,
     nextAction,
     recommendations,

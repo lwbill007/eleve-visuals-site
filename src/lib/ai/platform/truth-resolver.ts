@@ -8,7 +8,7 @@
  */
 
 import { getOperatorMetrics } from "../intelligence/business-operator";
-import { getAdminDashboardOS } from "@/lib/admin-os-server";
+import { getAdminDashboardOSCached } from "@/lib/admin-os-server";
 import { getVerificationStats } from "../memory/verification";
 import { getConnectorHealth } from "./connectors";
 import { buildTruthValue, type TruthValue } from "./truth-metadata";
@@ -65,7 +65,7 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
     getOperatorMetrics(),
     getVerificationStats(),
     Promise.resolve(getConnectorHealth()),
-    getAdminDashboardOS(),
+    getAdminDashboardOSCached(),
   ]);
 
   const stripe = connectors.find((c) => c.id === "stripe");

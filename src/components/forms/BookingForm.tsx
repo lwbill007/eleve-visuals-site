@@ -62,7 +62,11 @@ export function BookingForm({
   const [inquiryId, setInquiryId] = useState<string>();
   const [autosaved, setAutosaved] = useState(false);
   const spam = useFormSpam();
-  const minDate = getTodayDateString();
+  const [minDate, setMinDate] = useState("");
+
+  useEffect(() => {
+    setMinDate(getTodayDateString());
+  }, []);
 
   useEffect(() => {
     try {

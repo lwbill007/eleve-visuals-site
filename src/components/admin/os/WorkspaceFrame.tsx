@@ -102,6 +102,7 @@ export function WorkspaceAIStrip({ className }: { className?: string }) {
   }
   const action = context.nextAction;
   const health = context.health?.overall;
+  const partial = context.partialErrors ?? [];
   return (
     <div
       className={cn(
@@ -120,6 +121,11 @@ export function WorkspaceAIStrip({ className }: { className?: string }) {
           <span className="rounded-full border border-stone/30 px-1.5 py-0.5 text-[0.5rem] tracking-[0.08em] text-muted uppercase">
             Trust {context.trustScore}
           </span>
+          {partial.length > 0 && (
+            <span className="rounded-full border border-amber-500/40 px-1.5 py-0.5 text-[0.5rem] tracking-[0.08em] text-amber-300 uppercase">
+              Partial · {partial.map((p) => p.source).join(", ")}
+            </span>
+          )}
         </div>
         <p className="mt-1 truncate text-sm text-cream">{action?.title ?? context.headline}</p>
         {action?.why && <p className="mt-0.5 line-clamp-1 text-xs text-fog">{action.why}</p>}
