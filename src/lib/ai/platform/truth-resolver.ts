@@ -315,7 +315,7 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
       label: "verified",
       source: "Submission table",
       table: "Submission",
-      calculation: "COUNT(booking WHERE status in (new,contacted) AND updatedAt < 3 days ago)",
+      calculation: "COUNT(booking WHERE open stage AND updatedAt < 3 days ago)",
       evidence: ["First-party Submission records"],
       verificationStatus: "verified",
       timestamp: m.generatedAt,

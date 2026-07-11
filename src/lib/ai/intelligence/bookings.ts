@@ -4,7 +4,9 @@ import { buildSalesRecommendations } from "./business-operator";
 import { getCached, setCache } from "../cache";
 import type { BookingIntelligence } from "../types";
 
-const CACHE_KEY = "booking-intelligence-v6";
+import { isOpenInquiryStatus } from "@/lib/booking-pipeline";
+
+const CACHE_KEY = "booking-intelligence-v7";
 
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -80,7 +82,7 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
   const busyMonths = monthlyData.filter((m) => m.count > avg * 1.2).map((m) => m.month);
   const slowMonths = monthlyData.filter((m) => m.count < avg * 0.6).map((m) => m.month);
 
-  const pending = bookings.filter((b) => ["new", "contacted"].includes(b.status));
+  const pending = bookings.filter((b) => isOpenInquiryStatus(b.status));
   const stale = pending.filter((b) => b.updatedAt.getTime() < staleCutoff);
 
   const monthBookings = bookings.filter((b) => b.createdAt >= monthStart).length;

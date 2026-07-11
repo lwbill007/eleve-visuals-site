@@ -4,13 +4,23 @@ import { cn } from "@/lib/utils";
 import { BOOKING_STEPS } from "@/lib/booking";
 
 export function BookingProgress({ currentStep }: { currentStep: number }) {
+  const pct = Math.round((currentStep / BOOKING_STEPS.length) * 100);
   return (
-    <div className="w-full">
+    <div
+      className="w-full"
+      role="progressbar"
+      aria-valuemin={1}
+      aria-valuemax={BOOKING_STEPS.length}
+      aria-valuenow={currentStep}
+      aria-label={`Step ${currentStep} of ${BOOKING_STEPS.length}: ${BOOKING_STEPS[currentStep - 1]?.label ?? ""}`}
+    >
       <div className="mb-3 flex items-center justify-between gap-3 text-xs tracking-[0.15em] text-muted uppercase">
         <span className="shrink-0">
           Step {currentStep} of {BOOKING_STEPS.length}
         </span>
-        <span className="truncate text-right">{BOOKING_STEPS[currentStep - 1]?.label}</span>
+        <span className="truncate text-right" aria-current="step">
+          {BOOKING_STEPS[currentStep - 1]?.label}
+        </span>
       </div>
       <div className="flex gap-1.5">
         {BOOKING_STEPS.map((step) => (
@@ -25,6 +35,7 @@ export function BookingProgress({ currentStep }: { currentStep: number }) {
           />
         ))}
       </div>
+      <span className="sr-only">{pct}% complete</span>
     </div>
   );
 }

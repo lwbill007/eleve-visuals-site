@@ -68,7 +68,7 @@ export async function computeNorthStarMetrics(): Promise<NorthStarMetrics> {
   const referralClients = crm.filter((c) => c.tags?.includes("referral")).length;
   const referralRate = crm.length > 0 ? Math.round((referralClients / crm.length) * 100) : 0;
 
-  const completedCol = pipeline.columns.find((c) => c.id === "completed");
+  const completedCol = pipeline.columns.find((c) => c.id === "delivered");
   const closedDeals = completedCol?.items.length ?? 0;
   const totalPipelineItems = pipeline.columns.flatMap((c) => c.items).filter((i) => i).length;
   const consultationCloseRate =

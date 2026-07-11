@@ -25,7 +25,7 @@ export function BookingHero({
             transition={{ duration: 0.7 }}
             className="label-caps mb-4 text-accent"
           >
-            Project Inquiry
+            Start Your Project
           </motion.p>
           <motion.h1
             initial={{ opacity: 0, y: 16 }}

@@ -66,6 +66,16 @@ const optionalInstagram = z
   );
 
 export function createBookingSchema(options: BookingOptions) {
+  const categoryIds = [
+    "Portrait",
+    "Video",
+    "Hybrid",
+    "Event",
+    "Business Branding",
+    "Not Sure Yet",
+    ...options.serviceTypes,
+  ];
+
   return z.object({
     fullName: z.string().trim().min(1).max(120),
     email,
@@ -76,16 +86,22 @@ export function createBookingSchema(options: BookingOptions) {
       .trim()
       .refine((v) => !v || /^@?[a-zA-Z0-9._]{1,30}$/.test(v), "Invalid Instagram handle"),
     website: optionalUrl,
-    serviceTypes: z
-      .array(enumFromOptions(options.serviceTypes, "service"))
-      .min(1, "Select at least one service")
-      .max(20),
+    projectCategory: z
+      .string()
+      .trim()
+      .min(1, "Select what we're creating")
+      .refine((v) => categoryIds.some((c) => c.toLowerCase() === v.toLowerCase()), "Invalid category"),
+    serviceTypes: z.array(z.string()).max(20).optional().default([]),
     preferredDate: dateString,
     flexibleDate: optionalDateString,
     location: z.string().trim().min(1).max(200),
     sessionSetting: enumFromOptions(options.sessionSettings, "session setting"),
     duration: enumFromOptions(options.durations, "duration"),
-    projectVision: z.string().trim().min(10).max(5000),
+    purpose: z.string().trim().min(1, "Share the purpose").max(2000),
+    goals: z.string().trim().min(1, "Share your goals").max(2000),
+    audience: z.string().trim().max(1000).optional().or(z.literal("")),
+    creativeDirection: z.string().trim().max(2000).optional().or(z.literal("")),
+    projectVision: z.string().trim().min(10, "Tell us the story (at least 10 characters)").max(5000),
     pinterestLink: optionalUrl,
     moodBoardUrl: optionalUrl,
     inspirationInstagram: optionalInstagram,
@@ -95,6 +111,7 @@ export function createBookingSchema(options: BookingOptions) {
       .min(1, "Select at least one deliverable")
       .max(20),
     budgetRange: enumFromOptions(options.budgetRanges, "budget range"),
+    projectTimeline: z.string().trim().max(500).optional().or(z.literal("")),
     referralSource: enumFromOptions(options.referralSources, "referral source"),
     termsAccepted: z.literal(true, {
       errorMap: () => ({ message: "You must agree to the booking terms" }),

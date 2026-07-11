@@ -42,8 +42,24 @@ export async function syncFinancialMemory() {
     }),
   ]);
 
-  const completed = bookings.filter((b) => b.status === "completed");
-  const open = bookings.filter((b) => ["new", "contacted", "scheduled"].includes(b.status));
+  const completed = bookings.filter(
+    (b) => b.status === "completed" || b.status === "delivered" || b.status === "follow_up"
+  );
+  const open = bookings.filter((b) =>
+    [
+      "new",
+      "contacted",
+      "scheduled",
+      "lead",
+      "qualified",
+      "discovery",
+      "proposal",
+      "booked",
+      "planning",
+      "production",
+      "editing",
+    ].includes(b.status)
+  );
 
   let completedRevenue = 0;
   let openPipeline = 0;

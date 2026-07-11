@@ -131,14 +131,14 @@ export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
   if (metrics.attention.galleriesAwaiting >= 2) {
     risks.push({
       id: "delivery-backlog",
-      title: "Gallery delivery backlog",
-      detail: `${metrics.attention.galleriesAwaiting} scheduled shoots awaiting gallery delivery 14+ days.`,
+      title: "Booked projects idle 14+ days",
+      detail: `${metrics.attention.galleriesAwaiting} booked/production rows idle — verify editing/delivery (no gallery entity yet).`,
       why: "Delayed delivery risks client satisfaction and referrals.",
       category: "operations",
       severity: "medium",
       likelihood: 0.8,
       potentialImpact: metrics.attention.galleriesAwaiting * 800,
-      evidence: [`${metrics.attention.galleriesAwaiting} pending galleries`],
+      evidence: [`${metrics.attention.galleriesAwaiting} idle booked projects`],
       mitigations: [
         { id: "m-deliver", label: "Review bookings", type: "navigate", href: "/admin/submissions?type=booking&status=scheduled" },
       ],

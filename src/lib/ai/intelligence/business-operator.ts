@@ -164,12 +164,16 @@ export async function getOperatorMetrics() {
       where: { type: "booking", status: "completed", updatedAt: { gte: monthStart } },
     }),
     prisma.submission.count({
-      where: { type: "booking", status: "scheduled", updatedAt: { lt: new Date(Date.now() - 14 * 86400000) } },
+      where: {
+        type: "booking",
+        status: { in: ["scheduled", "booked", "planning", "production", "editing"] },
+        updatedAt: { lt: new Date(Date.now() - 14 * 86400000) },
+      },
     }),
     prisma.submission.count({
       where: {
         type: "booking",
-        status: { in: ["new", "contacted"] },
+        status: { in: ["new", "contacted", "lead", "qualified", "discovery", "proposal"] },
         updatedAt: { lt: new Date(Date.now() - 3 * 86400000) },
       },
     }),
@@ -450,14 +454,14 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
       id: "galleries-pending",
       category: "operations",
       severity: "medium",
-      title: `${metrics.attention.galleriesAwaiting} galleries awaiting delivery`,
-      detail: "Scheduled shoots past delivery window. Client experience and referrals depend on timely gallery delivery.",
-      metric: `${metrics.attention.galleriesAwaiting} pending`,
+      title: `${metrics.attention.galleriesAwaiting} booked projects idle 14+ days`,
+      detail: "Estimated — no gallery entity yet. Confirm editing/delivery status on booked projects.",
+      metric: `${metrics.attention.galleriesAwaiting} idle`,
       actions: [
-        action("submissions", "View Bookings", "navigate", "/admin/submissions?type=booking&status=scheduled"),
-        action("email-delivery", "Gallery Follow-Up", "email_clients", OS_ROUTES.marketingGallery, {
+        action("submissions", "View Bookings", "navigate", "/admin/submissions?type=booking"),
+        action("email-delivery", "Delivery Follow-Up", "email_clients", OS_ROUTES.marketingGallery, {
           task: "follow_up",
-          prompt: "Gallery delivery follow-up email",
+          prompt: "Delivery status follow-up email",
         }),
       ],
     });
@@ -664,9 +668,16 @@ export function buildSalesRecommendations(input: SalesRecommendationInput): Sale
   const { crm, pipeline, staleInquiries, monthBookings, monthBookingsChange } = input;
   const stale = staleInquiries;
 
-  const newLeads = pipeline.columns.find((c) => c.id === "new")?.items ?? [];
-  const warmLeads = pipeline.columns.find((c) => c.id === "contacted")?.items ?? [];
-  const scheduled = pipeline.columns.find((c) => c.id === "scheduled")?.items ?? [];
+  const newLeads = pipeline.columns.find((c) => c.id === "lead")?.items ?? [];
+  const warmLeads = [
+    ...(pipeline.columns.find((c) => c.id === "discovery")?.items ?? []),
+    ...(pipeline.columns.find((c) => c.id === "proposal")?.items ?? []),
+    ...(pipeline.columns.find((c) => c.id === "qualified")?.items ?? []),
+  ];
+  const scheduled = [
+    ...(pipeline.columns.find((c) => c.id === "booked")?.items ?? []),
+    ...(pipeline.columns.find((c) => c.id === "planning")?.items ?? []),
+  ];
   const activePipeline = newLeads.length + warmLeads.length;
 
   const sessionUpsellTargets = crm.filter(

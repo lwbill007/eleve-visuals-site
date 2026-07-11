@@ -354,24 +354,35 @@ export interface BookingOptions {
   referralSources: string[];
 }
 
-export const INQUIRY_STATUSES = ["new", "contacted", "scheduled", "completed", "archived"] as const;
+export const INQUIRY_STATUSES = [
+  "lead",
+  "qualified",
+  "discovery",
+  "proposal",
+  "booked",
+  "planning",
+  "production",
+  "editing",
+  "delivered",
+  "follow_up",
+  "archived",
+] as const;
 export type InquiryStatus = (typeof INQUIRY_STATUSES)[number];
 
-export const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
-  new: "New",
-  contacted: "Contacted",
-  scheduled: "Scheduled / Confirmed",
-  completed: "Completed",
-  archived: "Archived",
-};
-
-export const INQUIRY_STATUS_COLORS: Record<InquiryStatus, string> = {
-  new: "text-amber-400 border-amber-400/40",
-  contacted: "text-sky-400 border-sky-400/40",
-  scheduled: "text-emerald-400 border-emerald-400/40",
-  completed: "text-fog border-stone/40",
-  archived: "text-muted border-stone/30",
-};
+export {
+  INQUIRY_STATUS_LABELS,
+  INQUIRY_STATUS_COLORS,
+  normalizeInquiryStatus,
+  isValidInquiryStatus,
+  coerceInquiryStatus,
+  PIPELINE_STAGES,
+  OPEN_INQUIRY_STATUSES,
+  WORKBOARD_OPEN_STATUSES,
+  CLIENT_TIMELINE_STAGES,
+  clientTimelineIndex,
+  PROJECT_CATEGORIES,
+} from "./booking-pipeline";
+export type { ProductionStatus, ProjectCategory } from "./booking-pipeline";
 
 export const APPLICATION_STATUSES = [
   "pending_review",

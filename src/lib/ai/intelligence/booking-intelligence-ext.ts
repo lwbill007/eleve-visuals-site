@@ -1,15 +1,7 @@
 import { prisma } from "@/lib/db";
+import { isClosedWonStatus, isOpenInquiryStatus, normalizeInquiryStatus } from "@/lib/booking-pipeline";
+import { estimateBudgetValue } from "@/lib/estimate-budget";
 import type { ExtendedBookingIntelligence, BookingSourceMetric, BookingServiceMetric, LostInquiry } from "../types";
-
-function estimateBudgetValue(budgetRange: string): number {
-  if (!budgetRange) return 0;
-  const nums = budgetRange.match(/\d[\d,]*/g)?.map((n) => parseInt(n.replace(/,/g, ""), 10)) ?? [];
-  if (nums.length >= 2) return Math.round((nums[0] + nums[1]) / 2);
-  if (nums.length === 1) return nums[0];
-  if (budgetRange.toLowerCase().includes("premium")) return 3500;
-  if (budgetRange.toLowerCase().includes("standard")) return 2000;
-  return 1500;
-}
 
 function parseService(data: string): string {
   try {
@@ -57,7 +49,7 @@ export async function getExtendedBookingIntelligence(days = 90): Promise<Extende
 
     const src = sourceMap.get(source) ?? { inquiries: 0, booked: 0, revenue: 0 };
     src.inquiries += 1;
-    if (["scheduled", "completed"].includes(b.status)) {
+    if (isClosedWonStatus(b.status) || normalizeInquiryStatus(b.status) === "booked") {
       src.booked += 1;
       src.revenue += value;
       inquiryToBooking.push(
@@ -68,20 +60,20 @@ export async function getExtendedBookingIntelligence(days = 90): Promise<Extende
 
     const svc = serviceMap.get(service) ?? { inquiries: 0, booked: 0, value: 0 };
     svc.inquiries += 1;
-    if (["scheduled", "completed"].includes(b.status)) {
+    if (isClosedWonStatus(b.status) || normalizeInquiryStatus(b.status) === "booked") {
       svc.booked += 1;
       svc.value += value;
     }
     serviceMap.set(service, svc);
 
-    if (b.status !== "new") {
+    if (!isOpenInquiryStatus(b.status) || normalizeInquiryStatus(b.status) !== "lead") {
       responseTimes.push((b.updatedAt.getTime() - b.createdAt.getTime()) / 3600000);
     }
   }
 
   const staleCutoff = Date.now() - 3 * 86400000;
   const lostInquiries: LostInquiry[] = bookings
-    .filter((b) => ["new", "contacted"].includes(b.status) && b.updatedAt.getTime() < staleCutoff)
+    .filter((b) => isOpenInquiryStatus(b.status) && b.updatedAt.getTime() < staleCutoff)
     .slice(0, 10)
     .map((b) => {
       let name = b.contactEmail ?? "Unknown";
@@ -129,7 +121,9 @@ export async function getExtendedBookingIntelligence(days = 90): Promise<Extende
     }))
     .sort((a, b) => b.inquiries - a.inquiries);
 
-  const totalBooked = bookings.filter((b) => ["scheduled", "completed"].includes(b.status)).length;
+  const totalBooked = bookings.filter(
+    (b) => isClosedWonStatus(b.status) || normalizeInquiryStatus(b.status) === "booked"
+  ).length;
 
   return {
     generatedAt: new Date().toISOString(),

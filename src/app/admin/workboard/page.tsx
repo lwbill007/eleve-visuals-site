@@ -11,8 +11,10 @@ import {
   WorkspaceButton,
   WorkspaceChrome,
   WorkspaceEmpty,
+  WorkspaceError,
   WorkspaceLoading,
 } from "@/components/admin/os/WorkspaceFrame";
+import { WORKBOARD_OPEN_STATUSES } from "@/lib/booking-pipeline";
 
 interface PipelineItem {
   id: string;
@@ -30,40 +32,46 @@ interface PipelineColumn {
   items: PipelineItem[];
 }
 
-interface SubmissionRow {
-  id: string;
-  status: string;
-  data: Record<string, unknown>;
-  createdAt: string;
-  type: string;
-}
-
 export default function WorkboardPage() {
   useSetAIPage("pipeline");
   const [columns, setColumns] = useState<PipelineColumn[]>([]);
-  const [inbox, setInbox] = useState<SubmissionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [pipeRes, inboxRes] = await Promise.all([
-      adminFetch("/api/admin/os/pipeline"),
-      adminFetch("/api/admin/submissions?type=booking"),
-    ]);
-    if (pipeRes.ok) {
+    setError("");
+    try {
+      const pipeRes = await adminFetch("/api/admin/os/pipeline");
+      if (!pipeRes.ok) throw new Error("Pipeline unavailable");
       const d = await pipeRes.json();
       setColumns(d.columns ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load workboard");
+      setColumns([]);
+    } finally {
+      setLoading(false);
     }
-    if (inboxRes.ok) {
-      const d = (await inboxRes.json()) as SubmissionRow[];
-      setInbox(d.filter((s) => s.status === "new" || s.status === "contacted").slice(0, 12));
-    }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const inbox = columns
+    .filter((c) => WORKBOARD_OPEN_STATUSES.includes(c.id))
+    .flatMap((c) =>
+      c.items.map((i) => ({
+        id: i.id,
+        name: i.name,
+        email: i.email,
+        status: c.id,
+        service: i.service,
+        value: i.value,
+        ageDays: i.ageDays,
+      }))
+    )
+    .slice(0, 12);
 
   const stale = columns
     .flatMap((c) => c.items.map((i) => ({ ...i, stage: c.label })))
@@ -75,95 +83,81 @@ export default function WorkboardPage() {
       <WorkspaceChrome
         eyebrow="Work · Execute"
         title="Workboard"
-        description="What needs a reply, why deals are aging, and what to do next — mark contacted or open the full pipeline."
+        description="What needs a reply, why deals are aging, and what to do next — advance stages or open the full pipeline."
         onRefresh={() => void load()}
         refreshing={loading}
-        extra={
-          <>
-            <WorkspaceButton href="/admin/pipeline" variant="secondary">
-              Full pipeline
-            </WorkspaceButton>
-            <WorkspaceButton href="/admin/crm" variant="ghost">
-              People
-            </WorkspaceButton>
-          </>
-        }
         related={[
-          { label: "Pipeline", href: "/admin/pipeline", desc: "Stages" },
-          { label: "Clients", href: "/admin/crm", desc: "People" },
-          { label: "Email", href: "/admin/email", desc: "Send" },
-          { label: "Leaks", href: "/admin/leaks", desc: "Revenue" },
+          { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
+          { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Inbox" },
+          { label: "Booking AI", href: "/admin/bookings-ai", desc: "Forecasts" },
         ]}
+        extra={
+          <WorkspaceButton href="/admin/pipeline" variant="primary">
+            Full pipeline →
+          </WorkspaceButton>
+        }
       >
-        {loading && columns.length === 0 && inbox.length === 0 ? (
+        {loading && columns.length === 0 ? (
           <WorkspaceLoading />
+        ) : error && columns.length === 0 ? (
+          <WorkspaceError message={error} onRetry={() => void load()} />
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
-            <AdminPanel title="Needs reply" subtitle={`${inbox.length} open bookings`}>
+            <AdminPanel title="Open inquiries" subtitle="Lead → Proposal">
               {inbox.length === 0 ? (
-                <WorkspaceEmpty
-                  title="Inbox clear"
-                  detail="No open booking inquiries waiting. New submissions will land here first."
-                  actionHref="/admin/submissions?type=booking"
-                  actionLabel="View all submissions"
-                />
+                <WorkspaceEmpty title="Clear" detail="No open inquiries in early stages." />
               ) : (
                 <ul className="space-y-3">
-                  {inbox.map((s) => {
-                    const name =
-                      (typeof s.data.fullName === "string" && s.data.fullName) ||
-                      (typeof s.data.name === "string" && s.data.name) ||
-                      "Lead";
-                    return (
-                      <li
-                        key={s.id}
-                        className="flex flex-wrap items-center justify-between gap-2 border-b border-stone/15 pb-3"
-                      >
-                        <div>
-                          <p className="text-sm text-cream">{name}</p>
-                          <p className="text-[0.65rem] text-muted">
-                            {s.status} · {new Date(s.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <ExecuteButton
-                          target={{
-                            id: `booking-${s.id}`,
-                            title: `Contact ${name}`,
-                            href: `/admin/submissions?type=booking`,
-                            actionLabel: "Mark contacted",
-                            kind: "mark_booking_contacted",
-                            submissionId: s.id,
-                          }}
-                        />
-                      </li>
-                    );
-                  })}
+                  {inbox.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone/15 p-3"
+                    >
+                      <div>
+                        <Link
+                          href={`/admin/submissions?type=booking&focus=${s.id}`}
+                          className="text-sm text-cream hover:text-accent"
+                        >
+                          {s.name}
+                        </Link>
+                        <p className="text-[0.65rem] text-muted">
+                          {s.status} · {s.service || "—"} · ~${s.value.toLocaleString()}
+                          {s.ageDays != null ? ` · ${s.ageDays}d` : ""}
+                        </p>
+                      </div>
+                      <ExecuteButton
+                        target={{
+                          id: `booking-${s.id}`,
+                          title: `Advance ${s.name}`,
+                          href: `/admin/submissions?type=booking&focus=${s.id}`,
+                          actionLabel: "Advance to Discovery",
+                          kind: "mark_booking_contacted",
+                          submissionId: s.id,
+                        }}
+                        onDone={load}
+                      />
+                    </li>
+                  ))}
                 </ul>
               )}
             </AdminPanel>
 
-            <AdminPanel title="Stale deals (3+ days)" subtitle={`${stale.length} aging`}>
+            <AdminPanel title="Stale deals" subtitle="3+ days without update">
               {stale.length === 0 ? (
-                <p className="text-sm text-muted">No stale pipeline items — keep momentum.</p>
+                <p className="text-sm text-fog">No aging deals — pipeline is current.</p>
               ) : (
                 <ul className="space-y-3">
                   {stale.slice(0, 10).map((i) => (
-                    <li
-                      key={i.id}
-                      className="flex flex-wrap items-center justify-between gap-2 border-b border-stone/15 pb-3"
-                    >
-                      <div>
-                        <p className="text-sm text-cream">{i.name}</p>
-                        <p className="text-[0.65rem] text-muted">
-                          {i.stage} · {i.ageDays}d · ~${i.value.toLocaleString()} est.
-                        </p>
-                      </div>
+                    <li key={i.id} className="rounded-lg border border-amber-500/20 p-3">
                       <Link
-                        href="/admin/pipeline"
-                        className="rounded-lg border border-accent/40 px-3 py-1.5 text-[0.65rem] text-accent uppercase"
+                        href={`/admin/submissions?type=booking&focus=${i.id}`}
+                        className="text-sm text-cream hover:text-accent"
                       >
-                        Open →
+                        {i.name}
                       </Link>
+                      <p className="text-[0.65rem] text-amber-200/80">
+                        {i.stage} · {i.ageDays}d idle · ~${i.value.toLocaleString()}
+                      </p>
                     </li>
                   ))}
                 </ul>
@@ -172,12 +166,13 @@ export default function WorkboardPage() {
                 <div className="mt-4">
                   <ExecuteButton
                     target={{
-                      id: "risk-stale-inquiries",
-                      title: "Mark stale bookings contacted",
+                      id: "stale-batch",
+                      title: "Advance stale leads to Discovery",
                       href: "/admin/submissions?type=booking",
-                      actionLabel: "Mark all stale contacted",
+                      actionLabel: "Advance stale leads",
                       kind: "mark_stale_bookings_contacted",
                     }}
+                    onDone={load}
                   />
                 </div>
               )}

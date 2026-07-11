@@ -69,7 +69,7 @@ export const DEFAULT_NAVIGATION: NavigationConfig = {
   ],
   footerLinks: [
     { label: "Portfolio", href: "/portfolio" },
-    { label: "Book a Project", href: "/book" },
+    { label: "Start Your Project", href: "/book" },
     { label: "Booking Terms", href: "/booking-terms" },
   ],
   footerText: "Cinematic visual storytelling for brands, artists, and athletes.",
@@ -183,7 +183,7 @@ export const DEFAULT_HERO: HeroContent = {
   subheadline:
     "Photography. Motion. Creative direction. Crafted for brands, athletes, artists, and visionaries.",
   description: "",
-  primaryCta: { label: "Book a Project", href: "/book" },
+  primaryCta: { label: "Start Your Project", href: "/book" },
   secondaryCta: { label: "Explore Work", href: "/portfolio" },
   image: null,
   imageAlt: "ÉLEVÉ Visuals cinematic hero",
@@ -645,7 +645,7 @@ export const DEFAULT_SERVICES_PAGE: ServicesPageContent = {
     headline: "Create Something Worth Remembering",
     subheadline:
       "Whether you are launching a campaign, building a personal brand, or documenting a defining moment — let's make it unforgettable.",
-    primaryLabel: "Book a Project",
+    primaryLabel: "Start Your Project",
     primaryHref: "/book",
   },
 };
@@ -703,7 +703,7 @@ export const DEFAULT_PAGE_COPY: PageCopy = {
     headline: "Your next project deserves better than ordinary.",
     subheadline:
       "Book a shoot or explore the portfolio — let's build something worth framing.",
-    primaryLabel: "Book a Shoot",
+    primaryLabel: "Start Your Project",
     primaryHref: "/book",
     secondaryLabel: "View Portfolio",
     secondaryHref: "/portfolio",
@@ -716,19 +716,19 @@ export const DEFAULT_PAGE_COPY: PageCopy = {
   portfolioCta: {
     headline: "See yourself in the portfolio?",
     subheadline: "Let's create something that belongs here.",
-    primaryLabel: "Book a Shoot",
+    primaryLabel: "Start Your Project",
     primaryHref: "/book",
   },
   servicesCta: {
     headline: "Every project starts with a conversation.",
-    primaryLabel: "Request a Booking",
+    primaryLabel: "Start Your Project",
     primaryHref: "/book",
     secondaryLabel: "View Portfolio",
     secondaryHref: "/portfolio",
   },
   aboutCta: {
     headline: "Ready to work together?",
-    primaryLabel: "Book a Shoot",
+    primaryLabel: "Start Your Project",
     primaryHref: "/book",
     secondaryLabel: "View Portfolio",
     secondaryHref: "/portfolio",
@@ -740,21 +740,21 @@ export const DEFAULT_PAGE_COPY: PageCopy = {
     primaryHref: "/sessions/apply",
   },
   bookPage: {
-    headline: "Let's Create Something Unforgettable",
+    headline: "Start Your Project",
     subheadline:
-      "Every project begins with a conversation. Tell us about your vision, goals, and creative direction, and we'll craft an experience tailored to your story.",
+      "You're not filling out a form — you're beginning a professional production. Share your vision and we'll craft the creative plan.",
     notes: [
-      "Responses within 24–48 hours",
+      "Personal review within 24–48 hours",
       "Based in Sacramento, available for travel",
-      "Custom quotes for every project",
+      "Custom proposals for every production",
     ],
     successTitle: "Inquiry received.",
     successMessage:
-      "Thank you for reaching out. Your project will be personally reviewed — expect a response within 24–48 hours with availability, next steps, and a customized proposal.",
+      "Your project is in Discovery Review. Expect a response within 24–48 hours with availability, creative recommendations, and a customized proposal.",
     nextSteps: [
-      "Personal review of your vision, scope, and preferred dates",
-      "Direct follow-up with availability and creative recommendations",
-      "Customized proposal tailored to your goals and budget",
+      "We review your vision, scope, and preferred dates",
+      "Direct follow-up with availability and creative direction",
+      "Customized proposal tailored to your goals and investment",
       "Pre-production planning once your project is confirmed",
     ],
   },
@@ -936,7 +936,7 @@ export const DEFAULT_PORTFOLIO_PAGE: PortfolioPageContent = {
   emptyState: {
     headline: "New work is currently in production.",
     subheadline: "Check back soon or explore another collection.",
-    ctaLabel: "Book a Project",
+    ctaLabel: "Start Your Project",
     ctaHref: "/book",
   },
 };

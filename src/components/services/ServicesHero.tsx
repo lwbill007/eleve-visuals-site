@@ -78,7 +78,7 @@ export function ServicesHero({
             className="mt-10 flex flex-wrap gap-4"
           >
             <Button variant="primary" href="/book" size="lg">
-              Book a Project
+              Start Your Project
             </Button>
             <Button variant="secondary" href="/portfolio" size="lg">
               View Portfolio

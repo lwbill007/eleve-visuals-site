@@ -212,17 +212,17 @@ export function PipelineClient() {
                           </Link>
                         )}
                       </div>
-                      {col.id === "new" && (
+                      {col.id === "lead" && (
                         <button
                           type="button"
                           disabled={busyId === item.id}
                           onClick={(e) => {
                             e.stopPropagation();
-                            void moveItem(item.id, "contacted");
+                            void moveItem(item.id, "discovery");
                           }}
                           className="mt-3 w-full rounded-lg border border-accent/35 bg-accent/10 px-2 py-1.5 text-[0.6rem] tracking-[0.1em] text-accent uppercase hover:bg-accent/20 disabled:opacity-50"
                         >
-                          Mark contacted
+                          Advance to Discovery
                         </button>
                       )}
                     </div>
@@ -239,7 +239,7 @@ export function PipelineClient() {
 
       <AdminPanel title="How to use" subtitle="Speed-to-lead is the highest ROI action" className="mt-6">
         <p className="text-sm text-fog">
-          Drag cards to update stage, or use Mark contacted on new leads. Values are estimated from form
+          Drag cards to update stage, or Advance to Discovery on new leads. Values are estimated from form
           budget ranges until Stripe payments are connected.
         </p>
       </AdminPanel>

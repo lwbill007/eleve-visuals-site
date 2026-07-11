@@ -51,7 +51,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                     href="/book"
                     className="inline-flex min-h-11 items-center text-sm text-fog transition-colors hover:text-cream"
                   >
-                    Book a Shoot
+                    Start Your Project
                   </Link>
                 </li>
               </ul>

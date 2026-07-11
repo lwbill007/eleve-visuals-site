@@ -65,11 +65,11 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     prisma.submission.findMany({
       where: {
         type: "booking",
-        status: { in: ["new", "contacted"] },
-        createdAt: { lt: new Date(Date.now() - 3 * 86400000) },
+        status: { in: ["new", "contacted", "lead", "qualified", "discovery", "proposal"] },
+        updatedAt: { lt: new Date(Date.now() - 3 * 86400000) },
       },
       take: 10,
-      select: { id: true, contactEmail: true, data: true, createdAt: true, status: true },
+      select: { id: true, contactEmail: true, data: true, createdAt: true, updatedAt: true, status: true },
     }),
     prisma.sessionVolume.findMany({
       where: { published: true, archived: false, status: { in: ["applications_open", "upcoming", "live"] } },
@@ -115,7 +115,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       ? `Review ${dashboard.metrics.applications.pending} session applications`
       : null,
     operatorMetrics.attention.galleriesAwaiting > 0
-      ? `Deliver ${operatorMetrics.attention.galleriesAwaiting} pending galleries`
+      ? `Follow up on ${operatorMetrics.attention.galleriesAwaiting} booked projects idle 14+ days (delivery check)`
       : null,
     proactiveInsights[0]?.title ?? null,
   ].filter(Boolean) as string[];
@@ -237,7 +237,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
         return {
           id: b.id,
           name,
-          daysSince: Math.round((Date.now() - b.createdAt.getTime()) / 86400000),
+          daysSince: Math.round((Date.now() - b.updatedAt.getTime()) / 86400000),
           href: `/admin/submissions?type=booking&focus=${b.id}`,
         };
       }),

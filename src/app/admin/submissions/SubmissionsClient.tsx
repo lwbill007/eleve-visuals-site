@@ -20,11 +20,13 @@ import {
   INQUIRY_STATUSES,
   INQUIRY_STATUS_LABELS,
   INQUIRY_STATUS_COLORS,
+  normalizeInquiryStatus,
   type ApplicationStatus,
   type InquiryStatus,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatInquiryId } from "@/lib/booking";
+import { BookingProjectWorkspace } from "@/components/admin/ai/BookingProjectWorkspace";
 
 interface Submission {
   id: string;
@@ -77,8 +79,12 @@ function BookingSubmissionDetail({ data }: { data: Record<string, unknown> }) {
 
   return (
     <dl className="mt-4 grid gap-3 text-sm text-fog sm:grid-cols-2">
+      <DetailRow label="Category" value={asString(data.projectCategory)} />
       <DetailRow label="Services" value={services} />
-      <DetailRow label="Shoot type (legacy)" value={asString(data.shootType)} />
+      <DetailRow label="Purpose" value={asString(data.purpose)} />
+      <DetailRow label="Goals" value={asString(data.goals)} />
+      <DetailRow label="Audience" value={asString(data.audience)} />
+      <DetailRow label="Creative direction" value={asString(data.creativeDirection)} />
       <DetailRow label="Preferred date" value={asString(data.preferredDate)} />
       <DetailRow
         label="Flexible date"
@@ -88,6 +94,7 @@ function BookingSubmissionDetail({ data }: { data: Record<string, unknown> }) {
       <DetailRow label="Session setting" value={asString(data.sessionSetting)} />
       <DetailRow label="Duration" value={asString(data.duration)} />
       <DetailRow label="Budget" value={asString(data.budgetRange)} />
+      <DetailRow label="Timeline notes" value={asString(data.projectTimeline)} />
       <DetailRow label="Referral" value={asString(data.referralSource)} />
       <DetailRow label="Phone" value={asString(data.phone)} />
       <DetailRow label="Instagram" value={asString(data.instagram)} />
@@ -97,7 +104,7 @@ function BookingSubmissionDetail({ data }: { data: Record<string, unknown> }) {
       <DetailRow label="Inspiration IG" value={asString(data.inspirationInstagram)} />
       <DetailRow label="Drive link" value={asString(data.driveLink)} />
       <div className="sm:col-span-2">
-        <dt className="text-xs uppercase tracking-wide text-muted">Project vision</dt>
+        <dt className="text-xs uppercase tracking-wide text-muted">Story / vision</dt>
         <dd className="mt-1 whitespace-pre-wrap text-cream">{vision ?? "—"}</dd>
       </div>
       <div className="sm:col-span-2">
@@ -553,11 +560,11 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
                 </p>
                 {(item.type === "booking" || item.type === "contact") && (
                   <select
-                    value={item.status}
+                    value={normalizeInquiryStatus(item.status)}
                     onChange={(e) => updateStatus(item.id, e.target.value as InquiryStatus)}
                     className={cn(
                       "mt-2 border bg-charcoal px-2 py-1 text-xs",
-                      INQUIRY_STATUS_COLORS[item.status as InquiryStatus] ||
+                      INQUIRY_STATUS_COLORS[normalizeInquiryStatus(item.status)] ||
                         "border-stone/50 text-cream"
                     )}
                     aria-label="Inquiry status"
@@ -617,6 +624,17 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
             {expanded === item.id && (
               <>
                 <SubmissionDetail type={item.type} data={item.data} />
+                {item.type === "booking" && (
+                  <BookingProjectWorkspace
+                    submissionId={item.id}
+                    status={item.status}
+                    data={item.data}
+                    email={
+                      (typeof item.data.email === "string" && item.data.email) ||
+                      undefined
+                    }
+                  />
+                )}
                 <div className="mt-4 border-t border-stone/20 pt-4 text-xs text-muted">
                   <p>
                     <span className="uppercase tracking-wide">Received</span>{" "}

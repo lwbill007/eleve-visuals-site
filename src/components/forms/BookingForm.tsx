@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { BookingOptions, PageCopy } from "@/lib/types";
 import {
   FormField,
@@ -13,13 +13,16 @@ import {
 import { SubmitButton } from "@/components/ui/Button";
 import { FormSpamFields, useFormSpam } from "@/components/forms/FormSpamFields";
 import { BookingProgress } from "@/components/booking/BookingProgress";
-import { SelectableGrid } from "@/components/booking/SelectableCard";
+import { CategoryGrid, SelectableGrid } from "@/components/booking/SelectableCard";
 import { BookingSuccess } from "@/components/booking/BookingSuccess";
 import { trackConversion, trackEngagement } from "@/lib/analytics-client";
 import {
   BOOKING_AUTOSAVE_KEY,
   BOOKING_STEPS,
+  PROJECT_CATEGORIES,
+  composeProjectVision,
   initialBookingData,
+  serviceTypesFromCategory,
   type BookingFormData,
 } from "@/lib/booking";
 import {
@@ -41,10 +44,33 @@ function isValidOptionalUrl(value: string): boolean {
   return /^https?:\/\/.+/i.test(value.trim());
 }
 
-const stepMotion = {
-  initial: { opacity: 0, x: 20 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -20 },
+const FIELD_STEP: Partial<Record<keyof BookingFormData, number>> = {
+  fullName: 1,
+  email: 1,
+  phone: 1,
+  instagram: 1,
+  website: 1,
+  projectCategory: 2,
+  serviceTypes: 2,
+  purpose: 3,
+  goals: 3,
+  audience: 3,
+  creativeDirection: 3,
+  projectVision: 3,
+  pinterestLink: 4,
+  moodBoardUrl: 4,
+  inspirationInstagram: 4,
+  driveLink: 4,
+  preferredDate: 5,
+  flexibleDate: 5,
+  location: 5,
+  sessionSetting: 5,
+  duration: 5,
+  budgetRange: 6,
+  projectTimeline: 6,
+  deliverables: 6,
+  referralSource: 7,
+  termsAccepted: 7,
 };
 
 export function BookingForm({
@@ -54,12 +80,15 @@ export function BookingForm({
   bookingOptions: BookingOptions;
   bookPage: PageCopy["bookPage"];
 }) {
+  const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<BookingFormData>(initialBookingData);
   const [errors, setErrors] = useState<FormErrors<BookingFormData>>({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [inquiryId, setInquiryId] = useState<string>();
+  const [formError, setFormError] = useState("");
+  const [draftRestored, setDraftRestored] = useState(false);
   const [autosaved, setAutosaved] = useState(false);
   const spam = useFormSpam();
   const [minDate, setMinDate] = useState("");
@@ -77,6 +106,7 @@ export function BookingForm({
       if (parsed.step && parsed.step >= 1 && parsed.step <= BOOKING_STEPS.length) {
         setStep(parsed.step);
       }
+      setDraftRestored(true);
     } catch {
       /* ignore corrupt draft */
     }
@@ -93,7 +123,7 @@ export function BookingForm({
         localStorage.setItem(BOOKING_AUTOSAVE_KEY, JSON.stringify({ ...data, step }));
         setAutosaved(true);
       } catch {
-        /* storage full or unavailable */
+        /* storage full */
       }
     }, 500);
     return () => clearTimeout(timer);
@@ -106,6 +136,12 @@ export function BookingForm({
   }, [autosaved]);
 
   useEffect(() => {
+    if (!draftRestored) return;
+    const hide = setTimeout(() => setDraftRestored(false), 4000);
+    return () => clearTimeout(hide);
+  }, [draftRestored]);
+
+  useEffect(() => {
     if (submitted) return;
     trackEngagement({
       event: "form_step",
@@ -115,102 +151,68 @@ export function BookingForm({
     });
   }, [step, submitted]);
 
-  const update = useCallback(<K extends keyof BookingFormData>(
-    key: K,
-    value: BookingFormData[K]
-  ) => {
+  const update = useCallback(<K extends keyof BookingFormData>(key: K, value: BookingFormData[K]) => {
     setData((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => ({ ...prev, [key]: undefined }));
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setFormError("");
   }, []);
 
-  const toggleArrayItem = (key: "serviceTypes" | "deliverables", item: string) => {
-    const list = data[key];
-    const next = list.includes(item) ? list.filter((i) => i !== item) : [...list, item];
-    update(key, next);
+  const getStepErrors = (s: number): FormErrors<BookingFormData> => {
+    const e: FormErrors<BookingFormData> = {};
+    if (s === 1) {
+      if (!data.fullName.trim()) e.fullName = "Required";
+      if (!isValidEmail(data.email)) e.email = "Valid email required";
+      const digits = data.phone.replace(/\D/g, "");
+      if (digits.length < 10) e.phone = "Enter a valid phone number";
+      if (data.instagram && !isValidInstagram(data.instagram)) e.instagram = "Invalid handle";
+    }
+    if (s === 2) {
+      if (!data.projectCategory) e.projectCategory = "Select what we're creating";
+    }
+    if (s === 3) {
+      if (!data.purpose.trim()) e.purpose = "Required";
+      if (!data.goals.trim()) e.goals = "Required";
+      if (data.projectVision.trim().length < 10) e.projectVision = "At least 10 characters";
+    }
+    if (s === 4) {
+      if (!isValidOptionalUrl(data.pinterestLink)) e.pinterestLink = "Invalid URL";
+      if (!isValidOptionalUrl(data.moodBoardUrl)) e.moodBoardUrl = "Invalid URL";
+      if (!isValidOptionalUrl(data.driveLink)) e.driveLink = "Invalid URL";
+    }
+    if (s === 5) {
+      if (!isFutureDate(data.preferredDate)) e.preferredDate = "Choose today or a future date";
+      if (data.flexibleDate && !isFutureDate(data.flexibleDate)) e.flexibleDate = "Invalid date";
+      if (!data.location.trim()) e.location = "Required";
+      if (!data.sessionSetting) e.sessionSetting = "Required";
+      if (!data.duration) e.duration = "Required";
+    }
+    if (s === 6) {
+      if (!data.budgetRange) e.budgetRange = "Required";
+      if (data.deliverables.length === 0) e.deliverables = "Select at least one";
+    }
+    if (s === 7) {
+      if (!data.referralSource) e.referralSource = "Required";
+      if (!data.termsAccepted) e.termsAccepted = "Please accept the terms";
+    }
+    return e;
   };
 
-  const getStepErrors = (currentStep: number): FormErrors<BookingFormData> => {
-    const next: FormErrors<BookingFormData> = {};
-
-    if (currentStep === 1) {
-      if (!data.fullName.trim()) next.fullName = "Full name is required";
-      if (!data.email.trim()) next.email = "Email is required";
-      else if (!isValidEmail(data.email)) next.email = "Enter a valid email";
-      if (!data.phone.trim()) next.phone = "Phone number is required";
-      else if (data.phone.replace(/\D/g, "").length < 10)
-        next.phone = "Enter a valid 10-digit phone number";
-      if (data.instagram && !isValidInstagram(data.instagram))
-        next.instagram = "Enter a valid Instagram handle";
-      if (data.website && !isValidOptionalUrl(data.website))
-        next.website = "Enter a valid URL starting with http:// or https://";
-    }
-
-    if (currentStep === 2) {
-      if (data.serviceTypes.length === 0)
-        next.serviceTypes = "Select at least one service";
-    }
-
-    if (currentStep === 3) {
-      if (!data.preferredDate) next.preferredDate = "Preferred date is required";
-      else if (!isFutureDate(data.preferredDate))
-        next.preferredDate = "Preferred date must be today or in the future";
-      if (data.flexibleDate && !isFutureDate(data.flexibleDate))
-        next.flexibleDate = "Flexible date must be today or in the future";
-      if (!data.location.trim()) next.location = "Location is required";
-      if (!data.sessionSetting) next.sessionSetting = "Select a session setting";
-      if (!data.duration) next.duration = "Select an estimated duration";
-    }
-
-    if (currentStep === 4) {
-      if (!data.projectVision.trim())
-        next.projectVision = "Tell us about your project vision";
-      else if (data.projectVision.trim().length < 10)
-        next.projectVision = "Please share at least 10 characters about your vision";
-      if (data.pinterestLink && !isValidOptionalUrl(data.pinterestLink))
-        next.pinterestLink = "Enter a valid URL";
-      if (data.moodBoardUrl && !isValidOptionalUrl(data.moodBoardUrl))
-        next.moodBoardUrl = "Enter a valid URL";
-      if (data.driveLink && !isValidOptionalUrl(data.driveLink))
-        next.driveLink = "Enter a valid URL";
-      if (data.inspirationInstagram && !isValidInstagram(data.inspirationInstagram) && !isValidOptionalUrl(data.inspirationInstagram)) {
-        next.inspirationInstagram = "Enter a valid @handle or URL";
-      }
-    }
-
-    if (currentStep === 5) {
-      if (data.deliverables.length === 0)
-        next.deliverables = "Select at least one deliverable";
-    }
-
-    if (currentStep === 6) {
-      if (!data.budgetRange) next.budgetRange = "Select a budget range";
-    }
-
-    if (currentStep === 7) {
-      if (!data.referralSource) next.referralSource = "Let us know how you found ÉLEVÉ";
-      if (!data.termsAccepted) next.termsAccepted = "You must agree to the booking terms";
-    }
-
-    return next;
-  };
-
-  const validateStep = (currentStep: number): boolean => {
-    const next = getStepErrors(currentStep);
-    setErrors(next);
-    return Object.keys(next).length === 0;
+  const validateStep = (s: number) => {
+    const e = getStepErrors(s);
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const validateAllSteps = (): number | null => {
-    const allErrors: FormErrors<BookingFormData> = {};
-    for (let s = 1; s <= BOOKING_STEPS.length; s++) {
-      Object.assign(allErrors, getStepErrors(s));
-    }
-    setErrors(allErrors);
-    if (Object.keys(allErrors).length === 0) return null;
     for (let s = 1; s <= BOOKING_STEPS.length; s++) {
       if (Object.keys(getStepErrors(s)).length > 0) return s;
     }
-    return 1;
+    return null;
   };
 
   const goNext = () => {
@@ -224,44 +226,94 @@ export function BookingForm({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const jumpToField = (field: keyof BookingFormData) => {
+    const target = FIELD_STEP[field] ?? 7;
+    setStep(target);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    requestAnimationFrame(() => {
+      document.getElementById(String(field))?.focus();
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const invalidStep = validateAllSteps();
     if (invalidStep !== null) {
-      if (invalidStep !== step) {
-        setStep(invalidStep);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+      setStep(invalidStep);
+      setFormError("Please complete the highlighted fields.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    if (!spam.canSubmit()) return;
+    if (!spam.canSubmit()) {
+      setFormError("Complete the security check below to submit.");
+      return;
+    }
 
     setLoading(true);
-    const res = await fetch("/api/submit/booking", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, ...spam.spamPayload() }),
-    });
-    setLoading(false);
+    setFormError("");
+    try {
+      const vision = composeProjectVision(data);
+      const serviceTypes =
+        data.serviceTypes.length > 0
+          ? data.serviceTypes
+          : serviceTypesFromCategory(data.projectCategory, bookingOptions.serviceTypes);
 
-    if (!res.ok) {
-      const payload = await res.json().catch(() => ({}));
-      setErrors(
-        mapApiErrorsToForm<BookingFormData>(
-          payload,
+      const res = await fetch("/api/submit/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          projectVision: vision || data.projectVision,
+          serviceTypes,
+          ...spam.spamPayload(),
+        }),
+      });
+
+      const payload = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        inquiryId?: string;
+        error?: string;
+        details?: unknown;
+      };
+
+      if (!res.ok) {
+        const mapped = mapApiErrorsToForm<BookingFormData>(
+          {
+            error: payload.error,
+            details:
+              payload.details && typeof payload.details === "object"
+                ? (payload.details as Record<string, string[] | undefined>)
+                : undefined,
+          },
           "fullName",
           res.status === 429
-        )
-      );
-      return;
-    }
+        );
+        setErrors(mapped);
+        const firstKey = Object.keys(mapped)[0] as keyof BookingFormData | undefined;
+        setFormError(
+          res.status === 429
+            ? "Too many submissions — try again later."
+            : payload.error || "Something went wrong. Please review and try again."
+        );
+        if (firstKey) jumpToField(firstKey);
+        return;
+      }
 
-    const payload = await res.json().catch(() => ({}));
-    if (typeof payload.inquiryId === "string") setInquiryId(payload.inquiryId);
-    localStorage.removeItem(BOOKING_AUTOSAVE_KEY);
-    trackConversion("booking");
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+      if (typeof payload.inquiryId !== "string" || !payload.inquiryId) {
+        setFormError("We couldn't confirm your inquiry. Please try again or contact us.");
+        return;
+      }
+
+      setInquiryId(payload.inquiryId);
+      localStorage.removeItem(BOOKING_AUTOSAVE_KEY);
+      trackConversion("booking");
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      setFormError("Network error — check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -271,20 +323,45 @@ export function BookingForm({
         message={bookPage.successMessage}
         nextSteps={bookPage.nextSteps}
         inquiryId={inquiryId}
+        status="lead"
       />
     );
   }
+
+  const stepMotion = reduceMotion
+    ? { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 1 } }
+    : {
+        initial: { opacity: 0, x: 20 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: -20 },
+      };
 
   return (
     <form onSubmit={handleSubmit} noValidate className="relative">
       <div className="mb-10">
         <BookingProgress currentStep={step} />
-        {autosaved && (
-          <span className="mt-2 block text-right text-[0.65rem] tracking-[0.15em] text-muted uppercase">
-            Draft saved
-          </span>
-        )}
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2" aria-live="polite">
+          {draftRestored && (
+            <span className="text-[0.65rem] tracking-[0.12em] text-accent uppercase">
+              Draft restored
+            </span>
+          )}
+          {autosaved && (
+            <span className="ml-auto text-[0.65rem] tracking-[0.15em] text-muted uppercase">
+              Draft saved
+            </span>
+          )}
+        </div>
       </div>
+
+      {formError && (
+        <div
+          role="alert"
+          className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+        >
+          {formError}
+        </div>
+      )}
 
       <div className="rounded-none border border-stone/30 bg-charcoal/20 p-6 backdrop-blur-sm md:p-10">
         <AnimatePresence mode="wait">
@@ -293,15 +370,13 @@ export function BookingForm({
             initial={stepMotion.initial}
             animate={stepMotion.animate}
             exit={stepMotion.exit}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduceMotion ? 0 : 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
             {step === 1 && (
               <fieldset className="space-y-6">
-                <legend className="label-caps mb-2 block text-accent">
-                  Step 1 — Contact Information
-                </legend>
+                <legend className="font-display mb-2 block text-2xl text-cream">About You</legend>
                 <p className="mb-6 text-sm text-fog">
-                  Social profiles help us better understand your style and creative direction.
+                  So we know who we&apos;re creating with.
                 </p>
                 <div className="grid gap-6 md:grid-cols-2">
                   <FormField label="Full Name" name="fullName" required error={errors.fullName}>
@@ -311,10 +386,11 @@ export function BookingForm({
                       value={data.fullName}
                       onChange={(e) => update("fullName", e.target.value)}
                       error={!!errors.fullName}
+                      aria-invalid={!!errors.fullName}
                       autoComplete="name"
                     />
                   </FormField>
-                  <FormField label="Email Address" name="email" required error={errors.email}>
+                  <FormField label="Email" name="email" required error={errors.email}>
                     <TextInput
                       id="email"
                       name="email"
@@ -322,10 +398,11 @@ export function BookingForm({
                       value={data.email}
                       onChange={(e) => update("email", e.target.value)}
                       error={!!errors.email}
+                      aria-invalid={!!errors.email}
                       autoComplete="email"
                     />
                   </FormField>
-                  <FormField label="Phone Number" name="phone" required error={errors.phone}>
+                  <FormField label="Phone" name="phone" required error={errors.phone}>
                     <TextInput
                       id="phone"
                       name="phone"
@@ -333,32 +410,26 @@ export function BookingForm({
                       value={data.phone}
                       onChange={(e) => update("phone", formatPhone(e.target.value))}
                       error={!!errors.phone}
+                      aria-invalid={!!errors.phone}
                       autoComplete="tel"
                     />
                   </FormField>
-                  <FormField label="Instagram Handle" name="instagram" error={errors.instagram}>
+                  <FormField label="Instagram" name="instagram" error={errors.instagram} hint="Optional">
                     <TextInput
                       id="instagram"
                       name="instagram"
                       value={data.instagram}
                       onChange={(e) => update("instagram", e.target.value)}
                       error={!!errors.instagram}
-                      placeholder="@yourhandle"
+                      placeholder="@handle"
                     />
                   </FormField>
-                  <FormField
-                    label="Website or Portfolio"
-                    name="website"
-                    error={errors.website}
-                    className="md:col-span-2"
-                  >
+                  <FormField label="Website" name="website" className="md:col-span-2" hint="Optional">
                     <TextInput
                       id="website"
                       name="website"
-                      type="url"
                       value={data.website}
                       onChange={(e) => update("website", e.target.value)}
-                      error={!!errors.website}
                       placeholder="https://"
                     />
                   </FormField>
@@ -368,37 +439,162 @@ export function BookingForm({
 
             {step === 2 && (
               <fieldset className="space-y-6">
-                <legend className="label-caps mb-2 block text-accent">
-                  Step 2 — Select Your Service
+                <legend className="font-display mb-2 block text-2xl text-cream">
+                  What Are We Creating?
                 </legend>
-                <p className="mb-4 text-sm text-fog">Select all services that apply to your project.</p>
-                <SelectableGrid
-                  options={bookingOptions.serviceTypes}
-                  selected={data.serviceTypes}
-                  onToggle={(v) => toggleArrayItem("serviceTypes", v)}
-                  multi
+                <p className="mb-6 text-sm text-fog">
+                  Choose the production shape that fits — we&apos;ll refine the brief together.
+                </p>
+                <CategoryGrid
+                  options={PROJECT_CATEGORIES.map((c) => ({
+                    id: c.id,
+                    label: c.label,
+                    description: c.description,
+                  }))}
+                  selected={data.projectCategory}
+                  onSelect={(id) => update("projectCategory", id)}
                 />
-                {errors.serviceTypes && (
-                  <p className="field-error">{errors.serviceTypes}</p>
+                {errors.projectCategory && (
+                  <p className="field-error" role="alert">
+                    {errors.projectCategory}
+                  </p>
                 )}
+                <div className="pt-4">
+                  <p className="mb-3 text-sm text-cream-dim">Detail services (optional)</p>
+                  <SelectableGrid
+                    options={bookingOptions.serviceTypes}
+                    selected={data.serviceTypes}
+                    multi
+                    onToggle={(v) => {
+                      const next = data.serviceTypes.includes(v)
+                        ? data.serviceTypes.filter((x) => x !== v)
+                        : [...data.serviceTypes, v];
+                      update("serviceTypes", next);
+                    }}
+                  />
+                </div>
               </fieldset>
             )}
 
             {step === 3 && (
               <fieldset className="space-y-6">
-                <legend className="label-caps mb-2 block text-accent">
-                  Step 3 — Session Information
-                </legend>
+                <legend className="font-display mb-2 block text-2xl text-cream">Vision</legend>
+                <p className="mb-6 text-sm text-fog">
+                  Purpose, goals, audience, and the story we&apos;re telling.
+                </p>
+                <FormField label="Purpose" name="purpose" required error={errors.purpose}>
+                  <TextArea
+                    id="purpose"
+                    name="purpose"
+                    rows={3}
+                    value={data.purpose}
+                    onChange={(e) => update("purpose", e.target.value)}
+                    error={!!errors.purpose}
+                    placeholder="Why does this project matter?"
+                  />
+                </FormField>
+                <FormField label="Goals" name="goals" required error={errors.goals}>
+                  <TextArea
+                    id="goals"
+                    name="goals"
+                    rows={3}
+                    value={data.goals}
+                    onChange={(e) => update("goals", e.target.value)}
+                    error={!!errors.goals}
+                    placeholder="What does success look like?"
+                  />
+                </FormField>
+                <FormField label="Audience" name="audience" hint="Optional">
+                  <TextInput
+                    id="audience"
+                    name="audience"
+                    value={data.audience}
+                    onChange={(e) => update("audience", e.target.value)}
+                    placeholder="Who is this for?"
+                  />
+                </FormField>
+                <FormField label="Creative direction" name="creativeDirection" hint="Optional">
+                  <TextArea
+                    id="creativeDirection"
+                    name="creativeDirection"
+                    rows={3}
+                    value={data.creativeDirection}
+                    onChange={(e) => update("creativeDirection", e.target.value)}
+                    placeholder="Tone, aesthetic, references…"
+                  />
+                </FormField>
+                <FormField label="Story" name="projectVision" required error={errors.projectVision}>
+                  <TextArea
+                    id="projectVision"
+                    name="projectVision"
+                    rows={4}
+                    value={data.projectVision}
+                    onChange={(e) => update("projectVision", e.target.value)}
+                    error={!!errors.projectVision}
+                    placeholder="Tell us the narrative behind the work."
+                  />
+                </FormField>
+              </fieldset>
+            )}
+
+            {step === 4 && (
+              <fieldset className="space-y-6">
+                <legend className="font-display mb-2 block text-2xl text-cream">Inspiration</legend>
+                <p className="mb-6 text-sm text-fog">
+                  Links to mood boards and references. File uploads coming soon — Drive/Dropbox links
+                  work today.
+                </p>
+                <FormField label="Pinterest" name="pinterestLink" error={errors.pinterestLink}>
+                  <TextInput
+                    id="pinterestLink"
+                    value={data.pinterestLink}
+                    onChange={(e) => update("pinterestLink", e.target.value)}
+                    error={!!errors.pinterestLink}
+                    placeholder="https://"
+                  />
+                </FormField>
+                <FormField label="Mood board URL" name="moodBoardUrl" error={errors.moodBoardUrl}>
+                  <TextInput
+                    id="moodBoardUrl"
+                    value={data.moodBoardUrl}
+                    onChange={(e) => update("moodBoardUrl", e.target.value)}
+                    error={!!errors.moodBoardUrl}
+                    placeholder="https://"
+                  />
+                </FormField>
+                <FormField label="Inspiration Instagram" name="inspirationInstagram">
+                  <TextInput
+                    id="inspirationInstagram"
+                    value={data.inspirationInstagram}
+                    onChange={(e) => update("inspirationInstagram", e.target.value)}
+                    placeholder="@account or URL"
+                  />
+                </FormField>
+                <FormField
+                  label="Brand assets / Drive"
+                  name="driveLink"
+                  error={errors.driveLink}
+                  hint="Logo, guidelines, previous work"
+                >
+                  <TextInput
+                    id="driveLink"
+                    value={data.driveLink}
+                    onChange={(e) => update("driveLink", e.target.value)}
+                    error={!!errors.driveLink}
+                    placeholder="https://"
+                  />
+                </FormField>
+              </fieldset>
+            )}
+
+            {step === 5 && (
+              <fieldset className="space-y-6">
+                <legend className="font-display mb-2 block text-2xl text-cream">Planning</legend>
+                <p className="mb-6 text-sm text-fog">Dates, location, and how we shoot.</p>
                 <div className="grid gap-6 md:grid-cols-2">
-                  <FormField
-                    label="Preferred Date"
-                    name="preferredDate"
-                    required
-                    error={errors.preferredDate}
-                  >
+                  <FormField label="Preferred date" name="preferredDate" required error={errors.preferredDate}>
                     <TextInput
                       id="preferredDate"
-                      name="preferredDate"
                       type="date"
                       min={minDate}
                       value={data.preferredDate}
@@ -406,15 +602,9 @@ export function BookingForm({
                       error={!!errors.preferredDate}
                     />
                   </FormField>
-                  <FormField
-                    label="Flexible Date"
-                    name="flexibleDate"
-                    error={errors.flexibleDate}
-                    hint="Optional backup date"
-                  >
+                  <FormField label="Flexible alternate" name="flexibleDate" error={errors.flexibleDate}>
                     <TextInput
                       id="flexibleDate"
-                      name="flexibleDate"
                       type="date"
                       min={minDate}
                       value={data.flexibleDate}
@@ -422,177 +612,141 @@ export function BookingForm({
                       error={!!errors.flexibleDate}
                     />
                   </FormField>
-                  <FormField
-                    label="Location"
-                    name="location"
-                    required
-                    error={errors.location}
-                    className="md:col-span-2"
-                  >
-                    <TextInput
-                      id="location"
-                      name="location"
-                      value={data.location}
-                      onChange={(e) => update("location", e.target.value)}
-                      error={!!errors.location}
-                      placeholder="City, venue, or address"
-                    />
-                  </FormField>
                 </div>
+                <FormField label="Location" name="location" required error={errors.location}>
+                  <TextInput
+                    id="location"
+                    value={data.location}
+                    onChange={(e) => update("location", e.target.value)}
+                    error={!!errors.location}
+                    placeholder="City, venue, or 'open to recommendations'"
+                  />
+                </FormField>
                 <div>
-                  <p className="mb-3 text-sm text-cream-dim">Session Setting</p>
+                  <p className="mb-3 text-sm text-cream-dim">
+                    Session setting <span className="text-accent">*</span>
+                  </p>
                   <SelectableGrid
                     options={bookingOptions.sessionSettings}
                     selected={data.sessionSetting}
                     onToggle={(v) => update("sessionSetting", v)}
-                    columns="grid-cols-1 xs:grid-cols-2 sm:grid-cols-4"
+                    columns="xs:grid-cols-2"
                   />
                   {errors.sessionSetting && (
                     <p className="field-error mt-2">{errors.sessionSetting}</p>
                   )}
                 </div>
                 <div>
-                  <p className="mb-3 text-sm text-cream-dim">Estimated Duration</p>
+                  <p className="mb-3 text-sm text-cream-dim">
+                    Estimated duration <span className="text-accent">*</span>
+                  </p>
                   <SelectableGrid
                     options={bookingOptions.durations}
                     selected={data.duration}
                     onToggle={(v) => update("duration", v)}
-                    columns="grid-cols-1 xs:grid-cols-2 sm:grid-cols-3"
+                    columns="xs:grid-cols-2"
                   />
-                  {errors.duration && (
-                    <p className="field-error mt-2">{errors.duration}</p>
-                  )}
+                  {errors.duration && <p className="field-error mt-2">{errors.duration}</p>}
                 </div>
-              </fieldset>
-            )}
-
-            {step === 4 && (
-              <fieldset className="space-y-6">
-                <legend className="label-caps mb-2 block text-accent">
-                  Step 4 — Project Vision
-                </legend>
-                <FormField
-                  label="Your Vision"
-                  name="projectVision"
-                  required
-                  error={errors.projectVision}
-                >
-                  <TextArea
-                    id="projectVision"
-                    name="projectVision"
-                    value={data.projectVision}
-                    onChange={(e) => update("projectVision", e.target.value)}
-                    error={!!errors.projectVision}
-                    rows={6}
-                    placeholder="Describe the story you want to tell. Include inspiration, references, wardrobe ideas, locations, mood, goals, or anything that will help us bring your vision to life."
-                  />
-                </FormField>
-                <div className="grid gap-6 md:grid-cols-2">
-                  <FormField label="Pinterest Link" name="pinterestLink" error={errors.pinterestLink}>
-                    <TextInput
-                      id="pinterestLink"
-                      name="pinterestLink"
-                      value={data.pinterestLink}
-                      onChange={(e) => update("pinterestLink", e.target.value)}
-                      error={!!errors.pinterestLink}
-                      placeholder="https://"
-                    />
-                  </FormField>
-                  <FormField label="Mood Board URL" name="moodBoardUrl" error={errors.moodBoardUrl}>
-                    <TextInput
-                      id="moodBoardUrl"
-                      name="moodBoardUrl"
-                      value={data.moodBoardUrl}
-                      onChange={(e) => update("moodBoardUrl", e.target.value)}
-                      error={!!errors.moodBoardUrl}
-                      placeholder="https://"
-                    />
-                  </FormField>
-                  <FormField
-                    label="Instagram Inspiration"
-                    name="inspirationInstagram"
-                    error={errors.inspirationInstagram}
-                  >
-                    <TextInput
-                      id="inspirationInstagram"
-                      name="inspirationInstagram"
-                      value={data.inspirationInstagram}
-                      onChange={(e) => update("inspirationInstagram", e.target.value)}
-                      placeholder="@account or link"
-                      error={!!errors.inspirationInstagram}
-                    />
-                  </FormField>
-                  <FormField label="Google Drive Link" name="driveLink" error={errors.driveLink}>
-                    <TextInput
-                      id="driveLink"
-                      name="driveLink"
-                      value={data.driveLink}
-                      onChange={(e) => update("driveLink", e.target.value)}
-                      error={!!errors.driveLink}
-                      placeholder="https://"
-                    />
-                  </FormField>
-                </div>
-              </fieldset>
-            )}
-
-            {step === 5 && (
-              <fieldset className="space-y-6">
-                <legend className="label-caps mb-2 block text-accent">
-                  Step 5 — Deliverables
-                </legend>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {bookingOptions.deliverables.map((item) => (
-                    <CheckboxField
-                      key={item}
-                      name={`deliverable-${item}`}
-                      label={item}
-                      checked={data.deliverables.includes(item)}
-                      onChange={() => toggleArrayItem("deliverables", item)}
-                    />
-                  ))}
-                </div>
-                {errors.deliverables && (
-                  <p className="field-error">{errors.deliverables}</p>
-                )}
               </fieldset>
             )}
 
             {step === 6 && (
               <fieldset className="space-y-6">
-                <legend className="label-caps mb-2 block text-accent">
-                  Step 6 — Budget
-                </legend>
-                <p className="text-sm text-fog">
-                  We&apos;ll recommend the best approach based on your goals and budget.
+                <legend className="font-display mb-2 block text-2xl text-cream">Investment</legend>
+                <p className="mb-6 text-sm text-fog">
+                  Investment range and deliverables — we&apos;ll tailor a proposal, not a price list.
                 </p>
-                <SelectableGrid
-                  options={bookingOptions.budgetRanges}
-                  selected={data.budgetRange}
-                  onToggle={(v) => update("budgetRange", v)}
-                  columns="grid-cols-1 xs:grid-cols-2 sm:grid-cols-3"
-                />
-                {errors.budgetRange && (
-                  <p className="field-error">{errors.budgetRange}</p>
-                )}
+                <div>
+                  <p className="mb-3 text-sm text-cream-dim">
+                    Investment range <span className="text-accent">*</span>
+                  </p>
+                  <SelectableGrid
+                    options={bookingOptions.budgetRanges}
+                    selected={data.budgetRange}
+                    onToggle={(v) => update("budgetRange", v)}
+                    columns="xs:grid-cols-2"
+                  />
+                  {errors.budgetRange && <p className="field-error mt-2">{errors.budgetRange}</p>}
+                </div>
+                <FormField label="Timeline notes" name="projectTimeline" hint="Optional">
+                  <TextInput
+                    id="projectTimeline"
+                    value={data.projectTimeline}
+                    onChange={(e) => update("projectTimeline", e.target.value)}
+                    placeholder="e.g. Need finals before September launch"
+                  />
+                </FormField>
+                <div>
+                  <p className="mb-3 text-sm text-cream-dim">
+                    Deliverables <span className="text-accent">*</span>
+                  </p>
+                  <SelectableGrid
+                    options={bookingOptions.deliverables}
+                    selected={data.deliverables}
+                    multi
+                    onToggle={(v) => {
+                      const next = data.deliverables.includes(v)
+                        ? data.deliverables.filter((x) => x !== v)
+                        : [...data.deliverables, v];
+                      update("deliverables", next);
+                    }}
+                  />
+                  {errors.deliverables && <p className="field-error mt-2">{errors.deliverables}</p>}
+                </div>
               </fieldset>
             )}
 
             {step === 7 && (
               <fieldset className="space-y-6">
-                <legend className="label-caps mb-2 block text-accent">
-                  Step 7 — Discovery
-                </legend>
-                <p className="mb-2 text-sm text-cream-dim">How did you hear about ÉLEVÉ?</p>
-                <SelectableGrid
-                  options={bookingOptions.referralSources}
-                  selected={data.referralSource}
-                  onToggle={(v) => update("referralSource", v)}
-                  columns="grid-cols-1 xs:grid-cols-2 sm:grid-cols-4"
-                />
-                {errors.referralSource && (
-                  <p className="field-error">{errors.referralSource}</p>
-                )}
+                <legend className="font-display mb-2 block text-2xl text-cream">Review</legend>
+                <p className="mb-6 text-sm text-fog">
+                  Confirm your production brief — edit any step before submitting.
+                </p>
+
+                <dl className="space-y-4 rounded-lg border border-stone/25 bg-ink/40 p-5 text-sm">
+                  {(
+                    [
+                      [1, "About You", `${data.fullName} · ${data.email}`],
+                      [2, "Creating", data.projectCategory || "—"],
+                      [3, "Vision", data.purpose || data.projectVision.slice(0, 80)],
+                      [5, "Planning", `${data.preferredDate || "—"} · ${data.location || "—"}`],
+                      [6, "Investment", data.budgetRange || "—"],
+                    ] as const
+                  ).map(([s, label, value]) => (
+                    <div key={label} className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <dt className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
+                          {label}
+                        </dt>
+                        <dd className="mt-1 text-cream-dim">{value || "—"}</dd>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setStep(s)}
+                        className="text-[0.65rem] tracking-[0.08em] text-accent uppercase hover:underline"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                </dl>
+
+                <div>
+                  <p className="mb-3 text-sm text-cream-dim">
+                    How did you hear about ÉLEVÉ? <span className="text-accent">*</span>
+                  </p>
+                  <SelectableGrid
+                    options={bookingOptions.referralSources}
+                    selected={data.referralSource}
+                    onToggle={(v) => update("referralSource", v)}
+                    columns="xs:grid-cols-2"
+                  />
+                  {errors.referralSource && (
+                    <p className="field-error mt-2">{errors.referralSource}</p>
+                  )}
+                </div>
+
                 <CheckboxField
                   name="termsAccepted"
                   checked={data.termsAccepted}
@@ -600,70 +754,54 @@ export function BookingForm({
                   label={
                     <>
                       I agree to the{" "}
-                      <Link href="/booking-terms" className="text-accent underline hover:text-cream">
+                      <Link href="/booking-terms" className="text-accent link-underline">
                         booking terms
                       </Link>
-                      .
                     </>
                   }
                 />
                 {errors.termsAccepted && (
                   <p className="field-error">{errors.termsAccepted}</p>
                 )}
-                <div className="mt-8 border border-stone/30 bg-ink/50 p-6">
-                  <p className="text-sm leading-relaxed text-fog">
-                    Every inquiry is personally reviewed to ensure the highest creative
-                    standard. If your project aligns with our vision, you&apos;ll receive next
-                    steps, availability, and a customized proposal.
-                  </p>
-                </div>
+
+                <FormSpamFields
+                  honeypot={spam.honeypot}
+                  onHoneypotChange={spam.setHoneypot}
+                  formLoadedAt={spam.formLoadedAt}
+                  turnstileToken={spam.turnstileToken}
+                  onTurnstileVerify={spam.setTurnstileToken}
+                  onTurnstileExpire={() => spam.setTurnstileToken("")}
+                />
               </fieldset>
             )}
           </motion.div>
         </AnimatePresence>
 
-        <FormSpamFields
-          honeypot={spam.honeypot}
-          onHoneypotChange={spam.setHoneypot}
-          formLoadedAt={spam.formLoadedAt}
-          turnstileToken={spam.turnstileToken}
-          onTurnstileVerify={spam.setTurnstileToken}
-          onTurnstileExpire={() => spam.setTurnstileToken("")}
-        />
-
-        <div className="mt-10 flex flex-col-reverse gap-4 border-t border-stone/30 pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            {step > 1 && (
-              <button
-                type="button"
-                onClick={goBack}
-                className="inline-flex min-h-11 items-center text-xs tracking-[0.15em] text-fog uppercase transition-colors hover:text-cream"
-              >
-                ← Back
-              </button>
-            )}
-          </div>
-          <div className="flex flex-col items-stretch gap-3 sm:items-end">
-            {step < BOOKING_STEPS.length ? (
-              <button
-                type="button"
-                onClick={goNext}
-                className="inline-flex min-h-12 items-center justify-center border border-cream bg-cream px-9 py-4 text-xs font-medium tracking-[0.15em] text-ink uppercase transition-all duration-500 hover:bg-cream-dim"
-                style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
-              >
-                Continue
-              </button>
-            ) : (
-              <>
-                <SubmitButton loading={loading} size="lg" disabled={!spam.canSubmit()}>
-                  Submit Inquiry
-                </SubmitButton>
-                <p className="text-center text-xs text-muted sm:text-right">
-                  No payment required today.
-                </p>
-              </>
-            )}
-          </div>
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-stone/20 pt-6">
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={goBack}
+              className="min-h-11 px-4 text-sm tracking-[0.08em] text-fog uppercase hover:text-cream"
+            >
+              Back
+            </button>
+          ) : (
+            <span />
+          )}
+          {step < BOOKING_STEPS.length ? (
+            <button
+              type="button"
+              onClick={goNext}
+              className="min-h-11 rounded-lg border border-accent/40 bg-accent/15 px-6 text-[0.7rem] tracking-[0.12em] text-accent uppercase hover:bg-accent/25"
+            >
+              Continue
+            </button>
+          ) : (
+            <SubmitButton loading={loading} disabled={!spam.canSubmit()}>
+              Start production →
+            </SubmitButton>
+          )}
         </div>
       </div>
     </form>

@@ -104,7 +104,7 @@ export async function runSystemAutomation(id: string): Promise<SystemAutomationR
       const count = await prisma.submission.count({
         where: {
           type: "booking",
-          status: { in: ["new", "contacted"] },
+          status: { in: ["new", "contacted", "lead", "qualified", "discovery", "proposal"] },
           updatedAt: { lt: cutoff },
         },
       });
@@ -186,7 +186,22 @@ export async function runSystemAutomation(id: string): Promise<SystemAutomationR
     case "sys-revenue-truth-gap": {
       const payments = await getPaymentRevenueSummary();
       const openPipeline = await prisma.submission.count({
-        where: { type: "booking", status: { in: ["new", "contacted", "scheduled"] } },
+        where: {
+          type: "booking",
+          status: {
+            in: [
+              "new",
+              "contacted",
+              "scheduled",
+              "lead",
+              "qualified",
+              "discovery",
+              "proposal",
+              "booked",
+              "planning",
+            ],
+          },
+        },
       });
       if (payments.hasPayments || openPipeline === 0) {
         return {

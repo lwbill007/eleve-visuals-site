@@ -120,7 +120,7 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
             </Link>
           ))}
           <Button variant="primary" href="/book" className="mt-4">
-            Book a Shoot
+            Start Your Project
           </Button>
         </nav>
       </div>

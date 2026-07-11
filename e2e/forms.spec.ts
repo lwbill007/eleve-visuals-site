@@ -35,7 +35,17 @@ test.describe("Public forms", () => {
     await page.locator("#phone").fill("5551234567");
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await page.getByRole("button", { name: "Portrait Photography", exact: true }).click();
+    await page.getByRole("button", { name: "Portrait", exact: true }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.locator("#purpose").fill("Brand storytelling for a product launch.");
+    await page.locator("#goals").fill("Create hero imagery and social assets.");
+    await page.locator("#projectVision").fill(
+      "Automated booking test with enough characters describing the creative vision."
+    );
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    // Inspiration (optional)
     await page.getByRole("button", { name: "Continue" }).click();
 
     await page.locator("#preferredDate").fill(futureDate());
@@ -44,20 +54,13 @@ test.describe("Public forms", () => {
     await page.getByRole("button", { name: "1 Hour", exact: true }).click();
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await page.locator("#projectVision").fill(
-      "Automated booking test with enough characters describing the creative vision."
-    );
-    await page.getByRole("button", { name: "Continue" }).click();
-
-    await page.getByLabel("Edited Photography", { exact: true }).check();
-    await page.getByRole("button", { name: "Continue" }).click();
-
     await page.getByRole("button", { name: "$300–500", exact: true }).click();
+    await page.getByRole("button", { name: "Edited Photography", exact: true }).click();
     await page.getByRole("button", { name: "Continue" }).click();
 
     await page.getByRole("button", { name: "Google", exact: true }).click();
     await page.getByRole("checkbox", { name: /booking terms/i }).check();
-    await page.getByRole("button", { name: "Submit Inquiry" }).click();
+    await page.getByRole("button", { name: /Start production/i }).click();
 
     await expect(page.getByText("Inquiry received.")).toBeVisible({
       timeout: 15_000,

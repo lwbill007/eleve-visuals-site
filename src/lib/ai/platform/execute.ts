@@ -95,19 +95,19 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
       }
       await prisma.submission.update({
         where: { id: input.submissionId },
-        data: { status: "contacted", read: true },
+        data: { status: "discovery", read: true },
       });
       await completeMission({
         missionId: input.recommendationId,
-        title: input.title ?? "Marked booking contacted",
+        title: input.title ?? "Advanced booking to Discovery",
         worked: true,
         revenueImpact: input.expectedRevenue,
-        notes: `Executed mark_booking_contacted on ${input.submissionId}`,
+        notes: `Executed mark_booking_contacted → discovery on ${input.submissionId}`,
       });
       return {
         ok: true,
         kind,
-        message: "Marked contacted · Decision recorded.",
+        message: "Advanced to Discovery · Decision recorded. Reply to the client next.",
         href: `/admin/submissions?type=booking&focus=${input.submissionId}`,
         affected: 1,
         decisionId,
@@ -119,20 +119,20 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
       const stale = await prisma.submission.findMany({
         where: {
           type: "booking",
-          status: { in: ["new", "contacted"] },
+          status: { in: ["new", "lead", "qualified", "contacted", "discovery", "proposal"] },
           updatedAt: { lt: cutoff },
         },
         select: { id: true, status: true },
         take: 25,
       });
-      const toTouch = stale.filter((s) => s.status === "new");
+      const toTouch = stale.filter((s) => s.status === "new" || s.status === "lead");
       if (toTouch.length === 0) {
         return {
           ok: true,
           kind,
           message:
             stale.length > 0
-              ? "Stale bookings already contacted — open inbox to reply. Decision recorded."
+              ? "Stale leads already in Discovery — open inbox to reply. Decision recorded."
               : "No stale bookings found. Decision recorded.",
           href: "/admin/submissions?type=booking",
           affected: 0,
@@ -141,25 +141,25 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
       }
       await prisma.submission.updateMany({
         where: { id: { in: toTouch.map((s) => s.id) } },
-        data: { status: "contacted", read: true },
+        data: { status: "discovery", read: true },
       });
       await completeMission({
         missionId: input.recommendationId,
-        title: input.title ?? "Stale bookings marked contacted",
+        title: input.title ?? "Stale leads advanced to Discovery",
         worked: true,
         revenueImpact: input.expectedRevenue,
-        notes: `Marked ${toTouch.length} stale bookings contacted`,
+        notes: `Advanced ${toTouch.length} stale bookings to discovery`,
       });
       void emitBusinessEvent({
         type: "booking_updated",
         entityType: "Submission",
         entityId: toTouch[0]?.id ?? "batch",
-        payload: { count: toTouch.length, action: "mark_stale_contacted" },
+        payload: { count: toTouch.length, action: "advance_to_discovery" },
       }).catch(() => undefined);
       return {
         ok: true,
         kind,
-        message: `Marked ${toTouch.length} stale booking${toTouch.length === 1 ? "" : "s"} contacted · Decision recorded.`,
+        message: `Advanced ${toTouch.length} lead${toTouch.length === 1 ? "" : "s"} to Discovery · Decision recorded. Reply next.`,
         href: "/admin/submissions?type=booking",
         affected: toTouch.length,
         decisionId,
@@ -231,7 +231,7 @@ export function executeLabel(kind: ExecuteKind, fallback = "Open"): string {
   switch (kind) {
     case "mark_booking_contacted":
     case "mark_stale_bookings_contacted":
-      return "Mark contacted";
+      return "Advance to Discovery";
     case "complete_mission":
       return "Complete";
     case "open_pipeline":

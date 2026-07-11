@@ -39,26 +39,11 @@ function parseName(data: Record<string, unknown>): string {
   );
 }
 
+import { estimateBudgetValue } from "@/lib/estimate-budget";
+import { PIPELINE_STAGES, normalizeInquiryStatus } from "@/lib/booking-pipeline";
+
 function parseEmail(data: Record<string, unknown>, fallback: string): string {
   return (typeof data.email === "string" && data.email) || fallback;
-}
-
-function estimateBudgetValue(budgetRange: string): number {
-  const map: Record<string, number> = {
-    "under-500": 350,
-    "500-1000": 750,
-    "1000-2500": 1750,
-    "2500-5000": 3750,
-    "5000-plus": 6500,
-    "5000+": 6500,
-  };
-  const key = budgetRange.toLowerCase().replace(/\s/g, "");
-  for (const [k, v] of Object.entries(map)) {
-    if (key.includes(k.replace(/-/g, "")) || key.includes(k)) return v;
-  }
-  const nums = budgetRange.match(/\d+/g)?.map(Number);
-  if (nums?.length) return nums.reduce((a, b) => a + b, 0) / nums.length;
-  return 0;
 }
 
 export async function getAdminDashboardOS() {
@@ -329,10 +314,15 @@ export async function getAdminCRMContacts() {
 
     if (row.type === "booking") {
       existing.bookings += 1;
-      if (row.status === "completed") existing.revenue += estimateBudgetValue(String(data.budgetRange ?? "")) || 1500;
-      if (row.status === "scheduled") existing.status = "booked";
-      else if (row.status === "completed") existing.status = existing.bookings > 1 ? "repeat" : "completed";
-      else if (row.status === "contacted") existing.status = "interested";
+      const stage = normalizeInquiryStatus(row.status);
+      if (stage === "delivered" || stage === "follow_up") {
+        existing.revenue += estimateBudgetValue(String(data.budgetRange ?? "")) || 1500;
+        existing.status = existing.bookings > 1 ? "repeat" : "completed";
+      } else if (stage === "booked" || stage === "planning" || stage === "production" || stage === "editing") {
+        existing.status = "booked";
+      } else if (stage === "discovery" || stage === "proposal" || stage === "qualified") {
+        existing.status = "interested";
+      }
     } else if (row.type === "session") {
       existing.applications += 1;
       existing.tags.push("Sessions");
@@ -360,33 +350,29 @@ export async function getAdminPipeline() {
     select: { id: true, status: true, data: true, contactEmail: true, createdAt: true, updatedAt: true },
   });
 
-  const stages = [
-    { id: "new", label: "New Lead" },
-    { id: "contacted", label: "Contacted" },
-    { id: "scheduled", label: "Booked" },
-    { id: "completed", label: "Completed" },
-    { id: "archived", label: "Inactive" },
-  ] as const;
-
-  const columns = stages.map((stage) => ({
-    ...stage,
+  const columns = PIPELINE_STAGES.map((stage) => ({
+    id: stage.id,
+    label: stage.label,
     items: bookings
-      .filter((b) => b.status === stage.id)
+      .filter((b) => normalizeInquiryStatus(b.status) === stage.id)
       .map((b) => {
         const data = parseSubmissionData(b.data);
         const budget = typeof data.budgetRange === "string" ? data.budgetRange : "";
+        const category =
+          (typeof data.projectCategory === "string" && data.projectCategory) ||
+          (Array.isArray(data.serviceTypes) && (data.serviceTypes as string[])[0]) ||
+          (typeof data.serviceType === "string" ? data.serviceType : "");
         return {
           id: b.id,
           name: parseName(data) || b.contactEmail || "Unknown",
           email: b.contactEmail || parseEmail(data, ""),
-          service:
-            (Array.isArray(data.serviceTypes) && (data.serviceTypes as string[])[0]) ||
-            (typeof data.serviceType === "string" ? data.serviceType : ""),
+          service: category,
           value: estimateBudgetValue(budget) || 0,
           valueQuality: "estimated" as const,
           createdAt: b.createdAt.toISOString(),
           updatedAt: b.updatedAt.toISOString(),
           ageDays: Math.floor((Date.now() - b.updatedAt.getTime()) / 86400000),
+          status: normalizeInquiryStatus(b.status),
         };
       }),
   }));

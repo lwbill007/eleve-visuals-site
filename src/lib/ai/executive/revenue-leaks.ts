@@ -162,13 +162,13 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
   if (metrics.attention.galleriesAwaiting > 0) {
     leaks.push(
       leak({
-        title: `${metrics.attention.galleriesAwaiting} galleries awaiting delivery`,
-        reason: "Delayed delivery risks satisfaction, referrals, and repeat bookings",
+        title: `${metrics.attention.galleriesAwaiting} booked projects idle 14+ days`,
+        reason: "Estimated — delayed delivery risks satisfaction and referrals (no gallery entity yet)",
         category: "retention",
         estimatedLoss: metrics.attention.galleriesAwaiting * avgValue * 0.15,
         recoveryPotential: metrics.attention.galleriesAwaiting * avgValue * 0.1,
         confidence: 0.8,
-        evidence: [`${metrics.attention.galleriesAwaiting} pending galleries`],
+        evidence: [`${metrics.attention.galleriesAwaiting} idle booked projects`],
         actions: [
           { id: "submissions", label: "View bookings", type: "navigate", href: "/admin/submissions?type=booking" },
         ],

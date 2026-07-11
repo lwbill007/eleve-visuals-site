@@ -4,9 +4,9 @@ import { BookingHero } from "@/components/booking/BookingHero";
 import { getBookingOptions, getPageCopy } from "@/lib/content";
 
 export const metadata: Metadata = {
-  title: "Book a Project",
+  title: "Start Your Project",
   description:
-    "Submit a project inquiry with ÉLEVÉ Visuals. Premium photography, video production, and creative direction in Sacramento and beyond.",
+    "Begin your ÉLEVÉ Visuals production. Tell us about your vision — photography, video, and creative direction in Sacramento and beyond.",
 };
 
 export default async function BookPage() {

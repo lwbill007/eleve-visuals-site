@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       data: {
         type: "booking",
         data: JSON.stringify(parsed.data),
-        status: "new",
+        status: "lead",
         ipAddress: ip,
         userAgent: (request.headers.get("user-agent") ?? "").slice(0, 1000),
         contactEmail: parsed.data.email.trim().toLowerCase(),
@@ -112,6 +112,11 @@ export async function POST(request: Request) {
 
   const { triggerIntelligenceRefreshBackground } = await import("@/lib/ai/memory/knowledge/trigger");
   triggerIntelligenceRefreshBackground("booking_received");
+
+  const { generateBookingProductionIntelBackground } = await import(
+    "@/lib/ai/intelligence/booking-production-brief"
+  );
+  generateBookingProductionIntelBackground(inquiryId, parsed.data);
 
   return NextResponse.json({ ok: true, inquiryId });
 }

@@ -185,7 +185,7 @@ function toNextAction(
 
   const actionLabel =
     executeKind === "mark_stale_bookings_contacted"
-      ? "Mark contacted"
+      ? "Advance to Discovery"
       : executeKind === "open_memory_verify"
         ? "Verify"
         : executeKind === "open_payments_trust"
@@ -426,7 +426,7 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       severity: staleInquiries >= 3 ? "critical" : "high",
       evidence,
       href: "/admin/submissions?type=booking",
-      actionLabel: "Mark contacted",
+      actionLabel: "Advance to Discovery",
       potentialImpact,
       confidence: 0.88,
       costOfIgnore: buildCostOfIgnore({

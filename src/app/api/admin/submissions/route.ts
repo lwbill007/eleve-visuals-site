@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import {
   APPLICATION_STATUSES,
-  INQUIRY_STATUSES,
+  coerceInquiryStatus,
+  isValidInquiryStatus,
   normalizeApplicationStatus,
   type ApplicationStatus,
   type InquiryStatus,
@@ -25,7 +26,7 @@ function parseSubmissionData(raw: string) {
 }
 
 function isInquiryStatus(value: string): value is InquiryStatus {
-  return (INQUIRY_STATUSES as readonly string[]).includes(value);
+  return isValidInquiryStatus(value);
 }
 
 function isApplicationStatus(value: string): value is ApplicationStatus {
@@ -178,9 +179,9 @@ export async function PATCH(request: Request) {
       if (existing.type === "session" && isApplicationStatus(status)) {
         data.status = status;
       } else if (existing.type === "booking" && isInquiryStatus(status)) {
-        data.status = status;
+        data.status = coerceInquiryStatus(status);
       } else if (existing.type === "contact" && isInquiryStatus(status)) {
-        data.status = status;
+        data.status = coerceInquiryStatus(status);
       } else {
         return NextResponse.json({ error: "Invalid status for submission type" }, { status: 400 });
       }
