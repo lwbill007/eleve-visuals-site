@@ -222,6 +222,7 @@ function resolvePageContext(pathname: string, search = "") {
   if (pathname.startsWith("/admin/pipeline") || pathname.startsWith("/admin/workboard")) return "pipeline" as const;
   if (pathname.startsWith("/admin/bookings-ai")) return "bookings" as const;
   if (pathname.startsWith("/admin/analytics")) return "analytics" as const;
+  if (pathname.startsWith("/admin/website")) return "analytics" as const;
   if (pathname.startsWith("/admin/marketing")) return "marketing" as const;
   if (pathname.startsWith("/admin/email")) return "email" as const;
   if (pathname.startsWith("/admin/portfolio")) return "portfolio" as const;

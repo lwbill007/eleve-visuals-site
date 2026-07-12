@@ -491,7 +491,7 @@ export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]>
       detail: `Currently ${metrics.traffic.conversionRate}% inquiry conversion. Review booking page friction and homepage CTA placement.`,
       metric: `${metrics.traffic.conversionRate}%`,
       actions: [
-        action("website-ai", "Website Optimization", "navigate", "/admin/reports?focus=website"),
+        action("website-ai", "Website Optimization", "navigate", "/admin/website"),
         action("book-page", "Review Book Page", "navigate", "/book"),
         action("homepage", "Edit Homepage", "navigate", "/admin/homepage"),
       ],

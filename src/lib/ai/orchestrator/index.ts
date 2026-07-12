@@ -11,3 +11,4 @@ export { selectAgentsForTask, agentTitle } from "./select";
 export { runVerificationPipeline } from "./pipeline";
 export { runOrchestrator, getLatestOrchestratorAudit } from "./run";
 export { orchestrateBookingSubmission } from "./booking";
+export { orchestrateWebsiteSeo } from "./website";

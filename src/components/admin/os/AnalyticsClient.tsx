@@ -84,10 +84,10 @@ export function AnalyticsClient() {
         </select>
       }
       related={[
+        { label: "Website Intel", href: "/admin/website", desc: "SEO · UX · convert" },
         { label: "Marketing", href: "/admin/marketing", desc: "Campaigns" },
         { label: "Homepage", href: "/admin/homepage", desc: "Site CMS" },
         { label: "Revenue Leaks", href: "/admin/leaks", desc: "Lost $" },
-        { label: "Business Brain", href: "/admin/memory", desc: "Context" },
       ]}
     >
       {loading && !data ? (

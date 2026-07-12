@@ -6,6 +6,7 @@ import { logAIAction } from "../log";
 import { writeMemory } from "../memory/store";
 import { getWorkspaceId } from "../memory/workspace";
 import { orchestrateBookingSubmission } from "./booking";
+import { orchestrateWebsiteSeo } from "./website";
 import { selectAgentsForTask, agentTitle } from "./select";
 import { runVerificationPipeline } from "./pipeline";
 import {
@@ -46,6 +47,17 @@ export async function runOrchestrator(input: {
     return result;
   }
 
+  if (input.taskKind === "website_seo" || input.taskKind === "portfolio_review") {
+    const result = await orchestrateWebsiteSeo();
+    await persistAudit(result.audit);
+    await logAIAction(
+      "ai_orchestrator",
+      "website",
+      `${input.taskKind} · agents=${result.audit.agents.length} · confidence=${result.confidence.overall}`
+    );
+    return result;
+  }
+
   // Generic executive path — lean CEO + strategist
   const now = new Date().toISOString();
   const agents = selectAgentsForTask(input.taskKind);
@@ -68,9 +80,9 @@ export async function runOrchestrator(input: {
 
   const actions: RecommendedAction[] = [
     {
-      id: "open_command",
-      label: "Open Mission Control",
-      href: "/admin",
+      id: "open-website",
+      label: "Open Website Intelligence",
+      href: "/admin/website",
       requiresApproval: false,
       priority: "medium",
       ownerAgent: "ceo",
@@ -98,7 +110,7 @@ export async function runOrchestrator(input: {
     evidence,
     actions,
     executiveSummary:
-      "Orchestrator selected specialist agents for this task. Provide booking or CRM context for evidence-grade recommendations.",
+      "Orchestrator selected specialist agents for this task. Open Website Intelligence for evidence-grade site recommendations.",
     verificationSteps,
     provider: "rules",
   };

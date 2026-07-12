@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
 import type { AIReportType } from "@/lib/ai/types";
@@ -45,6 +45,7 @@ export function BIReportsClient() {
       extra={<AskAIButton />}
       related={[
         { label: "Analytics", href: "/admin/analytics", desc: "Live metrics" },
+        { label: "Website", href: "/admin/website", desc: "SEO · UX intel" },
         { label: "Payments", href: "/admin/payments", desc: "Verified $" },
         { label: "Briefing", href: "/admin/briefing", desc: "Daily brief" },
       ]}
@@ -81,51 +82,18 @@ export function BIReportsClient() {
         </AdminPanel>
       )}
 
-      <AdminPanel title="Website Optimization" subtitle="AI review of conversion, SEO, and UX" className="mt-8">
-        <WebsiteOptimizationSection />
+      <AdminPanel title="Website Intelligence" subtitle="Evidence-graded SEO · UX · conversion" className="mt-8">
+        <p className="text-sm text-cream-dim">
+          The Website Optimization module now lives as a full executive intelligence workspace —
+          category health, truth-labeled recommendations, and orchestrator audits.
+        </p>
+        <Link
+          href="/admin/website"
+          className="mt-4 inline-flex border border-accent/40 bg-accent/10 px-3 py-1.5 text-[0.65rem] tracking-[0.1em] text-accent uppercase"
+        >
+          Open Website Intelligence →
+        </Link>
       </AdminPanel>
     </WorkspaceChrome>
   );
-}
-
-function WebsiteOptimizationSection() {
-  const [data, setData] = useState<{
-    aiSummary: string;
-    overallScore: number;
-    conversionRate: number;
-    sections: { area: string; score: number; recommendations: string[] }[];
-  } | null>(null);
-
-  useEffect(() => {
-    fetchWebsite().then(setData);
-  }, []);
-
-  if (!data) return <p className="text-sm text-fog animate-pulse">Analyzing website…</p>;
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-cream-dim">{data.aiSummary}</p>
-      <p className="text-xs text-muted">Overall score: {data.overallScore}/100 · Conversion: {data.conversionRate}%</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {data.sections.map((s) => (
-          <div key={s.area} className="rounded-lg border border-stone/20 p-4">
-            <p className="text-sm text-cream">{s.area} · {s.score}/100</p>
-            <ul className="mt-2 space-y-1">
-              {s.recommendations.slice(0, 2).map((r) => (
-                <li key={r} className="text-xs text-fog">◆ {r}</li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      <Link href="/admin/analytics" className="text-xs text-accent uppercase">
-        View analytics →
-      </Link>
-    </div>
-  );
-}
-
-async function fetchWebsite() {
-  const res = await adminFetch("/api/admin/ai/website");
-  return res.json();
 }

@@ -50,6 +50,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
       { label: "Marketing", href: "/admin/marketing", desc: "Campaigns · captions" },
       { label: "Email", href: "/admin/email", desc: "Send follow-ups" },
       { label: "Analytics", href: "/admin/analytics", desc: "Traffic · conversion" },
+      { label: "Website", href: "/admin/website", desc: "SEO · UX · conversion intel" },
       { label: "Homepage", href: "/admin/homepage", desc: "Public homepage CMS" },
       { label: "Reports", href: "/admin/reports", desc: "AI business reports" },
     ],
