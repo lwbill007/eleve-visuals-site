@@ -5,13 +5,13 @@ import { getBookingOptions, getNotificationSettings, getSiteConfig } from "@/lib
 import { formatInquiryId } from "@/lib/booking";
 import { bookingConfirmationEmail, sendEmail } from "@/lib/email";
 import { notifyNewSubmission } from "@/lib/notifications";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit, consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 import { runSpamChecks, stripSpamFields } from "@/lib/spam";
 import { createBookingSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rateLimit = await checkRateLimit(ip, "submit:booking");
+  const rateLimit = await checkRateLimit(ip, "submit:booking", { consume: false });
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: "Too many submissions. Please try again later." },
@@ -87,6 +87,7 @@ export async function POST(request: Request) {
       },
     });
     inquiryId = submission.id;
+    await consumeRateLimit(ip, "submit:booking");
   } catch {
     return NextResponse.json({ error: "Submission failed" }, { status: 500 });
   }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { z } from "zod";
 import { prisma } from "./db";
 import { recordConversion, type ConversionType } from "./analytics-server";
-import { checkRateLimit, getClientIp } from "./rate-limit";
+import { checkRateLimit, consumeRateLimit, getClientIp } from "./rate-limit";
 import { runSpamChecks, stripSpamFields } from "./spam";
 import {
   extractContact,
@@ -32,7 +32,7 @@ export async function handleFormSubmit<T extends z.ZodType>({
 }: SubmitOptions<T>) {
   const ip = getClientIp(request);
 
-  const rateLimit = await checkRateLimit(ip, route);
+  const rateLimit = await checkRateLimit(ip, route, { consume: false });
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: "Too many submissions. Please try again later." },
@@ -79,6 +79,7 @@ export async function handleFormSubmit<T extends z.ZodType>({
       },
     });
     inquiryId = submission.id;
+    await consumeRateLimit(ip, route);
   } catch {
     return NextResponse.json({ error: "Submission failed" }, { status: 500 });
   }

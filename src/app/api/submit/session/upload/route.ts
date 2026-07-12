@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit, consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 import { inferMimeType } from "@/lib/image-url";
 import {
   putPublicBlob,
@@ -13,7 +13,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rateLimit = await checkRateLimit(ip, "submit:session-upload");
+  const rateLimit = await checkRateLimit(ip, "submit:session-upload", { consume: false });
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: "Too many uploads. Please try again later." },
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
         /* optional index */
       }
       console.log("[session-upload] success", { url: blobUrl });
+      await consumeRateLimit(ip, "submit:session-upload");
       return NextResponse.json({ url: blobUrl });
     }
 
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
 
     const localUrl = await saveLocalUpload("applications", filename, buffer);
     console.log("[session-upload] local success", { url: localUrl });
+    await consumeRateLimit(ip, "submit:session-upload");
     return NextResponse.json({ url: localUrl });
   } catch (error) {
     console.error("Upload error:", error);

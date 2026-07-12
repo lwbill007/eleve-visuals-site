@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { recordConversion } from "@/lib/analytics-server";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit, consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 import { runSpamChecks, stripSpamFields } from "@/lib/spam";
 import { createSessionApplicationSchema } from "@/lib/session-application-validation";
 import {
@@ -18,7 +18,7 @@ import { formatApplicationId } from "@/lib/session-application";
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rateLimit = await checkRateLimit(ip, "submit:session");
+  const rateLimit = await checkRateLimit(ip, "submit:session", { consume: false });
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: "Too many submissions. Please try again later." },
@@ -102,6 +102,7 @@ export async function POST(request: Request) {
       },
     });
     applicationId = submission.id;
+    await consumeRateLimit(ip, "submit:session");
   } catch {
     return NextResponse.json({ error: "Submission failed" }, { status: 500 });
   }
