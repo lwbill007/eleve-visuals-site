@@ -35,9 +35,21 @@ export function CRMClient() {
   useSetAIPage("crm");
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [query, setQuery] = useState("");
+  const [segment, setSegment] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sort, setSort] = useState<"activity" | "revenue" | "name">("activity");
+
+  const SEGMENT_FILTERS = [
+    "all",
+    "Portrait",
+    "Brand",
+    "Business",
+    "Event",
+    "Creative Partner",
+    "Repeat Client",
+    "VIP",
+  ] as const;
 
   function load() {
     setLoading(true);
@@ -64,12 +76,17 @@ export function CRMClient() {
   const filtered = contacts
     .filter((c) => {
       const q = query.toLowerCase();
-      return (
+      const matchesQuery =
         c.name.toLowerCase().includes(q) ||
         c.email.toLowerCase().includes(q) ||
         c.phone.includes(q) ||
-        c.source.toLowerCase().includes(q)
-      );
+        c.source.toLowerCase().includes(q) ||
+        c.tags.some((t) => t.toLowerCase().includes(q));
+      const matchesSegment =
+        segment === "all" ||
+        c.tags.includes(segment) ||
+        (segment === "VIP" && c.status === "vip");
+      return matchesQuery && matchesSegment;
     })
     .sort((a, b) => {
       if (sort === "name") return a.name.localeCompare(b.name);
@@ -95,8 +112,20 @@ export function CRMClient() {
       <WorkspaceToolbar
         search={query}
         onSearch={setQuery}
-        searchPlaceholder="Search by name, email, phone…"
+        searchPlaceholder="Search by name, email, phone, segment…"
       >
+        <select
+          value={segment}
+          onChange={(e) => setSegment(e.target.value)}
+          className="rounded-lg border border-stone/30 bg-charcoal/30 px-3 py-2.5 text-sm text-cream"
+          aria-label="Filter by segment"
+        >
+          {SEGMENT_FILTERS.map((s) => (
+            <option key={s} value={s}>
+              {s === "all" ? "All segments" : s}
+            </option>
+          ))}
+        </select>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as "activity" | "revenue" | "name")}
@@ -131,6 +160,7 @@ export function CRMClient() {
               <tr className="border-b border-stone/20 text-[0.65rem] tracking-[0.14em] text-muted uppercase">
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Segment</th>
                 <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3">Bookings</th>
                 <th className="px-4 py-3">LTV</th>
@@ -151,6 +181,22 @@ export function CRMClient() {
                   </td>
                   <td className="px-4 py-4">
                     <AdminStatusBadge status={c.status} />
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex flex-wrap gap-1">
+                      {c.tags
+                        .filter((t, i, arr) => arr.indexOf(t) === i)
+                        .slice(0, 3)
+                        .map((t) => (
+                          <span
+                            key={t}
+                            className="border border-stone/30 px-1.5 py-0.5 text-[0.6rem] tracking-[0.06em] text-fog uppercase"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      {c.tags.length === 0 && <span className="text-muted">—</span>}
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-fog">{c.source}</td>
                   <td className="px-4 py-4 text-cream">{c.bookings}</td>

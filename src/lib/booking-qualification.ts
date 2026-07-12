@@ -74,13 +74,18 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-function segmentFromPackage(pkg: BookingPackage | undefined, category?: string): CrmSegment {
+function segmentFromPackage(
+  pkg: BookingPackage | undefined,
+  category?: string,
+  visionBlob?: string
+): CrmSegment {
+  const blob = `${pkg?.id || ""} ${pkg?.projectCategory || ""} ${category || ""} ${visionBlob || ""}`;
   if (pkg?.family === "partnership") return "Creative Partner";
+  if (/event|wedding|gala|conference|launch party/i.test(blob)) return "Event";
   if (pkg?.family === "hybrid" || /brand|business/i.test(pkg?.projectCategory || category || "")) {
-    if (/business|ascend|apex|brand/i.test(pkg?.id || category || "")) return "Business";
+    if (/business|ascend|apex|brand/i.test(`${pkg?.id || ""} ${category || ""}`)) return "Business";
     return "Brand";
   }
-  if (/event/i.test(pkg?.projectCategory || category || "")) return "Event";
   if (pkg?.family === "motion") return "Brand";
   return "Portrait";
 }
@@ -96,7 +101,16 @@ export function qualifyInquiry(input: QualificationInput): InquiryQualification 
   const pkg = getPackageById(input.packageId);
   const addOnIds = input.addOnIds ?? [];
   const value = estimateInquiryValue(input.packageId, addOnIds);
-  const segment = segmentFromPackage(pkg, input.projectCategory);
+  const visionBlob = [
+    input.feelingPrompt,
+    input.inspirationPrompt,
+    input.purpose,
+    input.goals,
+    input.projectVision,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  let segment = segmentFromPackage(pkg, input.projectCategory, visionBlob);
 
   const incomplete: string[] = [];
   if (!input.purpose?.trim() && !input.feelingPrompt?.trim()) incomplete.push("Missing emotional / purpose brief");

@@ -147,8 +147,8 @@ export function BookingProjectWorkspace({
         </ol>
       </div>
 
-      {/* Client + Vision */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* Client + Vision + Package */}
+      <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-lg border border-stone/15 p-4">
           <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">Client</p>
           <p className="mt-1 font-display text-lg text-cream">{asString(data.fullName) || "—"}</p>
@@ -159,11 +159,26 @@ export function BookingProjectWorkspace({
           )}
         </section>
         <section className="rounded-lg border border-stone/15 p-4">
-          <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">Vision</p>
-          <p className="mt-1 text-sm text-cream">
-            {asString(data.packageId) ? `Package: ${asString(data.packageId)}` : asString(data.projectCategory) || "—"}
+          <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">Selected experience</p>
+          <p className="mt-1 font-display text-lg text-cream">
+            {asString((data.qualification as Record<string, unknown> | undefined)?.packageName) ||
+              asString(data.packageId) ||
+              asString(data.projectCategory) ||
+              "—"}
           </p>
-          <p className="mt-2 line-clamp-4 text-xs text-fog">
+          <p className="mt-2 text-xs text-fog">
+            Add-ons:{" "}
+            {asStringArray((data.qualification as Record<string, unknown> | undefined)?.addOnNames).join(
+              ", "
+            ) ||
+              (Array.isArray(data.addOnIds) && data.addOnIds.length
+                ? (data.addOnIds as string[]).join(", ")
+                : "None")}
+          </p>
+        </section>
+        <section className="rounded-lg border border-stone/15 p-4">
+          <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">Vision</p>
+          <p className="mt-2 line-clamp-5 text-xs text-fog">
             {asString(data.feelingPrompt) ||
               asString(data.purpose) ||
               asString(data.projectVision) ||
@@ -213,6 +228,16 @@ export function BookingProjectWorkspace({
             <p className="mt-3 text-xs text-cream-dim">{asString(q.aiSummary)}</p>
             <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
               <div>
+                <dt className="text-muted uppercase">Package</dt>
+                <dd className="text-cream">{asString(q.packageName)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted uppercase">Add-ons</dt>
+                <dd className="text-cream">
+                  {asStringArray(q.addOnNames).join(", ") || "None"}
+                </dd>
+              </div>
+              <div>
                 <dt className="text-muted uppercase">Follow-up</dt>
                 <dd className="text-cream">{asString(q.idealFollowUpLabel)}</dd>
               </div>
@@ -234,15 +259,29 @@ export function BookingProjectWorkspace({
                 <dd className="text-cream">{asString(q.recommendedPackage)}</dd>
               </div>
               <div className="sm:col-span-2">
+                <dt className="text-muted uppercase">Recommended add-ons</dt>
+                <dd className="text-cream">
+                  {asStringArray(q.recommendedAddOns).join(" · ") || "—"}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
                 <dt className="text-muted uppercase">Suggested questions</dt>
                 <dd className="text-fog">
-                  {asStringArray(q.suggestedQuestions).slice(0, 4).join(" · ") || "—"}
+                  {asStringArray(q.suggestedQuestions).join(" · ") || "—"}
                 </dd>
               </div>
               <div className="sm:col-span-2">
                 <dt className="text-muted uppercase">Upsell opportunities</dt>
                 <dd className="text-emerald-300/80">
-                  {asStringArray(q.upsellOpportunities).slice(0, 4).join(" · ") || "—"}
+                  {asStringArray(q.upsellOpportunities).join(" · ") || "—"}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-muted uppercase">Risks / incomplete</dt>
+                <dd className="text-amber-200/80">
+                  {[...asStringArray(q.risks), ...asStringArray(q.incompleteSignals)]
+                    .slice(0, 5)
+                    .join(" · ") || "—"}
                 </dd>
               </div>
             </dl>

@@ -383,12 +383,14 @@ export function BookingForm({
                   and ambitious individuals who treat imagery as infrastructure—not an afterthought.
                 </p>
               </div>
-              <ol className="grid gap-4 sm:grid-cols-2">
+              <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {[
-                  ["01", "Choose an experience", "Portrait, motion, hybrid, or creative partnership."],
-                  ["02", "Share your vision", "What you want people to feel—and why now."],
-                  ["03", "Creative consultation", "We review, refine, and propose."],
-                  ["04", "Produce & deliver", "Retainer, planning, production, gallery."],
+                  ["01", "Inquiry", "Share your experience and vision."],
+                  ["02", "Creative Consultation", "We refine scope and direction together."],
+                  ["03", "Proposal", "A tailored creative + investment plan."],
+                  ["04", "Retainer", "Secure production and lock dates."],
+                  ["05", "Planning & Moodboard", "Shot lists, wardrobe, locations."],
+                  ["06", "Produce → Deliver", "Production, edit, preview, final gallery."],
                 ].map(([n, t, d]) => (
                   <li key={n} className="border border-stone/35 bg-charcoal/25 p-5">
                     <p className="label-caps text-accent">{n}</p>

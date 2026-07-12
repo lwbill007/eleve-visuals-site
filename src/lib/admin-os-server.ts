@@ -333,6 +333,20 @@ export async function getAdminCRMContacts() {
         inferCrmSegment(data);
       if (segment && !existing.tags.includes(segment)) existing.tags.push(segment);
 
+      const estValue =
+        (typeof q?.estimatedProjectValue === "number" && q.estimatedProjectValue) ||
+        estimateBudgetValue(
+          String(data.budgetRange ?? ""),
+          typeof data.packageId === "string" ? data.packageId : undefined,
+          Array.isArray(data.addOnIds) ? (data.addOnIds as string[]) : undefined
+        );
+      if (
+        (segment === "Creative Partner" || estValue >= 5000) &&
+        !existing.tags.includes("VIP")
+      ) {
+        existing.tags.push("VIP");
+      }
+
       if (typeof q?.packageName === "string" && q.packageName && !existing.tags.includes(q.packageName)) {
         existing.tags.push(q.packageName);
       }
