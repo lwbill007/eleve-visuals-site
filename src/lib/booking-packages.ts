@@ -147,7 +147,7 @@ export const BOOKING_PACKAGES: BookingPackage[] = [
       "50–75 edited images",
     ],
     estimatedTimeline: "7–14 days after production",
-    recommendedAddOnIds: ["drone", "second-shooter", "stylist", "lighting-package", "albums"],
+    recommendedAddOnIds: ["second-shooter", "stylist", "lighting-package", "albums"],
     exampleDeliverables: ["Editorial gallery", "BTS reels", "Campaign-ready selects"],
     faq: [
       {
@@ -182,7 +182,7 @@ export const BOOKING_PACKAGES: BookingPackage[] = [
       "Vertical delivery",
     ],
     estimatedTimeline: "5–10 days after production",
-    recommendedAddOnIds: ["additional-reels", "rush-editing", "drone", "assistant"],
+    recommendedAddOnIds: ["additional-reels", "rush-editing", "assistant"],
     exampleDeliverables: ["9:16 reel", "Color-graded master", "Music-cleared export"],
     faq: [
       {
@@ -215,7 +215,7 @@ export const BOOKING_PACKAGES: BookingPackage[] = [
       "Vertical version",
     ],
     estimatedTimeline: "10–21 days after production",
-    recommendedAddOnIds: ["additional-reels", "drone", "second-shooter", "lighting-package"],
+    recommendedAddOnIds: ["additional-reels", "second-shooter", "lighting-package"],
     exampleDeliverables: ["Hero film", "9:16 cutdown", "Sound-designed master"],
     faq: [
       {
@@ -247,7 +247,7 @@ export const BOOKING_PACKAGES: BookingPackage[] = [
       "Multiple deliverables",
     ],
     estimatedTimeline: "2–4 weeks after production",
-    recommendedAddOnIds: ["drone", "second-shooter", "assistant", "lighting-package", "travel"],
+    recommendedAddOnIds: ["second-shooter", "assistant", "lighting-package", "travel"],
     exampleDeliverables: ["Hero cut", "Interview pieces", "Social cutdowns"],
     faq: [
       {
@@ -304,7 +304,7 @@ export const BOOKING_PACKAGES: BookingPackage[] = [
       "Five reels",
     ],
     estimatedTimeline: "10–21 days after production",
-    recommendedAddOnIds: ["drone", "stylist", "hair-makeup", "travel", "studio-rental"],
+    recommendedAddOnIds: ["stylist", "hair-makeup", "travel", "studio-rental"],
     exampleDeliverables: ["Brand gallery", "Product set", "5 reels", "BTS"],
     faq: [
       {
@@ -338,7 +338,7 @@ export const BOOKING_PACKAGES: BookingPackage[] = [
       "10+ edited videos",
     ],
     estimatedTimeline: "3–5 weeks after production",
-    recommendedAddOnIds: ["drone", "second-shooter", "lighting-package", "stylist", "travel"],
+    recommendedAddOnIds: ["second-shooter", "lighting-package", "stylist", "travel"],
     exampleDeliverables: ["Website hero set", "Campaign gallery", "10+ video assets"],
     faq: [
       {
@@ -369,7 +369,6 @@ export const BOOKING_PACKAGES: BookingPackage[] = [
       "Unlimited creative planning",
       "Moodboards & shot lists",
       "Photography & video",
-      "Drone (where appropriate)",
       "Priority scheduling",
       "Rush editing",
       "Gallery",
@@ -477,14 +476,6 @@ export const BOOKING_ADDONS: BookingAddOn[] = [
     description: "Extra vertical edits from the same production.",
     whyItMatters: "Multiplies content without another shoot day.",
     families: ["motion", "hybrid", "partnership"],
-  },
-  {
-    id: "drone",
-    name: "Drone",
-    startingPrice: 200,
-    description: "Aerial perspectives where legally and safely appropriate.",
-    whyItMatters: "Adds scale and place—especially for brand, property, and event stories.",
-    families: "all",
   },
   {
     id: "assistant",
