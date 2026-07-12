@@ -8,7 +8,7 @@ import { getStoredPatterns } from "../marketing/learning-engine";
 import { getLearningOutcomes } from "../memory/learning";
 import { computeNorthStarMetrics, formatNorthStarForPrompt } from "./north-star";
 import { detectRevenueLeaks, totalLeakExposure } from "./revenue-leaks";
-import { charterSystemPrompt } from "./charter";
+import { masterSystemPrompt } from "./charter";
 import { getBusinessDNA, formatBusinessDNAForPrompt } from "../cognitive/business-dna";
 import type { DecisionEngineContext } from "./types";
 
@@ -92,11 +92,11 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
   const metricsSummary = facts.join(" · ");
 
   const whyPreamble = [
-    charterSystemPrompt().split("\n").slice(0, 6).join("\n"),
+    masterSystemPrompt().split("\n").slice(0, 14).join("\n"),
     "",
     formatBusinessDNAForPrompt(businessDna),
     "",
-    "Before recommending anything, ÉLEVÉ Executive Intelligence checked:",
+    "Before recommending anything, ÉLEVÉ OS AI Intelligence checked:",
     `• ${memoryHits} relevant memories`,
     "• North star metrics & revenue leak detection",
     "• Live business metrics & pipeline",
@@ -106,7 +106,7 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
     "",
     formatNorthStarForPrompt(northStar),
     "",
-    "Every recommendation must cite evidence and quantify business impact. Never optimize vanity metrics.",
+    "Every recommendation must cite evidence, include confidence, and quantify business impact. Never invent unverified research or vanity metrics.",
   ].join("\n");
 
   return {

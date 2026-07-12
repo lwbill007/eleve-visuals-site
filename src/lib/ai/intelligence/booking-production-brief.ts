@@ -228,6 +228,19 @@ export async function persistBookingProductionIntel(
 ): Promise<BookingProductionIntel> {
   const intel = await generateBookingProductionIntel(data);
 
+  // Modular orchestrator — evidence, multi-agent audit, action plan
+  try {
+    const { runOrchestrator } = await import("@/lib/ai/orchestrator");
+    await runOrchestrator({
+      taskKind: "booking_submitted",
+      submissionId,
+      data: data as Record<string, unknown>,
+      email: data.email,
+    });
+  } catch {
+    /* orchestrator is non-blocking */
+  }
+
   await writeMemory({
     layer: "business",
     category: "booking_brief",

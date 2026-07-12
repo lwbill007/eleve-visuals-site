@@ -205,15 +205,31 @@ export function qualifyInquiry(input: QualificationInput): InquiryQualification 
 
   const ltv = Math.round(value * lifetimeMultiplier(segment, pkg));
 
-  const aiSummary = [
-    `${input.fullName || "Lead"} selected ${pkg?.name || "an experience"}`,
-    `starting ~$${value.toLocaleString()} (package + add-ons).`,
-    `Segment: ${segment}. Lead score ${score}/100 · close likelihood ~${likelihood}%.`,
-    `Priority: ${priority}. Follow up within ${idealFollowUpHours}h.`,
-    incomplete.length
-      ? `Gaps: ${incomplete.slice(0, 2).join("; ")}.`
-      : "Brief looks complete enough for a strong discovery call.",
-  ].join(" ");
+  const hasRefs = Boolean(input.moodBoardUrl || input.pinterestLink || input.driveLink);
+  const aiSummaryParts: string[] = [];
+  if (pkg?.family === "partnership") {
+    aiSummaryParts.push(
+      `This inquiry represents a high-value creative partnership opportunity around ${pkg.name}.`
+    );
+  } else if (value >= 1200) {
+    aiSummaryParts.push("This is a premium production inquiry with strong commercial potential.");
+  } else if (value >= 500) {
+    aiSummaryParts.push("This is a solid mid-to-premium booking with clear production scope.");
+  } else {
+    aiSummaryParts.push("This is an introductory inquiry that may grow with thoughtful consultation.");
+  }
+  if (addOnIds.length > 0) {
+    aiSummaryParts.push("Premium add-ons signal confidence and buying intent.");
+  }
+  if (priority === "urgent" || priority === "high") {
+    aiSummaryParts.push("Immediate, personal follow-up is recommended.");
+  } else {
+    aiSummaryParts.push("A timely, considered follow-up will protect conversion quality.");
+  }
+  if (!hasRefs) {
+    aiSummaryParts.push("Visual references are still needed before proposal approval.");
+  }
+  const aiSummary = aiSummaryParts.join(" ");
 
   return {
     estimatedProjectValue: value,

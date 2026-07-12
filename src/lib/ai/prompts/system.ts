@@ -1,9 +1,14 @@
-import { charterSystemPrompt, charterResponseStructure } from "../executive/charter";
+import {
+  CONTEXT_FOCUS,
+  charterResponseStructure,
+  masterSystemPrompt,
+} from "../executive/charter";
 
-export const ELEVÉ_BRAND_VOICE = charterSystemPrompt();
+/** Brand + intelligence engine voice — derived from master charter. */
+export const ELEVÉ_BRAND_VOICE = masterSystemPrompt();
 
 export function systemPromptForExecutive(): string {
-  return `${charterSystemPrompt()}
+  return `${masterSystemPrompt()}
 
 ${charterResponseStructure()}`;
 }
@@ -14,11 +19,27 @@ export function systemPromptForAssistant(): string {
 }
 
 export function systemPromptForTask(task: string): string {
-  return `${charterSystemPrompt()}
+  return `${masterSystemPrompt()}
 
 Task: ${task}
-Output only the requested content. Every output must serve measurable business outcomes — revenue, bookings, or brand value.
-No preamble unless asked. Mark outbound copy as DRAFT.`;
+Output only the requested content. Every output must serve measurable business outcomes — revenue, bookings, brand, or operational excellence.
+Never invent analytics, rankings, or research. Label estimates and predictions clearly.
+No preamble unless asked. Mark outbound copy as DRAFT requiring human approval.`;
+}
+
+/** Domain-aware system prompt (booking, website, CRM, etc.). */
+export function systemPromptForContext(
+  surface: keyof typeof CONTEXT_FOCUS,
+  task?: string
+): string {
+  const focus = CONTEXT_FOCUS[surface];
+  return `${masterSystemPrompt()}
+
+CURRENT CONTEXT: ${surface}
+Focus recommendations on ${focus}. Omit unrelated advice.
+
+${charterResponseStructure()}
+${task ? `\nTask: ${task}` : ""}`;
 }
 
 export const TASK_PROMPTS: Record<string, string> = {

@@ -8,6 +8,7 @@ import { normalizeInquiryStatus, type ProductionStatus } from "./booking-pipelin
 
 export type OpportunityGrade = "A+" | "A" | "B" | "C" | "D";
 
+/** Legacy ops timeline (kept for compatibility). */
 export const BOOKING_OPS_TIMELINE = [
   { id: "inquiry", label: "Inquiry Submitted", statuses: ["lead"] },
   { id: "discovery_scheduled", label: "Discovery Scheduled", statuses: ["qualified"] },
@@ -25,6 +26,34 @@ export const BOOKING_OPS_TIMELINE = [
   { id: "follow_up", label: "Follow-Up", statuses: ["follow_up"] },
   { id: "repeat", label: "Repeat Client", statuses: [] },
 ] as const;
+
+/** Client-facing production journey for Booking Details. */
+export const CLIENT_JOURNEY_TIMELINE = [
+  { id: "inquiry", label: "Inquiry", statuses: ["lead"] },
+  { id: "consultation", label: "Creative Consultation", statuses: ["qualified", "discovery"] },
+  { id: "proposal", label: "Proposal", statuses: ["proposal"] },
+  { id: "deposit", label: "Deposit", statuses: [] },
+  { id: "planning", label: "Creative Planning", statuses: ["planning"] },
+  { id: "moodboard", label: "Moodboard", statuses: [] },
+  { id: "production", label: "Production", statuses: ["booked", "production"] },
+  { id: "editing", label: "Editing", statuses: ["editing"] },
+  { id: "preview", label: "Preview Gallery", statuses: [] },
+  { id: "delivery", label: "Final Delivery", statuses: ["delivered"] },
+  { id: "review", label: "Review", statuses: ["follow_up"] },
+  { id: "partnership", label: "Future Partnership", statuses: [] },
+] as const;
+
+export type BookingTaskPriority = "high" | "medium" | "low";
+export type BookingTaskStatus = "todo" | "upcoming" | "done" | "overdue";
+
+export interface BookingTask {
+  id: string;
+  title: string;
+  priority: BookingTaskPriority;
+  owner: string;
+  dueDate: string;
+  status: BookingTaskStatus;
+}
 
 export type HealthKey =
   | "moodboard"
@@ -50,6 +79,7 @@ export interface HealthItem {
 export interface BookingOpsState {
   discoveryAnswers?: Record<string, string>;
   checklist?: Record<string, boolean>;
+  tasks?: BookingTask[];
   team?: {
     leadPhotographer?: string;
     secondShooter?: string;
@@ -93,6 +123,179 @@ export function opsTimelineIndex(status: string, returning = false): number {
   if (n === "delivered") return 11;
   if (n === "follow_up") return 13;
   return 0;
+}
+
+export function clientJourneyIndex(status: string, returning = false): number {
+  const n = normalizeInquiryStatus(status);
+  if (returning && (n === "follow_up" || n === "delivered")) {
+    return CLIENT_JOURNEY_TIMELINE.length - 1;
+  }
+  const idx = CLIENT_JOURNEY_TIMELINE.findIndex((s) =>
+    (s.statuses as readonly string[]).includes(n)
+  );
+  if (idx >= 0) return idx;
+  if (n === "booked") return 6;
+  if (n === "planning") return 4;
+  if (n === "editing") return 7;
+  if (n === "delivered") return 9;
+  if (n === "follow_up") return 10;
+  if (n === "proposal") return 2;
+  if (n === "discovery" || n === "qualified") return 1;
+  return 0;
+}
+
+function isoDaysFromNow(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Seed actionable tasks when none are stored yet. */
+export function defaultBookingTasks(input: {
+  status: string;
+  assignedTo?: string;
+  hasRefs: boolean;
+  hasDate: boolean;
+  priority: string;
+}): BookingTask[] {
+  const owner = input.assignedTo || "Billy";
+  const urgent = input.priority === "urgent" || input.priority === "high";
+  const tasks: BookingTask[] = [
+    {
+      id: "outreach",
+      title: "Personal outreach / discovery invite",
+      priority: urgent ? "high" : "medium",
+      owner,
+      dueDate: isoDaysFromNow(urgent ? 0 : 1),
+      status: "todo",
+    },
+  ];
+  if (!input.hasRefs) {
+    tasks.push({
+      id: "request-refs",
+      title: "Request moodboard & visual references",
+      priority: "high",
+      owner,
+      dueDate: isoDaysFromNow(1),
+      status: "todo",
+    });
+  }
+  if (!input.hasDate) {
+    tasks.push({
+      id: "confirm-dates",
+      title: "Confirm preferred production dates",
+      priority: "medium",
+      owner,
+      dueDate: isoDaysFromNow(2),
+      status: "upcoming",
+    });
+  }
+  tasks.push({
+    id: "discovery-call",
+    title: "Hold creative consultation",
+    priority: urgent ? "high" : "medium",
+    owner,
+    dueDate: isoDaysFromNow(3),
+    status: "upcoming",
+  });
+  tasks.push({
+    id: "proposal",
+    title: "Draft tailored proposal (after discovery)",
+    priority: "medium",
+    owner,
+    dueDate: isoDaysFromNow(5),
+    status: "upcoming",
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  return tasks.map((t) => {
+    if (t.status === "done") return t;
+    if (t.dueDate < today) return { ...t, status: "overdue" as const };
+    if (t.dueDate === today) return { ...t, status: "todo" as const };
+    return t;
+  });
+}
+
+export function groupBookingTasks(tasks: BookingTask[]) {
+  const today = new Date().toISOString().slice(0, 10);
+  const normalized = tasks.map((t) => {
+    if (t.status === "done") return t;
+    if (t.dueDate < today) return { ...t, status: "overdue" as const };
+    if (t.dueDate === today && t.status === "upcoming") return { ...t, status: "todo" as const };
+    return t;
+  });
+  return {
+    today: normalized.filter((t) => t.status === "todo" || (t.status !== "done" && t.dueDate === today)),
+    upcoming: normalized.filter((t) => t.status === "upcoming" && t.dueDate > today),
+    completed: normalized.filter((t) => t.status === "done"),
+    overdue: normalized.filter((t) => t.status === "overdue"),
+  };
+}
+
+export interface ActivityEvent {
+  id: string;
+  at: string;
+  label: string;
+  detail?: string;
+}
+
+export function buildActivityTimeline(input: {
+  createdAt?: string;
+  status: string;
+  qualificationGeneratedAt?: string;
+  internalLog?: { at: string; text: string }[];
+  packageName?: string;
+}): ActivityEvent[] {
+  const events: ActivityEvent[] = [];
+  if (input.createdAt) {
+    events.push({
+      id: "inquiry",
+      at: input.createdAt,
+      label: "Inquiry Submitted",
+      detail: input.packageName ? `Experience interest: ${input.packageName}` : undefined,
+    });
+  }
+  if (input.qualificationGeneratedAt) {
+    events.push({
+      id: "qualified",
+      at: input.qualificationGeneratedAt,
+      label: "Lead Qualified",
+      detail: "AI lead analysis generated",
+    });
+    events.push({
+      id: "ai-analysis",
+      at: input.qualificationGeneratedAt,
+      label: "AI Analysis Generated",
+    });
+  }
+  for (const log of input.internalLog || []) {
+    events.push({
+      id: `log-${log.at}`,
+      at: log.at,
+      label: "Internal Update",
+      detail: log.text,
+    });
+  }
+  const n = normalizeInquiryStatus(input.status);
+  const statusStamp = new Date().toISOString();
+  const statusEvents: Record<string, string> = {
+    discovery: "Discovery Scheduled",
+    proposal: "Proposal Created",
+    booked: "Deposit / Booking Confirmed",
+    production: "Production In Progress",
+    editing: "Editing Started",
+    delivered: "Gallery Delivered",
+    follow_up: "Follow-Up Opened",
+  };
+  if (statusEvents[n] && n !== "lead") {
+    events.push({
+      id: `status-${n}`,
+      at: statusStamp,
+      label: statusEvents[n],
+      detail: "Current pipeline stage",
+    });
+  }
+  return events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }
 
 export function buildHealth(data: Record<string, unknown>): HealthItem[] {

@@ -1,17 +1,41 @@
 import type { ExecutiveRoleId } from "./types";
 import type { AIMessage } from "../types";
-import { charterSystemPrompt, charterResponseStructure } from "./charter";
+import { charterSystemPrompt } from "./charter";
 import { formatLayersForPrompt } from "./intelligence-layers";
+import { buildLayeredSystemPrompt } from "../prompts/layers";
+import { toolNamesForAgent, type OrchestratorAgentId } from "../agents/tool-registry";
 
 export interface AgentDefinition {
-  id: ExecutiveRoleId | "seo" | "data_analyst" | "copywriter" | "social" | "cro" | "ux" | "product" | "cx" | "crm" | "financial" | "bi" | "cro_specialist";
+  id:
+    | ExecutiveRoleId
+    | "seo"
+    | "data_analyst"
+    | "copywriter"
+    | "social"
+    | "cro"
+    | "ux"
+    | "product"
+    | "cx"
+    | "crm"
+    | "financial"
+    | "bi"
+    | "cro_specialist"
+    | "business_strategist"
+    | "sales_advisor"
+    | "production_manager"
+    | "research_specialist";
   title: string;
   specialty: string;
   systemPrompt: string;
   layers: string[];
 }
 
-const CHARTER_PREFIX = `${charterSystemPrompt()}\n\nYou are acting as one member of the executive team. Combine your specialty with the full business context.\n`;
+const CHARTER_PREFIX = `${charterSystemPrompt()}
+
+You are acting as one specialist inside the ÉLEVÉ OS multi-agent intelligence engine.
+Collaborate with Creative Director, Business Strategist, Marketing, SEO, Research, Sales Advisor, and Production Manager perspectives.
+Combine your specialty with full business context. Never invent unverified facts. Include confidence and evidence.
+`;
 
 export const AGENT_REGISTRY: AgentDefinition[] = [
   {
@@ -147,6 +171,34 @@ export const AGENT_REGISTRY: AgentDefinition[] = [
     systemPrompt: `${CHARTER_PREFIX}As Client Success Director: maximize repeat bookings, satisfaction, referrals, and lifetime value.`,
     layers: ["crm_health", "customer_experience"],
   },
+  {
+    id: "business_strategist",
+    title: "Business Strategist",
+    specialty: "Pricing, profitability, packages, LTV, retainers, qualification",
+    systemPrompt: `${CHARTER_PREFIX}As Business Strategist: analyze pricing, profitability, package fit, lifetime value, retainers, and upsells. Rank growth opportunities with trade-offs and confidence.`,
+    layers: ["revenue_intelligence", "business_structure", "executive_opportunities"],
+  },
+  {
+    id: "sales_advisor",
+    title: "Sales Advisor",
+    specialty: "Bookings, proposals, follow-up, buying intent, discovery, closing",
+    systemPrompt: `${CHARTER_PREFIX}As Sales Advisor: review bookings and inquiries, recommend follow-up and closing strategy, generate discovery questions, and predict buying intent with evidence. Never invent CRM facts.`,
+    layers: ["sales_funnel", "crm_health", "revenue_intelligence"],
+  },
+  {
+    id: "production_manager",
+    title: "Production Manager",
+    specialty: "Crew, equipment, timelines, schedules, complexity, backups",
+    systemPrompt: `${CHARTER_PREFIX}As Production Manager: estimate crew, equipment, timelines, backups, and production complexity. Build actionable schedules. Flag scheduling and weather risks honestly.`,
+    layers: ["business_structure", "customer_experience"],
+  },
+  {
+    id: "research_specialist",
+    title: "Research Specialist",
+    specialty: "Live research, trends, competitors, locations, equipment, regulations",
+    systemPrompt: `${CHARTER_PREFIX}As Research Specialist: use or request verified live information when it improves accuracy. Never fabricate research. Label Verified Web Information vs AI Recommendations vs Industry Best Practices. Cite sources when available.`,
+    layers: ["competitive_positioning", "marketing_effectiveness", "seo"],
+  },
 ];
 
 export function resolveAgent(role?: string): AgentDefinition {
@@ -158,23 +210,37 @@ export function resolveAgent(role?: string): AgentDefinition {
     ops: "operations",
     conversion: "cro_specialist",
     cvr: "cro_specialist",
+    sales: "sales_advisor",
+    production: "production_manager",
+    research: "research_specialist",
+    strategist: "business_strategist",
+    strategy: "business_strategist",
   };
   const id = aliases[normalized] ?? normalized;
   return AGENT_REGISTRY.find((a) => a.id === id) ?? AGENT_REGISTRY[0];
 }
 
 export function buildAgentSystemMessages(agent: AgentDefinition, contextBlocks: string[]): AIMessage[] {
-  return [
-    {
-      role: "system",
-      content: `${agent.systemPrompt}
-
-INTELLIGENCE LAYERS (analyze through all relevant layers):
-${formatLayersForPrompt()}
-
-${charterResponseStructure()}
-
-${contextBlocks.filter(Boolean).join("\n\n")}`,
-    },
+  const orchestratorIds: OrchestratorAgentId[] = [
+    "sales_advisor",
+    "business_strategist",
+    "creative",
+    "production_manager",
+    "research_specialist",
+    "ceo",
+    "cmo",
+    "seo",
   ];
+  const toolAgent: OrchestratorAgentId = orchestratorIds.includes(agent.id as OrchestratorAgentId)
+    ? (agent.id as OrchestratorAgentId)
+    : "ceo";
+
+  const content = buildLayeredSystemPrompt({
+    agent,
+    task: `Respond as ${agent.title}. Analyze through relevant intelligence layers and cite evidence.`,
+    userContext: [formatLayersForPrompt(), ...contextBlocks.filter(Boolean)].join("\n\n"),
+    toolNames: toolNamesForAgent(toolAgent),
+  });
+
+  return [{ role: "system", content }];
 }

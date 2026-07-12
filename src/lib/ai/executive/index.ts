@@ -17,3 +17,12 @@ export { synthesizeExecutiveBriefing } from "./synthesizer";
 export type { SynthesizedExecutiveBriefing, SynthesizedPriority } from "./synthesizer";
 export { AGENT_REGISTRY, resolveAgent, buildAgentSystemMessages } from "./agents";
 export { strengthenKnowledgeGraph, getKnowledgeGraphStats } from "./graph-builder";
+export { runOrchestrator, getLatestOrchestratorAudit, orchestrateBookingSubmission } from "../orchestrator";
+export { buildLayeredSystemPrompt, buildTaskPromptStack } from "../prompts/layers";
+export {
+  buildEvidenceBundle,
+  scoreConfidenceFromEvidence,
+  EVIDENCE_SOURCE_LABELS,
+} from "../evidence/schema";
+export { listKnowledgeConnectors } from "../connectors/knowledge";
+export { recordProjectOutcome } from "../learning/project-feedback";

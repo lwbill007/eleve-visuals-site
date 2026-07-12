@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getConnectorHealth, getDisconnectedBlockers, intelligenceDegraded } from "@/lib/ai/platform/connectors";
+import { listKnowledgeConnectors } from "@/lib/ai/connectors/knowledge";
 
 export async function GET() {
   try {
@@ -10,9 +11,11 @@ export async function GET() {
   }
 
   const connectors = getConnectorHealth();
+  const knowledge = await listKnowledgeConnectors();
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
     connectors,
+    knowledge,
     degraded: intelligenceDegraded(),
     blockedDecisions: getDisconnectedBlockers(),
   });

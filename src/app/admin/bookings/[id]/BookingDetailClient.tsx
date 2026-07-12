@@ -53,7 +53,7 @@ export function BookingDetailClient({
       <WorkspaceChrome
         eyebrow="Work · Bookings · Mission Control"
         title={name}
-        description={`Inquiry #${formatInquiryId(submission.id)} — understand the client, run production, and deliver a white-glove experience.`}
+        description={`Inquiry #${formatInquiryId(submission.id)} — executive client file.`}
         related={[
           { label: "Bookings inbox", href: "/admin/submissions?type=booking", desc: "All inquiries" },
           { label: "Pipeline", href: "/admin/pipeline", desc: "Stages" },
