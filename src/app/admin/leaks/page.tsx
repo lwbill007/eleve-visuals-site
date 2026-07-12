@@ -24,12 +24,17 @@ interface Leak {
   confidence: number;
   evidence: string[];
   actions: { id: string; label: string; href: string }[];
+  formula?: string;
 }
 
 export default function LeaksPage() {
   useSetAIPage("risks");
   const [leaks, setLeaks] = useState<Leak[]>([]);
-  const [exposure, setExposure] = useState({ loss: 0, recoverable: 0 });
+  const [exposure, setExposure] = useState({
+    loss: 0,
+    recoverable: 0,
+    disclaimer: "",
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -41,7 +46,13 @@ export default function LeaksPage() {
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       setLeaks(data.leaks ?? []);
-      setExposure(data.exposure ?? { loss: 0, recoverable: 0 });
+      setExposure({
+        loss: data.exposure?.loss ?? 0,
+        recoverable: data.exposure?.recoverable ?? 0,
+        disclaimer:
+          data.exposure?.disclaimer ??
+          "AI Prediction only — heuristic coefficients, not audited recoverable revenue.",
+      });
     } catch {
       setError("Could not load revenue leaks.");
       setLeaks([]);
@@ -59,25 +70,38 @@ export default function LeaksPage() {
       <WorkspaceChrome
         eyebrow="Command · Revenue"
         title="Revenue Leak Detector"
-        description="Where money is being lost, why (evidence), what to recover next — and whether ÉLEVÉ can execute the fix. Amounts are Estimated unless noted."
+        description="Where pipeline risk exists and why — with evidence. Dollar figures are AI Predictions (heuristics), never audited recoverable revenue."
         onRefresh={() => void load()}
         refreshing={loading}
         related={[
           { label: "Risks", href: "/admin/risks", desc: "Threats" },
           { label: "Workboard", href: "/admin/workboard", desc: "Act" },
           { label: "Payments", href: "/admin/payments", desc: "Ledger" },
-          { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
+          { label: "Briefing", href: "/admin/briefing", desc: "Report v3" },
         ]}
       >
+        <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-fog">
+          {exposure.disclaimer}
+        </div>
         <div className="mb-8 grid gap-3 sm:grid-cols-2">
-          <AdminPanel title="Potential loss (est.)">
+          <AdminPanel title="Potential loss (AI Prediction)">
             <p className="font-display text-3xl text-amber-300">
-              ${Math.round(exposure.loss).toLocaleString()}
+              {exposure.loss > 0 ? `$${Math.round(exposure.loss).toLocaleString()}` : "—"}
+            </p>
+            <p className="mt-1 text-[0.65rem] text-muted">
+              {exposure.loss > 0 ? "Heuristic · not ledger" : "More financial data required"}
             </p>
           </AdminPanel>
-          <AdminPanel title="Recoverable (confidence-weighted)">
+          <AdminPanel title="Recoverable (AI Prediction)">
             <p className="font-display text-3xl text-emerald-400">
-              ${Math.round(exposure.recoverable).toLocaleString()}
+              {exposure.recoverable > 0
+                ? `$${Math.round(exposure.recoverable).toLocaleString()}`
+                : "—"}
+            </p>
+            <p className="mt-1 text-[0.65rem] text-muted">
+              {exposure.recoverable > 0
+                ? "Confidence-weighted heuristic"
+                : "More financial data required"}
             </p>
           </AdminPanel>
         </div>
@@ -102,15 +126,19 @@ export default function LeaksPage() {
                     {leak.category}
                   </span>
                   <p className="font-display text-xl text-amber-300">
-                    ~${leak.estimatedLoss.toLocaleString()}
+                    {leak.estimatedLoss > 0 ? `~$${leak.estimatedLoss.toLocaleString()}` : "—"}
                   </p>
                 </div>
                 <h3 className="mt-2 font-display text-lg text-cream">{leak.title}</h3>
                 <p className="mt-2 text-sm text-fog">{leak.reason}</p>
                 <p className="mt-2 text-[0.65rem] text-muted">
-                  Recover ~${leak.recoveryPotential.toLocaleString()} ·{" "}
-                  {Math.round(leak.confidence * 100)}% confidence
+                  {leak.estimatedLoss > 0 || leak.recoveryPotential > 0
+                    ? `AI Prediction recovery ~$${leak.recoveryPotential.toLocaleString()} · ${Math.round(leak.confidence * 100)}% confidence`
+                    : `More financial data required · ${Math.round(leak.confidence * 100)}% confidence`}
                 </p>
+                {leak.formula && (
+                  <p className="mt-1 text-[0.6rem] text-muted">Formula: {leak.formula}</p>
+                )}
                 {leak.evidence.length > 0 && (
                   <ul className="mt-3 space-y-1 text-[0.7rem] text-muted">
                     {leak.evidence.slice(0, 3).map((e) => (

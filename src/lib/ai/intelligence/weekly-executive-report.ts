@@ -109,8 +109,10 @@ export async function generateWeeklyExecutiveReport(
     ),
   ];
 
-  const moneyLost = leaks.slice(0, 5).map(
-    (l) => `${l.title} — ~$${l.estimatedLoss.toLocaleString()} at risk (${Math.round(l.confidence * 100)}% confidence)`
+  const moneyLost = leaks.slice(0, 5).map((l) =>
+    l.estimatedLoss > 0
+      ? `${l.title} — AI Prediction ~$${l.estimatedLoss.toLocaleString()} (${Math.round(l.confidence * 100)}% conf) · ${l.formula}`
+      : `${l.title} — ${l.reason} · More financial data required for $ exposure`
   );
 
   const opportunitiesAppeared = intelligence.opportunities
@@ -144,7 +146,7 @@ export async function generateWeeklyExecutiveReport(
     `$${northStar.revenuePerVisitor} revenue/visitor`,
   ].join(" · ");
 
-  let narrative = `Week ending ${weekEndingLabel()}: $${metrics.revenue.thisMonth.toLocaleString()} MTD revenue, ${metrics.month.bookings} bookings, ${metrics.traffic.visitors30} visitors. ~$${Math.round(exposure.recoverable).toLocaleString()} recoverable from ${leaks.length} revenue leaks. Top priority: ${prioritize[0] ?? "Run Intelligence Refresh"}.`;
+  let narrative = `Week ending ${weekEndingLabel()}: $${metrics.revenue.thisMonth.toLocaleString()} MTD revenue (pipeline/ops), ${metrics.month.bookings} bookings, ${metrics.traffic.visitors30} visitors. ${leaks.length} revenue risks flagged — dollar “recoverable” totals are AI Predictions only when present, otherwise More financial data required. Top priority: ${prioritize[0] ?? "Run Intelligence Refresh"}.`;
   let provider: WeeklyExecutiveReport["provider"] = "rules";
 
   if (isAIConfigured()) {
@@ -153,7 +155,7 @@ export async function generateWeeklyExecutiveReport(
         messages: [
           {
             role: "system",
-            content: `${charterSystemPrompt()}\n\n${charterResponseStructure()}\n\nWrite a weekly executive report for ÉLEVÉ Visuals. Use only numbers from the JSON. Never invent ROI, conversion lifts, benchmarks, or competitor facts. Label analysis vs measured data. Focus on revenue, bookings, and prioritized actions.`,
+            content: `${charterSystemPrompt()}\n\n${charterResponseStructure()}\n\nWrite a weekly executive report for ÉLEVÉ Visuals. Use only numbers from the JSON. Never invent ROI, conversion lifts, brand equity %, recoverable dollars, or competitor facts. Label analysis vs measured data. If financial projections are missing, say More financial data required.`,
           },
           {
             role: "user",
@@ -169,7 +171,9 @@ export async function generateWeeklyExecutiveReport(
               prioritize,
               projectedNextMonth,
               northStarSummary,
-              totalRecoverable: exposure.recoverable,
+              leakCount: leaks.length,
+              leakDisclaimer: exposure.disclaimer,
+              totalRecoverableIsPredictionOnly: true,
             }),
           },
         ],
@@ -185,8 +189,8 @@ export async function generateWeeklyExecutiveReport(
   }
 
   const headline =
-    exposure.recoverable > 5000
-      ? `$${Math.round(exposure.recoverable).toLocaleString()} recoverable · ${prioritize[0] ?? "Review opportunities"}`
+    leaks.length > 0
+      ? `${leaks.length} revenue risks · ${prioritize[0] ?? "Review opportunities"} · $ figures are predictions when shown`
       : `${metrics.month.bookings} bookings · $${metrics.revenue.thisMonth.toLocaleString()} MTD · ${prioritize[0] ?? "Steady operations"}`;
 
   const report: WeeklyExecutiveReport = {

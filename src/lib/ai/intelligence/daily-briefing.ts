@@ -28,7 +28,7 @@ function startOfWeek(d = new Date()) {
 }
 
 export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing> {
-  const cacheKey = "daily-briefing-v8";
+  const cacheKey = "daily-briefing-v9";
   if (!force) {
     const cached = await getCached<AIDailyBriefing>(cacheKey);
     if (cached) return cached;

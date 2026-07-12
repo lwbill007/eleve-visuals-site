@@ -5,7 +5,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
   truthToneClass,
-  type ExecutiveReportV2,
+  type ExecutiveReportV3,
   type ReportRecommendation,
   type ReportTruthKind,
 } from "@/lib/ai/platform/executive-report-v2";
@@ -54,7 +54,7 @@ export function ExecutiveReportV2View({
   report,
   compact = false,
 }: {
-  report: ExecutiveReportV2;
+  report: ExecutiveReportV3;
   compact?: boolean;
 }) {
   const [sort, setSort] = useState<RecSort>("priority");
@@ -67,7 +67,9 @@ export function ExecutiveReportV2View({
       <section className="rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/5 via-transparent to-transparent p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="label-caps text-accent">Executive Intelligence Report 2.0</p>
+            <p className="label-caps text-accent">
+              Executive Intelligence Platform v{report.version}
+            </p>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-cream-dim">
               {report.executiveSummary}
             </p>
@@ -81,8 +83,25 @@ export function ExecutiveReportV2View({
       </section>
 
       <section>
-        <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">Executive Dashboard</p>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <p className="mb-2 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
+          Intelligence hierarchy
+        </p>
+        <div className="flex flex-wrap gap-2 text-[0.65rem]">
+          <TruthBadge kind="Measured Data" />
+          <TruthBadge kind="AI Analysis" />
+          <TruthBadge kind="Verified External Research" />
+          <TruthBadge kind="AI Prediction" />
+          <span className="border border-stone/30 px-1.5 py-0.5 text-muted uppercase">
+            Recommendations
+          </span>
+        </div>
+      </section>
+
+      <section>
+        <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
+          Executive Dashboard
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           {report.dashboard.map((d) => (
             <div key={d.id} className="rounded-xl border border-stone/25 p-3">
               <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">{d.label}</p>
@@ -126,7 +145,7 @@ export function ExecutiveReportV2View({
 
       <section>
         <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
-          Measured Business Situation
+          Layer 1 — Measured Facts
         </p>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {report.measuredSituation.map((m) => (
@@ -145,7 +164,7 @@ export function ExecutiveReportV2View({
       {!compact && report.rootCauses.length > 0 && (
         <section>
           <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
-            AI Root Cause Analysis
+            Layer 2 — AI Analysis
           </p>
           <div className="space-y-3">
             {report.rootCauses.map((h) => (
@@ -188,10 +207,67 @@ export function ExecutiveReportV2View({
       )}
 
       {!compact && (
+        <section>
+          <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
+            Layer 3 — Verified External Research
+          </p>
+          {(report.layers?.verifiedExternalResearch ?? []).map((r) => (
+            <div key={r.id} className="rounded-lg border border-stone/20 p-3 text-sm text-fog">
+              {r.present ? (
+                <>
+                  <TruthBadge kind="Verified External Research" />
+                  <p className="mt-2 text-cream">{r.summary}</p>
+                  <p className="mt-1 text-[0.65rem]">
+                    {r.source}
+                    {r.publicationDate ? ` · ${r.publicationDate}` : ""} · {r.confidence}% conf
+                  </p>
+                </>
+              ) : (
+                <>
+                  <TruthBadge kind="Unknown (More Data Required)" />
+                  <p className="mt-2">{r.summary}</p>
+                </>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {!compact && (report.predictions?.length ?? 0) > 0 && (
+        <section>
+          <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
+            Layer 4 — AI Predictions
+          </p>
+          <div className="space-y-2">
+            {report.predictions.map((p) => (
+              <div key={p.id} className="rounded-xl border border-amber-400/25 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <TruthBadge kind="AI Prediction" />
+                  <span className="text-[0.65rem] text-muted">{p.confidence}% confidence</span>
+                </div>
+                <p className="mt-2 text-sm text-cream">{p.potentialOutcome}</p>
+                <p className="mt-1 text-xs text-fog">
+                  <span className="text-muted">Estimated impact: </span>
+                  {p.estimatedImpact}
+                </p>
+                <p className="mt-1 text-xs text-fog">
+                  <span className="text-muted">Reasoning: </span>
+                  {p.reasoning}
+                </p>
+                <p className="mt-1 text-[0.65rem] text-muted">
+                  Depends: {p.dependencies.join(", ")} · Variables: {p.variables.join(", ")}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!compact && (
         <div className="grid gap-4 lg:grid-cols-2">
           <section>
             <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
-              Opportunity Analysis
+              Opportunity Engine
             </p>
             <div className="space-y-2">
               {report.opportunities.map((o) => (
@@ -201,10 +277,12 @@ export function ExecutiveReportV2View({
                     <TruthBadge kind={o.truthKind} />
                   </div>
                   <p className="mt-1 text-xs text-fog">{o.reasoning}</p>
-                  <p className="mt-2 text-[0.65rem] text-muted">
-                    Impact {o.potentialImpact} · Confidence {o.confidence}% · Effort{" "}
-                    {o.estimatedEffort}
-                    {o.dependencies.length > 0 ? ` · Depends: ${o.dependencies.join(", ")}` : ""}
+                  <p className="mt-2 text-[0.65rem] text-amber-200/90">
+                    Financial: {o.financialProjection}
+                  </p>
+                  <p className="mt-1 text-[0.65rem] text-muted">
+                    Score {o.opportunityScore} · Impact {o.businessImpact} · Confidence{" "}
+                    {o.confidence}% · Effort {o.estimatedEffort} · TTV {o.timeToValue}
                   </p>
                 </div>
               ))}
@@ -215,7 +293,7 @@ export function ExecutiveReportV2View({
           </section>
 
           <section>
-            <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">Risk Analysis</p>
+            <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">Risk Engine</p>
             <div className="space-y-2">
               {report.risks.map((r) => (
                 <div key={r.id} className="rounded-lg border border-stone/20 p-3">
@@ -225,9 +303,11 @@ export function ExecutiveReportV2View({
                   </div>
                   <p className="mt-1 text-sm text-cream">{r.title}</p>
                   <p className="mt-1 text-[0.65rem] text-muted">
-                    Level {r.level} · Likelihood {r.likelihood} · Impact {r.impact}
+                    Likelihood {r.likelihood} · Severity {r.severity} · Confidence {r.confidence}%
                   </p>
-                  <p className="mt-1 text-xs text-fog">Mitigation: {r.mitigation}</p>
+                  <p className="mt-1 text-xs text-fog">
+                    Mitigation: {r.mitigation} · {r.owner} · {r.timeline}
+                  </p>
                 </div>
               ))}
               {report.risks.length === 0 && (
@@ -241,7 +321,7 @@ export function ExecutiveReportV2View({
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">
-            AI Strategic Recommendations
+            Layer 5 — Executive Recommendations
           </p>
           <div className="flex flex-wrap gap-1">
             {(["priority", "impact", "effort", "confidence"] as RecSort[]).map((s) => (
@@ -300,28 +380,33 @@ export function ExecutiveReportV2View({
             <div key={`detail-${r.id}`} className="mt-3 rounded-xl border border-accent/25 p-4">
               <p className="text-sm text-cream">{r.title}</p>
               <p className="mt-2 text-xs text-fog">
+                <span className="text-muted">Business problem: </span>
+                {r.businessProblem}
+              </p>
+              <p className="mt-1 text-xs text-fog">
                 <span className="text-muted">Why: </span>
                 {r.whyImportant}
               </p>
               <p className="mt-1 text-xs text-fog">
-                <span className="text-muted">If nothing changes: </span>
+                <span className="text-muted">If ignored: </span>
                 {r.ifNothingChanges}
               </p>
               <p className="mt-1 text-xs text-fog">
-                <span className="text-muted">How reached: </span>
-                {r.howReached}
+                <span className="text-muted">What next: </span>
+                {r.whatNext}
               </p>
               <p className="mt-1 text-xs text-fog">
                 <span className="text-muted">Success metric: </span>
                 {r.successMetric}
               </p>
               <p className="mt-1 text-xs text-fog">
-                <span className="text-muted">Owner · Timeline: </span>
-                {r.owner} · {r.timeline}
+                <span className="text-muted">Owner · Timeline · Automation: </span>
+                {r.owner} · {r.timeline} · {r.automationAvailable ? "Available" : "Manual"} ·
+                Approval required
               </p>
 
               <div className="mt-3">
-                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Evidence Panel</p>
+                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Evidence Engine</p>
                 <ul className="mt-2 space-y-1.5">
                   {r.evidence.map((e, i) => (
                     <li key={`${r.id}-ev-${i}`} className="flex flex-wrap items-start gap-2 text-xs">
@@ -344,7 +429,7 @@ export function ExecutiveReportV2View({
                     </ul>
                   </div>
                   <div>
-                    <p className="text-[0.55rem] text-muted uppercase">Missing info</p>
+                    <p className="text-[0.55rem] text-muted uppercase">Unknowns</p>
                     <ul className="mt-1 space-y-1 text-fog">
                       {r.missingInfo.map((a) => (
                         <li key={a}>• {a}</li>
@@ -387,7 +472,7 @@ export function ExecutiveReportV2View({
         <>
           <section>
             <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
-              Alternative Strategies
+              Scenario Simulator
             </p>
             <div className="grid gap-3 md:grid-cols-3">
               {report.strategies.map((s) => (
@@ -395,9 +480,9 @@ export function ExecutiveReportV2View({
                   <p className="font-display text-lg text-cream">{s.label}</p>
                   <p className="mt-2 text-xs text-fog">{s.summary}</p>
                   <p className="mt-3 text-[0.65rem] text-muted">
-                    Risk {s.risk} · Effort {s.effort}
+                    Investment {s.investment} · Risk {s.risk} · Confidence {s.confidence}%
                   </p>
-                  <p className="mt-1 text-[0.65rem] text-fog">{s.potentialReward}</p>
+                  <p className="mt-1 text-[0.65rem] text-fog">{s.expectedOutcome}</p>
                 </div>
               ))}
             </div>
@@ -456,6 +541,13 @@ export function ExecutiveReportV2View({
               ))}
             </ul>
           </section>
+
+          {report.learningNote && (
+            <section className="rounded-xl border border-stone/25 p-4">
+              <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Learning Engine</p>
+              <p className="mt-2 text-sm text-fog">{report.learningNote}</p>
+            </section>
+          )}
         </>
       )}
     </div>

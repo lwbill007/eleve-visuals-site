@@ -40,11 +40,21 @@ export interface ExecutiveIntelligenceReport {
 }
 
 function rec(
-  partial: Omit<ExecutiveRecommendation, "id" | "priority"> & { priority?: number }
+  partial: Omit<ExecutiveRecommendation, "id" | "priority" | "expectedTrafficIncrease" | "expectedConversionIncrease" | "expectedRevenueImpact"> & {
+    priority?: number;
+    expectedTrafficIncrease?: string;
+    expectedConversionIncrease?: string;
+    expectedRevenueImpact?: string;
+  }
 ): ExecutiveRecommendation {
   return {
     id: `rec-${stableId(partial.title)}`,
     priority: partial.priority ?? 50,
+    expectedTrafficIncrease:
+      partial.expectedTrafficIncrease ?? "Unknown — requires before/after measurement",
+    expectedConversionIncrease:
+      partial.expectedConversionIncrease ?? "Unknown — requires before/after measurement",
+    expectedRevenueImpact: partial.expectedRevenueImpact ?? "More financial data required",
     ...partial,
   };
 }
@@ -97,9 +107,9 @@ export function generateExecutiveIntelligenceReport(input: {
             detail: `${f.sourcePage} drives trust but lacks a conversion path`,
             category: "conversion",
             priority: 78,
-            expectedTrafficIncrease: "+2–5%",
-            expectedConversionIncrease: "+8–15%",
-            expectedRevenueImpact: "$500–2k/mo",
+            expectedTrafficIncrease: "Unknown — requires before/after measurement",
+            expectedConversionIncrease: "Unknown — requires before/after measurement",
+            expectedRevenueImpact: "More financial data required",
             implementationEffort: "low",
             confidence: 0.82,
             sourcePages: [f.sourcePage],
@@ -118,9 +128,9 @@ export function generateExecutiveIntelligenceReport(input: {
             detail: `Improve discoverability for ${f.title}`,
             category: "seo",
             priority: 65,
-            expectedTrafficIncrease: "+5–12%",
-            expectedConversionIncrease: "+2–4%",
-            expectedRevenueImpact: "$200–800/mo",
+            expectedTrafficIncrease: "Unknown — requires before/after measurement",
+            expectedConversionIncrease: "Unknown — requires before/after measurement",
+            expectedRevenueImpact: "More financial data required",
             implementationEffort: "low",
             confidence: 0.75,
             sourcePages: [f.sourcePage],
@@ -163,9 +173,9 @@ export function generateExecutiveIntelligenceReport(input: {
                   ? "ux"
                   : "content",
           priority: issue.severity === "high" ? 90 : 60,
-          expectedTrafficIncrease: issue.type === "seo" ? "+8–20%" : "+1–3%",
-          expectedConversionIncrease: issue.type === "conversion" ? "+10–25%" : "+2–5%",
-          expectedRevenueImpact: issue.type === "conversion" ? "$1k–5k/mo" : "$100–500/mo",
+          expectedTrafficIncrease: "Unknown — requires before/after measurement",
+          expectedConversionIncrease: "Unknown — requires before/after measurement",
+          expectedRevenueImpact: "More financial data required",
           implementationEffort: issue.type === "missing_content" ? "low" : "medium",
           confidence: 0.85,
           sourcePages: [issue.page],
@@ -185,9 +195,9 @@ export function generateExecutiveIntelligenceReport(input: {
           detail: `Pricing changed on ${c.page} — ensure CRM and booking form match`,
           category: "conversion",
           priority: 85,
-          expectedTrafficIncrease: "0%",
-          expectedConversionIncrease: "+5–10%",
-          expectedRevenueImpact: "Protects pipeline accuracy",
+          expectedTrafficIncrease: "N/A",
+          expectedConversionIncrease: "Unknown — requires before/after measurement",
+          expectedRevenueImpact: "Protects pipeline accuracy — not a revenue lift claim",
           implementationEffort: "low",
           confidence: 0.9,
           sourcePages: [c.page],

@@ -25,7 +25,7 @@ export default function BriefingPage() {
       <WorkspaceChrome
         eyebrow="Command · Briefing"
         title="AI Briefing"
-        description="Evidence-graded CEO briefing — Measured Data vs AI Analysis vs Predictions, with recommendations that never auto-execute."
+        description="Evidence-graded CEO briefing — five-layer intelligence (Measured → Analysis → Research → Predictions → Recommendations). Trust over false confidence."
         onRefresh={refresh ? () => void refresh() : undefined}
         refreshing={loading && Boolean(briefing)}
         related={[

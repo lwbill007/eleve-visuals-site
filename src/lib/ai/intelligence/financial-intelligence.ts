@@ -6,26 +6,24 @@ export async function getFinancialIntelligence(): Promise<FinancialIntelligence>
   const [northStar, metrics] = await Promise.all([computeNorthStarMetrics(), getOperatorMetrics()]);
 
   const grossRevenue = metrics.revenue.thisMonth;
-  const estimatedCosts = Math.round(grossRevenue * 0.35);
-  const netProfit = grossRevenue - estimatedCosts;
 
   return {
     generatedAt: new Date().toISOString(),
     grossRevenue,
-    netProfit,
-    monthlyRecurringRevenue: northStar.monthlyRecurringClients * northStar.averageProjectValue * 0.15,
+    netProfit: 0,
+    monthlyRecurringRevenue: 0,
     averageProjectValue: northStar.averageProjectValue,
     revenuePerVisitor: northStar.revenuePerVisitor,
     customerAcquisitionCost: northStar.customerAcquisitionCost,
     returnOnAdSpend: 0,
-    cashRunwayMonths: grossRevenue > 0 ? Math.max(3, Math.round(netProfit / (estimatedCosts / 12 || 1))) : 0,
+    cashRunwayMonths: 0,
     monthlyGrowthRate: northStar.growthRate,
-    confidence: northStar.confidence,
+    confidence: Math.min(northStar.confidence, 0.45),
     assumptions: [
-      "Net profit estimated at 65% margin (studio industry benchmark)",
-      "MRR estimated from repeat clients × APV × 15% monthly recurrence",
+      "Net profit, MRR, and cash runway: More financial data required (expense ledger not connected)",
+      "Do not invent industry margin benchmarks as ÉLEVÉ facts",
       "CAC and ROAS require ad spend integration (not connected)",
-      "Cash runway is heuristic without expense ledger",
+      "APV / revenue-per-visitor inherit north-star caveats (may be estimated)",
     ],
   };
 }

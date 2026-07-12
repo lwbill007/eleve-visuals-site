@@ -52,7 +52,7 @@ export function BIReportsClient() {
     <WorkspaceChrome
       eyebrow="Command Center"
       title="AI Business Intelligence"
-      description="What: Executive Intelligence Report 2.0 from live studio data. Why: separate measured facts from AI analysis. Next: generate, review evidence, approve before acting."
+      description="What: Executive Intelligence Platform v3 from live studio data. Why: five-layer truth — never invent recoverable $, brand equity lifts, or conversion targets. Next: generate, review evidence, approve before acting."
       extra={<AskAIButton />}
       related={[
         { label: "Analytics", href: "/admin/analytics", desc: "Live metrics" },

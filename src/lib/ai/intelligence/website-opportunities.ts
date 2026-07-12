@@ -19,15 +19,18 @@ export async function getWebsiteOpportunities(): Promise<ExecutiveOpportunity[]>
     opportunities.push({
       id: "seo-improvement",
       title: "Improve SEO health across key pages",
-      detail: `Website intelligence reports SEO at ${seoValue.seoScore}/100. Fixing metadata and internal links can lift organic inquiries.`,
-      why: "Knowledge engine scan detected SEO gaps on high-traffic pages.",
+      detail: `Website intelligence reports SEO at ${seoValue.seoScore}/100. Organic lift is unknown until measured before/after.`,
+      why: "Knowledge engine scan detected SEO gaps on key pages.",
       category: "marketing",
-      expectedRevenue: Math.round(metrics.traffic.visitors30 * 0.02 * 1200),
+      expectedRevenue: 0,
       confidence: 0.68,
       effort: "medium",
       urgency: "medium",
-      impact: `+${Math.round(metrics.traffic.visitors30 * 0.02)} potential inquiries/mo`,
-      evidence: seoValue.recommendations?.slice(0, 3) ?? ["Run Intelligence Refresh for full SEO audit"],
+      impact: "SEO health gap (Measured/scan) · $ lift: More financial data required",
+      evidence: [
+        ...(seoValue.recommendations?.slice(0, 3) ?? ["Run Intelligence Refresh for full SEO audit"]),
+        "Do not invent traffic or revenue lift percentages",
+      ],
       actions: [
         { id: "memory", label: "Knowledge Engine", type: "navigate", href: "/admin/memory" },
         { id: "marketing", label: "SEO Draft", type: "create_campaign", href: "/admin/marketing?task=seo_meta" },
@@ -37,19 +40,22 @@ export async function getWebsiteOpportunities(): Promise<ExecutiveOpportunity[]>
   }
 
   if (metrics.traffic.conversionRate < 2.5 && metrics.traffic.visitors30 > 50) {
-    const lost = Math.round(metrics.traffic.visitors30 * (2.5 - metrics.traffic.conversionRate) / 100 * 1500);
     opportunities.push({
       id: "conversion-bottleneck",
       title: "Fix conversion bottleneck on top landing pages",
-      detail: `${metrics.traffic.visitors30} visitors / 30d at ${metrics.traffic.conversionRate}% conversion — below luxury studio benchmark (~2.5–4%).`,
-      why: "High traffic without proportional inquiries indicates CTA, page speed, or messaging friction.",
+      detail: `${metrics.traffic.visitors30} visitors / 30d at ${metrics.traffic.conversionRate}% conversion (Measured). External “luxury benchmark” ranges are not verified for ÉLEVÉ and are not used as $ math.`,
+      why: "High traffic without proportional inquiries may indicate CTA, page speed, or messaging friction (AI Analysis).",
       category: "marketing",
-      expectedRevenue: lost,
-      confidence: 0.7,
+      expectedRevenue: 0,
+      confidence: 0.65,
       effort: "medium",
       urgency: metrics.traffic.conversionRate < 1.5 ? "high" : "medium",
-      impact: `~$${lost.toLocaleString()} addressable`,
-      evidence: [`Top page: ${metrics.traffic.topPage}`, `${metrics.traffic.conversionRate}% site conversion`],
+      impact: "Conversion soft vs internal goals · addressable $: More financial data required",
+      evidence: [
+        `Top page: ${metrics.traffic.topPage}`,
+        `${metrics.traffic.conversionRate}% site conversion (Measured)`,
+        "Unknown: heatmaps, session recordings, studio-specific close rates",
+      ],
       actions: [
         { id: "analytics", label: "View Analytics", type: "navigate", href: "/admin/analytics" },
         { id: "portfolio", label: "Edit Portfolio", type: "navigate", href: "/admin/portfolio" },
@@ -66,11 +72,11 @@ export async function getWebsiteOpportunities(): Promise<ExecutiveOpportunity[]>
       detail: issue.detail,
       why: "Detected by platform intelligence scan.",
       category: "marketing",
-      expectedRevenue: 800,
+      expectedRevenue: 0,
       confidence: 0.62,
       effort: "low",
       urgency: "medium",
-      impact: "Conversion & UX",
+      impact: "Conversion & UX · $ impact unknown",
       evidence: [issue.detail],
       actions: [{ id: "memory", label: "View in Memory", type: "navigate", href: "/admin/memory" }],
       estimatedMinutes: 25,
@@ -78,6 +84,13 @@ export async function getWebsiteOpportunities(): Promise<ExecutiveOpportunity[]>
   }
 
   return opportunities;
+}
+
+function rankScore(o: ExecutiveOpportunity): number {
+  const urgencyBonus =
+    o.urgency === "critical" ? 5000 : o.urgency === "high" ? 2000 : o.urgency === "medium" ? 500 : 0;
+  const revenueWeight = o.expectedRevenue > 0 ? o.expectedRevenue * o.confidence : 0;
+  return revenueWeight + urgencyBonus + o.confidence * 100;
 }
 
 export async function getAllExecutiveOpportunities(): Promise<ExecutiveOpportunity[]> {
@@ -89,5 +102,5 @@ export async function getAllExecutiveOpportunities(): Promise<ExecutiveOpportuni
     seen.add(o.id);
     merged.push(o);
   }
-  return merged.sort((a, b) => b.expectedRevenue * b.confidence - a.expectedRevenue * a.confidence).slice(0, 15);
+  return merged.sort((a, b) => rankScore(b) - rankScore(a)).slice(0, 15);
 }

@@ -57,21 +57,21 @@ export async function getExecutiveOpportunities(): Promise<ExecutiveOpportunity[
   const opportunities = insights.map(insightToOpportunity);
 
   if (metrics.attention.abandonedInquiries > 0) {
-    const revenue = metrics.attention.abandonedInquiries * 1200;
     opportunities.unshift({
       id: "abandoned-bookings-recovery",
       title: `Recover ${metrics.attention.abandonedInquiries} abandoned booking inquiries`,
-      detail: "Inquiries in new/contacted status untouched for 3+ days. Personalized follow-up typically recovers 15–30% of stale portrait inquiries.",
-      why: `Verified from submission timestamps — ${metrics.attention.abandonedInquiries} inquiries past SLA.`,
+      detail:
+        "Inquiries in new/contacted status untouched for 3+ days. Dollar recovery is unknown without studio-specific close history — do not invent ROI.",
+      why: `Verified from submission timestamps — ${metrics.attention.abandonedInquiries} inquiries past SLA (Measured).`,
       category: "revenue",
-      expectedRevenue: revenue,
+      expectedRevenue: 0,
       confidence: 0.78,
       effort: "low",
       urgency: "critical",
-      impact: `~$${revenue.toLocaleString()} potential`,
+      impact: `${metrics.attention.abandonedInquiries} stale inquiries · More financial data required for $ recovery`,
       evidence: [
-        `${metrics.attention.abandonedInquiries} stale inquiries in database`,
-        "Industry benchmark: 15–30% recovery on timely follow-up",
+        `${metrics.attention.abandonedInquiries} stale inquiries in database (Measured)`,
+        "Unknown: studio recovery rate after follow-up — Industry Best Practice ranges are not ÉLEVÉ facts",
       ],
       actions: [
         {
@@ -97,17 +97,21 @@ export async function getExecutiveOpportunities(): Promise<ExecutiveOpportunity[
     opportunities.push({
       id: "inactive-client-reactivation",
       title: `Re-engage ${metrics.attention.followUpClients} inactive clients`,
-      detail: "Past clients with no activity in 60+ days. Re-activation campaigns cost less than new acquisition.",
-      why: `CRM shows $${metrics.attention.followUpValue.toLocaleString()} in recoverable client value.`,
+      detail:
+        "Past clients with no activity in 60+ days. Historical CRM value is not the same as recoverable revenue.",
+      why: `CRM shows ${metrics.attention.followUpClients} inactive clients (Measured). Recovery $ unknown.`,
       category: "sales",
-      expectedRevenue: metrics.attention.followUpValue,
+      expectedRevenue: 0,
       confidence: 0.72,
       effort: "medium",
       urgency: "high",
-      impact: `$${metrics.attention.followUpValue.toLocaleString()} addressable`,
+      impact:
+        metrics.attention.followUpValue > 0
+          ? `Historical CRM association ~$${metrics.attention.followUpValue.toLocaleString()} · recovery: More financial data required`
+          : "More financial data required",
       evidence: [
-        `${metrics.attention.followUpClients} clients inactive 60+ days`,
-        "Historical LTV from CRM records",
+        `${metrics.attention.followUpClients} clients inactive 60+ days (Measured)`,
+        "Do not treat historical LTV as predicted recovery",
       ],
       actions: [
         {
@@ -129,7 +133,7 @@ export async function getExecutiveOpportunities(): Promise<ExecutiveOpportunity[
   }
 
   return opportunities
-    .filter((o) => o.expectedRevenue > 0 || o.urgency === "critical" || o.urgency === "high")
+    .filter((o) => o.expectedRevenue > 0 || o.urgency === "critical" || o.urgency === "high" || o.urgency === "medium")
     .sort((a, b) => opportunityScore(b) - opportunityScore(a))
     .slice(0, 12);
 }

@@ -117,11 +117,11 @@ export function synthesizeExecutiveBriefing(input: {
   const businessScore = intelligence.scores.find((s) => s.key === "businessHealth")?.value ?? avgHealth;
 
   const headline =
-    moneyOnTable >= 3000
-      ? `~$${Math.round(moneyOnTable).toLocaleString()} in recoverable opportunity — act on ${topPriorities[0]?.title ?? "top pipeline"}`
+    topPriorities[0]
+      ? `${topPriorities[0].title} — prioritize evidence-backed actions (do not cite invented recoverable $)`
       : businessScore >= 70
         ? "Business health is strong — focus on growth and brand elevation"
-        : `Business health at ${businessScore}/100 — ${topPriorities[0]?.title ?? "review priorities"}`;
+        : `Business health at ${businessScore}/100 — review priorities`;
 
   const narrative = buildNarrative(roles, rankedOpportunities, intelligence.risks);
 

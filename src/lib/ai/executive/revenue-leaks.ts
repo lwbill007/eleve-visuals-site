@@ -22,18 +22,27 @@ export interface RevenueLeak {
     | "engagement"
     | "upsell"
     | "retention";
+  /** Heuristic only — always treat as AI Prediction, never ledger fact */
   estimatedLoss: number;
   recoveryPotential: number;
   confidence: number;
   evidence: string[];
   actions: BusinessAction[];
+  truthKind: "AI Prediction";
+  formula: string;
+  financialDataSufficient: boolean;
 }
 
 function leak(
-  partial: Omit<RevenueLeak, "id"> & { id?: string }
+  partial: Omit<RevenueLeak, "id" | "truthKind" | "financialDataSufficient"> & {
+    id?: string;
+    financialDataSufficient?: boolean;
+  }
 ): RevenueLeak {
   return {
     id: partial.id ?? `leak-${partial.category}-${partial.title.slice(0, 20).replace(/\s+/g, "-").toLowerCase()}`,
+    truthKind: "AI Prediction",
+    financialDataSufficient: partial.financialDataSufficient ?? false,
     ...partial,
   };
 }
@@ -57,12 +66,17 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
     leaks.push(
       leak({
         title: `${metrics.attention.abandonedInquiries} stale booking inquiries`,
-        reason: "Inquiries without response for 3+ days — leads go cold before consultation",
+        reason: "Inquiries without response for 3+ days — leads may go cold before consultation",
         category: "follow_up",
         estimatedLoss: loss,
         recoveryPotential: Math.round(loss * 0.6),
-        confidence: 0.85,
-        evidence: [`${metrics.attention.abandonedInquiries} untouched inquiries`, "Industry recovery rate: 15–35%"],
+        confidence: 0.55,
+        formula: "staleInquiries × avgProjectValue × 0.35 (heuristic — not measured recovery)",
+        evidence: [
+          `${metrics.attention.abandonedInquiries} untouched inquiries (Measured)`,
+          "AI Prediction: dollar exposure uses heuristic coefficients — not studio-verified recovery",
+          "Industry Best Practice ranges are not cited as ÉLEVÉ facts",
+        ],
         actions: [
           { id: "submissions", label: "Review inquiries", type: "navigate", href: "/admin/submissions?type=booking" },
           { id: "automations", label: "Set up follow-up", type: "navigate", href: "/admin/automations" },
@@ -74,13 +88,20 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
   if (metrics.attention.followUpClients > 0) {
     leaks.push(
       leak({
-        title: `$${metrics.attention.followUpValue.toLocaleString()} in inactive client value`,
-        reason: "Past clients with no activity in 60+ days — repeat bookings and referrals at risk",
+        title: `${metrics.attention.followUpClients} inactive clients (historical CRM value present)`,
+        reason: "Past clients with no activity in 60+ days — repeat risk is real; $ recovery is unknown",
         category: "retention",
-        estimatedLoss: metrics.attention.followUpValue,
-        recoveryPotential: Math.round(metrics.attention.followUpValue * 0.25),
-        confidence: 0.78,
-        evidence: [`${metrics.attention.followUpClients} clients need follow-up`],
+        estimatedLoss: 0,
+        recoveryPotential: 0,
+        confidence: 0.7,
+        formula: "No $ projection — historical CRM value is not the same as recoverable revenue",
+        financialDataSufficient: false,
+        evidence: [
+          `${metrics.attention.followUpClients} clients need follow-up (Measured)`,
+          metrics.attention.followUpValue > 0
+            ? `Historical CRM value associated: $${metrics.attention.followUpValue.toLocaleString()} (Historical — not predicted recovery)`
+            : "More financial data required for recovery projection",
+        ],
         actions: [
           { id: "crm", label: "Open CRM", type: "navigate", href: "/admin/crm" },
           { id: "marketing", label: "Re-engagement campaign", type: "navigate", href: "/admin/marketing?task=follow_up" },
@@ -90,21 +111,20 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
   }
 
   if (metrics.traffic.conversionRate < 2.5 && metrics.traffic.visitors30 > 30) {
-    const gap = 2.5 - metrics.traffic.conversionRate;
-    const missedInquiries = Math.round(metrics.traffic.visitors30 * (gap / 100));
-    const loss = missedInquiries * avgValue;
     leaks.push(
       leak({
-        title: "Conversion below luxury studio benchmark",
-        reason: `Site converts at ${metrics.traffic.conversionRate}% vs 2.5–4% benchmark — weak CTAs, friction, or messaging mismatch`,
+        title: "Conversion soft relative to common studio ranges",
+        reason: `Site converts at ${metrics.traffic.conversionRate}% (Measured). Gap-to-benchmark dollars are not computed — external benchmarks are unverified for this studio.`,
         category: "booking_flow",
-        estimatedLoss: loss,
-        recoveryPotential: Math.round(loss * 0.4),
-        confidence: 0.72,
+        estimatedLoss: 0,
+        recoveryPotential: 0,
+        confidence: 0.5,
+        formula: "Dollar gap intentionally omitted — More financial data / verified benchmark required",
         evidence: [
-          `${metrics.traffic.visitors30} visitors (30d)`,
-          `${metrics.traffic.conversionRate}% conversion`,
+          `${metrics.traffic.visitors30} visitors (30d) (Measured)`,
+          `${metrics.traffic.conversionRate}% conversion (Measured)`,
           `Top page: ${metrics.traffic.topPage}`,
+          "Industry Best Practice: some studios cite ~2.5–4% — not verified for ÉLEVÉ; not used as $ math",
         ],
         actions: [
           { id: "analytics", label: "View analytics", type: "navigate", href: "/admin/analytics" },
@@ -122,13 +142,14 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
     leaks.push(
       leak({
         title: "Website health below target",
-        reason: "Platform intelligence scan detected SEO, UX, or content gaps reducing qualified inquiries",
+        reason: "Platform intelligence scan detected SEO, UX, or content gaps that may reduce qualified inquiries",
         category: "seo",
-        estimatedLoss: Math.round(metrics.traffic.visitors30 * 0.03 * avgValue),
-        recoveryPotential: Math.round(metrics.traffic.visitors30 * 0.02 * avgValue),
-        confidence: 0.68,
+        estimatedLoss: 0,
+        recoveryPotential: 0,
+        confidence: 0.55,
+        formula: "No $ projection from health score alone",
         evidence: [
-          `Health score: ${healthValue.overallHealthScore}/100`,
+          `Health score: ${healthValue.overallHealthScore}/100 (AI Analysis / scan)`,
           ...(healthValue.issues?.filter((i) => i.severity === "high").map((i) => i.title) ?? []),
         ],
         actions: [
@@ -145,12 +166,13 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
       leaks.push(
         leak({
           title: "High-traffic portfolio without conversion path",
-          reason: `${topPage.path} drives ${topPage.views} views but may lack strong booking CTA`,
+          reason: `${topPage.path} drives ${topPage.views} views (Measured) but may lack strong booking CTA`,
           category: "cta",
-          estimatedLoss: Math.round(topPage.views * 0.02 * avgValue),
-          recoveryPotential: Math.round(topPage.views * 0.015 * avgValue),
-          confidence: 0.65,
-          evidence: [`${topPage.views} views on ${topPage.path}`, "No /book in top pages"],
+          estimatedLoss: 0,
+          recoveryPotential: 0,
+          confidence: 0.55,
+          formula: "Dollar leakage omitted — More financial data required",
+          evidence: [`${topPage.views} views on ${topPage.path} (Measured)`, "No /book in top pages"],
           actions: [
             { id: "portfolio", label: "Edit portfolio", type: "navigate", href: "/admin/portfolio" },
           ],
@@ -163,12 +185,13 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
     leaks.push(
       leak({
         title: `${metrics.attention.galleriesAwaiting} booked projects idle 14+ days`,
-        reason: "Estimated — delayed delivery risks satisfaction and referrals (no gallery entity yet)",
+        reason: "Delayed delivery may risk satisfaction and referrals — $ impact unknown",
         category: "retention",
-        estimatedLoss: metrics.attention.galleriesAwaiting * avgValue * 0.15,
-        recoveryPotential: metrics.attention.galleriesAwaiting * avgValue * 0.1,
-        confidence: 0.8,
-        evidence: [`${metrics.attention.galleriesAwaiting} idle booked projects`],
+        estimatedLoss: 0,
+        recoveryPotential: 0,
+        confidence: 0.65,
+        formula: "No $ projection without verified referral/satisfaction data",
+        evidence: [`${metrics.attention.galleriesAwaiting} idle booked projects (Measured)`],
         actions: [
           { id: "submissions", label: "View bookings", type: "navigate", href: "/admin/submissions?type=booking" },
         ],
@@ -176,7 +199,7 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
     );
   }
 
-  return leaks.sort((a, b) => b.recoveryPotential * b.confidence - a.recoveryPotential * a.confidence);
+  return leaks.sort((a, b) => b.confidence - a.confidence || b.recoveryPotential - a.recoveryPotential);
 }
 
 export async function getExperimentBacklog() {
@@ -189,9 +212,23 @@ export async function getExperimentBacklog() {
     .sort((a, b) => b.expectedRoi - a.expectedRoi);
 }
 
-export function totalLeakExposure(leaks: RevenueLeak[]): { loss: number; recoverable: number } {
+export function totalLeakExposure(leaks: RevenueLeak[]): {
+  loss: number;
+  recoverable: number;
+  truthKind: "AI Prediction";
+  disclaimer: string;
+  financialDataSufficient: boolean;
+} {
+  const loss = leaks.reduce((s, l) => s + l.estimatedLoss, 0);
+  const recoverable = leaks.reduce((s, l) => s + l.recoveryPotential * l.confidence, 0);
   return {
-    loss: leaks.reduce((s, l) => s + l.estimatedLoss, 0),
-    recoverable: leaks.reduce((s, l) => s + l.recoveryPotential * l.confidence, 0),
+    loss,
+    recoverable,
+    truthKind: "AI Prediction",
+    financialDataSufficient: false,
+    disclaimer:
+      loss > 0 || recoverable > 0
+        ? "AI Prediction only — heuristic coefficients, not audited recoverable revenue. Do not cite as fact."
+        : "More financial data required — exposure shown as qualitative risks without invented dollars.",
   };
 }

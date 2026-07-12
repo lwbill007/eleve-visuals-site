@@ -1,6 +1,6 @@
 /**
- * Build Executive Intelligence Report 2.0 from live ÉLEVÉ OS data.
- * Never invents ROI/conversion lifts; labels predictions explicitly.
+ * Build Executive Intelligence Platform v3 from live ÉLEVÉ OS data.
+ * Never invents ROI / conversion lifts / dollar recovery as facts.
  */
 
 import { getAnalyticsSummary } from "@/lib/analytics-server";
@@ -11,16 +11,18 @@ import { buildWebsiteIntelligenceEngine } from "../intelligence/website-engine";
 import { getAdminCRMContacts, getAdminDashboardOSCached } from "@/lib/admin-os-server";
 import { prisma } from "@/lib/db";
 import {
-  REPORT_V2_DISCLAIMER,
+  REPORT_V3_DISCLAIMER,
   type ActionPlanBucket,
-  type ExecutiveReportV2,
+  type ExecutiveReportV3,
   type MeasuredMetric,
   type ReportConfidence,
   type ReportDataSource,
   type ReportHealthScore,
   type ReportOpportunity,
+  type ReportPrediction,
   type ReportRecommendation,
   type ReportRisk,
+  type ReportTruthKind,
   type RootCauseHypothesis,
   type StrategyOption,
 } from "./executive-report-v2";
@@ -43,9 +45,46 @@ function metric(
   return { id, label, value, truthKind: "Measured Data", note };
 }
 
+function mapReportTruthKind(kind: string): ReportTruthKind {
+  if (kind === "Measured Data") return "Measured Data";
+  if (kind === "AI Analysis") return "AI Analysis";
+  if (kind === "Industry Best Practice") return "Industry Best Practice";
+  if (kind === "Verified External Research") return "Verified External Research";
+  if (kind === "Historical Business Performance") return "Historical Business Performance";
+  if (kind === "Estimated Opportunity" || kind === "AI Prediction") return "AI Prediction";
+  return "Unknown (More Data Required)";
+}
+
+function mapLevel(raw?: string): "Low" | "Medium" | "High" {
+  const s = (raw || "medium").toLowerCase();
+  if (s.includes("critical") || s.includes("high")) return "High";
+  if (s.includes("low")) return "Low";
+  return "Medium";
+}
+
+function mapRiskCategory(raw: string): ReportRisk["category"] {
+  const s = raw.toLowerCase();
+  if (/market|seo|content|campaign/.test(s)) return "Marketing";
+  if (/tech|site|performance|access/.test(s)) return "Technical";
+  if (/financ|cash/.test(s)) return "Financial";
+  if (/revenue|booking|pipeline/.test(s)) return "Revenue";
+  if (/ops|deliver|product/.test(s)) return "Operational";
+  if (/brand/.test(s)) return "Brand";
+  if (/client|cx|experience/.test(s)) return "Customer Experience";
+  if (/legal|compliance|privacy/.test(s)) return "Compliance";
+  return "Revenue";
+}
+
+/** @deprecated Prefer buildExecutiveReportV3 — alias kept for call sites */
 export async function buildExecutiveReportV2(
   reportType: string = "daily_ceo"
-): Promise<ExecutiveReportV2> {
+): Promise<ExecutiveReportV3> {
+  return buildExecutiveReportV3(reportType);
+}
+
+export async function buildExecutiveReportV3(
+  reportType: string = "daily_ceo"
+): Promise<ExecutiveReportV3> {
   const [
     metrics,
     analytics,
@@ -68,6 +107,15 @@ export async function buildExecutiveReportV2(
 
   const hasAnalytics = analytics.totals.pageviews > 0;
   const hasBookings = metrics.month.bookings > 0 || dashboard.metrics.bookings.pending > 0;
+  const presentSources = [
+    crm.length > 0,
+    hasBookings,
+    hasAnalytics,
+    portfolioCount > 0,
+    Boolean(website?.dataSources.find((d) => d.id === "seo_scan")?.present),
+    metrics.revenue.thisMonth > 0,
+  ].filter(Boolean).length;
+  const verificationCoverage = Math.round((presentSources / 6) * 100);
 
   const dataSources: ReportDataSource[] = [
     {
@@ -119,7 +167,7 @@ export async function buildExecutiveReportV2(
       detail:
         metrics.revenue.thisMonth > 0
           ? `$${metrics.revenue.thisMonth.toLocaleString()} MTD (pipeline/estimate where noted)`
-          : "No revenue signal MTD",
+          : "No revenue signal MTD — More financial data required",
     },
     {
       id: "ai",
@@ -131,22 +179,28 @@ export async function buildExecutiveReportV2(
       id: "live_web",
       label: "Verified Live Web Research",
       present: false,
-      detail: "Connector not wired",
+      detail: "Connector not wired — no external research cited",
     },
   ];
 
   const webCat = (id: string) => website?.categories.find((c) => c.id === id);
 
+  const businessScore =
+    hasAnalytics || hasBookings
+      ? Math.round(
+          ((hasBookings ? 70 : 40) +
+            (hasAnalytics ? Math.min(90, metrics.traffic.conversionRate * 20) : 30) +
+            (metrics.revenue.monthChange >= 0 ? 75 : 55)) /
+            3
+        )
+      : null;
+
   const dashboardScores: ReportHealthScore[] = [
     {
-      id: "overall",
-      label: "Overall Business Health",
-      score: hasAnalytics || hasBookings ? Math.round((
-        (hasBookings ? 70 : 40) +
-        (hasAnalytics ? Math.min(90, metrics.traffic.conversionRate * 20) : 30) +
-        (metrics.revenue.monthChange >= 0 ? 75 : 55)
-      ) / 3) : null,
-      scoreLabel: hasAnalytics || hasBookings ? "Computed" : "Insufficient data",
+      id: "business",
+      label: "Business Health",
+      score: businessScore,
+      scoreLabel: businessScore != null ? String(businessScore) : "Insufficient data",
       trend30d:
         metrics.revenue.monthChange > 2
           ? "up"
@@ -160,24 +214,34 @@ export async function buildExecutiveReportV2(
       truthKind: hasAnalytics || hasBookings ? "AI Analysis" : "Unknown (More Data Required)",
     },
     {
+      id: "revenue",
+      label: "Revenue Health",
+      score: null,
+      scoreLabel:
+        metrics.revenue.thisMonth > 0
+          ? `$${metrics.revenue.thisMonth.toLocaleString()} MTD`
+          : "Not enough data",
+      trend30d:
+        metrics.revenue.monthChange > 0
+          ? "up"
+          : metrics.revenue.monthChange < 0
+            ? "down"
+            : "unknown",
+      confidence: metrics.revenue.thisMonth > 0 ? 70 : 30,
+      priority: "high",
+      truthKind: metrics.revenue.thisMonth > 0 ? "Measured Data" : "Unknown (More Data Required)",
+    },
+    {
       id: "marketing",
       label: "Marketing Health",
-      score: hasAnalytics ? Math.min(90, 45 + analytics.totals.uniqueSessions / 10) : null,
-      scoreLabel: hasAnalytics ? String(Math.min(90, Math.round(45 + analytics.totals.uniqueSessions / 10))) : "Not enough data",
+      score: hasAnalytics ? Math.min(90, Math.round(45 + analytics.totals.uniqueSessions / 10)) : null,
+      scoreLabel: hasAnalytics
+        ? String(Math.min(90, Math.round(45 + analytics.totals.uniqueSessions / 10)))
+        : "Not enough data",
       trend30d: "unknown",
       confidence: hasAnalytics ? 65 : 30,
       priority: "medium",
       truthKind: hasAnalytics ? "Measured Data" : "Unknown (More Data Required)",
-    },
-    {
-      id: "website",
-      label: "Website Health",
-      score: webCat("conversion")?.score ?? null,
-      scoreLabel: webCat("conversion")?.scoreLabel ?? "See Website Intelligence",
-      trend30d: webCat("conversion")?.trend ?? "unknown",
-      confidence: website?.confidence.overall ?? 40,
-      priority: "high",
-      truthKind: (webCat("conversion")?.truthKind as ReportHealthScore["truthKind"]) || "Unknown (More Data Required)",
     },
     {
       id: "sales",
@@ -192,28 +256,40 @@ export async function buildExecutiveReportV2(
       truthKind: "Measured Data",
     },
     {
-      id: "portfolio",
-      label: "Portfolio Health",
+      id: "operations",
+      label: "Operations Health",
+      score:
+        metrics.attention.abandonedInquiries > 3
+          ? 40
+          : metrics.attention.abandonedInquiries > 0
+            ? 62
+            : hasBookings
+              ? 78
+              : null,
+      scoreLabel:
+        metrics.attention.abandonedInquiries > 0
+          ? `${metrics.attention.abandonedInquiries} stale inquiries`
+          : hasBookings
+            ? "Queue clear"
+            : "Not enough data",
+      trend30d: metrics.attention.abandonedInquiries > 0 ? "down" : "flat",
+      confidence: 80,
+      priority: metrics.attention.abandonedInquiries > 0 ? "critical" : "medium",
+      truthKind: "Measured Data",
+    },
+    {
+      id: "creative",
+      label: "Creative Health",
       score: portfolioCount > 0 ? Math.min(92, 40 + portfolioCount * 5) : null,
-      scoreLabel: portfolioCount > 0 ? String(Math.min(92, 40 + portfolioCount * 5)) : "Empty",
+      scoreLabel: portfolioCount > 0 ? `${portfolioCount} published` : "Empty portfolio",
       trend30d: "flat",
       confidence: 80,
       priority: portfolioCount < 6 ? "high" : "low",
       truthKind: "Measured Data",
     },
     {
-      id: "seo",
-      label: "SEO Health",
-      score: webCat("seo")?.score ?? null,
-      scoreLabel: webCat("seo")?.scoreLabel ?? "Not scanned",
-      trend30d: webCat("seo")?.trend ?? "unknown",
-      confidence: webCat("seo")?.confidence ?? 25,
-      priority: "high",
-      truthKind: (webCat("seo")?.truthKind as ReportHealthScore["truthKind"]) || "Unknown (More Data Required)",
-    },
-    {
-      id: "customer_experience",
-      label: "Customer Experience",
+      id: "customer",
+      label: "Customer Health",
       score: null,
       scoreLabel: "Not measured",
       trend30d: "unknown",
@@ -223,47 +299,75 @@ export async function buildExecutiveReportV2(
     },
     {
       id: "brand",
-      label: "Brand Strength",
+      label: "Brand Health",
       score: webCat("brand")?.score ?? null,
       scoreLabel: webCat("brand")?.scoreLabel ?? "AI qualitative",
       trend30d: "flat",
-      confidence: webCat("brand")?.confidence ?? 50,
+      confidence: webCat("brand")?.confidence ?? 45,
       priority: "medium",
       truthKind: "AI Analysis",
     },
     {
-      id: "revenue",
-      label: "Revenue Trend",
+      id: "knowledge_confidence",
+      label: "Knowledge Confidence",
+      score: website?.confidence.overall ?? (hasAnalytics ? 55 : 30),
+      scoreLabel: "Composite of connected sources",
+      trend30d: "unknown",
+      confidence: verificationCoverage,
+      priority: verificationCoverage < 50 ? "high" : "medium",
+      truthKind: "AI Analysis",
+    },
+    {
+      id: "verification_coverage",
+      label: "Verification Coverage",
+      score: verificationCoverage,
+      scoreLabel: `${presentSources}/6 core sources present`,
+      trend30d: "unknown",
+      confidence: 90,
+      priority: verificationCoverage < 50 ? "high" : "low",
+      truthKind: "Measured Data",
+    },
+    {
+      id: "automation_readiness",
+      label: "Automation Readiness",
+      score: null,
+      scoreLabel: "Approvals required — nothing auto-executes",
+      trend30d: "unknown",
+      confidence: 95,
+      priority: "low",
+      truthKind: "Industry Best Practice",
+    },
+    {
+      id: "prediction_confidence",
+      label: "Prediction Confidence",
+      score: hasAnalytics && hasBookings ? 48 : 28,
+      scoreLabel: "Capped — thin outcome history",
+      trend30d: "unknown",
+      confidence: hasAnalytics && hasBookings ? 48 : 28,
+      priority: "medium",
+      truthKind: "AI Prediction",
+    },
+    {
+      id: "trend",
+      label: "Trend Direction",
       score: null,
       scoreLabel:
-        metrics.revenue.thisMonth > 0
-          ? `$${metrics.revenue.thisMonth.toLocaleString()} MTD (${metrics.revenue.monthChange >= 0 ? "+" : ""}${metrics.revenue.monthChange}%)`
-          : "Not enough data",
+        metrics.revenue.monthChange > 0
+          ? "Up (MTD revenue change)"
+          : metrics.revenue.monthChange < 0
+            ? "Down (MTD revenue change)"
+            : "Requires longer history",
       trend30d:
         metrics.revenue.monthChange > 0
           ? "up"
           : metrics.revenue.monthChange < 0
             ? "down"
             : "unknown",
-      confidence: metrics.revenue.thisMonth > 0 ? 70 : 30,
-      priority: "high",
+      confidence: metrics.revenue.thisMonth > 0 ? 60 : 30,
+      priority: "medium",
       truthKind: metrics.revenue.thisMonth > 0 ? "Measured Data" : "Unknown (More Data Required)",
     },
-    {
-      id: "growth",
-      label: "Growth Trend",
-      score: null,
-      scoreLabel: "Requires longer history",
-      trend30d: "unknown",
-      confidence: 35,
-      priority: "medium",
-      truthKind: "AI Prediction",
-    },
   ];
-
-  // Fix overall scoreLabel when we have a number
-  const overall = dashboardScores[0];
-  if (overall.score != null) overall.scoreLabel = String(overall.score);
 
   const measuredSituation: MeasuredMetric[] = [
     metric("visitors", "Website Visitors (30d)", hasAnalytics ? String(analytics.totals.uniqueSessions) : null),
@@ -275,20 +379,13 @@ export async function buildExecutiveReportV2(
       hasAnalytics ? `${analytics.totals.conversionRate}%` : null
     ),
     metric(
-      "apv",
-      "Avg Project Value (est.)",
-      metrics.month.bookings > 0
-        ? `~$${Math.round(metrics.revenue.thisMonth / Math.max(1, metrics.month.bookings)).toLocaleString()}`
-        : null,
-      "Derived from MTD revenue ÷ bookings — verify against payments"
-    ),
-    metric(
       "revenue_mtd",
       "Revenue MTD",
       metrics.revenue.thisMonth > 0 ? `$${metrics.revenue.thisMonth.toLocaleString()}` : null,
       "May include pipeline estimates depending on operator metrics source"
     ),
     metric("stale", "Stale Inquiries", String(metrics.attention.abandonedInquiries)),
+    metric("inactive_clients", "Inactive Clients (60d+)", String(metrics.attention.followUpClients)),
     metric("portfolio", "Published Portfolio", String(portfolioCount)),
     metric(
       "top_page",
@@ -308,13 +405,19 @@ export async function buildExecutiveReportV2(
   if (hasAnalytics && analytics.totals.conversionRate < 2) {
     rootCauses.push({
       id: "soft-conversion",
-      hypothesis: "Weak homepage trust signals or CTA hierarchy may reduce consultation requests.",
-      confidence: 62,
+      hypothesis:
+        "Homepage traffic may not convert to consultations due to trust, CTA clarity, or booking friction.",
+      confidence: 58,
       supportingEvidence: [
         `Measured conversion rate ${analytics.totals.conversionRate}% (30d)`,
-        hasAnalytics ? "Traffic is present while conversion remains soft" : "",
-      ].filter(Boolean),
-      missingEvidence: ["Heatmaps unavailable", "Session recordings unavailable", "A/B test history unavailable"],
+        "Traffic present while conversion remains soft",
+      ],
+      missingEvidence: [
+        "Heatmaps unavailable",
+        "Session recordings unavailable",
+        "A/B test history unavailable",
+        "Consultation close rate by source unavailable",
+      ],
       alternatives: [
         "Offer/pricing mismatch",
         "Mobile UX friction on /book",
@@ -328,9 +431,13 @@ export async function buildExecutiveReportV2(
       hypothesis: "Slow follow-up on open inquiries is cooling pipeline value.",
       confidence: 84,
       supportingEvidence: [
-        `${metrics.attention.abandonedInquiries} inquiries marked abandoned/stale in CRM`,
+        `${metrics.attention.abandonedInquiries} inquiries marked abandoned/stale in CRM (Measured)`,
       ],
-      missingEvidence: ["Outbound email open rates", "Call attempt logs"],
+      missingEvidence: [
+        "Outbound email open rates",
+        "Call attempt logs",
+        "Verified recovery rate for this studio",
+      ],
       alternatives: ["Leads already booked elsewhere", "Spam / low-intent inquiries"],
     });
   }
@@ -338,34 +445,57 @@ export async function buildExecutiveReportV2(
     rootCauses.push({
       id: "measurement-gap",
       hypothesis: "Incomplete analytics coverage is limiting trustworthy diagnosis.",
-      confidence: 95,
+      confidence: 92,
       supportingEvidence: ["First-party analytics returned insufficient traffic for 30d window"],
       missingEvidence: ["Pageview + conversion event stream"],
       alternatives: ["Tracking blocked in production", "Very new site with no volume yet"],
     });
   }
 
-  const reportOpportunities: ReportOpportunity[] = opportunities.slice(0, 6).map((o, i) => ({
-    id: o.id || `opp-${i}`,
-    title: o.title,
-    potentialImpact: o.urgency === "critical" || o.urgency === "high" ? "high" : "medium",
-    confidence: Math.round((o.confidence || 0.65) * 100),
-    dependencies: o.actions?.map((a) => a.label).slice(0, 2) || ["Review in Opportunities"],
-    estimatedEffort: "medium",
-    reasoning: o.detail || o.title,
-    truthKind: "AI Analysis" as const,
-  }));
+  const reportOpportunities: ReportOpportunity[] = [];
 
   if (metrics.attention.abandonedInquiries > 0) {
-    reportOpportunities.unshift({
+    reportOpportunities.push({
       id: "recover-inquiries",
       title: "Recover stale booking inquiries",
-      potentialImpact: "high",
-      confidence: 88,
-      dependencies: ["CRM follow-up capacity"],
+      opportunityScore: Math.min(95, 55 + metrics.attention.abandonedInquiries * 5),
+      businessImpact: metrics.attention.abandonedInquiries > 3 ? "high" : "medium",
+      confidence: 86,
+      supportingEvidence: [
+        `${metrics.attention.abandonedInquiries} stale inquiries (Measured Data)`,
+      ],
+      dependencies: ["CRM / Booking Command Center access"],
+      requiredResources: ["Owner time for personalized follow-up"],
+      timeToValue: "Same day to 1 week",
+      financialProjection: "More financial data required — do not cite invented recovery dollars",
       estimatedEffort: "low",
-      reasoning: "Measured abandoned inquiries represent known demand still in pipeline.",
+      reasoning:
+        "Measured demand remains in pipeline. Recovery dollars are unknown without studio-specific close history.",
       truthKind: "Measured Data",
+    });
+  }
+
+  for (const o of opportunities.slice(0, 5)) {
+    if (reportOpportunities.some((r) => r.title === o.title)) continue;
+    reportOpportunities.push({
+      id: o.id || `opp-${reportOpportunities.length}`,
+      title: o.title,
+      opportunityScore: Math.round((o.confidence || 0.6) * 70 + (o.urgency === "critical" ? 25 : o.urgency === "high" ? 15 : 5)),
+      businessImpact: o.urgency === "critical" || o.urgency === "high" ? "high" : "medium",
+      confidence: Math.round((o.confidence || 0.65) * 100),
+      supportingEvidence: (o.evidence || []).slice(0, 3).map((e) =>
+        e.toLowerCase().includes("benchmark") || e.toLowerCase().includes("industry")
+          ? `Industry Best Practice (unverified for this studio): ${e}`
+          : e
+      ),
+      dependencies: o.actions?.map((a) => a.label).slice(0, 2) || ["Review in Opportunities"],
+      requiredResources: [`Effort: ${o.effort || "medium"}`],
+      timeToValue: o.estimatedMinutes ? `~${o.estimatedMinutes} min focused work` : "Unknown",
+      financialProjection:
+        "More financial data required — expectedRevenue heuristics are not treated as facts",
+      estimatedEffort: o.effort || "medium",
+      reasoning: o.detail || o.why || o.title,
+      truthKind: "AI Analysis",
     });
   }
 
@@ -373,7 +503,6 @@ export async function buildExecutiveReportV2(
     id: r.id || `risk-${i}`,
     category: mapRiskCategory(r.category || r.title),
     title: r.title,
-    level: mapLevel(r.severity),
     likelihood:
       typeof r.likelihood === "number"
         ? r.likelihood >= 0.75
@@ -382,21 +511,58 @@ export async function buildExecutiveReportV2(
             ? "Medium"
             : "Low"
         : mapLevel(r.severity),
-    impact: mapLevel(r.severity),
+    severity: mapLevel(r.severity),
+    confidence: Math.round((typeof r.likelihood === "number" ? r.likelihood : 0.6) * 100),
     mitigation: r.mitigations?.[0]?.label || r.detail || "Review in Risks workspace",
+    owner: "Operations",
+    timeline: r.severity === "critical" || r.severity === "high" ? "Today–This week" : "30 days",
     truthKind: "AI Analysis" as const,
   }));
 
   if (metrics.attention.abandonedInquiries > 3) {
     reportRisks.unshift({
       id: "pipeline-cool",
-      category: "Business",
+      category: "Revenue",
       title: "Warm pipeline cooling from delayed follow-up",
-      level: "High",
       likelihood: "High",
-      impact: "High",
+      severity: "High",
+      confidence: 88,
       mitigation: "Work Booking Command Center queue within SLA today",
+      owner: "Sales / Billy",
+      timeline: "Today",
       truthKind: "Measured Data",
+    });
+  }
+
+  const predictions: ReportPrediction[] = [];
+  if (metrics.attention.abandonedInquiries > 0) {
+    predictions.push({
+      id: "pred-followup",
+      potentialOutcome:
+        "Timely personalized follow-up may recover a portion of stale inquiries.",
+      estimatedImpact:
+        "Directionally positive for bookings — specific $ recovery unknown without studio close-rate history",
+      confidence: 55,
+      reasoning:
+        "Measured stale inquiry count is non-zero; recovery rate for ÉLEVÉ Visuals is not yet verified.",
+      dependencies: ["Owner capacity", "Reachable contact info", "Offer still relevant"],
+      variables: ["Lead intent", "Response channel", "Days since inquiry"],
+      truthKind: "AI Prediction",
+    });
+  }
+  if (hasAnalytics && analytics.totals.conversionRate < 2) {
+    predictions.push({
+      id: "pred-trust",
+      potentialOutcome:
+        "Improving homepage trust signals and CTA clarity may increase consultation requests.",
+      estimatedImpact:
+        "Potential lift unknown — do not cite invented conversion % targets without a measured baseline experiment",
+      confidence: 48,
+      reasoning:
+        "Highest-traffic pages coexist with soft conversion; causality is hypothesized, not proven.",
+      dependencies: ["Homepage CMS update", "Before/after analytics window"],
+      variables: ["Traffic quality", "Seasonality", "Offer clarity"],
+      truthKind: "AI Prediction",
     });
   }
 
@@ -406,9 +572,11 @@ export async function buildExecutiveReportV2(
     recommendations.push({
       id: "rec-stale",
       title: "Clear stale inquiry queue",
+      businessProblem: "Measured demand is aging without response.",
       priority: metrics.attention.abandonedInquiries > 3 ? "critical" : "high",
       businessImpact: 92,
       customerImpact: 70,
+      risk: "low",
       effort: "low",
       confidence: 88,
       evidence: [
@@ -416,23 +584,32 @@ export async function buildExecutiveReportV2(
           kind: "Measured Data",
           text: `${metrics.attention.abandonedInquiries} abandoned/stale inquiries in CRM`,
         },
+        {
+          kind: "Unknown (More Data Required)",
+          text: "Studio-specific recovery rate and $ recovery not verified — do not invent",
+        },
       ],
       tradeoffs: ["Time away from new lead gen", "Risk of contacting already-closed leads"],
       dependencies: ["Booking inbox access"],
-      successMetric: "Reduce stale inquiry count; response within SLA",
+      successMetric: "Reduce stale inquiry count; response within SLA (no invented % close target)",
       owner: "Sales / Billy",
       status: "proposed",
       timeline: "Today",
+      automationAvailable: true,
+      approvalRequired: true,
       whyImportant: "Measured demand is aging in the pipeline.",
       assumptions: ["Inquiries are still reachable via email/phone"],
-      missingInfo: ["Last outbound attempt timestamps per lead"],
+      missingInfo: ["Last outbound attempt timestamps", "Historical close rate after follow-up"],
       howReached: "Operator metrics abandoned inquiry count + CRM stage ages",
-      ifNothingChanges: "Close likelihood declines and estimated pipeline value erodes",
+      ifNothingChanges: "Close likelihood likely declines — magnitude unknown without outcomes data",
+      whatNext: "Approve follow-up plan, assign owner, measure before/after stale count",
       actions: [
         { id: "approve", label: "Approve", requiresApproval: true },
+        { id: "evidence", label: "Request More Evidence", requiresApproval: false },
         { id: "assign", label: "Assign", href: "/admin/submissions?type=booking", requiresApproval: false },
-        { id: "task", label: "Create Task", href: "/admin/submissions?type=booking", requiresApproval: false },
-        { id: "follow", label: "Schedule Follow-up", href: "/admin/email", requiresApproval: true },
+        { id: "project", label: "Create Project", href: "/admin/submissions?type=booking", requiresApproval: false },
+        { id: "review", label: "Schedule Review", href: "/admin/email", requiresApproval: true },
+        { id: "plan", label: "Generate Implementation Plan", requiresApproval: false },
       ],
     });
   }
@@ -441,11 +618,13 @@ export async function buildExecutiveReportV2(
     recommendations.push({
       id: "rec-cta",
       title: "Audit homepage CTA and trust signals",
+      businessProblem: "Traffic is not converting proportionally to consultations.",
       priority: "high",
       businessImpact: 78,
       customerImpact: 85,
+      risk: "medium",
       effort: "medium",
-      confidence: 68,
+      confidence: 62,
       evidence: [
         {
           kind: "Measured Data",
@@ -453,28 +632,37 @@ export async function buildExecutiveReportV2(
         },
         {
           kind: "AI Analysis",
-          text: "Soft conversion with traffic often correlates with CTA clarity or trust gaps",
+          text: "Soft conversion with present traffic often correlates with CTA clarity or trust gaps — not proven here",
         },
         {
           kind: "Industry Best Practice",
-          text: "Luxury sites typically present one primary consultation CTA with proof above the fold",
+          text: "Luxury sites typically present one primary consultation CTA with proof above the fold (general practice — not a measured ÉLEVÉ lift)",
+        },
+        {
+          kind: "Unknown (More Data Required)",
+          text: "No verified study attached for conversion lift percentages on this site",
         },
       ],
       tradeoffs: ["Aggressive CTAs can harm luxury positioning"],
       dependencies: ["Homepage CMS update"],
-      successMetric: "Consultation/booking conversion rate; homepage → /book clicks",
+      successMetric:
+        "Homepage → /book clicks and consultation/booking conversion — compare before/after; no invented target %",
       owner: "Marketing / Creative",
       status: "proposed",
       timeline: "This week",
+      automationAvailable: false,
+      approvalRequired: true,
       whyImportant: "Traffic is not converting proportionally.",
       assumptions: ["Traffic quality is comparable week over week"],
-      missingInfo: ["Heatmaps", "Device split conversion"],
+      missingInfo: ["Heatmaps", "Device split conversion", "Cited external research"],
       howReached: "Measured conversion threshold + website intelligence heuristics",
-      ifNothingChanges: "Acquisition cost rises relative to booked work",
+      ifNothingChanges: "Acquisition efficiency stays opaque — do not invent revenue loss dollars",
+      whatNext: "Approve scoped homepage audit, implement one change, measure 14–30 days",
       actions: [
         { id: "approve", label: "Approve", requiresApproval: true },
         { id: "modify", label: "Modify", href: "/admin/homepage", requiresApproval: false },
         { id: "plan", label: "Generate Implementation Plan", href: "/admin/website", requiresApproval: false },
+        { id: "reject", label: "Reject", requiresApproval: true },
       ],
     });
   }
@@ -483,9 +671,11 @@ export async function buildExecutiveReportV2(
     recommendations.push({
       id: "rec-seo-scan",
       title: "Run platform SEO / content scan",
+      businessProblem: "SEO recommendations stay speculative without a scan.",
       priority: "high",
       businessImpact: 65,
       customerImpact: 30,
+      risk: "low",
       effort: "low",
       confidence: 90,
       evidence: [
@@ -500,27 +690,31 @@ export async function buildExecutiveReportV2(
       owner: "Operations",
       status: "proposed",
       timeline: "Today",
-      whyImportant: "SEO recommendations stay speculative without a scan.",
+      automationAvailable: true,
+      approvalRequired: true,
+      whyImportant: "Without a scan, SEO advice cannot be evidence-backed.",
       assumptions: [],
       missingInfo: ["On-page meta/heading inventory"],
       howReached: "Website Intelligence data-source check",
       ifNothingChanges: "SEO advice remains unlabeled speculation",
+      whatNext: "Approve Intelligence Refresh, then re-run Report 3.0",
       actions: [
         { id: "approve", label: "Approve", requiresApproval: true },
-        { id: "task", label: "Create Task", href: "/admin/memory", requiresApproval: false },
+        { id: "project", label: "Create Project", href: "/admin/memory", requiresApproval: false },
       ],
     });
   }
 
-  // Pull top website recs as AI-labeled additions
   for (const wr of website?.recommendations.slice(0, 3) || []) {
     if (recommendations.some((r) => r.title === wr.title)) continue;
     recommendations.push({
       id: `web-${wr.id}`,
       title: wr.title,
+      businessProblem: wr.whySeeingThis,
       priority: wr.priority,
       businessImpact: wr.businessImpact,
       customerImpact: wr.uxImpact,
+      risk: wr.potentialRisks.length > 1 ? "medium" : "low",
       effort: wr.implementationDifficulty,
       confidence: wr.confidence,
       evidence: wr.evidence.map((e) => ({
@@ -529,15 +723,18 @@ export async function buildExecutiveReportV2(
       })),
       tradeoffs: wr.potentialRisks,
       dependencies: wr.actions.filter((a) => a.href).map((a) => a.label),
-      successMetric: wr.successMetrics[0] || "Track in Website Intelligence",
+      successMetric: wr.successMetrics[0] || "Track in Website Intelligence — no invented numeric targets",
       owner: "Website / Marketing",
       status: "proposed",
       timeline: wr.estimatedMinutes <= 60 ? "This week" : "30 days",
+      automationAvailable: false,
+      approvalRequired: true,
       whyImportant: wr.whySeeingThis,
       assumptions: [],
-      missingInfo: wr.evidence.filter((e) => e.kind.includes("Unknown")).map((e) => e.text),
+      missingInfo: wr.evidence.filter((e) => e.kind.includes("Unknown") || e.kind.includes("Estimated")).map((e) => e.text),
       howReached: wr.reasoning,
       ifNothingChanges: wr.ifIgnored,
+      whatNext: wr.nextStep,
       actions: [
         { id: "approve", label: "Approve", requiresApproval: true },
         {
@@ -547,6 +744,7 @@ export async function buildExecutiveReportV2(
           requiresApproval: false,
         },
         { id: "reject", label: "Reject", requiresApproval: true },
+        { id: "plan", label: "Generate Implementation Plan", requiresApproval: false },
       ],
     });
   }
@@ -556,27 +754,30 @@ export async function buildExecutiveReportV2(
       id: "conservative",
       label: "Conservative",
       summary: "Clear stale inquiries and confirm analytics — no public-site redesign yet.",
+      investment: "Low owner time",
       risk: "Low",
-      effort: "Low",
-      potentialReward: "Protect existing pipeline without brand risk",
+      expectedOutcome: "Protect existing pipeline without brand risk (outcome $ unknown)",
+      confidence: 72,
       dependencies: ["CRM follow-up"],
     },
     {
       id: "balanced",
       label: "Balanced",
       summary: "Recover pipeline + run SEO scan + refine homepage CTA with measured before/after.",
+      investment: "Medium — CMS + follow-up capacity",
       risk: "Medium",
-      effort: "Medium",
-      potentialReward: "Improved conversion diagnosis with labeled experiments",
+      expectedOutcome: "Improved conversion diagnosis with labeled experiments (no invented ROI)",
+      confidence: 58,
       dependencies: ["Homepage CMS", "Intelligence Refresh"],
     },
     {
       id: "aggressive",
       label: "Aggressive",
       summary: "Full website intelligence sprint: CTA rewrite, portfolio expansion, SEO fixes, a11y pass.",
+      investment: "High creative + ops capacity",
       risk: "Higher brand/UX change risk",
-      effort: "High",
-      potentialReward: "Fastest learning loop if measurement is solid",
+      expectedOutcome: "Fastest learning loop if measurement is solid — predictions remain uncapped guesses until measured",
+      confidence: 42,
       dependencies: ["Creative capacity", "Analytics coverage", "SEO scan"],
     },
   ];
@@ -616,8 +817,8 @@ export async function buildExecutiveReportV2(
           truthKind: "Industry Best Practice",
         },
         {
-          title: "Review Website Intelligence category trends",
-          owner: "Marketing",
+          title: "Record outcomes — did bookings/conversion improve? Update learning loop",
+          owner: "CEO / Operations",
           truthKind: "AI Analysis",
         },
       ],
@@ -632,15 +833,14 @@ export async function buildExecutiveReportV2(
           truthKind: "Industry Best Practice",
         },
         {
-          title: "Feed project outcomes into learning loops for future recommendations",
+          title: "Build studio-specific recovery/close rates so future $ projections are Measured or Historical",
           owner: "CEO / Operations",
-          truthKind: "AI Analysis",
+          truthKind: "Unknown (More Data Required)",
         },
       ],
     },
   ];
 
-  // Ensure today bucket isn't empty
   if (actionPlan[0].items.length === 0) {
     actionPlan[0].items.push({
       title: "Review Command Center opportunities and confirm analytics are firing",
@@ -655,20 +855,22 @@ export async function buildExecutiveReportV2(
     seo: webCat("seo")?.confidence ?? 30,
     ux: website?.confidence.ux ?? 40,
     technical: 25,
-    financial: metrics.revenue.thisMonth > 0 ? 70 : 35,
+    financial: metrics.revenue.thisMonth > 0 ? 55 : 25,
     creative: portfolioCount > 0 ? 60 : 40,
     overall: Math.round(
       ((hasBookings ? 80 : 45) +
         (hasAnalytics ? 65 : 35) +
         (webCat("seo")?.confidence ?? 30) +
-        (metrics.revenue.thisMonth > 0 ? 70 : 35)) /
-        4
+        (metrics.revenue.thisMonth > 0 ? 55 : 25) +
+        verificationCoverage) /
+        5
     ),
     reasoning: [
       hasAnalytics ? "Website analytics measured" : "Analytics coverage incomplete — lowers overall confidence",
       hasBookings ? "Booking/CRM signals present" : "Limited booking volume",
       "Live web research and Lighthouse not connected — technical/SEO confidence capped",
-      "No fabricated conversion or revenue lift claims included",
+      "No fabricated conversion lifts, brand equity %, or recoverable $ totals included as facts",
+      "Financial projections require verified studio history — currently More financial data required",
     ],
   };
 
@@ -683,7 +885,7 @@ export async function buildExecutiveReportV2(
 
   const why =
     metrics.attention.abandonedInquiries > 0 || (hasAnalytics && analytics.totals.conversionRate < 2)
-      ? "Pipeline and/or conversion efficiency is the primary business constraint right now."
+      ? "Pipeline responsiveness and/or conversion efficiency is the primary constraint — dollar impact remains unverified."
       : "Protecting measurement quality and portfolio presence remains the priority.";
 
   const next =
@@ -693,57 +895,48 @@ export async function buildExecutiveReportV2(
   const executiveSummary = [
     happening,
     why,
-    `Next: ${next}.`,
-    "All scores and recommendations below distinguish Measured Data from AI Analysis and Predictions.",
-    REPORT_V2_DISCLAIMER.split(". ")[0] + ".",
+    `Leadership focus first: ${next}.`,
+    "This report separates Measured Facts, AI Analysis, Predictions, and Recommendations — nothing strategic auto-executes.",
+    "Financial recovery figures and industry lift percentages are omitted unless measured or cited with source.",
   ]
     .slice(0, 5)
     .join(" ");
 
   return {
-    version: 2,
+    version: 3,
     reportType,
     generatedAt: new Date().toISOString(),
     provider: "rules",
     executiveSummary,
     dashboard: dashboardScores,
     dataSources,
+    layers: {
+      measuredFacts: measuredSituation,
+      aiAnalysis: rootCauses,
+      verifiedExternalResearch: [
+        {
+          id: "live-web",
+          summary: "No verified live web research connected for this report.",
+          source: "Connector unavailable",
+          publicationDate: null,
+          confidence: 0,
+          present: false,
+        },
+      ],
+      aiPredictions: predictions,
+      recommendations,
+    },
     measuredSituation,
     rootCauses,
     opportunities: reportOpportunities.slice(0, 8),
     risks: reportRisks.slice(0, 8),
+    predictions,
     recommendations: recommendations.slice(0, 10),
     strategies,
     actionPlan,
     confidence,
-    disclaimer: REPORT_V2_DISCLAIMER,
+    learningNote:
+      "After approved actions complete, measure bookings, conversion, and SEO before/after. Retire recommendations that fail. Never repeat generic advice that outcomes disprove.",
+    disclaimer: REPORT_V3_DISCLAIMER,
   };
-}
-
-function mapRiskCategory(raw: string): ReportRisk["category"] {
-  const s = raw.toLowerCase();
-  if (/market|seo|content|campaign/.test(s)) return "Marketing";
-  if (/tech|site|performance|access/.test(s)) return "Technical";
-  if (/financ|revenue|cash/.test(s)) return "Financial";
-  if (/ops|deliver|product/.test(s)) return "Operational";
-  if (/brand/.test(s)) return "Brand";
-  if (/client|cx|experience/.test(s)) return "Customer Experience";
-  if (/legal|compliance|privacy/.test(s)) return "Legal / Compliance";
-  return "Business";
-}
-
-function mapLevel(raw?: string): "Low" | "Medium" | "High" {
-  const s = (raw || "medium").toLowerCase();
-  if (s.includes("critical") || s.includes("high")) return "High";
-  if (s.includes("low")) return "Low";
-  return "Medium";
-}
-
-function mapReportTruthKind(kind: string): ReportRecommendation["evidence"][0]["kind"] {
-  if (kind === "Measured Data") return "Measured Data";
-  if (kind === "AI Analysis") return "AI Analysis";
-  if (kind === "Industry Best Practice") return "Industry Best Practice";
-  if (kind === "Verified External Research") return "Verified External Research";
-  if (kind === "Estimated Opportunity" || kind === "AI Prediction") return "AI Prediction";
-  return "Unknown (More Data Required)";
 }

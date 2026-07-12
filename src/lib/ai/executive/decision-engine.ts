@@ -56,12 +56,16 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
     `CRM: ${crm.length} contacts · ${metrics.attention.followUpClients} need follow-up`,
     `Stale inquiries: ${bookings.staleInquiries}`,
     `Top page: ${analytics.topPages[0]?.path ?? "/"} (${analytics.topPages[0]?.views ?? 0} views)`,
-    `Revenue at risk (detected leaks): ~$${Math.round(leakExposure.loss).toLocaleString()} · recoverable ~$${Math.round(leakExposure.recoverable).toLocaleString()}`,
+    leakExposure.loss > 0 || leakExposure.recoverable > 0
+      ? `Leak heuristics (AI Prediction only): loss ~$${Math.round(leakExposure.loss).toLocaleString()} · recoverable ~$${Math.round(leakExposure.recoverable).toLocaleString()} — ${leakExposure.disclaimer}`
+      : `Leak exposure: More financial data required (${leaks.length} qualitative risks)`,
   ];
 
   const predictions: string[] = [
-    `30-day revenue forecast: ~$${Math.round(metrics.revenue.thisMonth * (1 + Math.max(metrics.revenue.monthChange, -20) / 100)).toLocaleString()}`,
-    `Recovery potential from inactive clients: ~$${metrics.attention.followUpValue.toLocaleString()}`,
+    `30-day revenue outlook is an AI Prediction from current MTD pace — not a guarantee`,
+    metrics.attention.followUpClients > 0
+      ? `${metrics.attention.followUpClients} inactive clients (Measured) — recovery $: More financial data required`
+      : "No inactive-client follow-up backlog",
     ...patterns.slice(0, 2).map((p) => `Pattern: ${p.pattern}`),
   ];
 

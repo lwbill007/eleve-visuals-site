@@ -29,11 +29,15 @@ export async function buildExecutiveMorningBrief(): Promise<ExecutiveMorningBrie
 
   const topLeak = leaks[0];
   const biggestRevenueLeak = topLeak
-    ? `${topLeak.title} — ~$${topLeak.estimatedLoss.toLocaleString()} at risk`
+    ? topLeak.estimatedLoss > 0
+      ? `${topLeak.title} — AI Prediction ~$${topLeak.estimatedLoss.toLocaleString()} (${Math.round(topLeak.confidence * 100)}% conf) — not audited`
+      : `${topLeak.title} — More financial data required for $ exposure`
     : "No critical revenue leaks detected";
 
   const biggestOpportunity = recs[0]
-    ? `${recs[0].title} (~$${recs[0].estimatedRevenue.toLocaleString()}, ${Math.round(recs[0].confidence * 100)}% confidence)`
+    ? recs[0].estimatedRevenue > 0
+      ? `${recs[0].title} (est. ~$${recs[0].estimatedRevenue.toLocaleString()} · ${Math.round(recs[0].confidence * 100)}% conf · AI Prediction)`
+      : `${recs[0].title} (${Math.round(recs[0].confidence * 100)}% confidence · $ impact unknown)`
     : "Run Intelligence Refresh to surface opportunities";
 
   const actionsToday = recs.slice(0, 3).map((r) => ({

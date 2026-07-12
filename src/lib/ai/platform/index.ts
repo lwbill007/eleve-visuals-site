@@ -16,7 +16,7 @@ export * from "./verification-engine";
 export * from "./event-graph";
 export * from "./executive-context";
 export * from "./executive-report-v2";
-export { buildExecutiveReportV2 } from "./build-executive-report-v2";
+export { buildExecutiveReportV2, buildExecutiveReportV3 } from "./build-executive-report-v2";
 
 import {
   APPROVAL_GATES,
