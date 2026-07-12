@@ -1,14 +1,20 @@
 import { PROJECT_CATEGORIES, type ProjectCategory } from "./booking-pipeline";
+import {
+  budgetRangeFromPackage,
+  deliverablesFromPackage,
+  getPackageById,
+} from "./booking-packages";
 
-export const BOOKING_AUTOSAVE_KEY = "eleve-booking-draft-v2";
+export const BOOKING_AUTOSAVE_KEY = "eleve-booking-draft-v3";
 
+/** Booking Experience 2.0 — premium onboarding steps */
 export const BOOKING_STEPS = [
-  { id: 1, label: "About You" },
-  { id: 2, label: "Creating" },
-  { id: 3, label: "Vision" },
-  { id: 4, label: "Inspiration" },
-  { id: 5, label: "Planning" },
-  { id: 6, label: "Investment" },
+  { id: 1, label: "Welcome" },
+  { id: 2, label: "Experience" },
+  { id: 3, label: "Customize" },
+  { id: 4, label: "Vision" },
+  { id: 5, label: "Details" },
+  { id: 6, label: "About You" },
   { id: 7, label: "Review" },
 ] as const;
 
@@ -18,7 +24,12 @@ export interface BookingFormData {
   phone: string;
   instagram: string;
   website: string;
-  /** High-level production category */
+  businessName: string;
+  /** Selected package id from catalog */
+  packageId: string;
+  /** Selected add-on ids */
+  addOnIds: string[];
+  /** High-level production category (derived from package) */
   projectCategory: string;
   /** Optional detail services (legacy multi-select) */
   serviceTypes: string[];
@@ -27,7 +38,9 @@ export interface BookingFormData {
   location: string;
   sessionSetting: string;
   duration: string;
-  /** Structured vision */
+  /** Storytelling vision */
+  feelingPrompt: string;
+  inspirationPrompt: string;
   purpose: string;
   goals: string;
   audience: string;
@@ -43,6 +56,8 @@ export interface BookingFormData {
   projectTimeline: string;
   referralSource: string;
   termsAccepted: boolean;
+  /** Welcome step acknowledged */
+  welcomeAccepted: boolean;
 }
 
 export const initialBookingData: BookingFormData = {
@@ -51,6 +66,9 @@ export const initialBookingData: BookingFormData = {
   phone: "",
   instagram: "",
   website: "",
+  businessName: "",
+  packageId: "",
+  addOnIds: [],
   projectCategory: "",
   serviceTypes: [],
   preferredDate: "",
@@ -58,6 +76,8 @@ export const initialBookingData: BookingFormData = {
   location: "",
   sessionSetting: "",
   duration: "",
+  feelingPrompt: "",
+  inspirationPrompt: "",
   purpose: "",
   goals: "",
   audience: "",
@@ -72,6 +92,7 @@ export const initialBookingData: BookingFormData = {
   projectTimeline: "",
   referralSource: "",
   termsAccepted: false,
+  welcomeAccepted: false,
 };
 
 export function formatInquiryId(id: string): string {
@@ -83,12 +104,47 @@ export function serviceTypesFromCategory(category: string, options: string[]): s
   if (!category) return [];
   const match = options.find((o) => o.toLowerCase() === category.toLowerCase());
   if (match) return [match];
-  // Fall back: keep category string — validation may use passthrough if in PROJECT_CATEGORIES
   return [category];
+}
+
+/** Apply package selection → category, budget, deliverables, duration hints. */
+export function applyPackageSelection(
+  data: BookingFormData,
+  packageId: string,
+  serviceTypeOptions: string[],
+  deliverableOptions: string[] = []
+): BookingFormData {
+  const pkg = getPackageById(packageId);
+  if (!pkg) return { ...data, packageId };
+  const suggested = deliverablesFromPackage(pkg);
+  const matched = suggested.filter((d) =>
+    deliverableOptions.length === 0
+      ? true
+      : deliverableOptions.some((o) => o.toLowerCase() === d.toLowerCase())
+  );
+  return {
+    ...data,
+    packageId,
+    projectCategory: pkg.projectCategory,
+    serviceTypes: serviceTypesFromCategory(pkg.projectCategory, serviceTypeOptions),
+    budgetRange: budgetRangeFromPackage(packageId, data.addOnIds),
+    deliverables: matched.length > 0 ? matched : data.deliverables,
+    duration:
+      data.duration ||
+      (pkg.family === "partnership"
+        ? "Full Day"
+        : pkg.startingPrice >= 500
+          ? "Half Day"
+          : pkg.startingPrice >= 300
+            ? "2 Hours"
+            : "1 Hour"),
+  };
 }
 
 export function composeProjectVision(data: BookingFormData): string {
   const parts = [
+    data.feelingPrompt && `Feeling: ${data.feelingPrompt}`,
+    data.inspirationPrompt && `Inspiration: ${data.inspirationPrompt}`,
     data.purpose && `Purpose: ${data.purpose}`,
     data.goals && `Goals: ${data.goals}`,
     data.audience && `Audience: ${data.audience}`,

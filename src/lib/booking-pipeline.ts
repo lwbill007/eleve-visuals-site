@@ -146,16 +146,20 @@ export const WORKBOARD_OPEN_STATUSES: string[] = [
   "contacted",
 ];
 
-/** Public post-submit timeline stages (client-facing). */
+/** Public post-submit journey (client-facing roadmap). */
 export const CLIENT_TIMELINE_STAGES = [
-  { id: "lead", label: "Inquiry Received" },
-  { id: "discovery", label: "Discovery Review" },
+  { id: "lead", label: "Inquiry" },
+  { id: "discovery", label: "Creative Consultation" },
   { id: "proposal", label: "Proposal" },
-  { id: "booked", label: "Booked" },
-  { id: "planning", label: "Planning" },
+  { id: "booked", label: "Retainer" },
+  { id: "planning", label: "Creative Planning" },
+  { id: "moodboard", label: "Moodboard" },
   { id: "production", label: "Production" },
   { id: "editing", label: "Editing" },
-  { id: "delivered", label: "Delivery" },
+  { id: "preview", label: "Preview Gallery" },
+  { id: "delivered", label: "Final Delivery" },
+  { id: "review", label: "Review" },
+  { id: "partnership", label: "Future Partnership" },
 ] as const;
 
 const CLIENT_ORDER = CLIENT_TIMELINE_STAGES.map((s) => s.id);
@@ -164,10 +168,21 @@ const CLIENT_ORDER = CLIENT_TIMELINE_STAGES.map((s) => s.id);
 export function clientTimelineIndex(status: string): number {
   const n = normalizeInquiryStatus(status);
   if (n === "archived") return -1;
-  if (n === "qualified") return CLIENT_ORDER.indexOf("discovery");
-  if (n === "follow_up") return CLIENT_ORDER.indexOf("delivered");
-  const idx = CLIENT_ORDER.indexOf(n as (typeof CLIENT_ORDER)[number]);
-  return idx >= 0 ? idx : 0;
+  // Map production statuses onto the richer public journey
+  const map: Record<string, (typeof CLIENT_ORDER)[number]> = {
+    lead: "lead",
+    qualified: "discovery",
+    discovery: "discovery",
+    proposal: "proposal",
+    booked: "booked",
+    planning: "planning",
+    production: "production",
+    editing: "editing",
+    delivered: "delivered",
+    follow_up: "partnership",
+  };
+  const mapped = map[n] ?? "lead";
+  return CLIENT_ORDER.indexOf(mapped);
 }
 
 /** High-level project categories for Step 2. */

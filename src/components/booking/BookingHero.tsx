@@ -15,7 +15,8 @@ export function BookingHero({
     <section className="relative overflow-hidden border-b border-stone/30">
       <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-ink to-ink-soft" />
       <div className="grain absolute inset-0" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(184,168,138,0.06)_0%,transparent_55%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(184,168,138,0.08)_0%,transparent_55%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(184,168,138,0.04)_0%,transparent_50%)]" />
 
       <div className="relative z-10 section-padding pb-12 pt-32 md:pb-16">
         <div className="container-wide">
@@ -47,11 +48,14 @@ export function BookingHero({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15 }}
-            className="mt-8 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-x-8"
+            className="mt-10 grid max-w-3xl gap-3 sm:grid-cols-3"
           >
             {notes.map((note) => (
-              <li key={note} className="flex items-center gap-2 text-sm text-cream-dim">
-                <span className="h-1 w-1 rounded-full bg-accent" />
+              <li
+                key={note}
+                className="border border-stone/30 bg-charcoal/20 px-4 py-3 text-sm leading-snug text-cream-dim"
+              >
+                <span className="mb-2 block h-1 w-1 rounded-full bg-accent" />
                 {note}
               </li>
             ))}

@@ -46,6 +46,16 @@ function parseEmail(data: Record<string, unknown>, fallback: string): string {
   return (typeof data.email === "string" && data.email) || fallback;
 }
 
+function inferCrmSegment(data: Record<string, unknown>): string {
+  const pkg = typeof data.packageId === "string" ? data.packageId : "";
+  const cat = typeof data.projectCategory === "string" ? data.projectCategory : "";
+  if (/reserve|legacy/i.test(pkg)) return "Creative Partner";
+  if (/event/i.test(cat)) return "Event";
+  if (/business|ascend|apex|brand/i.test(`${pkg} ${cat}`)) return "Business";
+  if (/hybrid|fusion|video|motion|cinema|films/i.test(`${pkg} ${cat}`)) return "Brand";
+  return "Portrait";
+}
+
 export async function getAdminDashboardOS() {
   const since90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -315,9 +325,32 @@ export async function getAdminCRMContacts() {
     if (row.type === "booking") {
       existing.bookings += 1;
       const stage = normalizeInquiryStatus(row.status);
+      const q = data.qualification as
+        | { crmSegment?: string; estimatedProjectValue?: number; packageName?: string }
+        | undefined;
+      const segment =
+        (typeof q?.crmSegment === "string" && q.crmSegment) ||
+        inferCrmSegment(data);
+      if (segment && !existing.tags.includes(segment)) existing.tags.push(segment);
+
+      if (typeof q?.packageName === "string" && q.packageName && !existing.tags.includes(q.packageName)) {
+        existing.tags.push(q.packageName);
+      }
+
       if (stage === "delivered" || stage === "follow_up") {
-        existing.revenue += estimateBudgetValue(String(data.budgetRange ?? "")) || 1500;
+        const value =
+          (typeof q?.estimatedProjectValue === "number" && q.estimatedProjectValue) ||
+          estimateBudgetValue(
+            String(data.budgetRange ?? ""),
+            typeof data.packageId === "string" ? data.packageId : undefined,
+            Array.isArray(data.addOnIds) ? (data.addOnIds as string[]) : undefined
+          ) ||
+          1500;
+        existing.revenue += value;
         existing.status = existing.bookings > 1 ? "repeat" : "completed";
+        if (existing.bookings > 1 && !existing.tags.includes("Repeat Client")) {
+          existing.tags.push("Repeat Client");
+        }
       } else if (stage === "booked" || stage === "planning" || stage === "production" || stage === "editing") {
         existing.status = "booked";
       } else if (stage === "discovery" || stage === "proposal" || stage === "qualified") {
@@ -332,7 +365,8 @@ export async function getAdminCRMContacts() {
 
     if (existing.bookings > 1) {
       existing.status = "vip";
-      existing.tags.push("Repeat");
+      if (!existing.tags.includes("VIP")) existing.tags.push("VIP");
+      if (!existing.tags.includes("Repeat Client")) existing.tags.push("Repeat Client");
     }
 
     byEmail.set(email, existing);
@@ -358,7 +392,11 @@ export async function getAdminPipeline() {
       .map((b) => {
         const data = parseSubmissionData(b.data);
         const budget = typeof data.budgetRange === "string" ? data.budgetRange : "";
+        const q = data.qualification as
+          | { estimatedProjectValue?: number; packageName?: string; leadScore?: number; priority?: string }
+          | undefined;
         const category =
+          (typeof q?.packageName === "string" && q.packageName) ||
           (typeof data.projectCategory === "string" && data.projectCategory) ||
           (Array.isArray(data.serviceTypes) && (data.serviceTypes as string[])[0]) ||
           (typeof data.serviceType === "string" ? data.serviceType : "");
@@ -367,8 +405,17 @@ export async function getAdminPipeline() {
           name: parseName(data) || b.contactEmail || "Unknown",
           email: b.contactEmail || parseEmail(data, ""),
           service: category,
-          value: estimateBudgetValue(budget) || 0,
+          value:
+            (typeof q?.estimatedProjectValue === "number" && q.estimatedProjectValue) ||
+            estimateBudgetValue(
+              budget,
+              typeof data.packageId === "string" ? data.packageId : undefined,
+              Array.isArray(data.addOnIds) ? (data.addOnIds as string[]) : undefined
+            ) ||
+            0,
           valueQuality: "estimated" as const,
+          leadScore: typeof q?.leadScore === "number" ? q.leadScore : undefined,
+          priority: typeof q?.priority === "string" ? q.priority : undefined,
           createdAt: b.createdAt.toISOString(),
           updatedAt: b.updatedAt.toISOString(),
           ageDays: Math.floor((Date.now() - b.updatedAt.getTime()) / 86400000),

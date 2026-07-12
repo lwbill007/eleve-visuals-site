@@ -53,29 +53,30 @@ test.describe("Manual smoke — forms", () => {
   test("booking request", async ({ page }) => {
     await page.goto("/book");
     await waitForSpamTiming(page);
-    await page.locator("#fullName").fill("Manual QA Booking");
-    await page.locator("#email").fill("manual-qa-booking@example.com");
-    await page.locator("#phone").fill("5551234567");
+    await page.getByRole("checkbox", { name: /inquiry—not an instant booking/i }).check();
+    await page.getByRole("button", { name: "Begin" }).click();
+    await page.getByRole("button", { name: /ÉLEVÉ Signature/i }).first().click();
     await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByRole("button", { name: "Portrait", exact: true }).click();
     await page.getByRole("button", { name: "Continue" }).click();
-    await page.locator("#purpose").fill("Manual QA production purpose.");
-    await page.locator("#goals").fill("Confirm booking flow still works end to end.");
-    await page.locator("#projectVision").fill("Manual booking smoke test with sufficient creative detail.");
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.locator("#feelingPrompt").fill(
+      "Confident and elevated — manual QA production vision with enough detail."
+    );
     await page.getByRole("button", { name: "Continue" }).click();
     await page.locator("#preferredDate").fill(futureDate());
     await page.locator("#location").fill("Sacramento, CA");
     await page.getByRole("button", { name: "Outdoor", exact: true }).click();
     await page.getByRole("button", { name: "1 Hour", exact: true }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("button", { name: "$300–500", exact: true }).click();
     await page.getByRole("button", { name: "Edited Photography", exact: true }).click();
     await page.getByRole("button", { name: "Continue" }).click();
+    await page.locator("#fullName").fill("Manual QA Booking");
+    await page.locator("#email").fill("manual-qa-booking@example.com");
+    await page.locator("#phone").fill("5551234567");
     await page.getByRole("button", { name: "Google", exact: true }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("checkbox", { name: /booking terms/i }).check();
-    await page.getByRole("button", { name: /Start production/i }).click();
-    await expect(page.getByText("Inquiry received.")).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: /Submit inquiry/i }).click();
+    await expect(page.getByText(/Welcome to ÉLEVÉ|Inquiry received/i)).toBeVisible({ timeout: 15_000 });
   });
 
   test("ÉLEVÉ Sessions application", async ({ page }) => {

@@ -154,15 +154,101 @@ export function BookingProjectWorkspace({
           <p className="mt-1 font-display text-lg text-cream">{asString(data.fullName) || "—"}</p>
           <p className="mt-1 text-xs text-fog">{asString(data.email)}</p>
           <p className="mt-1 text-xs text-fog">{asString(data.phone)}</p>
+          {asString(data.businessName) && (
+            <p className="mt-1 text-xs text-cream-dim">{asString(data.businessName)}</p>
+          )}
         </section>
         <section className="rounded-lg border border-stone/15 p-4">
           <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">Vision</p>
-          <p className="mt-1 text-sm text-cream">{asString(data.projectCategory) || "—"}</p>
+          <p className="mt-1 text-sm text-cream">
+            {asString(data.packageId) ? `Package: ${asString(data.packageId)}` : asString(data.projectCategory) || "—"}
+          </p>
           <p className="mt-2 line-clamp-4 text-xs text-fog">
-            {asString(data.purpose) || asString(data.projectVision) || "—"}
+            {asString(data.feelingPrompt) ||
+              asString(data.purpose) ||
+              asString(data.projectVision) ||
+              "—"}
           </p>
         </section>
       </div>
+
+      {/* Qualification */}
+      {(() => {
+        const q = data.qualification as Record<string, unknown> | undefined;
+        if (!q || typeof q !== "object") return null;
+        return (
+          <section className="rounded-lg border border-accent/25 bg-accent/[0.04] p-4">
+            <p className="text-[0.55rem] tracking-[0.12em] text-accent uppercase">
+              Lead qualification · {(asString(q.truthLabel) || "estimated").toUpperCase()}
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <p className="text-[0.55rem] text-muted uppercase">Est. value</p>
+                <p className="font-display text-xl text-cream">
+                  $
+                  {typeof q.estimatedProjectValue === "number"
+                    ? q.estimatedProjectValue.toLocaleString()
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[0.55rem] text-muted uppercase">Lead score</p>
+                <p className="font-display text-xl text-accent">
+                  {typeof q.leadScore === "number" ? q.leadScore : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[0.55rem] text-muted uppercase">Close likelihood</p>
+                <p className="font-display text-xl text-cream">
+                  {typeof q.likelihoodToClose === "number" ? `${q.likelihoodToClose}%` : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[0.55rem] text-muted uppercase">Priority</p>
+                <p className="font-display text-xl text-cream capitalize">
+                  {asString(q.priority) || "—"}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-cream-dim">{asString(q.aiSummary)}</p>
+            <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+              <div>
+                <dt className="text-muted uppercase">Follow-up</dt>
+                <dd className="text-cream">{asString(q.idealFollowUpLabel)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted uppercase">CRM segment</dt>
+                <dd className="text-cream">{asString(q.crmSegment)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted uppercase">LTV (est.)</dt>
+                <dd className="text-cream">
+                  $
+                  {typeof q.potentialLifetimeValue === "number"
+                    ? q.potentialLifetimeValue.toLocaleString()
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted uppercase">Recommended package</dt>
+                <dd className="text-cream">{asString(q.recommendedPackage)}</dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-muted uppercase">Suggested questions</dt>
+                <dd className="text-fog">
+                  {asStringArray(q.suggestedQuestions).slice(0, 4).join(" · ") || "—"}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-muted uppercase">Upsell opportunities</dt>
+                <dd className="text-emerald-300/80">
+                  {asStringArray(q.upsellOpportunities).slice(0, 4).join(" · ") || "—"}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        );
+      })()}
 
       {/* Files */}
       <section className="rounded-lg border border-stone/15 p-4">

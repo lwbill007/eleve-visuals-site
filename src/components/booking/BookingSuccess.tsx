@@ -2,7 +2,6 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
-import { FormSuccess } from "@/components/ui/Form";
 import { formatInquiryId } from "@/lib/booking";
 import { CLIENT_TIMELINE_STAGES, clientTimelineIndex } from "@/lib/booking-pipeline";
 import { cn } from "@/lib/utils";
@@ -13,12 +12,14 @@ export function BookingSuccess({
   nextSteps,
   inquiryId,
   status = "lead",
+  packageName,
 }: {
   title: string;
   message: string;
   nextSteps: string[];
   inquiryId?: string;
   status?: string;
+  packageName?: string;
 }) {
   const reduceMotion = useReducedMotion();
   const current = clientTimelineIndex(status);
@@ -28,17 +29,26 @@ export function BookingSuccess({
       initial={reduceMotion ? false : { opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="rounded-none border border-stone/30 bg-charcoal/20 p-8 backdrop-blur-sm md:p-12"
+      className="overflow-hidden border border-stone/30 bg-gradient-to-b from-charcoal/40 via-ink-soft/80 to-ink p-8 md:p-12"
     >
+      <p className="label-caps text-center text-accent">Inquiry received</p>
+      <h2 className="font-display mt-4 text-center text-4xl text-cream md:text-5xl">{title}</h2>
+      {packageName && (
+        <p className="mt-3 text-center text-sm text-fog">
+          Experience selected: <span className="text-cream-dim">{packageName}</span>
+        </p>
+      )}
       {inquiryId && (
-        <p className="label-caps mb-6 text-center text-accent">
-          Inquiry #{formatInquiryId(inquiryId)}
+        <p className="mt-4 text-center text-xs tracking-[0.14em] text-muted uppercase">
+          Reference #{formatInquiryId(inquiryId)}
         </p>
       )}
 
-      <div className="mb-10">
-        <p className="label-caps mb-4 text-center text-muted">Your project timeline</p>
-        <ol className="mx-auto flex max-w-3xl flex-col gap-0 sm:flex-row sm:items-start sm:justify-between">
+      <p className="mx-auto mt-6 max-w-xl text-center text-base leading-relaxed text-fog">{message}</p>
+
+      <div className="mt-12">
+        <p className="label-caps mb-6 text-center text-muted">Your creative journey</p>
+        <ol className="mx-auto grid max-w-4xl gap-0 sm:grid-cols-2 lg:grid-cols-3">
           {CLIENT_TIMELINE_STAGES.map((stage, i) => {
             const done = current >= 0 && i <= current;
             const active = i === current;
@@ -46,41 +56,54 @@ export function BookingSuccess({
               <li
                 key={stage.id}
                 className={cn(
-                  "relative flex flex-1 flex-row items-center gap-3 border-l border-stone/30 py-2 pl-4 sm:flex-col sm:border-l-0 sm:border-t sm:px-1 sm:pt-4 sm:pb-0 sm:pl-0",
-                  done ? "border-accent/50" : "border-stone/25"
+                  "flex items-start gap-3 border-l border-stone/30 py-3 pl-4",
+                  done ? "border-accent/45" : "border-stone/25"
                 )}
               >
                 <span
                   className={cn(
-                    "flex h-2 w-2 shrink-0 rounded-full sm:absolute sm:-top-1 sm:left-1/2 sm:-translate-x-1/2",
-                    active ? "bg-accent" : done ? "bg-accent/60" : "bg-stone/40"
+                    "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
+                    active ? "bg-accent" : done ? "bg-accent/55" : "bg-stone/40"
                   )}
                 />
-                <span
-                  className={cn(
-                    "text-[0.65rem] leading-snug tracking-[0.06em] uppercase sm:mt-2 sm:text-center",
-                    active ? "text-cream" : done ? "text-cream-dim" : "text-muted"
+                <div>
+                  <span
+                    className={cn(
+                      "text-[0.65rem] tracking-[0.08em] uppercase",
+                      active ? "text-cream" : done ? "text-cream-dim" : "text-muted"
+                    )}
+                  >
+                    {stage.label}
+                  </span>
+                  {active && (
+                    <p className="mt-1 text-xs text-accent">You are here</p>
                   )}
-                >
-                  {stage.label}
-                </span>
+                </div>
               </li>
             );
           })}
         </ol>
-        <p className="mt-4 text-center text-xs text-fog">
-          You&apos;re at <span className="text-cream">Inquiry Received</span>. We&apos;ll advance this
-          timeline as your production moves forward.
-        </p>
       </div>
 
-      <FormSuccess
-        title={title}
-        message={message}
-        nextSteps={nextSteps}
-        actionLabel="Back to home"
-        actionHref="/"
-      />
+      <div className="mt-10">
+        <div className="mx-auto max-w-xl text-left">
+          <p className="label-caps mb-4 text-center">What happens next</p>
+          <ol className="space-y-3">
+            {nextSteps.map((step, i) => (
+              <li key={step} className="flex gap-3 text-sm text-fog">
+                <span className="text-accent">{String(i + 1).padStart(2, "0")}</span>
+                {step}
+              </li>
+            ))}
+          </ol>
+          <p className="mt-8 text-center">
+            <Link href="/" className="label-caps link-underline text-accent hover:text-cream">
+              Back to home
+            </Link>
+          </p>
+        </div>
+      </div>
+
       <p className="mt-8 text-center text-xs text-muted">
         Questions?{" "}
         <Link href="/contact" className="text-accent link-underline hover:text-cream">

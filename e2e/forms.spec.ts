@@ -30,39 +30,45 @@ test.describe("Public forms", () => {
     await page.goto("/book");
     await waitForSpamTiming(page);
 
-    await page.locator("#fullName").fill("E2E Booking User");
-    await page.locator("#email").fill("e2e-booking@example.com");
-    await page.locator("#phone").fill("5551234567");
+    // Welcome
+    await page.getByRole("checkbox", { name: /inquiry—not an instant booking/i }).check();
+    await page.getByRole("button", { name: "Begin" }).click();
+
+    // Experience — Signature (popular portrait)
+    await page.getByRole("button", { name: /ÉLEVÉ Signature/i }).first().click();
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await page.getByRole("button", { name: "Portrait", exact: true }).click();
+    // Customize — skip add-ons
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await page.locator("#purpose").fill("Brand storytelling for a product launch.");
-    await page.locator("#goals").fill("Create hero imagery and social assets.");
-    await page.locator("#projectVision").fill(
-      "Automated booking test with enough characters describing the creative vision."
+    // Vision
+    await page.locator("#feelingPrompt").fill(
+      "Confident, elevated, and intentional — work that feels premium."
     );
+    await page.locator("#inspirationPrompt").fill("Brand storytelling for a product launch.");
     await page.getByRole("button", { name: "Continue" }).click();
 
-    // Inspiration (optional)
-    await page.getByRole("button", { name: "Continue" }).click();
-
+    // Details
     await page.locator("#preferredDate").fill(futureDate());
     await page.locator("#location").fill("Sacramento, CA");
     await page.getByRole("button", { name: "Outdoor", exact: true }).click();
     await page.getByRole("button", { name: "1 Hour", exact: true }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
-
     await page.getByRole("button", { name: "$300–500", exact: true }).click();
     await page.getByRole("button", { name: "Edited Photography", exact: true }).click();
     await page.getByRole("button", { name: "Continue" }).click();
 
+    // About you
+    await page.locator("#fullName").fill("E2E Booking User");
+    await page.locator("#email").fill("e2e-booking@example.com");
+    await page.locator("#phone").fill("5551234567");
     await page.getByRole("button", { name: "Google", exact: true }).click();
-    await page.getByRole("checkbox", { name: /booking terms/i }).check();
-    await page.getByRole("button", { name: /Start production/i }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page.getByText("Inquiry received.")).toBeVisible({
+    // Review
+    await page.getByRole("checkbox", { name: /booking terms/i }).check();
+    await page.getByRole("button", { name: /Submit inquiry/i }).click();
+
+    await expect(page.getByText(/Welcome to ÉLEVÉ|Inquiry received/i)).toBeVisible({
       timeout: 15_000,
     });
   });

@@ -8,6 +8,7 @@ import { aiComplete } from "@/lib/ai/adapter";
 import { isAIConfigured } from "@/lib/ai/config";
 import { systemPromptForTask } from "@/lib/ai/prompts/system";
 import { estimateBudgetValue } from "@/lib/estimate-budget";
+import { getPackageById } from "@/lib/booking-packages";
 
 export interface BookingProductionIntel {
   executiveSummary: string;
@@ -33,8 +34,12 @@ export interface BookingProductionIntel {
 type BookingPayload = {
   fullName?: string;
   email?: string;
+  packageId?: string;
+  addOnIds?: string[];
   projectCategory?: string;
   serviceTypes?: string[];
+  feelingPrompt?: string;
+  inspirationPrompt?: string;
   purpose?: string;
   goals?: string;
   audience?: string;
@@ -52,35 +57,55 @@ type BookingPayload = {
   moodBoardUrl?: string;
   driveLink?: string;
   referralSource?: string;
+  qualification?: {
+    estimatedProjectValue?: number;
+    packageName?: string;
+    leadScore?: number;
+    upsellOpportunities?: string[];
+    recommendedAddOns?: string[];
+    aiSummary?: string;
+  };
 };
 
 function rulesBrief(data: BookingPayload): BookingProductionIntel {
-  const category = data.projectCategory || data.serviceTypes?.[0] || "Portrait";
-  const budget = estimateBudgetValue(data.budgetRange || "");
-  const isVideo = /video|hybrid|film/i.test(category);
+  const pkg = data.packageId ? getPackageById(data.packageId) : undefined;
+  const category = pkg?.projectCategory || data.projectCategory || data.serviceTypes?.[0] || "Portrait";
+  const budget =
+    data.qualification?.estimatedProjectValue ||
+    estimateBudgetValue(data.budgetRange || "", data.packageId, data.addOnIds);
+  const isVideo = /video|hybrid|film|motion|cinema/i.test(`${category} ${pkg?.family || ""}`);
   const isEvent = /event/i.test(category);
   const outdoor = /location|outdoor|on.?location/i.test(data.sessionSetting || "");
-  const hours = isEvent ? 10 : isVideo ? 8 : 5;
+  const hours = pkg?.family === "partnership" ? 12 : isEvent ? 10 : isVideo ? 8 : 5;
 
   const risks: string[] = [];
   if (!data.preferredDate) risks.push("No preferred date — scheduling risk");
   if (outdoor) risks.push("On-location: weather and golden-hour dependency");
-  if (budget > 0 && budget < 1000) risks.push("Investment range may constrain package scope");
-  if (!data.deliverables?.length) risks.push("Deliverables unspecified");
-
-  const upsells: string[] = [];
-  if (!isVideo) upsells.push("Add short-form video / social cutdowns");
-  if (!/retouch|edit/i.test((data.deliverables || []).join(" "))) {
-    upsells.push("Premium retouching package");
+  if (budget > 0 && budget < 1000 && pkg?.family !== "portrait") {
+    risks.push("Investment range may constrain package scope");
   }
-  upsells.push("Same-day selects for social");
-  if (outdoor) upsells.push("Second location or blue-hour extension");
+  if (!data.deliverables?.length) risks.push("Deliverables unspecified");
+  if (pkg?.family === "partnership") risks.push("Partnership sale — discovery before proposal");
+
+  const upsells: string[] = [
+    ...(data.qualification?.upsellOpportunities || []),
+    ...(data.qualification?.recommendedAddOns || []).map((a) => `Add-on: ${a}`),
+  ];
+  if (!upsells.length) {
+    if (!isVideo) upsells.push("Add short-form video / social cutdowns");
+    upsells.push("Same-day selects for social");
+    if (outdoor) upsells.push("Second location or blue-hour extension");
+  }
 
   return {
-    executiveSummary: `${data.fullName || "Client"} inquired for ${category}${
-      data.location ? ` in ${data.location}` : ""
-    }. Investment signal ~$${budget || 1500} (estimated from range). Priority: discovery call within 24h.`,
+    executiveSummary:
+      data.qualification?.aiSummary ||
+      `${data.fullName || "Client"} inquired for ${pkg?.name || category}${
+        data.location ? ` in ${data.location}` : ""
+      }. Investment signal ~$${budget || 1500} (estimated). Priority: discovery call within 24h.`,
     creativeBrief: [
+      data.feelingPrompt && `Feeling: ${data.feelingPrompt}`,
+      data.inspirationPrompt && `Inspiration: ${data.inspirationPrompt}`,
       data.purpose && `Purpose: ${data.purpose}`,
       data.goals && `Goals: ${data.goals}`,
       data.audience && `Audience: ${data.audience}`,
@@ -89,14 +114,18 @@ function rulesBrief(data: BookingPayload): BookingProductionIntel {
     ]
       .filter(Boolean)
       .join("\n") || "Creative brief pending discovery conversation.",
-    suggestedPackage: isVideo
-      ? "Hybrid Signature — photo + hero film"
-      : isEvent
-        ? "Event Documentary — coverage + highlight"
-        : "Portrait Signature — directed session + selects",
+    suggestedPackage:
+      pkg?.name ||
+      data.qualification?.packageName ||
+      (isVideo
+        ? "Hybrid Signature — photo + hero film"
+        : isEvent
+          ? "Event Documentary — coverage + highlight"
+          : "Portrait Signature — directed session + selects"),
     suggestedTimeline: data.projectTimeline?.trim()
       ? data.projectTimeline
-      : "Discovery (1–2d) → Proposal (3–5d) → Book → Planning (1–2w) → Shoot → Edit (1–3w) → Delivery",
+      : pkg?.estimatedTimeline ||
+        "Inquiry → Consultation → Proposal → Retainer → Planning → Production → Delivery",
     suggestedCrew: isVideo
       ? ["Director / DP", "1st AC or grip", "Producer (part-day)"]
       : isEvent
@@ -115,12 +144,28 @@ function rulesBrief(data: BookingPayload): BookingProductionIntel {
       ? `Target golden hour near ${data.preferredDate || "preferred date"} if outdoor hero frames matter.`
       : "N/A for fully studio productions.",
     potentialRisks: risks.length ? risks : ["Standard scheduling / scope alignment"],
-    upsellOpportunities: upsells,
-    recommendedAddOns: ["Rush edit", "Print suite", "Usage license expansion"],
-    salesNotes: `Referral: ${data.referralSource || "unknown"}. Respond within 24h. Lead with creative brief + clear package options. Do not under-quote — investment signal ~$${budget || 1500} (estimated).`,
+    upsellOpportunities: upsells.slice(0, 6),
+    recommendedAddOns:
+      data.qualification?.recommendedAddOns ||
+      pkg?.recommendedAddOnIds ||
+      ["Rush edit", "Print suite", "Usage license expansion"],
+    salesNotes: [
+      pkg ? `Client self-selected ${pkg.name} (from $${pkg.startingPrice}).` : null,
+      data.addOnIds?.length ? `Add-ons: ${data.addOnIds.join(", ")}.` : "No add-ons yet.",
+      `Referral: ${data.referralSource || "unknown"}.`,
+      typeof data.qualification?.leadScore === "number"
+        ? `Lead score ${data.qualification.leadScore}/100.`
+        : null,
+      `Respond within 24h. Investment signal ~$${budget || 1500} (estimated).`,
+    ]
+      .filter(Boolean)
+      .join(" "),
     estimatedProductionHours: hours,
-    recommendedFollowUp: "Personal email within 24 hours confirming receipt + 2 discovery windows.",
-    confidence: 0.72,
+    recommendedFollowUp:
+      pkg?.family === "partnership"
+        ? "Schedule strategy consultation within 12 hours — partnership sale."
+        : "Personal email within 24 hours confirming receipt + 2 discovery windows.",
+    confidence: pkg ? 0.78 : 0.72,
     generatedAt: new Date().toISOString(),
     truthLabel: "estimated",
   };

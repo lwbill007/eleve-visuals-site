@@ -740,22 +740,22 @@ export const DEFAULT_PAGE_COPY: PageCopy = {
     primaryHref: "/sessions/apply",
   },
   bookPage: {
-    headline: "Start Your Project",
+    headline: "Begin your creative partnership",
     subheadline:
-      "You're not filling out a form — you're beginning a professional production. Share your vision and we'll craft the creative plan.",
+      "This is not a calendar booking. It is an invitation into how ÉLEVÉ designs, produces, and delivers visual work for brands, artists, and ambitious individuals across Northern California.",
     notes: [
-      "Personal review within 24–48 hours",
-      "Based in Sacramento, available for travel",
-      "Custom proposals for every production",
+      "Personal creative review within 1–2 business days",
+      "Inquiry first — proposal and retainer come after consultation",
+      "Based in Sacramento · available for travel",
     ],
-    successTitle: "Inquiry received.",
+    successTitle: "Welcome to ÉLEVÉ.",
     successMessage:
-      "Your project is in Discovery Review. Expect a response within 24–48 hours with availability, creative recommendations, and a customized proposal.",
+      "We're excited to learn more about your vision. Our team typically responds within 1–2 business days with next steps for your creative consultation.",
     nextSteps: [
-      "We review your vision, scope, and preferred dates",
-      "Direct follow-up with availability and creative direction",
-      "Customized proposal tailored to your goals and investment",
-      "Pre-production planning once your project is confirmed",
+      "We study your experience selection, vision, and references",
+      "Creative consultation to refine scope and direction",
+      "Custom proposal tailored to your goals",
+      "Retainer to lock production — then planning begins",
     ],
   },
 };

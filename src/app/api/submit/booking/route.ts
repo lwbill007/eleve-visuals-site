@@ -42,12 +42,42 @@ export async function POST(request: Request) {
     );
   }
 
+  const { qualifyInquiry } = await import("@/lib/booking-qualification");
+  const qualification = qualifyInquiry({
+    packageId: parsed.data.packageId,
+    addOnIds: parsed.data.addOnIds ?? [],
+    fullName: parsed.data.fullName,
+    email: parsed.data.email,
+    instagram: parsed.data.instagram,
+    website: parsed.data.website,
+    businessName: parsed.data.businessName,
+    purpose: parsed.data.purpose,
+    goals: parsed.data.goals,
+    audience: parsed.data.audience,
+    creativeDirection: parsed.data.creativeDirection,
+    projectVision: parsed.data.projectVision,
+    preferredDate: parsed.data.preferredDate,
+    location: parsed.data.location,
+    referralSource: parsed.data.referralSource,
+    pinterestLink: parsed.data.pinterestLink,
+    moodBoardUrl: parsed.data.moodBoardUrl,
+    driveLink: parsed.data.driveLink,
+    feelingPrompt: parsed.data.feelingPrompt,
+    inspirationPrompt: parsed.data.inspirationPrompt,
+    projectCategory: parsed.data.projectCategory,
+  });
+
+  const submissionData = {
+    ...parsed.data,
+    qualification,
+  };
+
   let inquiryId: string;
   try {
     const submission = await prisma.submission.create({
       data: {
         type: "booking",
-        data: JSON.stringify(parsed.data),
+        data: JSON.stringify(submissionData),
         status: "lead",
         ipAddress: ip,
         userAgent: (request.headers.get("user-agent") ?? "").slice(0, 1000),
@@ -72,7 +102,7 @@ export async function POST(request: Request) {
     await notifyNewSubmission({
       formType: "booking",
       submissionId: inquiryId,
-      data: parsed.data as Record<string, unknown>,
+      data: submissionData as Record<string, unknown>,
     });
   } catch (error) {
     console.error("Booking notification failed:", error);
@@ -116,7 +146,7 @@ export async function POST(request: Request) {
   const { generateBookingProductionIntelBackground } = await import(
     "@/lib/ai/intelligence/booking-production-brief"
   );
-  generateBookingProductionIntelBackground(inquiryId, parsed.data);
+  generateBookingProductionIntelBackground(inquiryId, submissionData);
 
   return NextResponse.json({ ok: true, inquiryId });
 }
