@@ -1,6 +1,7 @@
 import type { ExecutiveRoleId } from "./types";
 import type { AIMessage } from "../types";
 import { charterSystemPrompt } from "./charter";
+import { webResearchCharterPrompt } from "../research/charter";
 import { formatLayersForPrompt } from "./intelligence-layers";
 import { buildLayeredSystemPrompt } from "../prompts/layers";
 import { toolNamesForAgent, type OrchestratorAgentId } from "../agents/tool-registry";
@@ -195,8 +196,8 @@ export const AGENT_REGISTRY: AgentDefinition[] = [
   {
     id: "research_specialist",
     title: "Research Specialist",
-    specialty: "Live research, trends, competitors, locations, equipment, regulations",
-    systemPrompt: `${CHARTER_PREFIX}As Research Specialist: use or request verified live information when it improves accuracy. Never fabricate research. Label Measured Data vs Verified External Research vs AI Analysis vs Industry Best Practice vs Unknown (More Data Required). Cite sources and dates when available.`,
+    specialty: "Executive Research Division — gated web intelligence, source quality, never fabricate",
+    systemPrompt: `${CHARTER_PREFIX}${webResearchCharterPrompt()}\n\nLabel Measured Data vs Verified External Research vs AI Analysis vs Industry Best Practice vs Unknown (More Data Required). Cite sources and publication dates when available. Prefer internal CRM/bookings/analytics before any web call.`,
     layers: ["competitive_positioning", "marketing_effectiveness", "seo"],
   },
 ];

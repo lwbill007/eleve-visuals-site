@@ -59,6 +59,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
     label: "Brain",
     items: [
       { label: "Business Brain", href: "/admin/memory", desc: "Know · graph · simulate" },
+      { label: "Web Research", href: "/admin/research", desc: "Gated external intel" },
       { label: "Timeline", href: "/admin/timeline", desc: "Business events" },
       { label: "Booking AI", href: "/admin/bookings-ai", desc: "Forecasts (estimated)" },
     ],

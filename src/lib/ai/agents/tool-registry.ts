@@ -67,11 +67,18 @@ export const AGENT_TOOL_REGISTRY: Record<OrchestratorAgentId, AgentToolSpec[]> =
     { name: "calendar_availability", description: "Schedule conflicts", executable: false, connector: "calendar" },
   ],
   research_specialist: [
-    { name: "live_web_search", description: "Verified live web search", executable: false, connector: "web_search" },
-    { name: "trend_analysis", description: "Industry / creative trends", executable: false, connector: "web_search" },
-    { name: "competitor_lookup", description: "Competitor research", executable: false, connector: "web_search" },
+    {
+      name: "live_web_search",
+      description:
+        "Gated verified live web search — only when research gate says material; never invent results if disconnected",
+      executable: false,
+      connector: "web_search",
+    },
+    { name: "trend_analysis", description: "Industry / creative trends (gated)", executable: false, connector: "web_search" },
+    { name: "competitor_lookup", description: "Public competitor research only (gated)", executable: false, connector: "web_search" },
     { name: "local_business_research", description: "Local market / permit context", executable: false, connector: "maps" },
-    { name: "get_analytics", description: "Internal performance baselines", executable: true, connector: "analytics" },
+    { name: "get_analytics", description: "Internal performance baselines (priority before web)", executable: true, connector: "analytics" },
+    { name: "get_crm_contacts", description: "Internal CRM (priority before web)", executable: true, connector: "crm" },
   ],
   ceo: SHARED_LOOKUP,
   cmo: [

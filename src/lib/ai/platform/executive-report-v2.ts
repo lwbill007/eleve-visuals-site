@@ -153,6 +153,9 @@ export interface ReportRecommendation {
   howReached: string;
   ifNothingChanges: string;
   whatNext: string;
+  /** Why this recommendation exists — never a black box */
+  decisionTrace?: import("../reasoning/types").DecisionTrace;
+  selfAudit?: import("../reasoning/types").SelfAudit;
   actions: {
     id: string;
     label:
@@ -170,7 +173,7 @@ export interface ReportRecommendation {
 }
 
 export interface StrategyOption {
-  id: "conservative" | "balanced" | "aggressive";
+  id: "conservative" | "balanced" | "aggressive" | string;
   label: string;
   summary: string;
   investment: string;
@@ -178,6 +181,7 @@ export interface StrategyOption {
   expectedOutcome: string;
   confidence: number;
   dependencies: string[];
+  estimatedImpact?: "Very High" | "High" | "Medium" | "Low" | "Unknown";
 }
 
 export interface ActionPlanBucket {
@@ -227,6 +231,14 @@ export interface ExecutiveReportV3 {
   confidence: ReportConfidence;
   learningNote: string;
   disclaimer: string;
+  /** Executive reasoning layer */
+  liveHealth?: import("../reasoning/types").LiveBusinessHealth;
+  intelligenceGraph?: import("../reasoning/types").IntelligenceGraph;
+  overnightBrief?: import("../reasoning/types").ExecutiveOvernightBrief;
+  scenarioSimulation?: import("../reasoning/types").ScenarioSimulation;
+  executiveDebate?: import("../reasoning/types").ExecutiveDebate;
+  predictionValidations?: import("../reasoning/types").PredictionRecord[];
+  selfAudit?: import("../reasoning/types").SelfAudit;
 }
 
 /** Back-compat alias while surfaces migrate */

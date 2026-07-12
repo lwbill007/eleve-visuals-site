@@ -217,6 +217,7 @@ function resolvePageContext(pathname: string, search = "") {
   const params = new URLSearchParams(search);
   if (pathname === "/admin") return "dashboard" as const;
   if (pathname.startsWith("/admin/briefing")) return "dashboard" as const;
+  if (pathname.startsWith("/admin/research")) return "reports" as const;
   if (pathname.startsWith("/admin/crm/")) return "crm_profile" as const;
   if (pathname.startsWith("/admin/crm")) return "crm" as const;
   if (pathname.startsWith("/admin/pipeline") || pathname.startsWith("/admin/workboard")) return "pipeline" as const;

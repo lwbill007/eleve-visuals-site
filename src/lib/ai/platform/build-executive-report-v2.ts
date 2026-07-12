@@ -10,6 +10,22 @@ import { getExecutiveRisks } from "../intelligence/risk-center";
 import { buildWebsiteIntelligenceEngine } from "../intelligence/website-engine";
 import { getAdminCRMContacts, getAdminDashboardOSCached } from "@/lib/admin-os-server";
 import { prisma } from "@/lib/db";
+import { getContinuousIntelligenceStatus } from "../research/monitor";
+import { runExecutiveResearch } from "../research/pipeline";
+import {
+  buildDecisionTrace,
+  buildScenarioSimulation,
+  buildExecutiveDebate,
+  buildSelfAudit,
+  defaultBookingCtaScenarios,
+} from "../reasoning/decision-trace";
+import {
+  buildLiveBusinessHealth,
+  buildIntelligenceGraph,
+  buildExecutiveOvernightBrief,
+  listPredictionValidations,
+} from "../reasoning/live-health";
+import { evaluateEvidenceExpiration, SOURCE_RELIABILITY_CATALOG } from "../reasoning/source-reliability";
 import {
   REPORT_V3_DISCLAIMER,
   type ActionPlanBucket,
@@ -94,6 +110,12 @@ export async function buildExecutiveReportV3(
     dashboard,
     crm,
     portfolioCount,
+    researchStatus,
+    researchSnapshot,
+    liveHealth,
+    intelligenceGraph,
+    overnightBrief,
+    predictionValidations,
   ] = await Promise.all([
     getOperatorMetrics(),
     getAnalyticsSummary(30),
@@ -103,6 +125,16 @@ export async function buildExecutiveReportV3(
     getAdminDashboardOSCached(),
     getAdminCRMContacts(),
     prisma.portfolioItem.count({ where: { published: true, archived: false } }),
+    getContinuousIntelligenceStatus().catch(() => null),
+    runExecutiveResearch({
+      query: `${reportType} executive briefing — SEO UX marketing standards material to ÉLEVÉ`,
+      internalSufficient: true,
+      persist: false,
+    }).catch(() => null),
+    buildLiveBusinessHealth().catch(() => null),
+    buildIntelligenceGraph().catch(() => null),
+    buildExecutiveOvernightBrief().catch(() => null),
+    listPredictionValidations(6).catch(() => []),
   ]);
 
   const hasAnalytics = analytics.totals.pageviews > 0;
@@ -178,8 +210,10 @@ export async function buildExecutiveReportV3(
     {
       id: "live_web",
       label: "Verified Live Web Research",
-      present: false,
-      detail: "Connector not wired — no external research cited",
+      present: Boolean(researchStatus?.connectorWired),
+      detail: researchStatus
+        ? researchStatus.note
+        : "Executive Research Division — gated; connector status unknown",
     },
   ];
 
@@ -603,6 +637,36 @@ export async function buildExecutiveReportV3(
       howReached: "Operator metrics abandoned inquiry count + CRM stage ages",
       ifNothingChanges: "Close likelihood likely declines — magnitude unknown without outcomes data",
       whatNext: "Approve follow-up plan, assign owner, measure before/after stale count",
+      decisionTrace: buildDecisionTrace({
+        observed: [
+          {
+            text: `${metrics.attention.abandonedInquiries} stale inquiries in CRM`,
+            truthKind: "Measured Data",
+          },
+          {
+            text: "Follow-up SLA exceeded on open booking stages",
+            truthKind: "Measured Data",
+          },
+        ],
+        evidenceLabels: [
+          { label: "CRM / Bookings", present: true },
+          { label: "Website Analytics", present: hasAnalytics },
+          { label: "Historical Performance", present: false },
+        ],
+        researchLabels: [
+          { label: "Verified External Research", present: false },
+        ],
+        reasoning:
+          "Measured demand remains in pipeline without response. Dollar recovery is unknown without studio close history.",
+        businessImpact: metrics.attention.abandonedInquiries > 3 ? "critical" : "high",
+        sourceIdsForConfidence: ["internal-analytics"],
+        confidenceOverride: 88,
+      }),
+      selfAudit: buildSelfAudit({
+        missingData: ["Outbound attempt logs", "Studio recovery rate"],
+        assumptions: ["Contacts remain reachable"],
+        verify: ["Work queue in Booking Command Center", "Log outcomes for prediction validation"],
+      }),
       actions: [
         { id: "approve", label: "Approve", requiresApproval: true },
         { id: "evidence", label: "Request More Evidence", requiresApproval: false },
@@ -658,6 +722,45 @@ export async function buildExecutiveReportV3(
       howReached: "Measured conversion threshold + website intelligence heuristics",
       ifNothingChanges: "Acquisition efficiency stays opaque — do not invent revenue loss dollars",
       whatNext: "Approve scoped homepage audit, implement one change, measure 14–30 days",
+      decisionTrace: buildDecisionTrace({
+        observed: [
+          {
+            text: `Conversion rate ${analytics.totals.conversionRate}% (30d)`,
+            truthKind: "Measured Data",
+          },
+          {
+            text: `${analytics.totals.uniqueSessions} sessions present while booking conversion remains soft`,
+            truthKind: "Measured Data",
+          },
+          {
+            text: "Booking / consultation completion not rising with homepage attention",
+            truthKind: "AI Analysis",
+          },
+        ],
+        evidenceLabels: [
+          { label: "Website Analytics", present: true },
+          { label: "CRM", present: crm.length > 0 },
+          { label: "Historical Performance", present: false },
+        ],
+        researchLabels: [
+          { label: "Google UX / Search guidance", present: false },
+          { label: "Baymard Institute", present: false },
+        ],
+        reasoning:
+          "Homepage (or top pages) generate attention but users fail to continue into the booking funnel at a healthy rate. Causality is hypothesized — not proven without heatmaps/experiments.",
+        businessImpact: "high",
+        sourceIdsForConfidence: ["internal-analytics", "baymard"],
+        confidenceOverride: 62,
+      }),
+      selfAudit: buildSelfAudit({
+        missingData: ["Heatmaps", "Device split conversion", "Cited external research with dates"],
+        assumptions: ["Traffic quality comparable week over week"],
+        researchLimitations: [
+          `Baymard-style UX guidance not attached as Verified External Research this run`,
+          `Evidence expiration for Google guidance: ${evaluateEvidenceExpiration({ collectedAt: null, sourceId: "google-search-central" }).reason}`,
+        ],
+        verify: ["Run one low-risk change (form friction or trust)", "Measure 14–30 days before redesign"],
+      }),
       actions: [
         { id: "approve", label: "Approve", requiresApproval: true },
         { id: "modify", label: "Modify", href: "/admin/homepage", requiresApproval: false },
@@ -749,38 +852,87 @@ export async function buildExecutiveReportV3(
     });
   }
 
-  const strategies: StrategyOption[] = [
-    {
-      id: "conservative",
-      label: "Conservative",
-      summary: "Clear stale inquiries and confirm analytics — no public-site redesign yet.",
-      investment: "Low owner time",
-      risk: "Low",
-      expectedOutcome: "Protect existing pipeline without brand risk (outcome $ unknown)",
-      confidence: 72,
-      dependencies: ["CRM follow-up"],
-    },
-    {
-      id: "balanced",
-      label: "Balanced",
-      summary: "Recover pipeline + run SEO scan + refine homepage CTA with measured before/after.",
-      investment: "Medium — CMS + follow-up capacity",
-      risk: "Medium",
-      expectedOutcome: "Improved conversion diagnosis with labeled experiments (no invented ROI)",
-      confidence: 58,
-      dependencies: ["Homepage CMS", "Intelligence Refresh"],
-    },
-    {
-      id: "aggressive",
-      label: "Aggressive",
-      summary: "Full website intelligence sprint: CTA rewrite, portfolio expansion, SEO fixes, a11y pass.",
-      investment: "High creative + ops capacity",
-      risk: "Higher brand/UX change risk",
-      expectedOutcome: "Fastest learning loop if measurement is solid — predictions remain uncapped guesses until measured",
-      confidence: 42,
-      dependencies: ["Creative capacity", "Analytics coverage", "SEO scan"],
-    },
-  ];
+  const scenarioSimulation = buildScenarioSimulation({
+    scenarios: defaultBookingCtaScenarios(),
+    reasoning:
+      "Rank by impact × confidence − risk. Prefer lower-risk friction fixes before a full redesign when measurement is thin.",
+  });
+
+  const ordered = scenarioSimulation.recommendationOrder
+    .map((id) => scenarioSimulation.scenarios.find((s) => s.id === id)?.label)
+    .filter(Boolean);
+
+  const strategies: StrategyOption[] = scenarioSimulation.scenarios.map((s) => ({
+    id: s.id,
+    label: s.label,
+    summary: s.summary,
+    investment: `Effort ${s.effort}`,
+    risk: s.risk,
+    expectedOutcome: `Estimated impact: ${s.estimatedImpact} (not a guaranteed lift)`,
+    confidence: s.confidence,
+    dependencies: s.dependencies,
+    estimatedImpact: s.estimatedImpact,
+  }));
+
+  const executiveDebate = buildExecutiveDebate(
+    [
+      {
+        role: "Marketing Director",
+        position: "Increase Instagram spend to feed the top of funnel.",
+        concern: "Traffic without conversion may waste spend.",
+        truthKind: "AI Analysis",
+      },
+      {
+        role: "Finance",
+        position: "Delay paid expansion.",
+        concern: "Current paid ROI is unverified — attribution connector incomplete.",
+        truthKind: "Unknown (More Data Required)",
+      },
+      {
+        role: "SEO Director",
+        position: "Prioritize organic clarity and booking path UX.",
+        concern: "Organic fixes compound; paid without attribution is opaque.",
+        truthKind: "AI Analysis",
+      },
+    ],
+    metrics.attention.abandonedInquiries > 0
+      ? "Do first: clear stale inquiries. Then reduce booking friction before paid expansion — attribution not ready."
+      : ordered.length
+        ? `CEO recommendation: start with ${ordered[0]}, then ${ordered[1] ?? "measure"}. Delay paid expansion until attribution is connected.`
+        : "Delay paid expansion until attribution is connected; protect measurement quality."
+  );
+
+  const reportSelfAudit = buildSelfAudit({
+    missingData: [
+      !hasAnalytics ? "Website analytics coverage" : "",
+      "Verified external research with publication dates",
+      "Consultation close rate by source",
+      "Lighthouse / CWV connectors",
+    ].filter(Boolean),
+    assumptions: [
+      "Operator metrics accurately reflect pipeline stages",
+      "Stale inquiry counts are actionable demand",
+    ],
+    weaknesses: [
+      "Some dashboard health scores are composite AI Analysis, not audited financials",
+      "Scenario impacts are qualitative — not invented % lifts",
+    ],
+    alternatives: [
+      "Soft conversion is traffic-quality driven, not UX",
+      "Stale inquiries are low-intent / spam",
+    ],
+    researchLimitations: [
+      `Source reliability catalog loaded (${SOURCE_RELIABILITY_CATALOG.length} profiles) — live fetches may still be offline`,
+      researchStatus?.connectorWired
+        ? "Web connector present"
+        : "Web research connector not wired — no fabricated citations",
+    ],
+    verify: [
+      overnightBrief?.doFirst || "Confirm Command Center queue",
+      "Approve before any client-facing change",
+      "Record outcomes for prediction validation",
+    ],
+  });
 
   const actionPlan: ActionPlanBucket[] = [
     {
@@ -916,11 +1068,23 @@ export async function buildExecutiveReportV3(
       verifiedExternalResearch: [
         {
           id: "live-web",
-          summary: "No verified live web research connected for this report.",
-          source: "Connector unavailable",
-          publicationDate: null,
-          confidence: 0,
-          present: false,
+          summary:
+            researchSnapshot?.executiveSummary ||
+            "No verified live web research connected for this report. Internal knowledge remains higher priority than general web.",
+          source: researchStatus?.connectorWired
+            ? "Live web connector"
+            : "Connector unavailable / research gated",
+          publicationDate: researchSnapshot?.generatedAt ?? null,
+          confidence:
+            researchSnapshot?.confidence === "High"
+              ? 80
+              : researchSnapshot?.confidence === "Medium"
+                ? 50
+                : 0,
+          present: Boolean(
+            researchSnapshot?.status === "completed" &&
+              (researchSnapshot.supportingSources?.length ?? 0) > 0
+          ),
         },
       ],
       aiPredictions: predictions,
@@ -936,7 +1100,14 @@ export async function buildExecutiveReportV3(
     actionPlan,
     confidence,
     learningNote:
-      "After approved actions complete, measure bookings, conversion, and SEO before/after. Retire recommendations that fail. Never repeat generic advice that outcomes disprove.",
+      "After approved actions complete, measure bookings, conversion, and SEO before/after. Score prediction accuracy. Retire recommendations that fail. Never repeat generic advice that outcomes disprove.",
     disclaimer: REPORT_V3_DISCLAIMER,
+    ...(liveHealth ? { liveHealth } : {}),
+    ...(intelligenceGraph ? { intelligenceGraph } : {}),
+    ...(overnightBrief ? { overnightBrief } : {}),
+    scenarioSimulation,
+    executiveDebate,
+    predictionValidations,
+    selfAudit: reportSelfAudit,
   };
 }

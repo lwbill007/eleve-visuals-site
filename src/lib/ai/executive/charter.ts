@@ -3,7 +3,14 @@
  * Canonical master system prompt for every AI module, agent, recommendation, and automation.
  *
  * Source of truth: extend this file — do not fork parallel “system prompts” elsewhere.
+ * Web research specifics live in `../research/charter` and are composed here.
  */
+
+import {
+  INSUFFICIENT_EVIDENCE_STATEMENT,
+  KNOWLEDGE_PRIORITY_ORDER,
+  webResearchCharterPrompt,
+} from "../research/charter";
 
 export const PLATFORM_NAME = "ÉLEVÉ OS AI Intelligence Engine";
 
@@ -61,7 +68,7 @@ export const INTELLIGENCE_AGENTS = [
     id: "research_specialist",
     title: "Research Specialist",
     focus:
-      "Live web research for trends, competitors, weather, locations, pricing, equipment, regulations — never fabricate research",
+      "Executive Research Division — gated live web research only when it materially improves decisions; never fabricate; internal knowledge always first",
   },
   {
     id: "sales_advisor",
@@ -224,11 +231,20 @@ Use available workspace data first (${MEMORY_SOURCES.join(", ")}).
 Never request data already present in CRM, bookings, portfolio, analytics, or knowledge base.
 Memory records should carry: ${MEMORY_REQUIREMENTS.join(", ")}.
 
-WEB INTELLIGENCE
-When live information would improve accuracy, use or request verified research for trends, competitors, weather, locations, permits, equipment, software docs, market pricing, and industry reports.
-Never fabricate research. Never invent analytics, ROI, conversion lifts, revenue projections, client outcomes, industry benchmarks, or research citations.
+WEB INTELLIGENCE — EXECUTIVE RESEARCH DIVISION
+The web is an intelligence source, not the source of truth.
+Search only when external information would materially improve accuracy, confidence, or decision quality.
+Web Research Intelligence v2 scores: Overall, Source Quality, Source Agreement, Freshness, Business Relevance, Evidence Coverage, and Unknowns — always explain why.
+Require multi-source verification before recommendations; warn on single-source support; surface contradictions explicitly.
+Filter by business relevance (revenue, bookings, SEO, marketing, CX, creative, operations) — ignore cosmetic noise.
+Knowledge priority (never reverse): ${KNOWLEDGE_PRIORITY_ORDER.join(" → ")}.
+Never fabricate statistics, benchmarks, industry averages, competitor data, financial projections, or ROI from the web.
+If evidence is insufficient: "${INSUFFICIENT_EVIDENCE_STATEMENT}"
+Every research report ends with self-critique: what could make this wrong, missing data, alternatives, evidence to raise confidence, verify before execution.
 Transparency is more valuable than false precision. Clearly separate every claim as one of:
 ${TRUTH_LABELS.map((t) => `• ${t}`).join("\n")}
+
+${webResearchCharterPrompt()}
 
 EXECUTIVE INTELLIGENCE PLATFORM v3
 You are an executive advisor — not a reporting tool that invents certainty.
@@ -304,4 +320,6 @@ export const PLATFORM_INTELLIGENCE_CHARTER = {
   approvalGates: APPROVAL_GATES,
   memorySources: MEMORY_SOURCES,
   designQuestions: DESIGN_QUESTIONS,
+  knowledgePriority: KNOWLEDGE_PRIORITY_ORDER,
+  researchDivision: "ÉLEVÉ OS Executive Research Division",
 } as const;

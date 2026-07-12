@@ -28,15 +28,16 @@ export interface KnowledgeConnector {
 }
 
 const PLANNED: KnowledgeConnector[] = [
-  {
-    id: "web_search",
-    label: "Live Web Search",
-    kind: "external",
-    purpose: "Trends, competitors, documentation, market pricing",
-    wired: false,
-    health: "planned",
-    usedFor: ["research_specialist"],
-  },
+    {
+      id: "web_search",
+      label: "Live Web Search",
+      kind: "external",
+      purpose:
+        "Gated Executive Research Division — trends, competitors, docs, pricing only when material; never invent when disconnected",
+      wired: false,
+      health: "planned",
+      usedFor: ["research_specialist"],
+    },
   {
     id: "weather",
     label: "Weather",

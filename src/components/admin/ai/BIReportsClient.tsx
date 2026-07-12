@@ -57,7 +57,7 @@ export function BIReportsClient() {
       related={[
         { label: "Analytics", href: "/admin/analytics", desc: "Live metrics" },
         { label: "Website", href: "/admin/website", desc: "SEO · UX intel" },
-        { label: "Payments", href: "/admin/payments", desc: "Verified $" },
+        { label: "Research", href: "/admin/research", desc: "Gated web intel" },
         { label: "Briefing", href: "/admin/briefing", desc: "Daily brief" },
       ]}
     >

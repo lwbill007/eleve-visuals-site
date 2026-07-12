@@ -26,3 +26,10 @@ export {
 } from "../evidence/schema";
 export { listKnowledgeConnectors } from "../connectors/knowledge";
 export { recordProjectOutcome } from "../learning/project-feedback";
+export {
+  runExecutiveResearch,
+  evaluateResearchGate,
+  getContinuousIntelligenceStatus,
+  webResearchCharterPrompt,
+  KNOWLEDGE_PRIORITY_ORDER,
+} from "../research";

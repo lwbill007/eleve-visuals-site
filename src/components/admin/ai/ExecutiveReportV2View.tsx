@@ -9,6 +9,7 @@ import {
   type ReportRecommendation,
   type ReportTruthKind,
 } from "@/lib/ai/platform/executive-report-v2";
+import { SOURCE_RELIABILITY_CATALOG } from "@/lib/ai/reasoning/source-reliability";
 
 type RecSort = "priority" | "impact" | "effort" | "confidence";
 
@@ -96,6 +97,114 @@ export function ExecutiveReportV2View({
           </span>
         </div>
       </section>
+
+      {report.overnightBrief && (
+        <section className="rounded-2xl border border-accent/30 bg-accent/[0.04] p-5">
+          <p className="text-[0.6rem] tracking-[0.14em] text-accent uppercase">
+            Executive Briefing
+          </p>
+          <p className="mt-2 font-display text-xl text-cream">
+            {report.overnightBrief.doFirst || "Review Command Center"}
+          </p>
+          <p className="mt-1 text-[0.65rem] text-muted">Do first · everything else ranked below</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {(
+              [
+                ["What changed overnight?", report.overnightBrief.whatChangedOvernight],
+                ["Requires attention today", report.overnightBrief.requiresAttentionToday],
+                ["Opportunities appeared", report.overnightBrief.opportunitiesAppeared],
+                ["Risks increased", report.overnightBrief.risksIncreased],
+                ["Decisions waiting", report.overnightBrief.decisionsWaiting],
+              ] as const
+            ).map(([label, items]) => (
+              <div key={label} className="rounded-lg border border-stone/20 p-3">
+                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">{label}</p>
+                <ul className="mt-2 space-y-1 text-xs text-fog">
+                  {items.map((item) => (
+                    <li key={item}>• {item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {report.liveHealth && (
+        <section>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">
+                Live Business Health
+              </p>
+              <p className="mt-1 font-display text-3xl text-cream">
+                {report.liveHealth.overall != null ? report.liveHealth.overall : "—"}
+              </p>
+            </div>
+            <p className="max-w-md text-[0.65rem] text-fog">{report.liveHealth.disclaimer}</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {report.liveHealth.components.map((c) => (
+              <div key={c.id} className="rounded-xl border border-stone/25 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">{c.label}</p>
+                  <span className={cn("border px-1 text-[0.5rem] uppercase", priorityTone(c.priority))}>
+                    {c.priority}
+                  </span>
+                </div>
+                <p className="mt-1 font-display text-xl text-cream">
+                  {c.score != null ? c.score : "—"}
+                </p>
+                <p className="mt-1 text-[0.65rem] text-fog">{c.explain}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="text-[0.55rem] text-muted">{trendLabel(c.trend)}</span>
+                  <TruthBadge kind={c.truthKind} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {report.intelligenceGraph && !compact && (
+        <section>
+          <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
+            Intelligence Graph
+          </p>
+          <div className="flex flex-wrap items-center gap-1 overflow-x-auto pb-2">
+            {report.intelligenceGraph.nodes.map((n, i) => (
+              <div key={n.id} className="flex items-center gap-1">
+                <div
+                  className={cn(
+                    "min-w-[7.5rem] rounded-lg border px-2.5 py-2",
+                    n.status === "critical"
+                      ? "border-red-400/40"
+                      : n.status === "watch"
+                        ? "border-amber-400/40"
+                        : "border-stone/25"
+                  )}
+                >
+                  <p className="text-[0.55rem] tracking-[0.08em] text-muted uppercase">{n.label}</p>
+                  <p className="mt-0.5 text-[0.65rem] text-cream">{n.metric || "—"}</p>
+                  <div className="mt-1">
+                    <TruthBadge kind={n.truthKind} />
+                  </div>
+                </div>
+                {i < report.intelligenceGraph!.nodes.length - 1 && (
+                  <span className="px-0.5 text-muted">↓</span>
+                )}
+              </div>
+            ))}
+          </div>
+          {report.intelligenceGraph.downstreamAlerts.length > 0 && (
+            <ul className="mt-3 space-y-1 text-xs text-amber-200/90">
+              {report.intelligenceGraph.downstreamAlerts.map((a) => (
+                <li key={a}>• {a}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <section>
         <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
@@ -417,6 +526,90 @@ export function ExecutiveReportV2View({
                 </ul>
               </div>
 
+              {r.decisionTrace && (
+                <div className="mt-4 rounded-lg border border-accent/20 bg-accent/[0.03] p-3">
+                  <p className="text-[0.55rem] tracking-[0.1em] text-accent uppercase">
+                    Decision Trace
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-xs">
+                    <div>
+                      <p className="text-[0.55rem] text-muted uppercase">Observed</p>
+                      <ul className="mt-1 space-y-1 text-fog">
+                        {r.decisionTrace.observed.map((o) => (
+                          <li key={o.text} className="flex flex-wrap gap-1.5">
+                            <span>• {o.text}</span>
+                            <TruthBadge kind={o.truthKind} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-[0.55rem] text-muted uppercase">Evidence</p>
+                      <ul className="mt-1 space-y-1 text-fog">
+                        {r.decisionTrace.evidenceSources.map((e) => (
+                          <li key={e.label}>
+                            {e.present ? "✓" : "○"} {e.label}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-[0.55rem] text-muted uppercase">Research</p>
+                      <ul className="mt-1 space-y-1 text-fog">
+                        {r.decisionTrace.researchSources.map((e) => (
+                          <li key={e.label}>
+                            {e.present ? "✓" : "○"} {e.label}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-[0.55rem] text-muted uppercase">Reasoning</p>
+                      <p className="mt-1 text-cream-dim">{r.decisionTrace.reasoning}</p>
+                      <p className="mt-2 text-[0.65rem] text-muted">
+                        Confidence {r.decisionTrace.confidence}% · Impact{" "}
+                        {r.decisionTrace.businessImpact}
+                      </p>
+                      <ul className="mt-1 space-y-0.5 text-[0.65rem] text-fog">
+                        {r.decisionTrace.confidenceWhy.map((w) => (
+                          <li key={w}>• {w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {r.selfAudit && (
+                <div className="mt-3 rounded-lg border border-stone/25 p-3">
+                  <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Self Audit</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-xs text-fog">
+                    <div>
+                      <p className="text-[0.55rem] text-muted uppercase">Weaknesses</p>
+                      <ul className="mt-1 space-y-1">
+                        {r.selfAudit.potentialWeaknesses.map((x) => (
+                          <li key={x}>• {x}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-[0.55rem] text-muted uppercase">Missing data</p>
+                      <ul className="mt-1 space-y-1">
+                        {r.selfAudit.missingData.map((x) => (
+                          <li key={x}>• {x}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-[0.55rem] text-muted uppercase">Verify</p>
+                      <ul className="mt-1 space-y-1">
+                        {r.selfAudit.recommendedVerification.map((x) => (
+                          <li key={x}>• {x}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {(r.assumptions.length > 0 || r.missingInfo.length > 0) && (
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 text-xs">
                   <div>
@@ -470,23 +663,121 @@ export function ExecutiveReportV2View({
 
       {!compact && (
         <>
+          {report.executiveDebate && (
+            <section>
+              <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
+                Executive Debate
+              </p>
+              <div className="grid gap-3 md:grid-cols-3">
+                {report.executiveDebate.voices.map((v) => (
+                  <div key={v.role} className="rounded-xl border border-stone/25 p-4">
+                    <p className="text-[0.55rem] tracking-[0.1em] text-accent uppercase">{v.role}</p>
+                    <p className="mt-2 text-sm text-cream">{v.position}</p>
+                    <p className="mt-2 text-xs text-fog">
+                      <span className="text-muted">Concern: </span>
+                      {v.concern}
+                    </p>
+                    <div className="mt-2">
+                      <TruthBadge kind={v.truthKind} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 rounded-xl border border-accent/30 bg-accent/[0.04] p-4">
+                <p className="text-[0.55rem] tracking-[0.1em] text-accent uppercase">
+                  CEO Recommendation
+                </p>
+                <p className="mt-2 text-sm text-cream">{report.executiveDebate.ceoRecommendation}</p>
+                <p className="mt-1 text-[0.65rem] text-muted">
+                  Confidence {report.executiveDebate.confidence}%
+                </p>
+              </div>
+            </section>
+          )}
+
           <section>
             <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
               Scenario Simulator
             </p>
+            {report.scenarioSimulation && (
+              <p className="mb-3 text-xs text-fog">
+                <span className="text-muted">Recommended order: </span>
+                {report.scenarioSimulation.recommendationOrder
+                  .map(
+                    (id) =>
+                      report.scenarioSimulation!.scenarios.find((s) => s.id === id)?.label ?? id
+                  )
+                  .join(" → ")}
+                <span className="text-muted">
+                  {" "}
+                  · {report.scenarioSimulation.confidence}% conf
+                </span>
+              </p>
+            )}
             <div className="grid gap-3 md:grid-cols-3">
-              {report.strategies.map((s) => (
-                <div key={s.id} className="rounded-xl border border-stone/25 p-4">
-                  <p className="font-display text-lg text-cream">{s.label}</p>
-                  <p className="mt-2 text-xs text-fog">{s.summary}</p>
-                  <p className="mt-3 text-[0.65rem] text-muted">
-                    Investment {s.investment} · Risk {s.risk} · Confidence {s.confidence}%
-                  </p>
-                  <p className="mt-1 text-[0.65rem] text-fog">{s.expectedOutcome}</p>
-                </div>
-              ))}
+              {(report.scenarioSimulation?.scenarios ?? report.strategies).map((s) => {
+                const impact =
+                  "estimatedImpact" in s && s.estimatedImpact ? s.estimatedImpact : null;
+                const investment = "investment" in s ? s.investment : null;
+                const expected = "expectedOutcome" in s ? s.expectedOutcome : null;
+                return (
+                  <div key={s.id} className="rounded-xl border border-stone/25 p-4">
+                    <p className="font-display text-lg text-cream">{s.label}</p>
+                    <p className="mt-2 text-xs text-fog">{s.summary}</p>
+                    {impact && (
+                      <p className="mt-3 text-[0.65rem] text-cream">
+                        Estimated impact: {impact}
+                      </p>
+                    )}
+                    <p className="mt-1 text-[0.65rem] text-muted">
+                      {investment
+                        ? `Investment ${investment} · Risk ${s.risk} · Confidence ${s.confidence}%`
+                        : `Risk ${s.risk} · Confidence ${s.confidence}%`}
+                    </p>
+                    {expected && (
+                      <p className="mt-1 text-[0.65rem] text-fog">{expected}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            {report.scenarioSimulation?.reasoning && (
+              <p className="mt-3 text-xs text-fog">{report.scenarioSimulation.reasoning}</p>
+            )}
           </section>
+
+          {(report.predictionValidations?.length ?? 0) > 0 && (
+            <section>
+              <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
+                Prediction Validation
+              </p>
+              <div className="space-y-2">
+                {report.predictionValidations!.map((p) => (
+                  <div key={p.id} className="rounded-xl border border-stone/25 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm text-cream">{p.subject}</p>
+                      <TruthBadge kind={p.truthKind} />
+                      <span className="text-[0.55rem] uppercase text-muted">{p.status}</span>
+                    </div>
+                    <p className="mt-2 text-xs text-fog">
+                      <span className="text-muted">Predicted: </span>
+                      {p.predicted}
+                    </p>
+                    <p className="mt-1 text-xs text-fog">
+                      <span className="text-muted">Actual: </span>
+                      {p.actual ?? "Awaiting measurement"}
+                    </p>
+                    {p.accuracy != null && (
+                      <p className="mt-1 text-xs text-cream">Accuracy {p.accuracy}%</p>
+                    )}
+                    {p.learning && (
+                      <p className="mt-1 text-[0.65rem] text-muted">Learning: {p.learning}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section>
             <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
@@ -540,6 +831,61 @@ export function ExecutiveReportV2View({
                 <li key={line}>• {line}</li>
               ))}
             </ul>
+          </section>
+
+          {report.selfAudit && (
+            <section className="rounded-xl border border-stone/25 p-4">
+              <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">AI Self-Audit</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-xs text-fog">
+                {(
+                  [
+                    ["Potential weaknesses", report.selfAudit.potentialWeaknesses],
+                    ["Missing data", report.selfAudit.missingData],
+                    ["Alternative explanations", report.selfAudit.alternativeExplanations],
+                    ["Research limitations", report.selfAudit.researchLimitations],
+                    ["Assumptions", report.selfAudit.assumptions],
+                    ["Recommended verification", report.selfAudit.recommendedVerification],
+                  ] as const
+                ).map(([label, items]) => (
+                  <div key={label}>
+                    <p className="text-[0.55rem] text-muted uppercase">{label}</p>
+                    <ul className="mt-1 space-y-1">
+                      {items.map((x) => (
+                        <li key={x}>• {x}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
+              Source Reliability Engine
+            </p>
+            <p className="mb-3 text-[0.65rem] text-fog">
+              Confidence derives from authority, freshness, bias, and historical accuracy — not
+              assigned by hand.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {SOURCE_RELIABILITY_CATALOG.map((s) => (
+                <div key={s.id} className="rounded-lg border border-stone/20 p-3">
+                  <p className="text-sm text-cream">{s.name}</p>
+                  <p className="mt-1 text-[0.55rem] uppercase text-muted">{s.category}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-1 text-[0.65rem] text-fog">
+                    <span>Authority {s.authority}</span>
+                    <span>Freshness {s.freshness}</span>
+                    <span>Bias {s.bias}</span>
+                    <span>Accuracy {s.historicalAccuracy}</span>
+                  </div>
+                  <p className="mt-2 text-[0.7rem] text-accent">Trust {s.trustScore}</p>
+                  <p className="mt-0.5 text-[0.55rem] text-muted">
+                    Expires ~{s.expiresInDays}d · {s.freshnessLabel}
+                  </p>
+                </div>
+              ))}
+            </div>
           </section>
 
           {report.learningNote && (

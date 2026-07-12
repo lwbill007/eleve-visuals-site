@@ -1,20 +1,34 @@
 /**
  * Verification pipeline — Internal → Knowledge → Live Web → Reasoning → Confidence → Answer
- * Live web only when necessary and when connector is available.
+ * Live web only when the research gate says it is material and the connector is available.
  */
 
 import type { EvidenceBundle } from "../evidence/schema";
 import { listKnowledgeConnectors } from "../connectors/knowledge";
+import { evaluateResearchGate } from "../research/gate";
 import type { VerificationStep } from "./types";
 
 export async function runVerificationPipeline(input: {
   hasInternalData: boolean;
   evidence: EvidenceBundle;
   needsLiveWeb: boolean;
+  query?: string;
 }): Promise<VerificationStep[]> {
   const connectors = await listKnowledgeConnectors();
   const web = connectors.find((c) => c.id === "web_search");
   const kb = connectors.find((c) => c.id === "knowledge_base");
+
+  const gate = input.query
+    ? await evaluateResearchGate({
+        query: input.query,
+        forceExternal: input.needsLiveWeb,
+        internalSufficient: input.hasInternalData && !input.needsLiveWeb,
+      })
+    : null;
+
+  const liveNeeded = gate
+    ? gate.shouldSearch || (input.needsLiveWeb && gate.connectorAvailable)
+    : input.needsLiveWeb;
 
   const steps: VerificationStep[] = [
     {
@@ -22,7 +36,7 @@ export async function runVerificationPipeline(input: {
       label: "Internal Data",
       status: input.hasInternalData ? "completed" : "failed",
       detail: input.hasInternalData
-        ? "CRM / booking / workspace data loaded"
+        ? "CRM / booking / workspace data loaded (priority 1–11 before web)"
         : "No internal case data provided",
     },
     {
@@ -34,19 +48,26 @@ export async function runVerificationPipeline(input: {
         : "Knowledge base connector not fully wired",
     },
     {
+      id: "research_gate",
+      label: "Research Gate",
+      status: gate
+        ? gate.shouldSearch
+          ? "completed"
+          : "skipped"
+        : input.needsLiveWeb
+          ? "completed"
+          : "skipped",
+      detail: gate?.reason || (input.needsLiveWeb ? "Caller requested live web" : "No live web requested"),
+    },
+    {
       id: "live_web",
       label: "Live Web",
-      status:
-        input.needsLiveWeb && web?.wired
-          ? "completed"
-          : input.needsLiveWeb
-            ? "skipped"
-            : "skipped",
+      status: liveNeeded && web?.wired ? "completed" : "skipped",
       detail:
-        input.needsLiveWeb && web?.wired
+        liveNeeded && web?.wired
           ? "Live research executed"
-          : input.needsLiveWeb
-            ? "Live web needed but connector not wired — research confidence reduced"
+          : liveNeeded
+            ? "Live web material but connector not wired — research confidence reduced; do not invent findings"
             : "Live web not required for this task",
     },
     {
