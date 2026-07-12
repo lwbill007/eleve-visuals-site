@@ -380,6 +380,8 @@ export interface AIDailyBriefing {
   cmo?: import("./marketing/types").CMODailyBriefing;
   /** Structured morning executive brief */
   executiveMorning?: ExecutiveMorningBrief;
+  /** Executive Intelligence Report 2.0 — evidence-graded, truth-labeled */
+  reportV2?: import("./platform/executive-report-v2").ExecutiveReportV2;
 }
 
 export type RecommendationPriority = "critical" | "high" | "medium" | "low";
@@ -666,6 +668,8 @@ export interface AIReportResult {
   provider: string;
   content: string;
   data: Record<string, unknown>;
+  /** Structured Executive Intelligence Report 2.0 when available */
+  reportV2?: import("./platform/executive-report-v2").ExecutiveReportV2;
 }
 
 export interface AICommandResult {

@@ -3,11 +3,13 @@ import { getAdminDashboardOS, getAdminInsights, getAdminCRMContacts, getSponsorM
 import { prisma } from "@/lib/db";
 import { generateAIContent } from "../service";
 import type { AIReportType, AIReportResult } from "../types";
+import { buildExecutiveReportV2 } from "../platform/build-executive-report-v2";
+import { charterSystemPrompt } from "../executive/charter";
 
 export async function generateBusinessReport(type: AIReportType): Promise<AIReportResult> {
   const days = type === "monthly" ? 30 : type === "quarterly" ? 90 : type === "yearly" ? 365 : 30;
 
-  const [dashboard, analytics, insights, crm, sponsor, submissions] = await Promise.all([
+  const [dashboard, analytics, insights, crm, sponsor, submissions, reportV2] = await Promise.all([
     getAdminDashboardOS(),
     getAnalyticsSummary(days),
     getAdminInsights(),
@@ -18,6 +20,7 @@ export async function generateBusinessReport(type: AIReportType): Promise<AIRepo
       _count: true,
       where: { createdAt: { gte: new Date(Date.now() - days * 86400000) } },
     }),
+    buildExecutiveReportV2(`bi_${type}`).catch(() => null),
   ]);
 
   const dataContext = {
@@ -39,21 +42,40 @@ export async function generateBusinessReport(type: AIReportType): Promise<AIRepo
     },
     submissions: submissions.map((s) => ({ type: s.type, count: s._count })),
     sponsor,
+    reportV2Summary: reportV2
+      ? {
+          executiveSummary: reportV2.executiveSummary,
+          confidenceOverall: reportV2.confidence.overall,
+          topRecommendations: reportV2.recommendations.slice(0, 5).map((r) => ({
+            title: r.title,
+            priority: r.priority,
+            confidence: r.confidence,
+            evidenceKinds: r.evidence.map((e) => e.kind),
+          })),
+        }
+      : null,
   };
 
   const promptMap: Record<AIReportType, string> = {
-    monthly: "Write a comprehensive monthly business report for ÉLEVÉ Visuals. Include revenue, bookings, marketing, sessions, and next month priorities.",
-    quarterly: "Write a quarterly business review with trends, wins, challenges, and strategic recommendations.",
-    yearly: "Write an annual business summary with growth narrative and vision for next year.",
-    sponsor: "Write a sponsor-ready report highlighting audience, engagement, growth, and brand alignment.",
-    marketing: "Write a marketing performance report with channel analysis and campaign recommendations.",
-    revenue: "Write a revenue analysis with forecast, pipeline health, and pricing recommendations.",
-    growth: "Write a growth forecast report with opportunities and risks.",
+    monthly:
+      "Write a monthly business report for ÉLEVÉ Visuals. Structure: Executive Summary (≤5 sentences), Measured Situation, AI Analysis (labeled), Risks, Recommendations with evidence. Use only provided numbers.",
+    quarterly:
+      "Write a quarterly business review. Separate Measured Data from AI Analysis and Predictions. Include trends only when supported by context numbers.",
+    yearly:
+      "Write an annual business summary. Never invent growth percentages or benchmarks. Label unknowns clearly.",
+    sponsor:
+      "Write a sponsor-ready draft highlighting audience and engagement from provided metrics only. Mark estimates. Do not invent reach or CPM.",
+    marketing:
+      "Write a marketing performance report from provided analytics. Label AI recommendations separately from measured traffic/conversion.",
+    revenue:
+      "Write a revenue analysis. Pipeline figures may be estimates — say so. Do not invent ROI or close rates.",
+    growth:
+      "Write a growth outlook. Any forward-looking statement must be labeled AI Prediction. No fabricated benchmarks.",
   };
 
   const result = await generateAIContent({
     task: "general",
-    prompt: promptMap[type],
+    prompt: `${charterSystemPrompt()}\n\n${promptMap[type]}\n\nNever fabricate analytics, ROI, conversion lifts, revenue projections, client outcomes, industry benchmarks, or research. If missing, write "Not enough data available."`,
     context: dataContext,
   });
 
@@ -63,5 +85,6 @@ export async function generateBusinessReport(type: AIReportType): Promise<AIRepo
     provider: result.provider,
     content: result.content,
     data: dataContext,
+    ...(reportV2 ? { reportV2 } : {}),
   };
 }

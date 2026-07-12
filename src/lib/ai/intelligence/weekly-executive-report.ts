@@ -11,6 +11,8 @@ import { getWorkspaceId } from "../memory/workspace";
 import { isAIConfigured } from "../config";
 import { aiComplete } from "../adapter";
 import { charterSystemPrompt, charterResponseStructure } from "../executive/charter";
+import { buildExecutiveReportV2 } from "../platform/build-executive-report-v2";
+import type { ExecutiveReportV2 } from "../platform/executive-report-v2";
 
 export interface WeeklyExecutiveReport {
   generatedAt: string;
@@ -32,6 +34,8 @@ export interface WeeklyExecutiveReport {
   northStarSummary: string;
   totalRecoverableRevenue: number;
   narrative: string;
+  /** Evidence-graded Report 2.0 — preferred for CEO surfaces */
+  reportV2?: ExecutiveReportV2;
 }
 
 function weekEndingLabel(): string {
@@ -51,6 +55,7 @@ export async function generateWeeklyExecutiveReport(
     leaks,
     learnings,
     experiments,
+    reportV2,
   ] = await Promise.all([
     getOperatorMetrics(),
     getExecutiveIntelligence(),
@@ -60,6 +65,7 @@ export async function generateWeeklyExecutiveReport(
     detectRevenueLeaks(),
     getLearningOutcomes(undefined, 8),
     getExperimentBacklog().catch(() => recommendExperiments()),
+    buildExecutiveReportV2("weekly_ceo").catch(() => null),
   ]);
 
   const exposure = totalLeakExposure(leaks);
@@ -147,7 +153,7 @@ export async function generateWeeklyExecutiveReport(
         messages: [
           {
             role: "system",
-            content: `${charterSystemPrompt()}\n\n${charterResponseStructure()}\n\nWrite a weekly executive report for ÉLEVÉ Visuals. Be specific with numbers. Focus on revenue, bookings, and prioritized actions. No generic advice.`,
+            content: `${charterSystemPrompt()}\n\n${charterResponseStructure()}\n\nWrite a weekly executive report for ÉLEVÉ Visuals. Use only numbers from the JSON. Never invent ROI, conversion lifts, benchmarks, or competitor facts. Label analysis vs measured data. Focus on revenue, bookings, and prioritized actions.`,
           },
           {
             role: "user",
@@ -195,7 +201,7 @@ export async function generateWeeklyExecutiveReport(
     moneyLost,
     opportunitiesAppeared,
     risksAppeared,
-    competitorChanges: ["External competitive monitoring not yet connected — add Instagram/Meta intel"],
+    competitorChanges: ["External competitive monitoring not yet connected — Unknown (More Data Required)"],
     testsNext,
     prioritize,
     remove,
@@ -203,6 +209,7 @@ export async function generateWeeklyExecutiveReport(
     northStarSummary,
     totalRecoverableRevenue: Math.round(exposure.recoverable),
     narrative,
+    ...(reportV2 ? { reportV2 } : {}),
   };
 
   if (options?.persist) {
@@ -215,14 +222,15 @@ export async function generateWeeklyExecutiveReport(
       title: `Weekly executive report · ${weekEndingLabel()}`,
       summary: report.headline,
       value: report as unknown as Record<string, unknown>,
-      confidence: 0.92,
+      confidence: reportV2 ? reportV2.confidence.overall / 100 : provider === "ai" ? 0.55 : 0.7,
       importance: 90,
-      source: "ai",
+      source: provider === "ai" ? "ai" : "system",
       sourceRef: "weekly-executive-report",
-      tags: ["executive-report", "weekly", "north-star"],
-      verified: true,
+      tags: ["executive-report", "weekly", "north-star", "report-v2"],
+      verified: false,
       actor: "weekly-report",
-      reason: "Automated weekly executive intelligence report",
+      reason:
+        "Weekly executive intelligence — AI narrative is unlabeled draft; prefer reportV2 truth labels. Not verified financials.",
     });
   }
 

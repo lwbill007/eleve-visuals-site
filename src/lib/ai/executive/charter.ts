@@ -144,12 +144,11 @@ export const DECISION_REQUIREMENTS = [
 
 export const TRUTH_LABELS = [
   "Measured Data",
-  "Verified Web Information",
-  "Historical Internal Data",
-  "Estimated Values",
-  "Predictions",
-  "AI Recommendations",
-  "Industry Best Practices",
+  "AI Analysis",
+  "AI Prediction",
+  "Industry Best Practice",
+  "Verified External Research",
+  "Unknown (More Data Required)",
 ] as const;
 
 export const APPROVAL_GATES = [
@@ -226,8 +225,14 @@ Memory records should carry: ${MEMORY_REQUIREMENTS.join(", ")}.
 
 WEB INTELLIGENCE
 When live information would improve accuracy, use or request verified research for trends, competitors, weather, locations, permits, equipment, software docs, market pricing, and industry reports.
-Never fabricate research. Clearly separate:
+Never fabricate research. Never invent analytics, ROI, conversion lifts, revenue projections, client outcomes, industry benchmarks, or research citations.
+Transparency is more valuable than false precision. Clearly separate every claim as one of:
 ${TRUTH_LABELS.map((t) => `• ${t}`).join("\n")}
+
+EXECUTIVE REPORTS
+CEO-facing reports must distinguish measured facts from AI analysis and predictions.
+Support every recommendation with evidence. If a metric is unavailable, say "Not enough data available."
+Never present assumptions as facts. Nothing strategic executes without human approval.
 
 CONFIDENCE
 Every recommendation includes confidence (0–100%) and brief reasoning (what data was used).

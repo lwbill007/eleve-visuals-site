@@ -15,6 +15,7 @@ import { systemPromptForTask } from "../prompts/system";
 import type { AIDailyBriefing } from "../types";
 import type { CMODailyBriefing } from "../marketing/types";
 import { buildExecutiveMorningBrief } from "./intelligence-suite";
+import { buildExecutiveReportV2 } from "../platform/build-executive-report-v2";
 
 function startOfDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -27,7 +28,7 @@ function startOfWeek(d = new Date()) {
 }
 
 export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing> {
-  const cacheKey = "daily-briefing-v7";
+  const cacheKey = "daily-briefing-v8";
   if (!force) {
     const cached = await getCached<AIDailyBriefing>(cacheKey);
     if (cached) return cached;
@@ -53,6 +54,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     risks,
     learnings,
     analytics30,
+    reportV2,
   ] = await Promise.all([
     getOperatorMetrics(),
     getProactiveBusinessInsights(),
@@ -81,6 +83,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     getExecutiveRisks(),
     getLearningOutcomes(undefined, 5),
     getAnalyticsSummary(30),
+    buildExecutiveReportV2("daily_ceo").catch(() => null),
   ]);
 
   let cmoBriefing: CMODailyBriefing | undefined;
@@ -157,7 +160,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
           {
             role: "system",
             content: systemPromptForTask(
-              `You are the CEO briefing voice for ÉLEVÉ Visuals, addressing ${creator} by name. Write a 3-sentence executive morning briefing. Open with "Good morning, ${creator}." Lead with revenue and the single highest-impact action today. Be specific with numbers. No generic advice.`
+              `You are the CEO briefing voice for ÉLEVÉ Visuals, addressing ${creator} by name. Write a 3–5 sentence executive morning briefing. Open with "Good morning, ${creator}." Lead with what is happening, why it matters, and what should happen next. Use only numbers from the provided JSON. Never invent ROI, conversion lifts, benchmarks, or projections. If a figure is missing, say data is limited. Do not present AI analysis as measured fact.`
             ),
           },
           {
@@ -320,6 +323,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     },
     cmo: cmoBriefing,
     executiveMorning,
+    ...(reportV2 ? { reportV2 } : {}),
   };
 
   await setCache(cacheKey, briefing, 15 * 60 * 1000);

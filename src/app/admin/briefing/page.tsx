@@ -25,14 +25,14 @@ export default function BriefingPage() {
       <WorkspaceChrome
         eyebrow="Command · Briefing"
         title="AI Briefing"
-        description="What happened overnight, why it matters, and what to do next — regenerated from live Business Brain data."
+        description="Evidence-graded CEO briefing — Measured Data vs AI Analysis vs Predictions, with recommendations that never auto-execute."
         onRefresh={refresh ? () => void refresh() : undefined}
         refreshing={loading && Boolean(briefing)}
         related={[
           { label: "Home", href: "/admin", desc: "Command Center" },
           { label: "Opportunities", href: "/admin/opportunities", desc: "Execute queue" },
           { label: "Risks", href: "/admin/risks", desc: "Attention" },
-          { label: "Timeline", href: "/admin/timeline", desc: "Events" },
+          { label: "Reports", href: "/admin/reports", desc: "BI Report 2.0" },
         ]}
       >
         {loading && !briefing ? (
@@ -45,7 +45,7 @@ export default function BriefingPage() {
         ) : (
           <div className="space-y-6">
             <AIDailyBriefingPanel />
-            {!(briefing.recommendedActions?.length > 0) && (
+            {!briefing.reportV2 && !(briefing.recommendedActions?.length > 0) && (
               <WorkspaceEmpty
                 title="No action list in this brief"
                 detail="Open Opportunities for the ranked execute queue."
@@ -59,6 +59,9 @@ export default function BriefingPage() {
               </Link>
               <Link href="/admin/leaks" className="text-accent hover:underline">
                 Revenue leaks →
+              </Link>
+              <Link href="/admin/website" className="text-accent hover:underline">
+                Website Intelligence →
               </Link>
               <Link href="/admin/memory" className="text-accent hover:underline">
                 Business Brain →

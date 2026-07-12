@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
-import type { AIReportType } from "@/lib/ai/types";
+import type { AIReportResult, AIReportType } from "@/lib/ai/types";
 import { AskAIButton } from "./AskAIPanel";
 import { useSetAIPage } from "./AIContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
+import { ExecutiveReportV2View } from "./ExecutiveReportV2View";
 
 const REPORT_TYPES: { type: AIReportType; label: string }[] = [
   { type: "monthly", label: "Monthly Business Report" },
@@ -22,18 +23,28 @@ const REPORT_TYPES: { type: AIReportType; label: string }[] = [
 export function BIReportsClient() {
   useSetAIPage("reports");
   const [loading, setLoading] = useState<AIReportType | null>(null);
-  const [report, setReport] = useState<{ type: AIReportType; content: string; provider: string } | null>(null);
+  const [report, setReport] = useState<AIReportResult | null>(null);
+  const [showNarrative, setShowNarrative] = useState(false);
 
   async function generate(type: AIReportType) {
     setLoading(type);
     setReport(null);
+    setShowNarrative(false);
     const res = await adminFetch("/api/admin/ai/reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type }),
     });
-    const data = res.ok ? await res.json() : { content: "Report generation failed.", provider: "rules", type };
-    setReport({ type: data.type, content: data.content, provider: data.provider });
+    const data = res.ok
+      ? ((await res.json()) as AIReportResult)
+      : {
+          type,
+          generatedAt: new Date().toISOString(),
+          content: "Report generation failed.",
+          provider: "rules",
+          data: {},
+        };
+    setReport(data);
     setLoading(null);
   }
 
@@ -41,7 +52,7 @@ export function BIReportsClient() {
     <WorkspaceChrome
       eyebrow="Command Center"
       title="AI Business Intelligence"
-      description="What: AI narrative reports from live studio data. Why: executive storytelling, not a BI warehouse. Next: generate a draft and review before sharing. AI writes the narrative — you verify numbers."
+      description="What: Executive Intelligence Report 2.0 from live studio data. Why: separate measured facts from AI analysis. Next: generate, review evidence, approve before acting."
       extra={<AskAIButton />}
       related={[
         { label: "Analytics", href: "/admin/analytics", desc: "Live metrics" },
@@ -51,8 +62,10 @@ export function BIReportsClient() {
       ]}
     >
       <div className="mb-6 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-fog">
-        These reports are <span className="text-cream">AI narrative drafts</span> — not a BI warehouse or
-        audited financials. Cross-check figures in Analytics and Payments before sharing externally.
+        Structured reports label <span className="text-cream">Measured Data</span>,{" "}
+        <span className="text-cream">AI Analysis</span>, and{" "}
+        <span className="text-cream">AI Prediction</span>. Narrative drafts are optional and never
+        verified financials — cross-check Analytics and Payments before sharing.
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -66,26 +79,48 @@ export function BIReportsClient() {
           >
             <p className="font-display text-lg text-cream">{r.label}</p>
             <p className="mt-1 text-xs text-accent uppercase">
-              {loading === r.type ? "Generating…" : "✦ Generate"}
+              {loading === r.type ? "Generating…" : "✦ Generate Report 2.0"}
             </p>
           </button>
         ))}
       </div>
 
+      {report?.reportV2 && (
+        <div className="mt-8">
+          <ExecutiveReportV2View report={report.reportV2} />
+        </div>
+      )}
+
       {report && (
         <AdminPanel
           title={REPORT_TYPES.find((r) => r.type === report.type)?.label ?? "Report"}
-          subtitle={`Provider: ${report.provider} · DRAFT`}
+          subtitle={`Provider: ${report.provider} · DRAFT narrative`}
           className="mt-8"
         >
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-cream-dim">{report.content}</p>
+          <button
+            type="button"
+            onClick={() => setShowNarrative((v) => !v)}
+            className="mb-3 text-xs text-accent uppercase hover:underline"
+          >
+            {showNarrative ? "Hide AI narrative draft" : "Show AI narrative draft"}
+          </button>
+          {showNarrative && (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-cream-dim">
+              {report.content}
+            </p>
+          )}
+          {!report.reportV2 && !showNarrative && (
+            <p className="text-sm text-muted">
+              Structured Report 2.0 unavailable for this run — open the narrative draft or retry.
+            </p>
+          )}
         </AdminPanel>
       )}
 
       <AdminPanel title="Website Intelligence" subtitle="Evidence-graded SEO · UX · conversion" className="mt-8">
         <p className="text-sm text-cream-dim">
-          The Website Optimization module now lives as a full executive intelligence workspace —
-          category health, truth-labeled recommendations, and orchestrator audits.
+          Category health, truth-labeled recommendations, and orchestrator audits live in the Website
+          Intelligence workspace.
         </p>
         <Link
           href="/admin/website"

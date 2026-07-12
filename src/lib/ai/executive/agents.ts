@@ -196,7 +196,7 @@ export const AGENT_REGISTRY: AgentDefinition[] = [
     id: "research_specialist",
     title: "Research Specialist",
     specialty: "Live research, trends, competitors, locations, equipment, regulations",
-    systemPrompt: `${CHARTER_PREFIX}As Research Specialist: use or request verified live information when it improves accuracy. Never fabricate research. Label Verified Web Information vs AI Recommendations vs Industry Best Practices. Cite sources when available.`,
+    systemPrompt: `${CHARTER_PREFIX}As Research Specialist: use or request verified live information when it improves accuracy. Never fabricate research. Label Measured Data vs Verified External Research vs AI Analysis vs Industry Best Practice vs Unknown (More Data Required). Cite sources and dates when available.`,
     layers: ["competitive_positioning", "marketing_effectiveness", "seo"],
   },
 ];
