@@ -53,7 +53,6 @@ test.describe("Manual smoke — forms", () => {
   test("booking request", async ({ page }) => {
     await page.goto("/book");
     await waitForSpamTiming(page);
-    await page.getByRole("checkbox", { name: /inquiry—not an instant booking/i }).check();
     await page.getByRole("button", { name: "Begin" }).click();
     await page.getByRole("button", { name: /ÉLEVÉ Signature/i }).first().click();
     await page.getByRole("button", { name: "Continue" }).click();

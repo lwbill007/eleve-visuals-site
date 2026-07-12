@@ -34,7 +34,9 @@ export async function POST(request: Request) {
 
   const bookingOptions = await getBookingOptions();
   const cleaned = stripSpamFields(body);
-  const parsed = createBookingSchema(bookingOptions).safeParse(cleaned);
+  const { normalizeBookingPayload } = await import("@/lib/booking");
+  const normalized = normalizeBookingPayload(cleaned, bookingOptions);
+  const parsed = createBookingSchema(bookingOptions).safeParse(normalized);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Validation failed", details: parsed.error.flatten().fieldErrors },

@@ -73,7 +73,7 @@ export function PipelineClient() {
     });
     setBusyId(null);
     if (res.ok) {
-      toast(newStatus === "contacted" ? "Marked contacted." : "Stage updated.");
+      toast(newStatus === "discovery" ? "Advanced to Discovery." : "Stage updated.");
       void load();
     } else {
       toast("Update failed.", "error");

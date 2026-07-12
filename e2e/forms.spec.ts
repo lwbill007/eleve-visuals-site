@@ -31,7 +31,6 @@ test.describe("Public forms", () => {
     await waitForSpamTiming(page);
 
     // Welcome
-    await page.getByRole("checkbox", { name: /inquiry—not an instant booking/i }).check();
     await page.getByRole("button", { name: "Begin" }).click();
 
     // Experience — Signature (popular portrait)

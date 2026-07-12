@@ -21,7 +21,7 @@ export default async function BookPage() {
       />
 
       <section className="section-padding">
-        <div className="container-narrow">
+        <div className="container-wide max-w-6xl">
           <BookingForm bookingOptions={bookingOptions} bookPage={pageCopy.bookPage} />
         </div>
       </section>

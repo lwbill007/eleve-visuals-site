@@ -24,6 +24,8 @@ import {
   applyPackageSelection,
   composeProjectVision,
   initialBookingData,
+  matchOption,
+  normalizeBookingPayload,
   type BookingFormData,
 } from "@/lib/booking";
 import {
@@ -174,7 +176,8 @@ export function BookingForm({
     setData((prev) => {
       const next = { ...prev, [key]: value };
       if (key === "addOnIds" && prev.packageId) {
-        next.budgetRange = budgetRangeFromPackage(prev.packageId, value as string[]);
+        const raw = budgetRangeFromPackage(prev.packageId, value as string[]);
+        next.budgetRange = matchOption(raw, bookingOptions.budgetRanges) || raw;
       }
       return next;
     });
@@ -185,12 +188,12 @@ export function BookingForm({
       return next;
     });
     setFormError("");
-  }, []);
+  }, [bookingOptions.budgetRanges]);
 
   const getStepErrors = (s: number): FormErrors<BookingFormData> => {
     const e: FormErrors<BookingFormData> = {};
     if (s === 1) {
-      if (!data.welcomeAccepted) e.welcomeAccepted = "Continue when you're ready to begin";
+      // Welcome is informational — Begin continues without a checkbox gate
     }
     if (s === 2) {
       if (!data.packageId) e.packageId = "Select an experience to continue";
@@ -236,6 +239,9 @@ export function BookingForm({
       return;
     }
     setErrors({});
+    if (step === 1) {
+      setData((prev) => ({ ...prev, welcomeAccepted: true }));
+    }
     setStep((s) => Math.min(s + 1, BOOKING_STEPS.length));
     window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
   };
@@ -268,11 +274,16 @@ export function BookingForm({
         goals: data.goals.trim() || data.inspirationPrompt.trim(),
       });
 
-      const payload = {
+      const composed = {
         ...data,
+        welcomeAccepted: true,
         projectVision,
         purpose: data.purpose.trim() || data.feelingPrompt.trim(),
         goals: data.goals.trim() || data.inspirationPrompt.trim(),
+      };
+
+      const payload = {
+        ...normalizeBookingPayload(composed as unknown as Record<string, unknown>, bookingOptions),
         ...spam.spamPayload(),
       };
 
@@ -386,13 +397,10 @@ export function BookingForm({
                   </li>
                 ))}
               </ol>
-              <CheckboxField
-                name="welcomeAccepted"
-                checked={data.welcomeAccepted}
-                onChange={(ev) => update("welcomeAccepted", ev.target.checked)}
-                error={errors.welcomeAccepted}
-                label="I understand this is an inquiry—not an instant booking or payment."
-              />
+              <p className="text-sm text-fog">
+                This is an inquiry—not an instant booking or payment. Continue when you&apos;re ready
+                to choose an experience.
+              </p>
             </section>
           )}
 
@@ -405,8 +413,12 @@ export function BookingForm({
                   applyPackageSelection(
                     { ...prev, addOnIds: prev.packageId === pkg.id ? prev.addOnIds : [] },
                     pkg.id,
-                    bookingOptions.serviceTypes,
-                    bookingOptions.deliverables
+                    {
+                      serviceTypes: bookingOptions.serviceTypes,
+                      deliverables: bookingOptions.deliverables,
+                      budgetRanges: bookingOptions.budgetRanges,
+                      durations: bookingOptions.durations,
+                    }
                   )
                 );
                 setErrors((prev) => {

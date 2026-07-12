@@ -1,3 +1,4 @@
+import type { BookingOptions } from "./types";
 import { PROJECT_CATEGORIES, type ProjectCategory } from "./booking-pipeline";
 import {
   budgetRangeFromPackage,
@@ -99,6 +100,35 @@ export function formatInquiryId(id: string): string {
   return id.slice(0, 8).toUpperCase();
 }
 
+/** Normalize dashes/spaces so CMS "$300-500" matches package "$300–500". */
+export function normalizeOptionKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[–—−‐‑]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Resolve a value to the exact CMS option string when possible. */
+export function matchOption(value: string, options: string[]): string {
+  if (!value) return "";
+  if (options.includes(value)) return value;
+  const key = normalizeOptionKey(value);
+  const exact = options.find((o) => normalizeOptionKey(o) === key);
+  if (exact) return exact;
+  return options.find((o) => {
+    const ok = normalizeOptionKey(o);
+    return ok.includes(key) || key.includes(ok);
+  }) || value;
+}
+
+export function matchOptions(values: string[], options: string[]): string[] {
+  const matched = values
+    .map((v) => matchOption(v, options))
+    .filter((v) => options.length === 0 || options.includes(v));
+  return [...new Set(matched)];
+}
+
 /** Map category → serviceTypes for CMS enum compatibility. */
 export function serviceTypesFromCategory(category: string, options: string[]): string[] {
   if (!category) return [];
@@ -107,38 +137,110 @@ export function serviceTypesFromCategory(category: string, options: string[]): s
   return [category];
 }
 
+function suggestedDuration(packageId: string): string {
+  const pkg = getPackageById(packageId);
+  if (!pkg) return "1 Hour";
+  if (pkg.family === "partnership") return "Full Day";
+  if (pkg.startingPrice >= 900) return "Full Day";
+  if (pkg.startingPrice >= 500) return "Half Day";
+  if (pkg.startingPrice >= 300) return "2 Hours";
+  return "1 Hour";
+}
+
 /** Apply package selection → category, budget, deliverables, duration hints. */
 export function applyPackageSelection(
   data: BookingFormData,
   packageId: string,
-  serviceTypeOptions: string[],
-  deliverableOptions: string[] = []
+  options: Pick<BookingOptions, "serviceTypes" | "deliverables" | "budgetRanges" | "durations">
 ): BookingFormData {
   const pkg = getPackageById(packageId);
   if (!pkg) return { ...data, packageId };
+
   const suggested = deliverablesFromPackage(pkg);
-  const matched = suggested.filter((d) =>
-    deliverableOptions.length === 0
-      ? true
-      : deliverableOptions.some((o) => o.toLowerCase() === d.toLowerCase())
-  );
+  const deliverables = matchOptions(suggested, options.deliverables);
+  const rawBudget = budgetRangeFromPackage(packageId, data.addOnIds);
+  const budgetRange = matchOption(rawBudget, options.budgetRanges) || rawBudget;
+  const durationHint = matchOption(suggestedDuration(packageId), options.durations);
+
   return {
     ...data,
     packageId,
     projectCategory: pkg.projectCategory,
-    serviceTypes: serviceTypesFromCategory(pkg.projectCategory, serviceTypeOptions),
-    budgetRange: budgetRangeFromPackage(packageId, data.addOnIds),
-    deliverables: matched.length > 0 ? matched : data.deliverables,
-    duration:
-      data.duration ||
-      (pkg.family === "partnership"
-        ? "Full Day"
-        : pkg.startingPrice >= 500
-          ? "Half Day"
-          : pkg.startingPrice >= 300
-            ? "2 Hours"
-            : "1 Hour"),
+    serviceTypes: serviceTypesFromCategory(pkg.projectCategory, options.serviceTypes),
+    budgetRange,
+    deliverables: deliverables.length > 0 ? deliverables : data.deliverables,
+    duration: data.duration
+      ? matchOption(data.duration, options.durations) || data.duration
+      : durationHint || data.duration,
   };
+}
+
+/**
+ * Coerce form/API payload enums onto CMS option strings before Zod validation.
+ * Prevents submit failures from en-dash vs hyphen and package-derived labels.
+ */
+export function normalizeBookingPayload(
+  raw: Record<string, unknown>,
+  options: BookingOptions
+): Record<string, unknown> {
+  const next = { ...raw };
+
+  if (typeof next.sessionSetting === "string") {
+    next.sessionSetting = matchOption(next.sessionSetting, options.sessionSettings);
+  }
+  if (typeof next.duration === "string") {
+    next.duration = matchOption(next.duration, options.durations);
+  }
+  if (typeof next.budgetRange === "string") {
+    next.budgetRange = matchOption(next.budgetRange, options.budgetRanges);
+  }
+  if (typeof next.referralSource === "string") {
+    next.referralSource = matchOption(next.referralSource, options.referralSources);
+  }
+  if (Array.isArray(next.deliverables)) {
+    next.deliverables = matchOptions(
+      next.deliverables.filter((d): d is string => typeof d === "string"),
+      options.deliverables
+    );
+  }
+  if (Array.isArray(next.addOnIds)) {
+    next.addOnIds = next.addOnIds.filter((id): id is string => typeof id === "string");
+  } else if (next.addOnIds == null) {
+    next.addOnIds = [];
+  }
+
+  // Ensure vision story meets min length when feelingPrompt is present
+  if (
+    typeof next.feelingPrompt === "string" &&
+    next.feelingPrompt.trim().length >= 10 &&
+    (typeof next.projectVision !== "string" || next.projectVision.trim().length < 10)
+  ) {
+    next.projectVision = next.feelingPrompt;
+  }
+  if (
+    typeof next.feelingPrompt === "string" &&
+    (!next.purpose || (typeof next.purpose === "string" && !next.purpose.trim()))
+  ) {
+    next.purpose = next.feelingPrompt;
+  }
+  if (
+    typeof next.inspirationPrompt === "string" &&
+    next.inspirationPrompt.trim() &&
+    (!next.goals || (typeof next.goals === "string" && !next.goals.trim()))
+  ) {
+    next.goals = next.inspirationPrompt;
+  }
+
+  // Fallback deliverable if package mapping emptied the list
+  if (
+    Array.isArray(next.deliverables) &&
+    next.deliverables.length === 0 &&
+    options.deliverables[0]
+  ) {
+    next.deliverables = [options.deliverables[0]];
+  }
+
+  return next;
 }
 
 export function composeProjectVision(data: BookingFormData): string {
