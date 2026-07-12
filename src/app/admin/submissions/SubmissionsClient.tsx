@@ -26,7 +26,7 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatInquiryId } from "@/lib/booking";
-import { BookingProjectWorkspace } from "@/components/admin/ai/BookingProjectWorkspace";
+import { BookingCommandCenter } from "@/components/admin/booking/BookingCommandCenter";
 
 interface Submission {
   id: string;
@@ -65,55 +65,6 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
       <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
       <dd className="text-cream">{value}</dd>
     </div>
-  );
-}
-
-function BookingSubmissionDetail({ data }: { data: Record<string, unknown> }) {
-  const serviceTypes = asStringArray(data.serviceTypes);
-  const legacyService = asString(data.serviceType);
-  const services =
-    serviceTypes.length > 0 ? serviceTypes.join(", ") : legacyService;
-  const deliverables = asStringArray(data.deliverables);
-  const vision =
-    asString(data.projectVision) ?? asString(data.projectDetails);
-
-  return (
-    <dl className="mt-4 grid gap-3 text-sm text-fog sm:grid-cols-2">
-      <DetailRow label="Category" value={asString(data.projectCategory)} />
-      <DetailRow label="Services" value={services} />
-      <DetailRow label="Purpose" value={asString(data.purpose)} />
-      <DetailRow label="Goals" value={asString(data.goals)} />
-      <DetailRow label="Audience" value={asString(data.audience)} />
-      <DetailRow label="Creative direction" value={asString(data.creativeDirection)} />
-      <DetailRow label="Preferred date" value={asString(data.preferredDate)} />
-      <DetailRow
-        label="Flexible date"
-        value={asString(data.flexibleDate) ?? asString(data.alternateDate)}
-      />
-      <DetailRow label="Location" value={asString(data.location)} />
-      <DetailRow label="Session setting" value={asString(data.sessionSetting)} />
-      <DetailRow label="Duration" value={asString(data.duration)} />
-      <DetailRow label="Budget" value={asString(data.budgetRange)} />
-      <DetailRow label="Timeline notes" value={asString(data.projectTimeline)} />
-      <DetailRow label="Referral" value={asString(data.referralSource)} />
-      <DetailRow label="Phone" value={asString(data.phone)} />
-      <DetailRow label="Instagram" value={asString(data.instagram)} />
-      <DetailRow label="Website" value={asString(data.website)} />
-      <DetailRow label="Pinterest" value={asString(data.pinterestLink)} />
-      <DetailRow label="Mood board" value={asString(data.moodBoardUrl)} />
-      <DetailRow label="Inspiration IG" value={asString(data.inspirationInstagram)} />
-      <DetailRow label="Drive link" value={asString(data.driveLink)} />
-      <div className="sm:col-span-2">
-        <dt className="text-xs uppercase tracking-wide text-muted">Story / vision</dt>
-        <dd className="mt-1 whitespace-pre-wrap text-cream">{vision ?? "—"}</dd>
-      </div>
-      <div className="sm:col-span-2">
-        <dt className="text-xs uppercase tracking-wide text-muted">Deliverables</dt>
-        <dd className="mt-1 text-cream">
-          {deliverables.length > 0 ? deliverables.join(", ") : "—"}
-        </dd>
-      </div>
-    </dl>
   );
 }
 
@@ -164,7 +115,7 @@ function SubmissionDetail({ type, data }: { type: string; data: Record<string, u
       </pre>
     );
   }
-  if (type === "booking") return <BookingSubmissionDetail data={data} />;
+  if (type === "booking") return null;
   if (type === "contact") return <ContactSubmissionDetail data={data} />;
   if (type === "session") return <SessionSubmissionDetail data={data} />;
   return (
@@ -397,7 +348,7 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
 
   const chromeDescription =
     typeFilter === "booking"
-      ? "What: booking inquiries and CRM statuses. Why: speed-to-lead converts. Next: open unread, update status, add notes. AI can draft follow-ups from the inquiry."
+      ? "Mission control for every inquiry — value, next action, timeline, production."
       : "What: every form response in one inbox. Why: nothing falls through. Next: triage unread and update status. AI can summarize threads and draft replies.";
 
   return (
@@ -625,14 +576,29 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
               <>
                 <SubmissionDetail type={item.type} data={item.data} />
                 {item.type === "booking" && (
-                  <BookingProjectWorkspace
+                  <BookingCommandCenter
+                    compact
                     submissionId={item.id}
                     status={item.status}
                     data={item.data}
+                    notes={noteDrafts[item.id] ?? item.notes}
                     email={
                       (typeof item.data.email === "string" && item.data.email) ||
                       undefined
                     }
+                    returning={item.returningContact}
+                    createdAt={item.createdAt}
+                    onStatusChange={(s) =>
+                      void updateStatus(item.id, s as InquiryStatus)
+                    }
+                    onNotesChange={(n) =>
+                      setNoteDrafts((prev) => ({ ...prev, [item.id]: n }))
+                    }
+                    onDataRefresh={(d) => {
+                      setItems((prev) =>
+                        prev.map((row) => (row.id === item.id ? { ...row, data: d } : row))
+                      );
+                    }}
                   />
                 )}
                 <div className="mt-4 border-t border-stone/20 pt-4 text-xs text-muted">
@@ -650,27 +616,29 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
                     </p>
                   )}
                 </div>
-                <div className="mt-4 border-t border-stone/20 pt-4">
-                  <label className="mb-2 block text-xs tracking-wide text-muted uppercase">
-                    Internal notes
-                  </label>
-                  <textarea
-                    value={noteDrafts[item.id] ?? ""}
-                    onChange={(e) =>
-                      setNoteDrafts({ ...noteDrafts, [item.id]: e.target.value })
-                    }
-                    rows={3}
-                    className="w-full border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
-                    placeholder="Private notes — not visible to client"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => saveNotes(item.id)}
-                    className="mt-2 border border-stone/50 px-3 py-1.5 text-xs text-fog uppercase hover:text-cream"
-                  >
-                    Save notes
-                  </button>
-                </div>
+                {item.type !== "booking" && (
+                  <div className="mt-4 border-t border-stone/20 pt-4">
+                    <label className="mb-2 block text-xs tracking-wide text-muted uppercase">
+                      Internal notes
+                    </label>
+                    <textarea
+                      value={noteDrafts[item.id] ?? ""}
+                      onChange={(e) =>
+                        setNoteDrafts({ ...noteDrafts, [item.id]: e.target.value })
+                      }
+                      rows={3}
+                      className="w-full border border-stone/40 bg-charcoal px-3 py-2 text-sm text-cream"
+                      placeholder="Private notes — not visible to client"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveNotes(item.id)}
+                      className="mt-2 border border-stone/50 px-3 py-1.5 text-xs text-fog uppercase hover:text-cream"
+                    >
+                      Save notes
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

@@ -29,7 +29,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
     items: [
       { label: "Workboard", href: "/admin/workboard", desc: "Inbox + stale deals" },
       { label: "Pipeline", href: "/admin/pipeline", desc: "Deals · stages" },
-      { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Booking inquiries" },
+      { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Mission control · inquiries" },
       { label: "Clients", href: "/admin/crm", desc: "People · timeline · AI" },
       { label: "Inbox", href: "/admin/submissions", desc: "All submissions" },
     ],

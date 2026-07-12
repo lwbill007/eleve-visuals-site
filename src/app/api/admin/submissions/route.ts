@@ -150,7 +150,7 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, read, status, notes, starred } = body;
+    const { id, read, status, notes, starred, dataPatch, ops } = body;
     if (!id || typeof id !== "string") {
       return NextResponse.json({ error: "Invalid submission id" }, { status: 400 });
     }
@@ -166,10 +166,10 @@ export async function PATCH(request: Request) {
       notes?: string;
       starred?: boolean;
       readAt?: Date;
+      data?: string;
     } = {};
     if (typeof read === "boolean") {
       data.read = read;
-      // Capture first-read time for response-time analytics.
       if (read && !existing.read) data.readAt = new Date();
     }
     if (typeof notes === "string") data.notes = notes.slice(0, 10000);
@@ -185,6 +185,30 @@ export async function PATCH(request: Request) {
       } else {
         return NextResponse.json({ error: "Invalid status for submission type" }, { status: 400 });
       }
+    }
+
+    // Merge ops / dataPatch into Submission.data JSON (booking command center)
+    if (
+      existing.type === "booking" &&
+      ((ops && typeof ops === "object") || (dataPatch && typeof dataPatch === "object"))
+    ) {
+      let parsed: Record<string, unknown> = {};
+      try {
+        parsed = JSON.parse(existing.data) as Record<string, unknown>;
+      } catch {
+        parsed = {};
+      }
+      if (dataPatch && typeof dataPatch === "object") {
+        parsed = { ...parsed, ...(dataPatch as Record<string, unknown>) };
+      }
+      if (ops && typeof ops === "object") {
+        const prevOps =
+          parsed.ops && typeof parsed.ops === "object"
+            ? (parsed.ops as Record<string, unknown>)
+            : {};
+        parsed.ops = { ...prevOps, ...(ops as Record<string, unknown>) };
+      }
+      data.data = JSON.stringify(parsed).slice(0, 500_000);
     }
 
     if (Object.keys(data).length === 0) {
