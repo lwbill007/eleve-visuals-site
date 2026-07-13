@@ -87,7 +87,8 @@ export function createBookingSchema(options: BookingOptions) {
       .refine((v) => !v || /^@?[a-zA-Z0-9._]{1,30}$/.test(v), "Invalid Instagram handle"),
     website: optionalUrl,
     businessName: z.string().trim().max(160).optional().or(z.literal("")),
-    packageId: z.string().trim().min(1, "Select an experience"),
+    packageId: z.string().trim().min(1, "Select a service"),
+    inquiryServiceId: z.string().trim().max(60).optional().or(z.literal("")),
     addOnIds: z.array(z.string()).max(30).optional().default([]),
     projectCategory: z
       .string()
@@ -100,17 +101,13 @@ export function createBookingSchema(options: BookingOptions) {
     location: z.string().trim().min(1).max(200),
     sessionSetting: enumFromOptions(options.sessionSettings, "session setting"),
     duration: enumFromOptions(options.durations, "duration"),
-    feelingPrompt: z
-      .string()
-      .trim()
-      .min(10, "Tell us what you want people to feel (at least 10 characters)")
-      .max(2000),
+    feelingPrompt: z.string().trim().min(10).max(2000),
     inspirationPrompt: z.string().trim().max(2000).optional().or(z.literal("")),
     purpose: z.string().trim().max(2000).optional().or(z.literal("")),
     goals: z.string().trim().max(2000).optional().or(z.literal("")),
     audience: z.string().trim().max(1000).optional().or(z.literal("")),
     creativeDirection: z.string().trim().max(2000).optional().or(z.literal("")),
-    projectVision: z.string().trim().min(10, "Tell us the story (at least 10 characters)").max(5000),
+    projectVision: z.string().trim().min(10).max(5000),
     pinterestLink: optionalUrl,
     moodBoardUrl: optionalUrl,
     inspirationInstagram: optionalInstagram,

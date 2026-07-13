@@ -61,15 +61,18 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
 
 export const DEFAULT_NAVIGATION: NavigationConfig = {
   navLinks: [
-    { label: "Work", href: "/portfolio" },
-    { label: "Services", href: "/services" },
+    { label: "Portfolio", href: "/portfolio" },
     { label: "Sessions", href: "/sessions" },
+    { label: "Services", href: "/services" },
     { label: "About", href: "/about" },
-    { label: "Contact", href: "/contact" },
   ],
   footerLinks: [
     { label: "Portfolio", href: "/portfolio" },
-    { label: "Start Your Project", href: "/book" },
+    { label: "Sessions", href: "/sessions" },
+    { label: "Services", href: "/services" },
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
+    { label: "Book Your Experience", href: "/book" },
     { label: "Booking Terms", href: "/booking-terms" },
   ],
   footerText: "Cinematic visual storytelling for brands, artists, and athletes.",
@@ -77,17 +80,38 @@ export const DEFAULT_NAVIGATION: NavigationConfig = {
 
 export const DEFAULT_HOMEPAGE: HomepageContent = {
   sections: [
+    { id: "testimonials", label: "Testimonials", enabled: true },
     { id: "stats", label: "Signature Stats", enabled: true },
     { id: "featured-work", label: "Featured Work", enabled: true },
-    { id: "services", label: "Services", enabled: true },
     { id: "sessions", label: "ÉLEVÉ Sessions", enabled: true },
+    { id: "services", label: "Services", enabled: true },
     { id: "brand-story", label: "Why ÉLEVÉ", enabled: true },
     { id: "process", label: "Client Experience", enabled: true },
-    { id: "testimonials", label: "Testimonials", enabled: true },
     { id: "cta", label: "Final CTA", enabled: true },
   ],
   featuredSessionVolumeId: null,
+  featuredPortfolioItemId: null,
   banner: null,
+  trustBar: {
+    enabled: true,
+    eyebrow: "Trusted experience",
+    headline: "Confidence before the first frame.",
+    stats: [
+      { label: "Typical reply", value: "1–2 days" },
+      { label: "Inquiry-first", value: "No deposit online" },
+      { label: "Production", value: "Northern California" },
+    ],
+    primaryCtaLabel: "Book Your Experience",
+    primaryCtaHref: "/book",
+    secondaryCtaLabel: "Explore Portfolio",
+    secondaryCtaHref: "/portfolio",
+    featuredTestimonialIds: [],
+  },
+  experiment: {
+    id: null,
+    variant: null,
+    notes: "",
+  },
   stats: {
     enabled: true,
     items: [
@@ -134,9 +158,9 @@ export const DEFAULT_HOMEPAGE: HomepageContent = {
       eyebrow: "Begin",
       headline: "Ready to create something unforgettable?",
       subheadline: "Limited availability. Exceptional projects only.",
-      primaryLabel: "Book Your Project",
+      primaryLabel: "Book Your Experience",
       primaryHref: "/book",
-      secondaryLabel: "View Portfolio",
+      secondaryLabel: "Explore Portfolio",
       secondaryHref: "/portfolio",
       backgroundImage: null,
       videoUrl: null,
@@ -183,8 +207,8 @@ export const DEFAULT_HERO: HeroContent = {
   subheadline:
     "Photography. Motion. Creative direction. Crafted for brands, athletes, artists, and visionaries.",
   description: "",
-  primaryCta: { label: "Start Your Project", href: "/book" },
-  secondaryCta: { label: "Explore Work", href: "/portfolio" },
+  primaryCta: { label: "Book Your Experience", href: "/book" },
+  secondaryCta: { label: "Explore Portfolio", href: "/portfolio" },
   image: null,
   imageAlt: "ÉLEVÉ Visuals cinematic hero",
   videoUrl: null,

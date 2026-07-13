@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
+import { getConversionDashboard } from "@/lib/analytics-funnel";
 
 export async function GET(request: Request) {
   try {
@@ -12,6 +13,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const days = Math.min(90, Math.max(1, Number(searchParams.get("days")) || 30));
 
-  const analytics = await getAnalyticsSummary(days);
-  return NextResponse.json(analytics);
+  const [analytics, conversion] = await Promise.all([
+    getAnalyticsSummary(days),
+    getConversionDashboard(days),
+  ]);
+
+  return NextResponse.json({ ...analytics, conversion });
 }

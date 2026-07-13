@@ -108,10 +108,35 @@ export interface HomepageCtaCopy extends HomepageSectionCopy {
   videoUrl: string | null;
 }
 
+export interface HomepageTrustBarContent {
+  enabled: boolean;
+  eyebrow: string;
+  headline: string;
+  stats: { label: string; value: string }[];
+  primaryCtaLabel: string;
+  primaryCtaHref: string;
+  secondaryCtaLabel: string;
+  secondaryCtaHref: string;
+  /** Pin a featured testimonial id; null = first 3 featured testimonials */
+  featuredTestimonialIds: string[];
+}
+
+export interface HomepageExperiment {
+  /** Active experiment key for A/B readiness (e.g. hero_headline_v2) */
+  id: string | null;
+  /** Variant label stored with funnel events (e.g. control | treatment) */
+  variant: string | null;
+  notes: string;
+}
+
 export interface HomepageContent {
   sections: HomepageSection[];
   featuredSessionVolumeId: string | null;
+  /** Pin a portfolio item to lead Featured Work; null = featured flag order */
+  featuredPortfolioItemId: string | null;
   banner: HomepageBanner | null;
+  trustBar: HomepageTrustBarContent;
+  experiment: HomepageExperiment;
   stats: {
     enabled: boolean;
     items: HomepageStat[];
@@ -587,11 +612,10 @@ export const EXPERIENCE_LEVELS = [
 ] as const;
 
 export const NAVIGATION = [
-  { label: "Work", href: "/portfolio" },
-  { label: "Services", href: "/services" },
+  { label: "Portfolio", href: "/portfolio" },
   { label: "Sessions", href: "/sessions" },
+  { label: "Services", href: "/services" },
   { label: "About", href: "/about" },
-  { label: "Contact", href: "/contact" },
 ] as const;
 
 export const SESSION_VOLUME_STATUSES = [

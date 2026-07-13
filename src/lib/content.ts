@@ -217,6 +217,22 @@ export async function getHomepageContent(): Promise<HomepageContent> {
     ...DEFAULT_HOMEPAGE,
     ...stored,
     sections: stored.sections?.length ? stored.sections : DEFAULT_HOMEPAGE.sections,
+    featuredPortfolioItemId:
+      stored.featuredPortfolioItemId ?? DEFAULT_HOMEPAGE.featuredPortfolioItemId,
+    trustBar: {
+      ...DEFAULT_HOMEPAGE.trustBar,
+      ...stored.trustBar,
+      stats: stored.trustBar?.stats?.length
+        ? stored.trustBar.stats
+        : DEFAULT_HOMEPAGE.trustBar.stats,
+      featuredTestimonialIds:
+        stored.trustBar?.featuredTestimonialIds ??
+        DEFAULT_HOMEPAGE.trustBar.featuredTestimonialIds,
+    },
+    experiment: {
+      ...DEFAULT_HOMEPAGE.experiment,
+      ...stored.experiment,
+    },
     stats: {
       ...DEFAULT_HOMEPAGE.stats,
       ...stored.stats,

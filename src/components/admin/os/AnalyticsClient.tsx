@@ -16,6 +16,7 @@ import {
   WorkspaceLoading,
   WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
+import type { ConversionDashboard } from "@/lib/analytics-funnel";
 
 interface AnalyticsData {
   periodDays: number;
@@ -28,6 +29,7 @@ interface AnalyticsData {
   conversions: { booking: number; contact: number; session: number };
   topPages: { path: string; views: number }[];
   topSources: { source: string; visits: number }[];
+  conversion?: ConversionDashboard;
 }
 
 export function AnalyticsClient() {
@@ -57,8 +59,11 @@ export function AnalyticsClient() {
     void load();
   }, [load]);
 
+  const c = data?.conversion;
   const sourceChart =
     data?.topSources.slice(0, 6).map((s) => ({ month: s.source.slice(0, 12), value: s.visits })) ?? [];
+  const funnelChart =
+    c?.funnel.map((s) => ({ month: s.label.slice(0, 14), value: s.count })) ?? [];
 
   const pages = (data?.topPages ?? []).filter((p) =>
     q.trim() ? p.path.toLowerCase().includes(q.trim().toLowerCase()) : true
@@ -68,7 +73,7 @@ export function AnalyticsClient() {
     <WorkspaceChrome
       eyebrow="Grow"
       title="Analytics"
-      description="What happened on the site, why traffic converted (or didn’t), and what to fix next — first-party events only."
+      description="Conversion Dashboard — first-party funnel from homepage to inquiry. Measure drop-off, then optimize."
       onRefresh={() => void load()}
       refreshing={loading}
       extra={
@@ -85,8 +90,8 @@ export function AnalyticsClient() {
       }
       related={[
         { label: "Website Intel", href: "/admin/website", desc: "SEO · UX · convert" },
+        { label: "Homepage", href: "/admin/homepage", desc: "CMS · experiments" },
         { label: "Marketing", href: "/admin/marketing", desc: "Campaigns" },
-        { label: "Homepage", href: "/admin/homepage", desc: "Site CMS" },
         { label: "Revenue Leaks", href: "/admin/leaks", desc: "Lost $" },
       ]}
     >
@@ -103,14 +108,129 @@ export function AnalyticsClient() {
         />
       ) : (
         <div className="space-y-8">
+          <AdminPanel
+            title="Conversion Dashboard"
+            subtitle="Visitors → inquiry. Rates are first-party only."
+          >
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <AdminMetricCard label="Visitors" value={(c?.visitors ?? data.totals.uniqueSessions).toLocaleString()} />
+              <AdminMetricCard label="Hero CTR" value={`${c?.heroCtr ?? 0}%`} hint="Hero clicks / homepage" />
+              <AdminMetricCard label="Booking starts" value={(c?.bookingStarts ?? 0).toLocaleString()} />
+              <AdminMetricCard
+                label="Inquiry completion"
+                value={`${c?.inquiryCompletionRate ?? 0}%`}
+                hint="Submits / booking starts"
+              />
+              <AdminMetricCard label="Booking completions" value={(c?.bookingCompletions ?? data.conversions.booking).toLocaleString()} />
+              <AdminMetricCard label="Booking start rate" value={`${c?.bookingStartRate ?? 0}%`} />
+              <AdminMetricCard
+                label="Portfolio → inquiry"
+                value={`${c?.portfolioToInquiryRate ?? 0}%`}
+              />
+              <AdminMetricCard
+                label="Session → inquiry"
+                value={`${c?.sessionToInquiryRate ?? 0}%`}
+              />
+            </div>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              <div className="rounded-lg border border-stone/20 p-4 text-sm">
+                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Avg completion time</p>
+                <p className="mt-1 font-display text-2xl text-cream">
+                  {c?.avgCompletionMinutes != null ? `${c.avgCompletionMinutes}m` : "—"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-stone/20 p-4 text-sm">
+                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Top traffic source</p>
+                <p className="mt-1 text-cream">
+                  {c?.topTrafficSource
+                    ? `${c.topTrafficSource.source} (${c.topTrafficSource.visits})`
+                    : "—"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-stone/20 p-4 text-sm">
+                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Device mix</p>
+                <p className="mt-1 text-cream">
+                  {c?.mobileSharePct != null
+                    ? `Mobile ${c.mobileSharePct}% · Desktop ${c.desktopSharePct}%`
+                    : "Collecting…"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-lg border border-stone/20 p-4 text-sm">
+                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Most-viewed session</p>
+                <p className="mt-1 truncate text-cream">
+                  {c?.mostViewedSession
+                    ? `${c.mostViewedSession.path} (${c.mostViewedSession.views})`
+                    : "—"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-stone/20 p-4 text-sm">
+                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Most-clicked portfolio</p>
+                <p className="mt-1 truncate text-cream">
+                  {c?.mostClickedPortfolio
+                    ? `${c.mostClickedPortfolio.path} (${c.mostClickedPortfolio.views})`
+                    : "—"}
+                </p>
+              </div>
+            </div>
+          </AdminPanel>
+
+          <AdminPanel title="Funnel drop-off" subtitle="Where visitors abandon the path to inquiry">
+            {funnelChart.length > 0 && (
+              <AdminBarChart data={funnelChart} labelKey="month" valueKey="value" accent />
+            )}
+            <ul className="mt-4 space-y-2 text-sm">
+              {(c?.funnel ?? []).map((step) => (
+                <li
+                  key={step.id}
+                  className="flex flex-wrap items-center justify-between gap-2 border-b border-stone/10 py-2"
+                >
+                  <span className="text-fog">{step.label}</span>
+                  <span className="text-cream">
+                    {step.count}
+                    {step.dropOffPct != null && step.dropOffPct > 0 ? (
+                      <span className="ml-2 text-amber-200/90">↓ {step.dropOffPct}%</span>
+                    ) : null}
+                    <span className="ml-2 text-muted">{step.conversionFromStartPct}% of start</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {c?.note && <p className="mt-3 text-xs text-muted">{c.note}</p>}
+          </AdminPanel>
+
+          <AdminPanel
+            title="Lighthouse targets"
+            subtitle="Verify after each release — not live scores"
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
+              {(
+                [
+                  ["Performance", c?.lighthouseTargets.performance ?? 95],
+                  ["Accessibility", c?.lighthouseTargets.accessibility ?? 95],
+                  ["Best Practices", c?.lighthouseTargets.bestPractices ?? 100],
+                  ["SEO", c?.lighthouseTargets.seo ?? 100],
+                ] as const
+              ).map(([label, target]) => (
+                <div key={label} className="rounded-lg border border-stone/20 p-3 text-center">
+                  <p className="font-display text-xl text-cream">≥{target}</p>
+                  <p className="text-[0.55rem] tracking-[0.08em] text-muted uppercase">{label}</p>
+                </div>
+              ))}
+            </div>
+          </AdminPanel>
+
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <AdminMetricCard label="Pageviews" value={data.totals.pageviews.toLocaleString()} />
             <AdminMetricCard label="Sessions" value={data.totals.uniqueSessions.toLocaleString()} />
             <AdminMetricCard label="Conversions" value={data.totals.conversions.toLocaleString()} />
             <AdminMetricCard
-              label="Conversion rate"
+              label="Legacy conv. rate"
               value={`${data.totals.conversionRate}%`}
-              hint={`${days}-day window`}
+              hint="Inquiry pageviews → conversions"
             />
           </div>
 
@@ -141,11 +261,7 @@ export function AnalyticsClient() {
           </div>
 
           <AdminPanel title="Top pages">
-            <WorkspaceToolbar
-              search={q}
-              onSearch={setQ}
-              searchPlaceholder="Filter paths…"
-            />
+            <WorkspaceToolbar search={q} onSearch={setQ} searchPlaceholder="Filter paths…" />
             {pages.length === 0 ? (
               <p className="text-sm text-muted">No pages match.</p>
             ) : (
@@ -160,32 +276,16 @@ export function AnalyticsClient() {
             )}
           </AdminPanel>
 
-          <AdminPanel title="Client journey" subtitle="Intended funnel · live rate is end-to-end">
-            <div className="flex flex-wrap items-center gap-2 text-xs tracking-[0.12em] text-fog uppercase">
-              {["Visitor", "Inquiry", "Lead", "Booking", "Shoot", "Gallery", "Review", "Repeat"].map(
-                (step, i, arr) => (
-                  <span key={step} className="flex items-center gap-2">
-                    <span className="rounded-full border border-stone/40 px-3 py-1.5 text-cream">{step}</span>
-                    {i < arr.length - 1 && <span className="text-muted">→</span>}
-                  </span>
-                )
-              )}
-            </div>
-            <p className="mt-4 text-sm text-muted">
-              Live conversion rate: {data.totals.conversionRate}%. Per-step drop-off needs form_step
-              events on every stage — until then this is the verified end-to-end signal.
-            </p>
-          </AdminPanel>
-
           <AdminPanel title="AI analysis" subtitle="Explain numbers — review before acting">
             <AIGeneratePanel
               task="analytics_explain"
               label="Analytics insight"
-              prompt="Explain this analytics data with summary, trend, reason, recommendation, opportunity, and risk."
+              prompt="Explain this analytics and conversion funnel with summary, drop-off risks, and next experiment."
               context={{
                 periodDays: data.periodDays,
                 totals: data.totals,
                 conversions: data.conversions,
+                conversion: data.conversion,
                 topPages: data.topPages,
               }}
             />

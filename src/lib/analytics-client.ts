@@ -1,6 +1,26 @@
 "use client";
 
 const SESSION_KEY = "eleve-analytics-session";
+const EXPERIMENT_KEY = "eleve-experiment-variant";
+
+export type EngagementEvent =
+  | "form_step"
+  | "cta_click"
+  | "scroll_depth"
+  | "section_view"
+  | "funnel";
+
+export type FunnelLabel =
+  | "homepage_loaded"
+  | "hero_cta_clicked"
+  | "portfolio_viewed"
+  | "session_viewed"
+  | "booking_started"
+  | "booking_step_1"
+  | "booking_step_2"
+  | "booking_step_3"
+  | "booking_step_4"
+  | "submission_completed";
 
 export function getAnalyticsSessionId(): string {
   if (typeof window === "undefined") return "";
@@ -10,6 +30,26 @@ export function getAnalyticsSessionId(): string {
     sessionStorage.setItem(SESSION_KEY, id);
   }
   return id;
+}
+
+/** Persist A/B variant for attribution on funnel events. */
+export function setExperimentVariant(variant: string | null | undefined) {
+  if (typeof window === "undefined") return;
+  if (!variant) {
+    sessionStorage.removeItem(EXPERIMENT_KEY);
+    return;
+  }
+  sessionStorage.setItem(EXPERIMENT_KEY, variant.slice(0, 64));
+}
+
+export function getExperimentVariant(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(EXPERIMENT_KEY);
+}
+
+function deviceType(): "mobile" | "desktop" {
+  if (typeof window === "undefined") return "desktop";
+  return window.matchMedia("(max-width: 768px)").matches ? "mobile" : "desktop";
 }
 
 export function trackPageView(path: string) {
@@ -37,13 +77,14 @@ export function trackConversion(type: "booking" | "contact" | "session") {
 }
 
 export function trackEngagement(input: {
-  event: "form_step" | "cta_click" | "scroll_depth" | "section_view";
+  event: EngagementEvent;
   path?: string;
   label?: string;
   step?: number;
   depth?: number;
   metadata?: Record<string, unknown>;
 }) {
+  const experiment = getExperimentVariant();
   fetch("/api/analytics", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -51,9 +92,28 @@ export function trackEngagement(input: {
       ...input,
       path: input.path ?? window.location.pathname,
       sessionId: getAnalyticsSessionId(),
+      metadata: {
+        device: deviceType(),
+        ...(experiment ? { experimentVariant: experiment } : {}),
+        ...input.metadata,
+      },
     }),
     keepalive: true,
   }).catch(() => {});
+}
+
+/** Named conversion-funnel stages for ÉLEVÉ OS Conversion Dashboard. */
+export function trackFunnel(
+  label: FunnelLabel,
+  extras?: { path?: string; step?: number; metadata?: Record<string, unknown> }
+) {
+  trackEngagement({
+    event: "funnel",
+    label,
+    path: extras?.path,
+    step: extras?.step,
+    metadata: extras?.metadata,
+  });
 }
 
 declare global {

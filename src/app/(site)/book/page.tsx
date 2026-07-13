@@ -4,9 +4,15 @@ import { BookingHero } from "@/components/booking/BookingHero";
 import { getBookingOptions, getPageCopy } from "@/lib/content";
 
 export const metadata: Metadata = {
-  title: "Start Your Project",
+  title: "Book Your Experience",
   description:
-    "Begin your ÉLEVÉ Visuals production. Tell us about your vision — photography, video, and creative direction in Sacramento and beyond.",
+    "Start an ÉLEVÉ Visuals inquiry in four short steps. Photography, film, and creative direction — Northern California. Reply within 1–2 business days. No payment online.",
+  alternates: { canonical: "/book" },
+  openGraph: {
+    title: "Book Your Experience — ÉLEVÉ Visuals",
+    description:
+      "Inquiry-first booking. Share your service, budget, and vision — we reply within 1–2 business days.",
+  },
 };
 
 export default async function BookPage() {

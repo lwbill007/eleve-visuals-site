@@ -6,18 +6,73 @@ import {
   getPackageById,
 } from "./booking-packages";
 
-export const BOOKING_AUTOSAVE_KEY = "eleve-booking-draft-v3";
+export const BOOKING_AUTOSAVE_KEY = "eleve-booking-draft-v4";
 
-/** Booking Experience 2.0 — premium onboarding steps */
+/** Smart inquiry — 4 steps, CRM fields preserved via defaults */
 export const BOOKING_STEPS = [
-  { id: 1, label: "Welcome" },
-  { id: 2, label: "Experience" },
-  { id: 3, label: "Customize" },
-  { id: 4, label: "Vision" },
-  { id: 5, label: "Details" },
-  { id: 6, label: "About You" },
-  { id: 7, label: "Review" },
+  { id: 1, label: "Service" },
+  { id: 2, label: "Budget & Timing" },
+  { id: 3, label: "Vision" },
+  { id: 4, label: "Contact" },
 ] as const;
+
+/** Public service intents shown in Step 1 — map to packages for CRM. */
+export const INQUIRY_SERVICES = [
+  {
+    id: "portrait",
+    label: "Portrait",
+    description: "Editorial portraits, personal brand, lifestyle",
+    packageId: "signature",
+    projectCategory: "Portrait",
+    isSessionVolume: false,
+  },
+  {
+    id: "fashion",
+    label: "Fashion",
+    description: "Lookbooks, editorial fashion, creative campaigns",
+    packageId: "prestige",
+    projectCategory: "Portrait",
+    isSessionVolume: false,
+  },
+  {
+    id: "branding",
+    label: "Branding",
+    description: "Brand systems, founders, visual identity",
+    packageId: "ascend",
+    projectCategory: "Business Branding",
+    isSessionVolume: false,
+  },
+  {
+    id: "commercial",
+    label: "Commercial",
+    description: "Campaigns, product, and commercial production",
+    packageId: "apex",
+    projectCategory: "Business Branding",
+    isSessionVolume: false,
+  },
+  {
+    id: "event",
+    label: "Event",
+    description: "Experiences, launches, and live coverage",
+    packageId: "fusion",
+    projectCategory: "Event",
+    isSessionVolume: false,
+  },
+  {
+    id: "session",
+    label: "Session Volume",
+    description: "Apply to a curated ÉLEVÉ Sessions production",
+    packageId: "prestige",
+    projectCategory: "Portrait",
+    isSessionVolume: true,
+  },
+] as const;
+
+export type InquiryServiceId = (typeof INQUIRY_SERVICES)[number]["id"];
+
+export function getInquiryService(id: string) {
+  return INQUIRY_SERVICES.find((s) => s.id === id);
+}
 
 export interface BookingFormData {
   fullName: string;
@@ -26,8 +81,10 @@ export interface BookingFormData {
   instagram: string;
   website: string;
   businessName: string;
-  /** Selected package id from catalog */
+  /** Selected package id from catalog (derived from service intent) */
   packageId: string;
+  /** Step 1 public service intent */
+  inquiryServiceId: string;
   /** Selected add-on ids */
   addOnIds: string[];
   /** High-level production category (derived from package) */
@@ -69,6 +126,7 @@ export const initialBookingData: BookingFormData = {
   website: "",
   businessName: "",
   packageId: "",
+  inquiryServiceId: "",
   addOnIds: [],
   projectCategory: "",
   serviceTypes: [],
@@ -175,15 +233,46 @@ export function applyPackageSelection(
   };
 }
 
+/** Apply Step 1 service intent → package + CRM category. */
+export function applyInquiryService(
+  data: BookingFormData,
+  serviceId: string,
+  options: Pick<BookingOptions, "serviceTypes" | "deliverables" | "budgetRanges" | "durations">
+): BookingFormData {
+  const service = getInquiryService(serviceId);
+  if (!service) return { ...data, inquiryServiceId: serviceId };
+
+  const withPackage = applyPackageSelection(data, service.packageId, options);
+  return {
+    ...withPackage,
+    inquiryServiceId: serviceId,
+    projectCategory: service.projectCategory,
+    serviceTypes: serviceTypesFromCategory(service.projectCategory, options.serviceTypes),
+    creativeDirection: service.isSessionVolume
+      ? [data.creativeDirection, "Interested in ÉLEVÉ Session Volume"].filter(Boolean).join("\n")
+      : data.creativeDirection,
+    welcomeAccepted: true,
+  };
+}
+
 /**
  * Coerce form/API payload enums onto CMS option strings before Zod validation.
  * Prevents submit failures from en-dash vs hyphen and package-derived labels.
+ * Fills inquiry-first defaults so short 4-step forms still satisfy CRM schema.
  */
 export function normalizeBookingPayload(
   raw: Record<string, unknown>,
   options: BookingOptions
 ): Record<string, unknown> {
   const next = { ...raw };
+
+  if (typeof next.inquiryServiceId === "string" && next.inquiryServiceId && !next.packageId) {
+    const service = getInquiryService(next.inquiryServiceId);
+    if (service) {
+      next.packageId = service.packageId;
+      next.projectCategory = service.projectCategory;
+    }
+  }
 
   if (typeof next.sessionSetting === "string") {
     next.sessionSetting = matchOption(next.sessionSetting, options.sessionSettings);
@@ -209,13 +298,49 @@ export function normalizeBookingPayload(
     next.addOnIds = [];
   }
 
-  // Ensure vision story meets min length when feelingPrompt is present
+  // Inquiry-first defaults for fields removed from the short form
+  if (!next.location || (typeof next.location === "string" && !next.location.trim())) {
+    next.location = "To be discussed";
+  }
+  if (!next.sessionSetting || (typeof next.sessionSetting === "string" && !String(next.sessionSetting).trim())) {
+    next.sessionSetting =
+      matchOption("On Location", options.sessionSettings) ||
+      options.sessionSettings[0] ||
+      "On Location";
+  }
+  if (!next.duration || (typeof next.duration === "string" && !String(next.duration).trim())) {
+    next.duration =
+      matchOption("Unsure", options.durations) || options.durations[0] || "Unsure";
+  }
+  if (!next.preferredDate || (typeof next.preferredDate === "string" && !String(next.preferredDate).trim())) {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    next.preferredDate = d.toISOString().slice(0, 10);
+  }
+  if (!next.referralSource || (typeof next.referralSource === "string" && !String(next.referralSource).trim())) {
+    next.referralSource =
+      matchOption("Other", options.referralSources) ||
+      matchOption("Instagram", options.referralSources) ||
+      options.referralSources[0] ||
+      "Other";
+  }
+
+  const visionFallback =
+    "Inquiry submitted via smart booking — creative vision to be refined in consultation.";
+
   if (
     typeof next.feelingPrompt === "string" &&
     next.feelingPrompt.trim().length >= 10 &&
     (typeof next.projectVision !== "string" || next.projectVision.trim().length < 10)
   ) {
     next.projectVision = next.feelingPrompt;
+  }
+  if (typeof next.feelingPrompt !== "string" || !String(next.feelingPrompt).trim()) {
+    next.feelingPrompt = visionFallback;
+  }
+  if (typeof next.projectVision !== "string" || next.projectVision.trim().length < 10) {
+    next.projectVision =
+      (typeof next.feelingPrompt === "string" && next.feelingPrompt.trim()) || visionFallback;
   }
   if (
     typeof next.feelingPrompt === "string" &&
@@ -239,6 +364,8 @@ export function normalizeBookingPayload(
   ) {
     next.deliverables = [options.deliverables[0]];
   }
+
+  next.welcomeAccepted = true;
 
   return next;
 }

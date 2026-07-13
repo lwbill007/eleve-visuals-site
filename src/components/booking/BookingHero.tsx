@@ -26,7 +26,7 @@ export function BookingHero({
             transition={{ duration: 0.7 }}
             className="label-caps mb-4 text-accent"
           >
-            Start Your Project
+            Start Your Inquiry
           </motion.p>
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
@@ -44,6 +44,9 @@ export function BookingHero({
           >
             {subheadline}
           </motion.p>
+          <p className="mt-4 text-sm text-muted">
+            Four short steps · Inquiry only · Reply within 1–2 business days · No payment online
+          </p>
           <motion.ul
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}

@@ -164,6 +164,33 @@ export function PortfolioDetailView({
         </section>
       )}
 
+      <section className="section-padding border-b border-stone/30">
+        <div className="container-wide max-w-3xl text-center">
+          <p className="label-caps text-accent">Book this style</p>
+          <h2 className="font-display mt-3 text-3xl text-cream md:text-4xl">
+            Want work in this register?
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-sm text-fog md:text-base">
+            Share your vision — we&apos;ll confirm creative direction, investment, and timing in a
+            personal reply within 1–2 business days.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <Link
+              href="/book"
+              className="inline-flex min-h-12 items-center bg-cream px-8 text-xs tracking-[0.15em] text-ink uppercase"
+            >
+              Book Your Experience
+            </Link>
+            <Link
+              href="/sessions"
+              className="inline-flex min-h-12 items-center border border-stone/40 px-8 text-xs tracking-[0.15em] text-cream uppercase hover:border-cream/40"
+            >
+              Explore Sessions
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="section-padding">
         <div className="container-wide flex flex-col gap-6 border-t border-stone/30 pt-10 md:flex-row md:justify-between">
           {prev ? (

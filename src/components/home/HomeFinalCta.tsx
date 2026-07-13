@@ -4,10 +4,11 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import type { HomepageCtaCopy } from "@/lib/types";
+import { trackEngagement, trackFunnel } from "@/lib/analytics-client";
 
 export function HomeFinalCta({ copy }: { copy: HomepageCtaCopy }) {
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative overflow-hidden" data-experiment-slot="final_cta">
       {copy.videoUrl ? (
         <video
           src={copy.videoUrl}
@@ -46,11 +47,30 @@ export function HomeFinalCta({ copy }: { copy: HomepageCtaCopy }) {
             <p className="body-lg mx-auto mt-6 max-w-xl text-fog">{copy.subheadline}</p>
           )}
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Button variant="primary" size="lg" href={copy.primaryHref}>
+            <Button
+              variant="primary"
+              size="lg"
+              href={copy.primaryHref}
+              onClick={() => {
+                trackEngagement({ event: "cta_click", path: "/", label: "final_cta_primary" });
+                trackFunnel("hero_cta_clicked", { metadata: { source: "final_cta" } });
+              }}
+            >
               {copy.primaryLabel}
             </Button>
             {copy.secondaryLabel && copy.secondaryHref && (
-              <Button variant="secondary" size="lg" href={copy.secondaryHref}>
+              <Button
+                variant="secondary"
+                size="lg"
+                href={copy.secondaryHref}
+                onClick={() =>
+                  trackEngagement({
+                    event: "cta_click",
+                    path: "/",
+                    label: "final_cta_secondary",
+                  })
+                }
+              >
                 {copy.secondaryLabel}
               </Button>
             )}

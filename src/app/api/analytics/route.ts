@@ -13,7 +13,7 @@ const pageViewSchema = z.object({
 });
 
 const engagementSchema = z.object({
-  event: z.enum(["form_step", "cta_click", "scroll_depth", "section_view"]),
+  event: z.enum(["form_step", "cta_click", "scroll_depth", "section_view", "funnel"]),
   path: z.string().trim().min(1).max(500),
   sessionId: z.string().max(64).nullable().optional(),
   label: z.string().max(200).optional(),

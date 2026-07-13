@@ -2,7 +2,12 @@ import { prisma } from "./db";
 import type { Prisma } from "@prisma/client";
 
 export type ConversionType = "booking" | "contact" | "session";
-export type EngagementEvent = "form_step" | "cta_click" | "scroll_depth" | "section_view";
+export type EngagementEvent =
+  | "form_step"
+  | "cta_click"
+  | "scroll_depth"
+  | "section_view"
+  | "funnel";
 
 interface PageViewInput {
   path: string;

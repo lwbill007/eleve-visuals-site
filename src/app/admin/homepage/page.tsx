@@ -16,12 +16,14 @@ import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
 import { saveAdminContent } from "@/lib/admin-save";
 import { DEFAULT_HERO, DEFAULT_HOMEPAGE } from "@/lib/defaults";
-import type { HeroContent, HomepageContent, SessionVolumeDTO } from "@/lib/types";
+import type { HeroContent, HomepageContent, SessionVolumeDTO, PortfolioItemDTO, TestimonialDTO } from "@/lib/types";
 
 export default function AdminHomepagePage() {
   const [hero, setHero] = useState<HeroContent>(DEFAULT_HERO);
   const [homepage, setHomepage] = useState<HomepageContent>(DEFAULT_HOMEPAGE);
   const [sessions, setSessions] = useState<SessionVolumeDTO[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioItemDTO[]>([]);
+  const [testimonials, setTestimonials] = useState<TestimonialDTO[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -33,12 +35,29 @@ export default function AdminHomepagePage() {
         for (const item of items) {
           if (item.key === "hero") setHero({ ...DEFAULT_HERO, ...(item.value as HeroContent) });
           if (item.key === "homepage")
-            setHomepage({ ...DEFAULT_HOMEPAGE, ...(item.value as HomepageContent) });
+            setHomepage({
+              ...DEFAULT_HOMEPAGE,
+              ...(item.value as HomepageContent),
+              trustBar: {
+                ...DEFAULT_HOMEPAGE.trustBar,
+                ...(item.value as HomepageContent).trustBar,
+              },
+              experiment: {
+                ...DEFAULT_HOMEPAGE.experiment,
+                ...(item.value as HomepageContent).experiment,
+              },
+            });
         }
       });
     adminFetch("/api/admin/session-volumes")
       .then((r) => (r.ok ? r.json() : []))
       .then(setSessions);
+    adminFetch("/api/admin/portfolio")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((items: PortfolioItemDTO[]) => setPortfolio(Array.isArray(items) ? items : []));
+    adminFetch("/api/admin/testimonials")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((items: TestimonialDTO[]) => setTestimonials(Array.isArray(items) ? items : []));
   }, []);
 
   async function handleSave() {
@@ -267,6 +286,194 @@ export default function AdminHomepagePage() {
                 </option>
               ))}
             </select>
+          </AdminField>
+          <AdminField label="Featured Portfolio Lead">
+            <select
+              className="w-full"
+              value={homepage.featuredPortfolioItemId || ""}
+              onChange={(e) =>
+                setHomepage({ ...homepage, featuredPortfolioItemId: e.target.value || null })
+              }
+            >
+              <option value="">Auto (featured flag order)</option>
+              {portfolio.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+          </AdminField>
+        </section>
+
+        <section className="border border-stone/30 p-6">
+          <h2 className="mb-2 font-display text-xl">Trust Bar</h2>
+          <p className="mb-6 text-xs text-muted">
+            Appears immediately under the hero. Toggle, copy, stats, and pinned testimonials — no deploy.
+          </p>
+          <label className="mb-4 flex items-center gap-3 text-sm text-cream">
+            <input
+              type="checkbox"
+              checked={homepage.trustBar?.enabled ?? true}
+              onChange={(e) =>
+                setHomepage({
+                  ...homepage,
+                  trustBar: { ...homepage.trustBar, enabled: e.target.checked },
+                })
+              }
+            />
+            Show trust bar
+          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <AdminField label="Eyebrow">
+              <AdminInput
+                value={homepage.trustBar?.eyebrow || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    trustBar: { ...homepage.trustBar, eyebrow: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+            <AdminField label="Headline">
+              <AdminInput
+                value={homepage.trustBar?.headline || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    trustBar: { ...homepage.trustBar, headline: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+            <AdminField label="Primary CTA label">
+              <AdminInput
+                value={homepage.trustBar?.primaryCtaLabel || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    trustBar: { ...homepage.trustBar, primaryCtaLabel: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+            <AdminField label="Primary CTA href">
+              <AdminInput
+                value={homepage.trustBar?.primaryCtaHref || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    trustBar: { ...homepage.trustBar, primaryCtaHref: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+            <AdminField label="Secondary CTA label">
+              <AdminInput
+                value={homepage.trustBar?.secondaryCtaLabel || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    trustBar: { ...homepage.trustBar, secondaryCtaLabel: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+            <AdminField label="Secondary CTA href">
+              <AdminInput
+                value={homepage.trustBar?.secondaryCtaHref || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    trustBar: { ...homepage.trustBar, secondaryCtaHref: e.target.value },
+                  })
+                }
+              />
+            </AdminField>
+          </div>
+          <div className="mt-4">
+            <StringListEditor
+              label="Trust stats (label|value per line)"
+              items={(homepage.trustBar?.stats || []).map((s) => `${s.label}|${s.value}`)}
+              onChange={(lines) =>
+                setHomepage({
+                  ...homepage,
+                  trustBar: {
+                    ...homepage.trustBar,
+                    stats: lines.map((line) => {
+                      const [label, ...rest] = line.split("|");
+                      return { label: label.trim(), value: rest.join("|").trim() || "—" };
+                    }),
+                  },
+                })
+              }
+            />
+          </div>
+          <AdminField label="Pinned testimonials (hold Cmd/Ctrl for multi-select)">
+            <select
+              multiple
+              className="min-h-28 w-full"
+              value={homepage.trustBar?.featuredTestimonialIds || []}
+              onChange={(e) => {
+                const ids = Array.from(e.target.selectedOptions).map((o) => o.value);
+                setHomepage({
+                  ...homepage,
+                  trustBar: { ...homepage.trustBar, featuredTestimonialIds: ids },
+                });
+              }}
+            >
+              {testimonials.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} — {t.quote.slice(0, 40)}…
+                </option>
+              ))}
+            </select>
+          </AdminField>
+        </section>
+
+        <section className="border border-stone/30 p-6">
+          <h2 className="mb-2 font-display text-xl">A/B Experiment (readiness)</h2>
+          <p className="mb-6 text-xs text-muted">
+            Set an experiment id + variant. Funnel events attribute the variant for later comparison —
+            swap hero/trust copy to run simple treatments without new code.
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <AdminField label="Experiment ID">
+              <AdminInput
+                value={homepage.experiment?.id || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    experiment: { ...homepage.experiment, id: e.target.value || null },
+                  })
+                }
+                placeholder="hero_headline_v2"
+              />
+            </AdminField>
+            <AdminField label="Active variant">
+              <AdminInput
+                value={homepage.experiment?.variant || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    experiment: { ...homepage.experiment, variant: e.target.value || null },
+                  })
+                }
+                placeholder="control | treatment"
+              />
+            </AdminField>
+          </div>
+          <AdminField label="Notes">
+            <AdminTextarea
+              value={homepage.experiment?.notes || ""}
+              onChange={(e) =>
+                setHomepage({
+                  ...homepage,
+                  experiment: { ...homepage.experiment, notes: e.target.value },
+                })
+              }
+              rows={3}
+            />
           </AdminField>
         </section>
 

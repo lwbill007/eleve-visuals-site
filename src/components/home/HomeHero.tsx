@@ -5,15 +5,31 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import type { HeroContent } from "@/lib/types";
+import { trackEngagement, trackFunnel } from "@/lib/analytics-client";
 
-export function HomeHero({ hero }: { hero: HeroContent }) {
+export function HomeHero({
+  hero,
+  experimentId,
+}: {
+  hero: HeroContent;
+  experimentId?: string | null;
+}) {
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "18%"]);
   const opacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
 
+  const primaryLabel = hero.primaryCta.label || "Book Your Experience";
+  const secondaryLabel = hero.secondaryCta.label || "Explore Portfolio";
+
   return (
-    <section ref={ref} className="relative flex min-h-[100svh] items-end overflow-hidden">
+    <section
+      ref={ref}
+      className="relative flex min-h-[100svh] items-end overflow-hidden"
+      aria-label="Hero"
+      data-experiment-slot="hero"
+      data-experiment-id={experimentId || undefined}
+    >
       <motion.div className="absolute inset-0" style={{ y }}>
         {hero.videoUrl ? (
           <video
@@ -23,6 +39,7 @@ export function HomeHero({ hero }: { hero: HeroContent }) {
             loop
             playsInline
             className="h-full w-full object-cover scale-105"
+            aria-hidden
           />
         ) : hero.image ? (
           <Image
@@ -42,7 +59,10 @@ export function HomeHero({ hero }: { hero: HeroContent }) {
       <div className="grain absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(184,168,138,0.08),transparent_55%)]" />
 
-      <motion.div className="relative z-10 w-full section-padding pb-20 pt-32 md:pb-28 md:pt-40" style={{ opacity }}>
+      <motion.div
+        className="relative z-10 w-full section-padding pb-20 pt-32 md:pb-28 md:pt-40"
+        style={{ opacity }}
+      >
         <div className="container-wide">
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -84,11 +104,27 @@ export function HomeHero({ hero }: { hero: HeroContent }) {
             transition={{ duration: 0.9, delay: 0.42 }}
             className="mt-12 flex flex-wrap gap-4"
           >
-            <Button variant="primary" size="lg" href={hero.primaryCta.href}>
-              {hero.primaryCta.label}
+            <Button
+              variant="primary"
+              size="lg"
+              href={hero.primaryCta.href || "/book"}
+              onClick={() => {
+                trackEngagement({ event: "cta_click", path: "/", label: "hero_primary" });
+                trackFunnel("hero_cta_clicked", { metadata: { cta: "primary" } });
+              }}
+            >
+              {primaryLabel}
             </Button>
-            <Button variant="secondary" size="lg" href={hero.secondaryCta.href}>
-              {hero.secondaryCta.label}
+            <Button
+              variant="secondary"
+              size="lg"
+              href={hero.secondaryCta.href || "/portfolio"}
+              onClick={() => {
+                trackEngagement({ event: "cta_click", path: "/", label: "hero_secondary" });
+                trackFunnel("hero_cta_clicked", { metadata: { cta: "secondary" } });
+              }}
+            >
+              {secondaryLabel}
             </Button>
           </motion.div>
         </div>
@@ -99,6 +135,7 @@ export function HomeHero({ hero }: { hero: HeroContent }) {
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2, duration: 1 }}
         className="absolute bottom-8 left-1/2 z-10 hidden -translate-x-1/2 md:block"
+        aria-hidden
       >
         <div className="flex flex-col items-center gap-2">
           <span className="label-caps text-[0.55rem] text-muted">Scroll</span>

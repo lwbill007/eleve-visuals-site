@@ -7,6 +7,7 @@ import type { SiteConfig, NavLink } from "@/lib/types";
 import { NAVIGATION } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { trackEngagement } from "@/lib/analytics-client";
 
 interface HeaderProps {
   siteConfig: SiteConfig;
@@ -65,13 +66,22 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
                 href={item.href}
                 className={cn(
                   "label-caps link-underline text-[0.6rem]",
-                  pathname === item.href ? "text-cream" : "text-fog hover:text-cream"
+                  pathname === item.href || pathname.startsWith(`${item.href}/`)
+                    ? "text-cream"
+                    : "text-fog hover:text-cream"
                 )}
               >
                 {item.label}
               </Link>
             ))}
-            <Button variant="primary" size="sm" href="/book">
+            <Button
+              variant="primary"
+              size="sm"
+              href="/book"
+              onClick={() =>
+                trackEngagement({ event: "cta_click", path: pathname, label: "nav_book" })
+              }
+            >
               Book
             </Button>
           </nav>
@@ -82,6 +92,7 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
+            aria-controls="mobile-nav"
           >
             <span
               className={cn(
@@ -100,6 +111,7 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
       </header>
 
       <div
+        id="mobile-nav"
         className={cn(
           "fixed inset-0 z-40 flex flex-col justify-center bg-ink transition-opacity duration-500 lg:hidden",
           menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
@@ -119,8 +131,15 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
               {item.label}
             </Link>
           ))}
-          <Button variant="primary" href="/book" className="mt-4">
-            Start Your Project
+          <Button
+            variant="primary"
+            size="lg"
+            href="/book"
+            onClick={() =>
+              trackEngagement({ event: "cta_click", path: pathname, label: "mobile_nav_book" })
+            }
+          >
+            Book Your Experience
           </Button>
         </nav>
       </div>

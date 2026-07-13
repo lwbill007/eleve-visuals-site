@@ -70,6 +70,9 @@ export function BookingSuccess({
           {message ||
             "We're excited to learn more about your vision. Our team typically responds within 1–2 business days."}
         </p>
+        <p className="mt-3 text-center text-xs tracking-[0.14em] text-accent uppercase">
+          Expected reply · 1–2 business days
+        </p>
 
         <div className="mx-auto mt-12 max-w-3xl border border-stone/30 bg-ink/40 p-6 md:p-8">
           <p className="label-caps mb-2 text-center text-muted">What happens next</p>
