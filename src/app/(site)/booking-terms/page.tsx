@@ -2,12 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero } from "@/components/ui/Section";
 import { getBookingTerms } from "@/lib/content";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "Booking Terms",
-  description:
-    "Booking terms for ÉLEVÉ Visuals — deposits, turnaround, usage rights, and cancellation policy.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const terms = await getBookingTerms();
+  return buildPageMetadata({
+    title: "Booking Terms",
+    description:
+      terms.intro?.slice(0, 160) ||
+      "Booking terms for ÉLEVÉ Visuals — deposits, turnaround, usage rights, and cancellation policy.",
+    path: "/booking-terms",
+  });
+}
 
 export default async function BookingTermsPage() {
   const terms = await getBookingTerms();

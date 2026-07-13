@@ -4,18 +4,23 @@ import type { PortfolioItemDTO } from "@/lib/types";
 import { resolvePortfolioHeroImage } from "@/lib/portfolio-utils";
 import { GalleryMasonry } from "@/components/gallery/GalleryMasonry";
 import { PortfolioVideoEmbed } from "./PortfolioVideoEmbed";
+import { PortfolioBookCta } from "./PortfolioBookCta";
+import { relatedServiceHref } from "@/lib/seo/structured-data";
 
 export function PortfolioDetailView({
   project,
   prev,
   next,
+  responseTime = "1–2 business days",
 }: {
   project: PortfolioItemDTO;
   prev: PortfolioItemDTO | null;
   next: PortfolioItemDTO | null;
+  responseTime?: string;
 }) {
   const hero = resolvePortfolioHeroImage(project);
   const gallery = project.gallery.filter((src) => src !== hero);
+  const reply = responseTime.trim() || "1–2 business days";
 
   return (
     <>
@@ -35,9 +40,25 @@ export function PortfolioDetailView({
         <div className="cinematic-overlay absolute inset-0 bg-ink/75" />
         <div className="grain relative z-10 w-full section-padding pb-14 pt-28">
           <div className="container-wide">
-            <Link href="/portfolio" className="label-caps mb-6 inline-block text-fog hover:text-cream">
-              ← All Work
-            </Link>
+            <nav aria-label="Breadcrumb" className="mb-6">
+              <ol className="flex flex-wrap items-center gap-2 text-xs tracking-[0.12em] text-muted uppercase">
+                <li>
+                  <Link href="/" className="hover:text-cream">
+                    Home
+                  </Link>
+                </li>
+                <li aria-hidden>/</li>
+                <li>
+                  <Link href="/portfolio" className="hover:text-cream">
+                    Portfolio
+                  </Link>
+                </li>
+                <li aria-hidden>/</li>
+                <li className="text-fog" aria-current="page">
+                  {project.title}
+                </li>
+              </ol>
+            </nav>
             <p className="label-caps text-accent">{project.category}</p>
             <h1 className="headline-xl mt-3 max-w-4xl">{project.title}</h1>
             {project.subtitle && (
@@ -64,6 +85,21 @@ export function PortfolioDetailView({
                 </p>
               ))}
             </div>
+            {project.creativeProcess ? (
+              <div className="mt-10">
+                <h2 className="label-caps mb-4 text-fog">Creative direction</h2>
+                <div className="space-y-4">
+                  {project.creativeProcess
+                    .split("\n")
+                    .filter(Boolean)
+                    .map((p, i) => (
+                      <p key={i} className="text-sm leading-relaxed text-fog md:text-base">
+                        {p}
+                      </p>
+                    ))}
+                </div>
+              </div>
+            ) : null}
           </div>
           <div className="lg:col-span-5">
             {project.deliverables.length > 0 && (
@@ -85,7 +121,10 @@ export function PortfolioDetailView({
                 <ul className="space-y-2">
                   {project.relatedServices.map((service) => (
                     <li key={service}>
-                      <Link href="/services" className="text-sm text-accent hover:text-cream">
+                      <Link
+                        href={relatedServiceHref(service)}
+                        className="text-sm text-accent hover:text-cream"
+                      >
                         {service}
                       </Link>
                     </li>
@@ -172,15 +211,10 @@ export function PortfolioDetailView({
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-fog md:text-base">
             Share your vision — we&apos;ll confirm creative direction, investment, and timing in a
-            personal reply within 1–2 business days.
+            personal reply {reply.startsWith("within") || reply.startsWith("Within") ? reply : `within ${reply}`}.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/book"
-              className="inline-flex min-h-12 items-center bg-cream px-8 text-xs tracking-[0.15em] text-ink uppercase"
-            >
-              Book Your Experience
-            </Link>
+            <PortfolioBookCta slug={project.slug} />
             <Link
               href="/sessions"
               className="inline-flex min-h-12 items-center border border-stone/40 px-8 text-xs tracking-[0.15em] text-cream uppercase hover:border-cream/40"

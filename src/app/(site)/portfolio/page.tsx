@@ -12,10 +12,12 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await getPortfolioPageContent();
-  return {
-    title: page.hero.headline,
+  const { buildPageMetadata } = await import("@/lib/seo/page-metadata");
+  return buildPageMetadata({
+    title: page.hero.headline || "Portfolio",
     description: page.hero.description || page.hero.subheadline,
-  };
+    path: "/portfolio",
+  });
 }
 
 export default async function PortfolioPage({

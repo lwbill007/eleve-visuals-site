@@ -3,13 +3,21 @@ import Link from "next/link";
 import { PageHero } from "@/components/ui/Section";
 import { ContactForm } from "@/components/forms/ContactForm";
 import { FAQ } from "@/components/sections/FAQ";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { getContactPage, getFaqItems, getSiteConfig } from "@/lib/content";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
+import { buildBreadcrumbSchema, buildFaqSchema } from "@/lib/seo/structured-data";
 
-export const metadata: Metadata = {
-  title: "Contact",
-  description:
-    "Get in touch with ÉLEVÉ Visuals for photography, videography, and creative direction inquiries.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const contact = await getContactPage();
+  return buildPageMetadata({
+    title: "Contact",
+    description:
+      contact.subheadline ||
+      "Get in touch with ÉLEVÉ Visuals for photography, videography, and creative direction inquiries.",
+    path: "/contact",
+  });
+}
 
 export default async function ContactPage() {
   const [siteConfig, contactPage, faqItems] = await Promise.all([
@@ -18,8 +26,17 @@ export default async function ContactPage() {
     getFaqItems(),
   ]);
 
+  const schemas = [
+    buildBreadcrumbSchema(siteConfig, [
+      { name: "Home", path: "/" },
+      { name: "Contact", path: "/contact" },
+    ]),
+    buildFaqSchema(faqItems),
+  ].filter(Boolean) as Record<string, unknown>[];
+
   return (
     <>
+      <JsonLd data={schemas} />
       <PageHero
         eyebrow="Contact"
         headline={contactPage.headline}
@@ -65,7 +82,7 @@ export default async function ContactPage() {
                 </div>
 
                 <div className="border border-stone/40 p-6">
-                  <p className="text-sm text-cream-dim mb-2">{contactPage.formNote}</p>
+                  <p className="mb-2 text-sm text-cream-dim">{contactPage.formNote}</p>
                   <Link
                     href={contactPage.bookingLink}
                     className="text-xs tracking-[0.2em] text-accent uppercase link-underline"
@@ -92,7 +109,7 @@ export default async function ContactPage() {
 
             <div className="lg:col-span-7">
               <p className="label-caps mb-6">Send a Message</p>
-              <ContactForm />
+              <ContactForm responseTime={siteConfig.responseTime} />
             </div>
           </div>
         </div>

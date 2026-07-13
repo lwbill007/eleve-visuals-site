@@ -72,9 +72,11 @@ const ease = [0.16, 1, 0.3, 1] as const;
 export function BookingForm({
   bookingOptions,
   bookPage,
+  responseTime = "1–2 business days",
 }: {
   bookingOptions: BookingOptions;
   bookPage: PageCopy["bookPage"];
+  responseTime?: string;
 }) {
   const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(1);
@@ -202,6 +204,8 @@ export function BookingForm({
     const e = getStepErrors(step);
     if (Object.keys(e).length) {
       setErrors(e);
+      const first = Object.keys(e)[0];
+      requestAnimationFrame(() => document.getElementById(first)?.focus());
       return;
     }
     setErrors({});
@@ -228,6 +232,8 @@ export function BookingForm({
     const e = getStepErrors(4);
     if (Object.keys(e).length) {
       setErrors(e);
+      const first = Object.keys(e)[0];
+      requestAnimationFrame(() => document.getElementById(first)?.focus());
       return;
     }
 
@@ -314,6 +320,7 @@ export function BookingForm({
         inquiryId={inquiryId}
         status="lead"
         packageName={selectedService?.label || selectedPackage?.name}
+        responseTime={responseTime}
       />
     );
   }
@@ -325,7 +332,7 @@ export function BookingForm({
         <div className="flex items-center gap-3 text-xs text-muted" aria-live="polite">
           {draftRestored && <span className="text-accent">Draft restored</span>}
           {autosaved && <span>Saved</span>}
-          <span className="text-cream-dim">Reply in 1–2 business days</span>
+          <span className="text-cream-dim">Reply {responseTime}</span>
         </div>
       </div>
 
@@ -573,7 +580,7 @@ export function BookingForm({
                   How do we reach you?
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm text-fog md:text-base">
-                  Expect a personal reply within 1–2 business days with next steps.
+                  Expect a personal reply {responseTime} with next steps.
                 </p>
               </div>
 

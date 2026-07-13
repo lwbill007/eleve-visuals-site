@@ -24,6 +24,7 @@ import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
 import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
+import { suggestPortfolioSeo } from "@/lib/seo/portfolio-seo";
 
 const ASPECT_RATIOS: AspectRatio[] = ["portrait", "landscape", "square", "wide"];
 const TABS = ["projects", "page"] as const;
@@ -489,10 +490,34 @@ export default function AdminPortfolioPage() {
                   />
                 </div>
                 <AdminField label="SEO Title">
-                  <AdminInput
-                    value={editing.seoTitle || ""}
-                    onChange={(e) => setEditing({ ...editing, seoTitle: e.target.value })}
-                  />
+                  <div className="flex gap-2">
+                    <AdminInput
+                      value={editing.seoTitle || ""}
+                      onChange={(e) => setEditing({ ...editing, seoTitle: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 border border-stone/50 px-3 py-2 text-xs tracking-wide text-fog uppercase hover:border-cream/40 hover:text-cream"
+                      onClick={() => {
+                        const suggested = suggestPortfolioSeo({
+                          title: editing.title || "Untitled",
+                          subtitle: editing.subtitle || "",
+                          description: editing.description || "",
+                          category: editing.category || "Portraits",
+                          client: editing.client,
+                          year: editing.year || "",
+                        });
+                        setEditing({
+                          ...editing,
+                          seoTitle: editing.seoTitle || suggested.seoTitle,
+                          seoDescription: editing.seoDescription || suggested.seoDescription,
+                          imageAlt: editing.imageAlt || suggested.imageAlt,
+                        });
+                      }}
+                    >
+                      Autofill empty
+                    </button>
+                  </div>
                 </AdminField>
                 <AdminField label="Image Alt Text">
                   <AdminInput

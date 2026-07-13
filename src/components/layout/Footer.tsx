@@ -38,7 +38,8 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                 {siteConfig.location}
               </p>
               <p className="mt-4 text-xs text-muted">
-                Typical reply · 1–2 business days · Inquiry-first (no online payment)
+                Typical reply · {siteConfig.responseTime || "1–2 business days"} · Inquiry-first (no
+                online payment)
               </p>
             </div>
 
@@ -92,7 +93,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
               <div className="mt-8 border border-stone/40 p-5">
                 <p className="text-sm text-cream-dim">Ready to create?</p>
                 <p className="mt-1 text-xs text-muted">
-                  Share your vision — we reply within 1–2 business days.
+                  Share your vision — we reply {siteConfig.responseTime || "within 1–2 business days"}.
                 </p>
                 <Link
                   href="/book"

@@ -5,6 +5,7 @@ import {
   getPortfolioItems,
   getServices,
   getServicesPageContent,
+  getSiteConfig,
 } from "@/lib/content";
 import { ServicesHero } from "@/components/services/ServicesHero";
 import { ServiceEditorialSection } from "@/components/services/ServiceEditorialSection";
@@ -14,28 +15,38 @@ import { ServicesWhyEleve } from "@/components/services/ServicesWhyEleve";
 import { ServicesClientExperience } from "@/components/services/ServicesClientExperience";
 import { ServicesFaq } from "@/components/services/ServicesFaq";
 import { ServicesFinalCta } from "@/components/services/ServicesFinalCta";
+import { JsonLd } from "@/components/seo/JsonLd";
 import {
   mergeServiceSection,
   pickPortfolioPreview,
   resolveServicesHeroImage,
 } from "@/lib/services-page";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
+import { buildBreadcrumbSchema, buildFaqSchema } from "@/lib/seo/structured-data";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "Services",
-  description:
-    "Premium photography, video production, and creative direction for brands, artists, athletes, and campaigns by ÉLEVÉ Visuals.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getServicesPageContent();
+  return buildPageMetadata({
+    title: page.hero?.headline || "Services",
+    description:
+      page.hero?.subheadline ||
+      "Premium photography, video production, and creative direction for brands, artists, athletes, and campaigns by ÉLEVÉ Visuals.",
+    path: "/services",
+    image: page.hero?.image,
+  });
+}
 
 export default async function ServicesPage() {
-  const [pageContent, services, portfolioItems, featuredWork, heroContent] =
+  const [pageContent, services, portfolioItems, featuredWork, heroContent, site] =
     await Promise.all([
       getServicesPageContent(),
       getServices(),
       getPortfolioItems(),
       getFeaturedPortfolio(),
       getHeroContent(),
+      getSiteConfig(),
     ]);
 
   const hero = resolveServicesHeroImage(pageContent, services, heroContent.image);
@@ -44,8 +55,17 @@ export default async function ServicesPage() {
 
   const cmsBySlug = Object.fromEntries(services.map((s) => [s.slug, s]));
 
+  const schemas = [
+    buildBreadcrumbSchema(site, [
+      { name: "Home", path: "/" },
+      { name: "Services", path: "/services" },
+    ]),
+    buildFaqSchema(pageContent.faq.items),
+  ].filter(Boolean) as Record<string, unknown>[];
+
   return (
     <>
+      <JsonLd data={schemas} />
       <ServicesHero
         eyebrow={pageContent.hero.eyebrow}
         headline={pageContent.hero.headline}

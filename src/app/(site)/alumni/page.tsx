@@ -6,11 +6,15 @@ import { SessionIcon } from "@/components/sessions/SessionIcon";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "Alumni — ÉLEVÉ Sessions",
-  description:
-    "The growing creative network behind ÉLEVÉ Sessions — photographers, models, stylists, and artists cast across every Volume.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { buildPageMetadata } = await import("@/lib/seo/page-metadata");
+  return buildPageMetadata({
+    title: "Alumni — ÉLEVÉ Sessions",
+    description:
+      "The growing creative network behind ÉLEVÉ Sessions — photographers, models, stylists, and artists cast across every Volume.",
+    path: "/alumni",
+  });
+}
 
 export default async function AlumniPage() {
   const alumni = await getAlumniDirectory();

@@ -7,6 +7,7 @@ import type { HomepageSectionCopy, SessionVolumeDTO } from "@/lib/types";
 import { isApplicationsOpen, resolveSessionPosterImage } from "@/lib/session-volume";
 import { SessionStatusBadge } from "@/components/sessions/SessionStatusBadge";
 import { Button } from "@/components/ui/Button";
+import { trackEngagement } from "@/lib/analytics-client";
 
 export function HomeSessionsPreview({
   volume,
@@ -43,6 +44,13 @@ export function HomeSessionsPreview({
         >
           <Link
             href={`/sessions/${volume.slug}`}
+            onClick={() =>
+              trackEngagement({
+                event: "cta_click",
+                path: "/",
+                label: `featured_session_${volume.slug}`,
+              })
+            }
             className="group relative aspect-[2/3] overflow-hidden bg-charcoal lg:col-span-5"
           >
             {poster ? (
@@ -75,17 +83,40 @@ export function HomeSessionsPreview({
             )}
             <p className="body-lg mt-6 max-w-xl text-fog">{synopsis}</p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Button variant="primary" href={`/sessions/${volume.slug}`}>
+              <Button
+                variant="primary"
+                href={`/sessions/${volume.slug}`}
+                onClick={() =>
+                  trackEngagement({
+                    event: "cta_click",
+                    path: "/",
+                    label: `featured_session_explore_${volume.slug}`,
+                  })
+                }
+              >
                 Explore Volume
               </Button>
               {canApply && (
-                <Button variant="secondary" href={`/sessions/${volume.slug}/apply`}>
+                <Button
+                  variant="secondary"
+                  href={`/sessions/${volume.slug}/apply`}
+                  onClick={() =>
+                    trackEngagement({
+                      event: "cta_click",
+                      path: "/",
+                      label: `featured_session_apply_${volume.slug}`,
+                    })
+                  }
+                >
                   Apply Now
                 </Button>
               )}
             </div>
             <Link
               href="/sessions"
+              onClick={() =>
+                trackEngagement({ event: "cta_click", path: "/", label: "featured_session_all" })
+              }
               className="label-caps link-underline mt-8 inline-block text-fog hover:text-cream"
             >
               Explore all sessions →

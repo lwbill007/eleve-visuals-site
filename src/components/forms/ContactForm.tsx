@@ -26,12 +26,13 @@ const initialData: ContactFormData = {
   message: "",
 };
 
-export function ContactForm() {
+export function ContactForm({ responseTime }: { responseTime?: string }) {
   const [data, setData] = useState<ContactFormData>(initialData);
   const [errors, setErrors] = useState<FormErrors<ContactFormData>>({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const spam = useFormSpam();
+  const reply = responseTime?.trim() || "within 24–48 hours on business days";
 
   const update = (key: keyof ContactFormData, value: string) => {
     setData((prev) => ({ ...prev, [key]: value }));
@@ -48,6 +49,10 @@ export function ContactForm() {
     else if (data.message.trim().length < 10)
       next.message = "Please write at least 10 characters";
     setErrors(next);
+    if (Object.keys(next).length > 0) {
+      const first = Object.keys(next)[0];
+      requestAnimationFrame(() => document.getElementById(first)?.focus());
+    }
     return Object.keys(next).length === 0;
   };
 
@@ -78,7 +83,7 @@ export function ContactForm() {
     return (
       <FormSuccess
         title="Message sent."
-        message="Thanks for reaching out. I'll get back to you within 24–48 hours on business days."
+        message={`Thanks for reaching out. I'll get back to you ${reply}.`}
         actionLabel="Send another message"
         actionHref="/contact"
       />

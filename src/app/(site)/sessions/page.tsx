@@ -24,11 +24,15 @@ import type { LightboxItem } from "@/components/sessions/MediaLightbox";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "ÉLEVÉ Sessions",
-  description:
-    "An ongoing series of cinematic creative productions. Photographers, models, stylists, and artists are cast into limited Volumes — apply to be part of the next one.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { buildPageMetadata } = await import("@/lib/seo/page-metadata");
+  return buildPageMetadata({
+    title: "ÉLEVÉ Sessions",
+    description:
+      "An ongoing series of cinematic creative productions. Photographers, models, stylists, and artists are cast into limited Volumes — apply to be part of the next one.",
+    path: "/sessions",
+  });
+}
 
 const GALLERY_LIMIT = 16;
 

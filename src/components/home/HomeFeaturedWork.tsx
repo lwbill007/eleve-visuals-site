@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import type { HomepageSectionCopy, PortfolioItemDTO } from "@/lib/types";
 import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
 import { cn } from "@/lib/utils";
+import { trackEngagement } from "@/lib/analytics-client";
 
 export function HomeFeaturedWork({
   items,
@@ -36,7 +37,13 @@ export function HomeFeaturedWork({
           <p className="label-caps mb-4 text-accent">{copy.eyebrow}</p>
           <h2 className="headline-lg">{copy.headline}</h2>
           <p className="body-lg mx-auto mt-4 max-w-xl text-fog">{copy.subheadline}</p>
-          <Link href="/book" className="label-caps link-underline mt-8 inline-block text-accent">
+          <Link
+            href="/book"
+            onClick={() =>
+              trackEngagement({ event: "cta_click", path: "/", label: "featured_work_empty_book" })
+            }
+            className="label-caps link-underline mt-8 inline-block text-accent"
+          >
             Book a project →
           </Link>
         </div>
@@ -95,6 +102,13 @@ export function HomeFeaturedWork({
                 >
                   <Link
                     href={`/portfolio/${item.slug}`}
+                    onClick={() =>
+                      trackEngagement({
+                        event: "cta_click",
+                        path: "/",
+                        label: `featured_work_${item.slug}`,
+                      })
+                    }
                     className={cn(
                       "group relative block overflow-hidden bg-charcoal",
                       isHero ? "min-h-[420px] md:min-h-[640px]" : "min-h-[320px] md:min-h-[380px]"
@@ -137,7 +151,13 @@ export function HomeFeaturedWork({
         )}
 
         <div className="mt-12 text-center">
-          <Link href="/portfolio" className="label-caps link-underline text-accent hover:text-cream">
+          <Link
+            href="/portfolio"
+            onClick={() =>
+              trackEngagement({ event: "cta_click", path: "/", label: "featured_work_all" })
+            }
+            className="label-caps link-underline text-accent hover:text-cream"
+          >
             Explore full portfolio →
           </Link>
         </div>

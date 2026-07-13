@@ -13,6 +13,7 @@ export function BookingSuccess({
   inquiryId,
   status = "lead",
   packageName,
+  responseTime = "1–2 business days",
 }: {
   title: string;
   message: string;
@@ -20,9 +21,11 @@ export function BookingSuccess({
   inquiryId?: string;
   status?: string;
   packageName?: string;
+  responseTime?: string;
 }) {
   const reduceMotion = useReducedMotion();
   const current = clientTimelineIndex(status);
+  const reply = responseTime.trim() || "1–2 business days";
 
   return (
     <motion.div
@@ -68,10 +71,10 @@ export function BookingSuccess({
 
         <p className="mx-auto mt-6 max-w-xl text-center text-base leading-relaxed text-fog md:text-lg">
           {message ||
-            "We're excited to learn more about your vision. Our team typically responds within 1–2 business days."}
+            `We're excited to learn more about your vision. Our team typically responds ${reply.startsWith("within") || reply.startsWith("Within") ? reply : `within ${reply}`}.`}
         </p>
         <p className="mt-3 text-center text-xs tracking-[0.14em] text-accent uppercase">
-          Expected reply · 1–2 business days
+          Expected reply · {reply}
         </p>
 
         <div className="mx-auto mt-12 max-w-3xl border border-stone/30 bg-ink/40 p-6 md:p-8">

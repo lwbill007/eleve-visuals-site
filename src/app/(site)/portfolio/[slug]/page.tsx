@@ -4,11 +4,13 @@ import { PortfolioDetailView } from "@/components/portfolio/PortfolioDetailView"
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getSiteConfig } from "@/lib/content";
 import { getPortfolioAdjacent, getPortfolioItemBySlug } from "@/lib/portfolio";
+import { siteResponseTime } from "@/lib/seo/page-metadata";
 import {
   buildBreadcrumbSchema,
   buildCreativeWorkSchema,
   buildImageObjectSchemas,
 } from "@/lib/seo/structured-data";
+import { suggestPortfolioSeo } from "@/lib/seo/portfolio-seo";
 
 export const revalidate = 60;
 
@@ -21,9 +23,9 @@ export async function generateMetadata({
   const project = await getPortfolioItemBySlug(slug);
   if (!project) return { title: "Project Not Found" };
 
-  const title = project.seoTitle || `${project.title} — Portfolio`;
-  const description =
-    project.seoDescription || project.subtitle || project.description.slice(0, 160);
+  const suggested = suggestPortfolioSeo(project);
+  const title = project.seoTitle || suggested.seoTitle;
+  const description = project.seoDescription || suggested.seoDescription;
   const image = project.heroImage || project.image || undefined;
 
   return {
@@ -73,7 +75,12 @@ export default async function PortfolioProjectPage({
   return (
     <>
       <JsonLd data={schemas} />
-      <PortfolioDetailView project={project} prev={adjacent.prev} next={adjacent.next} />
+      <PortfolioDetailView
+        project={project}
+        prev={adjacent.prev}
+        next={adjacent.next}
+        responseTime={siteResponseTime(site)}
+      />
     </>
   );
 }

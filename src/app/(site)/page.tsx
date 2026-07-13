@@ -10,6 +10,7 @@ import {
   getSiteConfig,
 } from "@/lib/content";
 import { getFeaturedSessionVolume, getSessionVolumeById } from "@/lib/session-volumes";
+import { HomeAnnouncementBanner } from "@/components/home/HomeAnnouncementBanner";
 import { HomeHero } from "@/components/home/HomeHero";
 import { HomeTrustBar } from "@/components/home/HomeTrustBar";
 import { HomeStats } from "@/components/home/HomeStats";
@@ -26,6 +27,7 @@ import {
   buildReviewSchemas,
   buildWebsiteSchema,
 } from "@/lib/seo/structured-data";
+import { siteResponseTime } from "@/lib/seo/page-metadata";
 
 export const revalidate = 60;
 
@@ -174,11 +176,18 @@ export default async function HomePage() {
   const website = buildWebsiteSchema(site);
   const reviews = buildReviewSchemas(site, testimonials);
 
+  const responseTime = siteResponseTime(site);
+
   return (
     <>
       <JsonLd data={[org, website, ...(reviews ?? [])]} />
+      <HomeAnnouncementBanner banner={homepage.banner} />
       <HomeHero hero={hero} experimentId={homepage.experiment?.id} />
-      <HomeTrustBar testimonials={testimonials} content={homepage.trustBar} />
+      <HomeTrustBar
+        testimonials={testimonials}
+        content={homepage.trustBar}
+        responseTime={responseTime}
+      />
       {orderedSections(homepage.sections)
         .map((s) => sectionMap[s.id])
         .filter(Boolean)}

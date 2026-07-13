@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSessionVolumeBySlug, getAllSessionVolumes } from "@/lib/session-volumes";
-import { getSessionsApplicationContent } from "@/lib/content";
+import { getSessionsApplicationContent, getSiteConfig } from "@/lib/content";
 import {
   validateSessionApplicationGate,
   countAcceptedApplications,
 } from "@/lib/session-application-server";
 import { getCastForVolume, getCastAppearances } from "@/lib/cast-server";
 import { SessionDetailView } from "@/components/sessions/SessionDetailView";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
+import {
+  buildBreadcrumbSchema,
+  buildSessionVolumeSchema,
+} from "@/lib/seo/structured-data";
 import type { SessionVolumeDTO } from "@/lib/types";
+import { resolveSessionPosterImage } from "@/lib/session-volume";
 
 export const revalidate = 60;
 
@@ -21,18 +28,19 @@ export async function generateMetadata({
   const volume = await getSessionVolumeBySlug(slug);
   if (!volume) return { title: "Session Not Found" };
 
-  return {
-    title: volume.seoTitle || `${volume.title} — ÉLEVÉ Sessions Vol. ${volume.volumeNumber}`,
-    description:
-      volume.seoDescription ||
-      volume.subtitle ||
-      volume.synopsis.slice(0, 160),
-    openGraph: {
-      title: volume.title,
-      description: volume.subtitle || volume.theme,
-      images: volume.posterImage ? [{ url: volume.posterImage }] : undefined,
-    },
-  };
+  const title =
+    volume.seoTitle || `${volume.title} — ÉLEVÉ Sessions Vol. ${volume.volumeNumber}`;
+  const description =
+    volume.seoDescription || volume.subtitle || volume.synopsis.slice(0, 160);
+  const image = resolveSessionPosterImage(volume);
+
+  return buildPageMetadata({
+    title,
+    description,
+    path: `/sessions/${volume.slug}`,
+    image,
+    absoluteTitle: Boolean(volume.seoTitle),
+  });
 }
 
 export default async function SessionVolumePage({
@@ -41,9 +49,10 @@ export default async function SessionVolumePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [volume, applicationContent] = await Promise.all([
+  const [volume, applicationContent, site] = await Promise.all([
     getSessionVolumeBySlug(slug),
     getSessionsApplicationContent(),
+    getSiteConfig(),
   ]);
 
   if (!volume) notFound();
@@ -79,16 +88,28 @@ export default async function SessionVolumePage({
     applicationSettings: JSON.stringify(volume.applicationSettings),
   });
 
+  const schemas = [
+    buildBreadcrumbSchema(site, [
+      { name: "Home", path: "/" },
+      { name: "Sessions", path: "/sessions" },
+      { name: volume.title, path: `/sessions/${volume.slug}` },
+    ]),
+    buildSessionVolumeSchema(site, volume),
+  ];
+
   return (
-    <SessionDetailView
-      volume={volume}
-      applicationContent={applicationContent}
-      canApply={applyGate.ok}
-      cast={cast}
-      appearances={appearances}
-      acceptedCount={acceptedCount}
-      recommended={recommended}
-      comingSoon={comingSoon}
-    />
+    <>
+      <JsonLd data={schemas} />
+      <SessionDetailView
+        volume={volume}
+        applicationContent={applicationContent}
+        canApply={applyGate.ok}
+        cast={cast}
+        appearances={appearances}
+        acceptedCount={acceptedCount}
+        recommended={recommended}
+        comingSoon={comingSoon}
+      />
+    </>
   );
 }

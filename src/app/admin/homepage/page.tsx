@@ -306,6 +306,65 @@ export default function AdminHomepagePage() {
         </section>
 
         <section className="border border-stone/30 p-6">
+          <h2 className="mb-2 font-display text-xl">Announcement Banner</h2>
+          <p className="mb-6 text-xs text-muted">
+            Optional slim bar above the hero — seasonal offers, session opens, or campaign notes.
+          </p>
+          <label className="mb-4 flex items-center gap-3 text-sm text-cream">
+            <input
+              type="checkbox"
+              checked={homepage.banner?.enabled ?? false}
+              onChange={(e) =>
+                setHomepage({
+                  ...homepage,
+                  banner: {
+                    enabled: e.target.checked,
+                    text: homepage.banner?.text || "",
+                    href: homepage.banner?.href || "/book",
+                    image: homepage.banner?.image ?? null,
+                  },
+                })
+              }
+            />
+            Show announcement banner
+          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <AdminField label="Banner text">
+              <AdminInput
+                value={homepage.banner?.text || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    banner: {
+                      enabled: homepage.banner?.enabled ?? false,
+                      text: e.target.value,
+                      href: homepage.banner?.href || "/book",
+                      image: homepage.banner?.image ?? null,
+                    },
+                  })
+                }
+              />
+            </AdminField>
+            <AdminField label="Link href">
+              <AdminInput
+                value={homepage.banner?.href || ""}
+                onChange={(e) =>
+                  setHomepage({
+                    ...homepage,
+                    banner: {
+                      enabled: homepage.banner?.enabled ?? false,
+                      text: homepage.banner?.text || "",
+                      href: e.target.value,
+                      image: homepage.banner?.image ?? null,
+                    },
+                  })
+                }
+              />
+            </AdminField>
+          </div>
+        </section>
+
+        <section className="border border-stone/30 p-6">
           <h2 className="mb-2 font-display text-xl">Trust Bar</h2>
           <p className="mb-6 text-xs text-muted">
             Appears immediately under the hero. Toggle, copy, stats, and pinned testimonials — no deploy.

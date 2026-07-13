@@ -1,19 +1,38 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { PageHero, CTABanner } from "@/components/ui/Section";
-import { getAboutContent, getPageCopy } from "@/lib/content";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { getAboutContent, getPageCopy, getSiteConfig } from "@/lib/content";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
+import { buildBreadcrumbSchema } from "@/lib/seo/structured-data";
 
-export const metadata: Metadata = {
-  title: "About",
-  description:
-    "Meet Bill — the visual director behind ÉLEVÉ Visuals. Photography, film, and creative direction in Sacramento and the Bay Area.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const about = await getAboutContent();
+  return buildPageMetadata({
+    title: "About",
+    description:
+      about.intro?.slice(0, 160) ||
+      "Meet Bill — the visual director behind ÉLEVÉ Visuals. Photography, film, and creative direction in Sacramento and the Bay Area.",
+    path: "/about",
+    image: about.image,
+  });
+}
 
 export default async function AboutPage() {
-  const [aboutContent, pageCopy] = await Promise.all([getAboutContent(), getPageCopy()]);
+  const [aboutContent, pageCopy, site] = await Promise.all([
+    getAboutContent(),
+    getPageCopy(),
+    getSiteConfig(),
+  ]);
 
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbSchema(site, [
+          { name: "Home", path: "/" },
+          { name: "About", path: "/about" },
+        ])}
+      />
       <PageHero
         eyebrow="About"
         headline={aboutContent.headline}
@@ -40,7 +59,9 @@ export default async function AboutPage() {
             <div className="flex flex-col justify-center lg:col-span-7">
               <div className="space-y-5">
                 {aboutContent.story.map((p, i) => (
-                  <p key={i} className="body-lg">{p}</p>
+                  <p key={i} className="body-lg">
+                    {p}
+                  </p>
                 ))}
               </div>
             </div>
@@ -54,7 +75,7 @@ export default async function AboutPage() {
           <div className="grid gap-8 md:grid-cols-3">
             {aboutContent.philosophy.pillars.map((pillar) => (
               <div key={pillar.title} className="border-t border-accent/40 pt-6">
-                <h3 className="font-display text-2xl mb-3">{pillar.title}</h3>
+                <h3 className="mb-3 font-display text-2xl">{pillar.title}</h3>
                 <p className="text-sm leading-relaxed text-fog">{pillar.description}</p>
               </div>
             ))}
@@ -68,8 +89,8 @@ export default async function AboutPage() {
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {aboutContent.process.steps.map((step) => (
               <div key={step.step}>
-                <p className="font-display text-4xl text-stone mb-4">{step.step}</p>
-                <h3 className="font-display text-xl mb-2">{step.title}</h3>
+                <p className="mb-4 font-display text-4xl text-stone">{step.step}</p>
+                <h3 className="mb-2 font-display text-xl">{step.title}</h3>
                 <p className="text-sm leading-relaxed text-fog">{step.description}</p>
               </div>
             ))}
@@ -97,6 +118,7 @@ export default async function AboutPage() {
         primaryHref={pageCopy.aboutCta.primaryHref}
         secondaryLabel={pageCopy.aboutCta.secondaryLabel}
         secondaryHref={pageCopy.aboutCta.secondaryHref}
+        analyticsLabel="about_cta"
       />
     </>
   );

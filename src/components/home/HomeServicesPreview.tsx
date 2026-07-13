@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { HomepageSectionCopy, ServiceDTO } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
+import { trackEngagement } from "@/lib/analytics-client";
 
 function serviceImage(service: ServiceDTO): string | null {
   return service.bannerImage || service.thumbnailImage || service.image;
@@ -45,7 +46,17 @@ export function HomeServicesPreview({
                 transition={{ duration: 0.8, delay: index * 0.1 }}
                 className="group relative overflow-hidden bg-charcoal"
               >
-                <Link href={`/services#${service.slug}`} className="block">
+                <Link
+                  href={`/services#${service.slug}`}
+                  onClick={() =>
+                    trackEngagement({
+                      event: "cta_click",
+                      path: "/",
+                      label: `home_service_${service.slug}`,
+                    })
+                  }
+                  className="block"
+                >
                   <div className="relative aspect-[4/5] overflow-hidden">
                     {image ? (
                       <Image
@@ -77,7 +88,13 @@ export function HomeServicesPreview({
         </div>
 
         <div className="mt-12 text-center">
-          <Button variant="ghost" href="/services">
+          <Button
+            variant="ghost"
+            href="/services"
+            onClick={() =>
+              trackEngagement({ event: "cta_click", path: "/", label: "home_services_all" })
+            }
+          >
             View all services
           </Button>
         </div>

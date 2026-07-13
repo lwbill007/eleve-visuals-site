@@ -21,6 +21,8 @@ export function FormField({
   children,
   className,
 }: FormFieldProps) {
+  const errorId = `${name}-error`;
+  const hintId = `${name}-hint`;
   return (
     <div className={cn("space-y-2", className)}>
       <label htmlFor={name} className="block text-sm text-cream-dim">
@@ -29,9 +31,15 @@ export function FormField({
       </label>
       {children}
       {hint && !error && (
-        <p className="text-xs text-muted">{hint}</p>
+        <p id={hintId} className="text-xs text-muted">
+          {hint}
+        </p>
       )}
-      {error && <p className="field-error">{error}</p>}
+      {error && (
+        <p id={errorId} className="field-error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

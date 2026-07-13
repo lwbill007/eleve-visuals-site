@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
 import { MediaImage } from "./MediaImage";
+import { trackEngagement } from "@/lib/analytics-client";
 
 interface SectionHeaderProps {
   eyebrow?: string;
@@ -105,6 +106,7 @@ interface CTABannerProps {
   primaryHref: string;
   secondaryLabel?: string;
   secondaryHref?: string;
+  analyticsLabel?: string;
 }
 
 export function CTABanner({
@@ -114,6 +116,7 @@ export function CTABanner({
   primaryHref,
   secondaryLabel,
   secondaryHref,
+  analyticsLabel = "cta_banner",
 }: CTABannerProps) {
   return (
     <section className="section-padding border-t border-stone/30 bg-ink-soft">
@@ -121,11 +124,29 @@ export function CTABanner({
         <h2 className="headline-md mx-auto max-w-2xl text-balance">{headline}</h2>
         {subheadline && <p className="body-lg mx-auto mt-4 max-w-lg">{subheadline}</p>}
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button variant="primary" href={primaryHref}>
+          <Button
+            variant="primary"
+            href={primaryHref}
+            onClick={() =>
+              trackEngagement({
+                event: "cta_click",
+                label: `${analyticsLabel}_primary`,
+              })
+            }
+          >
             {primaryLabel}
           </Button>
           {secondaryLabel && secondaryHref && (
-            <Button variant="secondary" href={secondaryHref}>
+            <Button
+              variant="secondary"
+              href={secondaryHref}
+              onClick={() =>
+                trackEngagement({
+                  event: "cta_click",
+                  label: `${analyticsLabel}_secondary`,
+                })
+              }
+            >
               {secondaryLabel}
             </Button>
           )}

@@ -8,9 +8,11 @@ import { trackEngagement, trackFunnel } from "@/lib/analytics-client";
 export function HomeTrustBar({
   testimonials,
   content,
+  responseTime,
 }: {
   testimonials: TestimonialDTO[];
   content: HomepageTrustBarContent;
+  responseTime?: string;
 }) {
   if (!content.enabled) return null;
 
@@ -20,10 +22,11 @@ export function HomeTrustBar({
         .filter((t): t is TestimonialDTO => Boolean(t))
     : [];
   const preview = (pinned.length ? pinned : testimonials).slice(0, 3);
+  const reply = responseTime?.trim() || "1–2 business days";
   const stats = content.stats?.length
     ? content.stats
     : [
-        { label: "Typical reply", value: "1–2 days" },
+        { label: "Typical reply", value: reply },
         { label: "Inquiry-first", value: "No deposit online" },
         { label: "Production", value: "Northern California" },
       ];

@@ -6,10 +6,12 @@ export function BookingHero({
   headline,
   subheadline,
   notes,
+  responseTime = "1–2 business days",
 }: {
   headline: string;
   subheadline: string;
   notes: string[];
+  responseTime?: string;
 }) {
   return (
     <section className="relative overflow-hidden border-b border-stone/30">
@@ -45,7 +47,7 @@ export function BookingHero({
             {subheadline}
           </motion.p>
           <p className="mt-4 text-sm text-muted">
-            Four short steps · Inquiry only · Reply within 1–2 business days · No payment online
+            Four short steps · Inquiry only · Reply {responseTime} · No payment online
           </p>
           <motion.ul
             initial={{ opacity: 0, y: 16 }}

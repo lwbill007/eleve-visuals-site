@@ -3,7 +3,13 @@
  * Never invents reviews or ratings — only emits what's measured/configured.
  */
 
-import type { FaqItem, PortfolioItemDTO, SiteConfig, TestimonialDTO } from "@/lib/types";
+import type {
+  FaqItem,
+  PortfolioItemDTO,
+  SessionVolumeDTO,
+  SiteConfig,
+  TestimonialDTO,
+} from "@/lib/types";
 
 function absoluteUrl(base: string, pathOrUrl: string | null | undefined): string | undefined {
   if (!pathOrUrl) return undefined;
@@ -14,6 +20,8 @@ function absoluteUrl(base: string, pathOrUrl: string | null | undefined): string
 
 export function buildOrganizationSchema(site: SiteConfig) {
   const url = site.url?.replace(/\/$/, "") || "https://elevevisuals.com";
+  const locationLabel = site.location || "Northern California";
+
   return {
     "@context": "https://schema.org",
     "@type": ["PhotographyBusiness", "ProfessionalService", "LocalBusiness"],
@@ -22,11 +30,23 @@ export function buildOrganizationSchema(site: SiteConfig) {
     url,
     description: site.description || site.seoDescription,
     email: site.email,
+    telephone: site.phone || undefined,
     image: absoluteUrl(url, site.ogImage),
     logo: absoluteUrl(url, site.ogImage),
-    sameAs: [site.instagramUrl].filter(Boolean),
-    areaServed: site.location || "Northern California",
+    sameAs: [site.instagramUrl, site.tiktokUrl].filter(Boolean),
+    areaServed: site.serviceArea || locationLabel,
     priceRange: "$$–$$$$",
+    openingHours: site.businessHours || undefined,
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: locationLabel.includes(",")
+        ? locationLabel.split(",")[0].trim()
+        : locationLabel,
+      addressRegion: locationLabel.includes(",")
+        ? locationLabel.split(",").slice(1).join(",").trim()
+        : "CA",
+      addressCountry: "US",
+    },
     founder: site.creator
       ? {
           "@type": "Person",
@@ -143,4 +163,45 @@ export function buildImageObjectSchemas(site: SiteConfig, project: PortfolioItem
     description: project.imageAlt || project.title,
     creator: { "@type": "Organization", name: site.name },
   }));
+}
+
+export function buildSessionVolumeSchema(site: SiteConfig, volume: SessionVolumeDTO) {
+  const url = site.url?.replace(/\/$/, "") || "https://elevevisuals.com";
+  const pageUrl = `${url}/sessions/${volume.slug}`;
+  const image =
+    absoluteUrl(url, volume.posterImage) ||
+    absoluteUrl(url, volume.bannerImage) ||
+    undefined;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    "@id": pageUrl,
+    name: volume.title,
+    alternateName: `ÉLEVÉ Sessions Vol. ${volume.volumeNumber}`,
+    description:
+      volume.seoDescription || volume.subtitle || volume.synopsis?.slice(0, 300) || volume.theme,
+    url: pageUrl,
+    image,
+    genre: volume.genre || volume.category || undefined,
+    creator: {
+      "@type": "Organization",
+      "@id": `${url}/#organization`,
+      name: site.name,
+    },
+  };
+}
+
+/** Resolve related service labels to deep-linkable service section anchors. */
+export function relatedServiceHref(label: string): string {
+  const slug = label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (!slug) return "/services";
+  // Known CMS service section slugs
+  const known = ["photography", "videography", "creative-direction", "branding"];
+  const match = known.find((k) => slug.includes(k) || k.includes(slug));
+  return match ? `/services#${match}` : "/services";
 }
