@@ -146,6 +146,7 @@ export default function ApplicationsIntelligenceClient() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
   const [rankMeta, setRankMeta] = useState({ applicationCount: 0, unevaluatedCount: 0 });
+  const [rankWarning, setRankWarning] = useState<string | null>(null);
   const focusId = searchParams.get("focus");
 
   const load = useCallback(async (quiet = false) => {
@@ -162,18 +163,21 @@ export default function ApplicationsIntelligenceClient() {
         ranked?: SessionApplicationRank[];
         applicationCount?: number;
         unevaluatedCount?: number;
+        warning?: string;
       };
       setRanked(payload.ranked ?? []);
       setRankMeta({
         applicationCount: payload.applicationCount ?? payload.ranked?.length ?? 0,
         unevaluatedCount: payload.unevaluatedCount ?? 0,
       });
+      setRankWarning(payload.warning ?? null);
     } else {
-      toast("Hiring intelligence could not be loaded.", "error");
+      // AI intelligence failing must never hide the applications themselves.
+      setRankWarning("AI rankings could not be loaded. Applications are shown without scores.");
     }
     setLoading(false);
     setRefreshing(false);
-  }, [toast, volume]);
+  }, [volume]);
 
   const rerank = useCallback(async () => {
     setRefreshing(true);
@@ -426,28 +430,66 @@ export default function ApplicationsIntelligenceClient() {
               <WorkspaceEmpty title="No applications to analyze" detail="Applications will be ranked as soon as a candidate submits evidence." />
             </div>
           ) : ranked.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-accent/25 bg-accent/[0.05] px-6 py-12 text-center">
-              <p className="text-[0.6rem] tracking-[0.18em] text-accent uppercase">Awaiting AI evaluation</p>
-              <p className="mt-3 font-display text-3xl text-cream">
-                {Math.max(rankMeta.applicationCount, items.length)} application
-                {Math.max(rankMeta.applicationCount, items.length) === 1 ? "" : "s"} ready to rank
-              </p>
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-fog">
-                Rankings are created by the AI evaluation engine, not by profile completeness. Run
-                Re-Rank to evaluate the full cohort, compare every applicant head-to-head, and save
-                the results.
-              </p>
-              <button
-                type="button"
-                onClick={() => void rerank()}
-                disabled={refreshing}
-                className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-cream px-6 text-xs tracking-[0.12em] text-ink uppercase transition-colors hover:bg-accent disabled:opacity-50"
-              >
-                {refreshing ? "Evaluating cohort…" : "✦ Run first AI ranking"}
-              </button>
+            <div className="mt-8 space-y-6">
+              <div className="rounded-2xl border border-accent/25 bg-accent/[0.05] px-6 py-12 text-center">
+                <p className="text-[0.6rem] tracking-[0.18em] text-accent uppercase">Awaiting AI evaluation</p>
+                <p className="mt-3 font-display text-3xl text-cream">
+                  {Math.max(rankMeta.applicationCount, items.length)} application
+                  {Math.max(rankMeta.applicationCount, items.length) === 1 ? "" : "s"} ready to rank
+                </p>
+                <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-fog">
+                  Rankings are created by the AI evaluation engine, not by profile completeness. Run
+                  Re-Rank to evaluate the full cohort, compare every applicant head-to-head, and save
+                  the results.
+                </p>
+                {rankWarning && <p className="mx-auto mt-3 max-w-xl text-xs text-amber-300">{rankWarning}</p>}
+                <button
+                  type="button"
+                  onClick={() => void rerank()}
+                  disabled={refreshing}
+                  className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-cream px-6 text-xs tracking-[0.12em] text-ink uppercase transition-colors hover:bg-accent disabled:opacity-50"
+                >
+                  {refreshing ? "Evaluating cohort…" : "✦ Run first AI ranking"}
+                </button>
+              </div>
+              {items.length > 0 && (
+                <section aria-label="Applications awaiting evaluation" className="space-y-2">
+                  <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Submitted applications</p>
+                  {items.map((row) => {
+                    const data = row.data ?? {};
+                    const name = String(data.fullName || data.name || "Applicant");
+                    const roles = Array.isArray(data.roles)
+                      ? data.roles.filter((value): value is string => typeof value === "string")
+                      : typeof data.role === "string" && data.role
+                        ? [data.role]
+                        : [];
+                    return (
+                      <div
+                        key={row.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone/20 bg-charcoal/20 px-4 py-3"
+                      >
+                        <div>
+                          <p className="text-sm text-cream">{name}</p>
+                          <p className="mt-0.5 text-xs text-muted">
+                            {roles.join(", ") || "Role not specified"} · Applied {new Date(row.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className="rounded-full border border-stone/30 px-2.5 py-1 text-[0.6rem] tracking-[0.12em] text-fog uppercase">
+                          {APPLICATION_STATUS_LABELS[row.status] ?? row.status}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
             </div>
           ) : (
             <>
+              {rankWarning && (
+                <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+                  <p className="text-sm text-amber-200">{rankWarning}</p>
+                </div>
+              )}
               {rankMeta.unevaluatedCount > 0 && (
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
                   <p className="text-sm text-amber-200">

@@ -18,10 +18,28 @@ export async function GET(req: Request) {
   const volumeId = new URL(req.url).searchParams.get("volumeId") || undefined;
   const summary = new URL(req.url).searchParams.get("summary") === "1";
 
-  const state = await getSavedRankingState(volumeId);
+  // AI intelligence is optional: if evaluations cannot be loaded (e.g. the
+  // evaluation table is missing or a query fails), report the failure instead
+  // of 500ing so the applications list still renders.
+  let state;
+  try {
+    state = await getSavedRankingState(volumeId);
+  } catch (error) {
+    console.error("Failed to load saved application rankings:", error);
+    return NextResponse.json({
+      ranked: [],
+      applicationCount: 0,
+      unevaluatedCount: 0,
+      warning: "AI evaluations are unavailable. Applications are still accessible below.",
+    });
+  }
   if (summary && state.ranked.length > 0) {
-    const text = await generateApplicationRankingSummary(volumeId);
-    return NextResponse.json({ ...state, summary: text });
+    try {
+      const text = await generateApplicationRankingSummary(volumeId);
+      return NextResponse.json({ ...state, summary: text });
+    } catch (error) {
+      console.error("Failed to generate ranking summary:", error);
+    }
   }
   return NextResponse.json(state);
 }
