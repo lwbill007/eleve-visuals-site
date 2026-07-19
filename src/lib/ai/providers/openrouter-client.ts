@@ -24,10 +24,23 @@ function headers() {
 }
 
 function formatMessages(messages: AICompletionRequest["messages"]) {
-  return messages.map((m) => ({
-    role: m.role === "tool" ? ("user" as const) : m.role === "assistant" ? ("assistant" as const) : m.role,
-    content: m.role === "tool" ? `[Tool: ${m.toolName}]\n${m.content}` : m.content,
-  }));
+  return messages.map((m) => {
+    const role = m.role === "tool" ? ("user" as const) : m.role === "assistant" ? ("assistant" as const) : m.role;
+    const text = m.role === "tool" ? `[Tool: ${m.toolName}]\n${m.content}` : m.content;
+    return {
+      role,
+      content:
+        m.images?.length && m.role === "user"
+          ? [
+              { type: "text" as const, text },
+              ...m.images.slice(0, 8).map((url) => ({
+                type: "image_url" as const,
+                image_url: { url },
+              })),
+            ]
+          : text,
+    };
+  });
 }
 
 function formatTools(tools?: AICompletionRequest["tools"]) {

@@ -98,6 +98,7 @@ model Submission {
   readAt           DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  aiEvaluation     ApplicationEvaluation?
 
   @@index([type, status])
   @@index([type, createdAt])
@@ -107,6 +108,29 @@ model Submission {
   @@index([sessionVolumeId, type])
   @@index([starred, type])
   @@index([contactEmail])
+}
+
+/// Persisted, auditable AI evaluation for a session application.
+/// Re-rank replaces these values only after a complete cohort evaluation succeeds.
+model ApplicationEvaluation {
+  id            String   @id @default(cuid())
+  submissionId  String   @unique
+  volumeId      String?
+  score         Float
+  confidence    Int
+  rank          Int
+  version       String
+  provider      String
+  inputHash     String
+  result        String
+  evaluatedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([volumeId, rank])
+  @@index([evaluatedAt])
 }
 
 /// Settled payments from Stripe webhooks (or manual admin entry).

@@ -23,16 +23,18 @@ export function ApplicationRankingPanel({ volumeId }: { volumeId?: string }) {
 
   async function refresh() {
     setLoading(true);
-    const params = volumeId ? `?volumeId=${volumeId}&summary=1` : "?summary=1";
-    const res = await adminFetch(`/api/admin/ai/sessions/rank${params}`);
+    const params = volumeId ? `?volumeId=${volumeId}` : "";
+    const res = await adminFetch(`/api/admin/ai/sessions/rank${params}`, { method: "POST" });
     const d = await res.json();
-    setRanked(d.ranked ?? []);
-    setSummary(d.summary ?? "");
+    if (res.ok) setRanked(d.ranked ?? []);
     setLoading(false);
   }
 
   return (
-    <AdminPanel title="AI Application Ranking" subtitle="Scored by profile completeness — final decisions remain yours">
+    <AdminPanel
+      title="AI Application Ranking"
+      subtitle="Ranked using AI evaluation based on portfolio, experience, business value, brand alignment, and supporting evidence."
+    >
       <div className="mb-4 flex justify-end">
         <button type="button" onClick={refresh} disabled={loading} className="text-xs text-accent uppercase">
           {loading ? "Ranking…" : "✦ Re-rank"}
@@ -54,7 +56,13 @@ export function ApplicationRankingPanel({ volumeId }: { volumeId?: string }) {
               <p className="truncate text-xs text-fog">{app.strengths.join(" · ")}</p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <span className="font-display text-lg text-accent">{app.score}</span>
+              <div className="text-right">
+                <span className="font-display text-lg text-accent">{app.score}</span>
+                <p className="text-[0.6rem] text-muted">
+                  {app.confidence}% confidence · {new Date(app.evaluatedAt).toLocaleDateString()}
+                </p>
+                <p className="text-[0.55rem] text-muted">{app.evaluationVersion}</p>
+              </div>
               <Link href={app.href} className="text-xs text-accent uppercase">
                 Review
               </Link>

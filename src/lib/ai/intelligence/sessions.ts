@@ -1,414 +1,355 @@
+import { createHash } from "node:crypto";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { normalizeApplicationStatus } from "@/lib/types";
+import { aiComplete } from "../adapter";
+import { isAIConfigured } from "../config";
 import { generateAIContent } from "../service";
 import type { SessionApplicationRank } from "../types";
 
-/**
- * Comparative ranking engine for session applications.
- *
- * Pipeline: collect evidence → extract features → evaluate categories →
- * weighted raw score → cohort-relative final score → confidence →
- * tie-breaks → reason for rank.
- *
- * Rules the engine enforces:
- * - No points without evidence: a category with zero observed signals scores 0.
- * - Scores are relative: the final score blends absolute evidence quality with
- *   position in the cohort, so identical scores only occur for identical evidence.
- * - Confidence is computed separately and never inflates the quality score.
- * - Revenue is reported only from settled Payment rows; otherwise the engine
- *   states "Insufficient historical data" instead of inventing figures.
- */
-
 type RankedCategory = SessionApplicationRank["categories"][number];
-type Prediction = SessionApplicationRank["predictions"][number];
 type CategoryKey = RankedCategory["key"];
+
+export const APPLICATION_EVALUATION_VERSION = "ai-evaluation-v3.0";
 
 const CATEGORY_DEFINITIONS: { key: CategoryKey; label: string; maxScore: number }[] = [
   { key: "portfolioQuality", label: "Portfolio Quality", maxScore: 25 },
   { key: "brandAlignment", label: "Brand Alignment", maxScore: 20 },
   { key: "businessValue", label: "Business Value", maxScore: 15 },
-  { key: "reliability", label: "Reliability", maxScore: 15 },
+  { key: "professionalPresence", label: "Professionalism", maxScore: 15 },
   { key: "versatility", label: "Versatility", maxScore: 10 },
-  { key: "professionalPresence", label: "Professional Presence", maxScore: 5 },
-  { key: "marketingImpact", label: "Marketing Impact", maxScore: 5 },
   { key: "experience", label: "Experience", maxScore: 5 },
+  { key: "marketingImpact", label: "Marketing Value", maxScore: 5 },
+  { key: "applicationQuality", label: "Application Quality", maxScore: 5 },
 ];
 
-/** Order used to break near-equal overall scores, most decisive first. */
 const TIE_BREAK_CHAIN: { key: CategoryKey | "confidence"; label: string }[] = [
   { key: "businessValue", label: "Business Value" },
   { key: "brandAlignment", label: "Brand Alignment" },
   { key: "portfolioQuality", label: "Portfolio" },
-  { key: "reliability", label: "Reliability" },
+  { key: "professionalPresence", label: "Professionalism" },
   { key: "experience", label: "Experience" },
   { key: "confidence", label: "Confidence" },
   { key: "versatility", label: "Versatility" },
 ];
 
-// ---------------------------------------------------------------------------
-// Stage 1 — collect evidence
-// ---------------------------------------------------------------------------
+const categoryKeySchema = z.enum([
+  "portfolioQuality",
+  "brandAlignment",
+  "businessValue",
+  "professionalPresence",
+  "versatility",
+  "experience",
+  "marketingImpact",
+  "applicationQuality",
+]);
+
+const aiCategorySchema = z.object({
+  key: categoryKeySchema,
+  score: z.number().min(0).max(100).nullable(),
+  confidence: z.number().min(0).max(100),
+  notes: z.string().min(1),
+  evidence: z.array(z.string()).max(6),
+  missing: z.array(z.string()).max(6),
+  improvements: z.array(z.string()).max(4),
+});
+
+const aiEvaluationSchema = z.object({
+  categories: z.array(aiCategorySchema),
+  strengths: z.array(z.string()).min(1).max(5),
+  weaknesses: z.array(z.string()).min(1).max(5),
+  recommendedProjects: z.array(z.string()).min(1).max(4),
+  riskSignals: z.array(z.string()).max(5),
+});
+
+type AIEvaluation = z.infer<typeof aiEvaluationSchema>;
+
+interface SubmissionRecord {
+  id: string;
+  data: string;
+  status: string;
+  contactEmail: string;
+  sessionVolumeId: string | null;
+  createdAt: Date;
+}
+
+interface EvaluatedApplicant {
+  submission: SubmissionRecord;
+  name: string;
+  roles: string[];
+  images: string[];
+  portfolioVisuallyReviewed: boolean;
+  location: string;
+  availabilityConfirmed: boolean;
+  portfolioProvided: boolean;
+  socialProvided: boolean;
+  ai: AIEvaluation;
+  provider: string;
+  rawScore: number;
+  confidence: number;
+  unknownPenalty: number;
+  assessedWeight: number;
+}
 
 function parseData(raw: string): Record<string, unknown> {
   try {
-    return JSON.parse(raw) as Record<string, unknown>;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
   } catch {
     return {};
   }
 }
 
-function str(data: Record<string, unknown>, key: string): string {
+function stringValue(data: Record<string, unknown>, key: string): string {
   return typeof data[key] === "string" ? String(data[key]).trim() : "";
 }
 
-function strArray(data: Record<string, unknown>, key: string): string[] {
+function stringArray(data: Record<string, unknown>, key: string): string[] {
   return Array.isArray(data[key])
-    ? (data[key] as unknown[]).filter((v): v is string => typeof v === "string" && v.length > 0)
+    ? (data[key] as unknown[]).filter(
+        (value): value is string => typeof value === "string" && value.trim().length > 0
+      )
     : [];
 }
 
-function answer(data: Record<string, unknown>, id: string): string {
-  const answers = Array.isArray(data.questionAnswers) ? data.questionAnswers : [];
-  const match = answers.find(
-    (item) => item && typeof item === "object" && (item as { id?: unknown }).id === id
-  ) as { answer?: unknown } | undefined;
-  if (typeof match?.answer === "string") return match.answer.trim();
-  const legacyKey = id === "why-participate" ? "whyParticipate" : id === "theme-fit" ? "themeFit" : "";
-  return legacyKey ? str(data, legacyKey) : "";
+function questionAnswers(data: Record<string, unknown>): { question: string; answer: string }[] {
+  if (!Array.isArray(data.questionAnswers)) return [];
+  return data.questionAnswers
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const question = typeof row.question === "string" ? row.question.trim() : "";
+      const answer = typeof row.answer === "string" ? row.answer.trim() : "";
+      return question && answer ? { question, answer } : null;
+    })
+    .filter((item): item is { question: string; answer: string } => item !== null);
 }
 
-// ---------------------------------------------------------------------------
-// Stage 2 — extract applicant features (continuous, not booleans)
-// ---------------------------------------------------------------------------
-
-const PROFESSIONAL_TERMS =
-  /\b(client|campaign|editorial|commercial|published|production|brand|agency|director|studio|award|magazine|runway|signed|booked|contract|retainer)\b/gi;
-const LUXURY_TERMS =
-  /\b(luxury|editorial|premium|elev[eé]|cinematic|storytelling|couture|high[- ]end|refined|elegant)\b/gi;
-const DISCIPLINE_TERMS =
-  /\b(editorial|commercial|portrait|fashion|video|photo|film|direction|styling|beauty|lifestyle|product)\b/gi;
-const AUDIENCE_TERMS = /\b(audience|followers?|engagement|reach|content|social|viral|community)\b/gi;
-
-function countMatches(text: string, pattern: RegExp): number {
-  return (text.match(pattern) ?? []).length;
+function inputHash(submission: SubmissionRecord): string {
+  return createHash("sha256")
+    .update(`${APPLICATION_EVALUATION_VERSION}:${submission.data}`)
+    .digest("hex");
 }
 
-/** 0..1 saturation curve — early signals count most, diminishing returns after. */
-function saturate(value: number, scale: number): number {
-  if (value <= 0) return 0;
-  return 1 - Math.exp(-value / scale);
+function extractJson(content: string): unknown {
+  const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
+  const source = fenced ?? content;
+  const start = source.indexOf("{");
+  const end = source.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error("AI evaluation did not return a JSON object");
+  return JSON.parse(source.slice(start, end + 1));
 }
 
-/** Graded writing quality: depth (length), specificity, and sentence structure. */
-function textQuality(text: string): number {
-  if (!text) return 0;
-  const depth = saturate(text.length, 220);
-  const specificity = saturate(countMatches(text, PROFESSIONAL_TERMS), 3);
-  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 12).length;
-  const structure = saturate(sentences, 3);
-  return depth * 0.45 + specificity * 0.3 + structure * 0.25;
-}
+function evaluationEvidence(data: Record<string, unknown>) {
+  const legacyAnswers = [
+    ["Why participate", stringValue(data, "whyParticipate")],
+    ["Theme fit", stringValue(data, "themeFit")],
+  ]
+    .filter(([, answer]) => answer)
+    .map(([question, answer]) => ({ question, answer }));
 
-interface Features {
-  roles: string[];
-  images: string[];
-  portfolioUrl: string;
-  channels: string[];
-  instagram: string;
-  experienceText: string;
-  why: string;
-  theme: string;
-  contribution: string;
-  location: string;
-  phone: string;
-  email: string;
-  yearsStated: number;
-  confirmations: number;
-  availabilityConfirmed: boolean;
-}
-
-function extractFeatures(data: Record<string, unknown>): Features {
-  const yearsMatch = (str(data, "experience") || str(data, "experienceLevel")).match(/\b(\d{1,2})\s*(?:\+?\s*)?(years?|yrs?)\b/i);
   return {
-    roles: strArray(data, "roles"),
-    images: strArray(data, "portfolioImages"),
-    portfolioUrl: str(data, "portfolioLink") || str(data, "portfolioWebsite") || str(data, "portfolioUrl"),
-    channels: ["demoReel", "youtube", "vimeo", "behance", "driveLink"].filter((k) => Boolean(str(data, k))),
-    instagram: str(data, "instagram"),
-    experienceText: str(data, "experience") || str(data, "experienceLevel"),
-    why: answer(data, "why-participate"),
-    theme: answer(data, "theme-fit"),
-    contribution: answer(data, "contribution"),
-    location: str(data, "cityState") || str(data, "location"),
-    phone: str(data, "phone"),
-    email: str(data, "email"),
-    yearsStated: yearsMatch ? Math.min(30, parseInt(yearsMatch[1], 10)) : 0,
-    confirmations:
-      (data.availabilityConfirm === true ? 1 : 0) +
-      (data.transportationConfirm === true ? 1 : 0) +
-      (data.creativeDirectionConfirm === true ? 1 : 0) +
-      (data.agreementAccurate === true ? 1 : 0),
-    availabilityConfirmed: data.availabilityConfirm === true,
+    roles: stringArray(data, "roles"),
+    experience: stringValue(data, "experience") || stringValue(data, "experienceLevel"),
+    writtenResponses: [...questionAnswers(data), ...legacyAnswers],
+    // Presence is informational only. The prompt explicitly forbids awarding points for it.
+    informationalSignals: {
+      portfolioLinkProvided: Boolean(
+        stringValue(data, "portfolioLink") ||
+          stringValue(data, "portfolioWebsite") ||
+          stringValue(data, "portfolioUrl")
+      ),
+      socialLinkProvided: Boolean(stringValue(data, "instagram")),
+      logisticsConfirmed: {
+        availability: data.availabilityConfirm === true,
+        transportation: data.transportationConfirm === true,
+        creativeDirection: data.creativeDirectionConfirm === true,
+      },
+    },
   };
 }
 
-/** Canonical fingerprint — two applicants may share a score only if this matches. */
-function featureFingerprint(f: Features): string {
-  return JSON.stringify([
-    f.roles.slice().sort(),
-    f.images.length,
-    Boolean(f.portfolioUrl),
-    f.channels.slice().sort(),
-    Boolean(f.instagram),
-    f.experienceText.length,
-    f.why.length,
-    f.theme.length,
-    f.contribution.length,
-    f.yearsStated,
-    f.confirmations,
-    f.availabilityConfirmed,
-    Boolean(f.phone),
-    Boolean(f.location),
-  ]);
+const EVALUATOR_PROMPT = `You are the ÉLEVÉ applicant evaluation panel: Creative Director, Hiring Manager,
+Operations Manager, Marketing Director, Producer, CEO, and Financial Analyst.
+
+Evaluate the applicant's actual demonstrated quality. Return JSON only.
+
+NON-NEGOTIABLE RULES:
+- Do not award points because a field is filled, a portfolio exists, images were uploaded, or a social link exists.
+- Portfolio Quality may be scored only from the attached images. If no images are attached, use null.
+- A portfolio URL or social URL is informational and must never increase a score.
+- Score claims only when supported by quoted application text or directly observable visual evidence.
+- Do not invent clients, campaign results, revenue, ROI, followers, engagement, history, or analytics.
+- If evidence is unavailable, use score: null and identify it under missing.
+- Missing information lowers category confidence; it does not imply low applicant quality.
+- Application Quality means specificity, clarity, thoughtfulness, and internal consistency—not completeness.
+- Business Value means demonstrated commercial judgment, client outcomes, production contribution, or
+  transferable value—not simply selecting a role.
+- Marketing Value requires demonstrated audience/campaign evidence. Social-link existence is not evidence.
+- Give genuine variance. Reserve 95+ category scores for exceptional, directly observable evidence.
+
+Return exactly:
+{
+  "categories": [
+    {
+      "key": "portfolioQuality|brandAlignment|businessValue|professionalPresence|versatility|experience|marketingImpact|applicationQuality",
+      "score": 0-100 or null,
+      "confidence": 0-100,
+      "notes": "specific evaluation",
+      "evidence": ["direct quote or observable fact"],
+      "missing": ["information needed"],
+      "improvements": ["specific improvement"]
+    }
+  ],
+  "strengths": ["evidence-based strength"],
+  "weaknesses": ["evidence-based limitation or unknown"],
+  "recommendedProjects": ["project justified by evidence"],
+  "riskSignals": ["evidence gap or operational concern"]
 }
 
-// ---------------------------------------------------------------------------
-// Stage 3 — evaluate categories (every point tied to named evidence)
-// ---------------------------------------------------------------------------
+Include all eight category keys exactly once.`;
 
-interface CategoryEval {
-  key: CategoryKey;
-  ratio: number; // raw 0..1 before cohort comparison
-  evidence: string[];
-  missing: string[];
-  improvements: string[];
-}
+async function evaluateApplicant(submission: SubmissionRecord): Promise<EvaluatedApplicant> {
+  const data = parseData(submission.data);
+  const images = stringArray(data, "portfolioImages").slice(0, 8);
+  const result = await aiComplete({
+    messages: [
+      { role: "system", content: EVALUATOR_PROMPT },
+      {
+        role: "user",
+        content: JSON.stringify({
+          applicantId: submission.id,
+          evidence: evaluationEvidence(data),
+          attachedImageCount: images.length,
+          instruction:
+            "Evaluate this applicant. Attached images, when present, are the only source for Portfolio Quality.",
+        }),
+        images,
+      },
+    ],
+    temperature: 0.1,
+    maxTokens: 3000,
+  });
 
-function evaluateCategories(f: Features): CategoryEval[] {
-  const professionalHits = countMatches(f.experienceText, PROFESSIONAL_TERMS);
-  const luxuryHits = countMatches(`${f.theme} ${f.why} ${f.contribution}`, LUXURY_TERMS);
-  const disciplineHits = countMatches(`${f.experienceText} ${f.contribution}`, DISCIPLINE_TERMS);
-  const audienceHits = countMatches(f.experienceText, AUDIENCE_TERMS);
+  if (!result?.content || result.finishReason === "error") {
+    throw new Error(`AI evaluation failed for application ${submission.id}`);
+  }
 
-  return [
-    {
-      key: "portfolioQuality",
-      ratio:
-        saturate(f.images.length, 3) * 0.45 +
-        (f.portfolioUrl ? 0.2 : 0) +
-        saturate(f.channels.length, 2) * 0.15 +
-        saturate(professionalHits, 3) * 0.2,
-      evidence: [
-        f.images.length ? `${f.images.length} work sample${f.images.length === 1 ? "" : "s"} uploaded for direct review` : "",
-        f.portfolioUrl ? "Curated external portfolio provided" : "",
-        f.channels.length ? `${f.channels.length} additional media channel${f.channels.length === 1 ? "" : "s"} (reel/video/behance)` : "",
-        professionalHits > 0 ? `${professionalHits} professional production reference${professionalHits === 1 ? "" : "s"} in experience` : "",
-      ].filter(Boolean),
-      missing: [
-        f.images.length === 0 ? "No uploaded work samples" : "",
-        !f.portfolioUrl ? "No external portfolio URL" : "",
-      ].filter(Boolean),
-      improvements: ["Submit a tightly edited set showing lighting consistency, posing, and environmental range."],
-    },
-    {
-      key: "brandAlignment",
-      ratio:
-        textQuality(f.theme) * 0.35 +
-        textQuality(f.why) * 0.25 +
-        textQuality(f.contribution) * 0.25 +
-        saturate(luxuryHits, 3) * 0.15,
-      evidence: [
-        f.theme ? `Theme-fit response (${f.theme.length} chars) addresses the volume aesthetic` : "",
-        f.why ? "Motivation statement explains fit with ÉLEVÉ" : "",
-        f.contribution ? "Creative contribution articulated" : "",
-        luxuryHits > 0 ? `${luxuryHits} premium/editorial positioning term${luxuryHits === 1 ? "" : "s"} used` : "",
-      ].filter(Boolean),
-      missing: [!f.theme ? "No theme-alignment response" : ""].filter(Boolean),
-      improvements: ["Reference specific past work that matches ÉLEVÉ's premium editorial standard."],
-    },
-    {
-      key: "businessValue",
-      ratio:
-        saturate(professionalHits, 4) * 0.4 +
-        textQuality(f.contribution) * 0.25 +
-        saturate(f.roles.length, 1.5) * 0.15 +
-        (f.images.length || f.portfolioUrl ? 0.2 : 0),
-      evidence: [
-        professionalHits > 0 ? `Commercial context: ${professionalHits} client/production reference${professionalHits === 1 ? "" : "s"}` : "",
-        f.contribution.length >= 80 ? "Concrete value contribution described" : "",
-        f.roles.length ? `Deployable in ${f.roles.length} production role${f.roles.length === 1 ? "" : "s"}` : "",
-        f.images.length || f.portfolioUrl ? "Work evidence available for client-fit assessment" : "",
-      ].filter(Boolean),
-      missing: [professionalHits === 0 ? "No commercial outcomes or client history supplied" : ""].filter(Boolean),
-      improvements: ["Provide client outcomes, repeat-work history, rates, or measurable campaign results."],
-    },
-    {
-      key: "reliability",
-      ratio: saturate(f.confirmations, 2.2) * 0.75 + (f.phone ? 0.13 : 0) + (f.email ? 0.12 : 0),
-      evidence: [
-        f.confirmations > 0 ? `${f.confirmations} of 4 logistics/accuracy commitments confirmed` : "",
-        f.phone ? "Direct phone contact supplied" : "",
-        f.email ? "Email contact supplied" : "",
-      ].filter(Boolean),
-      missing: [f.confirmations < 4 ? `${4 - f.confirmations} commitment${4 - f.confirmations === 1 ? "" : "s"} unconfirmed` : ""].filter(Boolean),
-      improvements: ["Verify punctuality and cancellation history in a reference or paid test."],
-    },
-    {
-      key: "versatility",
-      ratio:
-        saturate(f.roles.length, 1.8) * 0.35 +
-        saturate(disciplineHits, 3) * 0.3 +
-        saturate(f.channels.length, 2) * 0.15 +
-        saturate(f.images.length, 4) * 0.2,
-      evidence: [
-        f.roles.length > 1 ? `${f.roles.length} distinct production roles` : f.roles.length ? "One focused role" : "",
-        disciplineHits > 0 ? `${disciplineHits} discipline reference${disciplineHits === 1 ? "" : "s"} across written materials` : "",
-        f.channels.length ? "Multiple media formats represented" : "",
-        f.images.length >= 4 ? "Sample set large enough to assess range" : "",
-      ].filter(Boolean),
-      missing: [f.roles.length < 2 && disciplineHits < 2 ? "Limited cross-discipline evidence" : ""].filter(Boolean),
-      improvements: ["Show distinct project types rather than variations of one execution."],
-    },
-    {
-      key: "professionalPresence",
-      ratio:
-        (f.email ? 0.15 : 0) +
-        (f.phone ? 0.15 : 0) +
-        (f.location ? 0.15 : 0) +
-        (f.instagram ? 0.15 : 0) +
-        textQuality(f.why) * 0.2 +
-        textQuality(f.experienceText) * 0.2,
-      evidence: [
-        f.email && f.phone ? "Complete direct-contact profile" : "",
-        f.location ? `Location on record (${f.location})` : "",
-        f.instagram ? "Public professional handle supplied" : "",
-        textQuality(f.why) > 0.5 ? "Clear, structured written communication" : "",
-      ].filter(Boolean),
-      missing: [!f.experienceText ? "No professional summary" : ""].filter(Boolean),
-      improvements: ["Add concise credentials with named credits."],
-    },
-    {
-      key: "marketingImpact",
-      ratio:
-        (f.instagram ? 0.35 : 0) +
-        saturate(f.channels.filter((c) => c !== "driveLink").length, 2) * 0.35 +
-        saturate(audienceHits, 2) * 0.3,
-      evidence: [
-        f.instagram ? "Instagram presence provided" : "",
-        f.channels.filter((c) => c !== "driveLink").length ? "Public video/creative channels provided" : "",
-        audienceHits > 0 ? "Audience or content experience referenced" : "",
-      ].filter(Boolean),
-      missing: ["Audience size and engagement are not independently verified"],
-      improvements: ["Provide verified audience, engagement, or campaign-conversion metrics."],
-    },
-    {
-      key: "experience",
-      ratio:
-        textQuality(f.experienceText) * 0.5 +
-        saturate(professionalHits, 4) * 0.3 +
-        saturate(f.yearsStated, 6) * 0.2,
-      evidence: [
-        f.experienceText ? `Experience statement supplied (${f.experienceText.length} chars)` : "",
-        professionalHits > 0 ? "Named professional context included" : "",
-        f.yearsStated > 0 ? `${f.yearsStated} year${f.yearsStated === 1 ? "" : "s"} of experience stated` : "",
-      ].filter(Boolean),
-      missing: [!f.experienceText ? "Experience history not supplied" : ""].filter(Boolean),
-      improvements: ["List years, named credits, client types, and responsibilities."],
-    },
-  ];
-}
+  const parsed = aiEvaluationSchema.parse(extractJson(result.content));
+  const portfolioVisuallyReviewed = images.length > 0 && result.provider === "openrouter";
+  const byKey = new Map(parsed.categories.map((category) => [category.key, category]));
+  const categories = CATEGORY_DEFINITIONS.map((definition) => {
+    const category = byKey.get(definition.key);
+    if (!category) {
+      return {
+        key: definition.key,
+        score: null,
+        confidence: 0,
+        notes: "Not evaluated.",
+        evidence: [],
+        missing: ["AI evaluation omitted this category"],
+        improvements: ["Provide reviewable evidence for this category."],
+      };
+    }
+    // Enforce portfolio vision rule even if a model disregards the prompt.
+    if (definition.key === "portfolioQuality" && !portfolioVisuallyReviewed) {
+      return {
+        ...category,
+        score: null,
+        confidence: 0,
+        notes: "Portfolio quality not scored because no vision-capable review was available.",
+        evidence: [],
+        missing: [...new Set([...category.missing, "No vision-capable portfolio review available"])],
+      };
+    }
+    return category;
+  });
 
-// ---------------------------------------------------------------------------
-// Stage 4/5 — weighted raw score + confidence (independent of quality)
-// ---------------------------------------------------------------------------
-
-interface Profile {
-  id: string;
-  name: string;
-  email: string;
-  roles: string[];
-  status: string;
-  createdAt: string;
-  features: Features;
-  fingerprint: string;
-  evals: CategoryEval[];
-  rawScore: number; // 0..100, evidence-weighted, pre-cohort
-  confidence: number;
-  evidenceCount: number;
-  missingFields: string[];
-}
-
-function buildProfile(app: {
-  id: string;
-  data: string;
-  status: string;
-  contactEmail: string;
-  createdAt: Date;
-}): Profile {
-  const data = parseData(app.data);
-  const features = extractFeatures(data);
-  const evals = evaluateCategories(features);
-
-  // Never assign points without evidence.
-  for (const e of evals) if (e.evidence.length === 0) e.ratio = 0;
-
-  const assessed = evals.filter((e) => e.evidence.length > 0);
-  const assessedWeight = assessed.reduce(
-    (sum, e) => sum + (CATEGORY_DEFINITIONS.find((d) => d.key === e.key)?.maxScore ?? 0),
+  const normalized: AIEvaluation = { ...parsed, categories };
+  const assessed = CATEGORY_DEFINITIONS.flatMap((definition) => {
+    const category = categories.find((item) => item.key === definition.key);
+    return category?.score == null ? [] : [{ definition, category }];
+  });
+  const assessedWeight = assessed.reduce((sum, item) => sum + item.definition.maxScore, 0);
+  const weighted = assessed.reduce(
+    (sum, item) => sum + (item.category.score! / 100) * item.definition.maxScore,
     0
   );
-  const earned = assessed.reduce(
-    (sum, e) => sum + e.ratio * (CATEGORY_DEFINITIONS.find((d) => d.key === e.key)?.maxScore ?? 0),
-    0
-  );
-  const rawScore = assessedWeight ? (earned / assessedWeight) * 100 : 0;
-
-  const evidenceCount = evals.reduce((sum, e) => sum + e.evidence.length, 0);
-  const missingFields = evals.flatMap((e) => e.missing);
-  // Confidence = information coverage, never applicant quality.
-  const coverage = assessedWeight / 100;
-  const confidence = Math.max(
-    15,
-    Math.min(97, Math.round(coverage * 62 + saturate(evidenceCount, 12) * 42 - missingFields.length * 2.2))
+  const rawScore = assessedWeight ? (weighted / assessedWeight) * 100 : 0;
+  const categoryConfidence = assessedWeight
+    ? assessed.reduce(
+        (sum, item) => sum + item.category.confidence * item.definition.maxScore,
+        0
+      ) / assessedWeight
+    : 0;
+  const unknownWeight = 100 - assessedWeight;
+  const unknownPenalty = Math.round(Math.min(8, unknownWeight * 0.08) * 10) / 10;
+  const confidence = Math.round(
+    Math.max(0, Math.min(98, categoryConfidence * (0.55 + assessedWeight / 220)))
   );
 
   return {
-    id: app.id,
-    name: String(data.fullName || data.name || app.contactEmail),
-    email: app.contactEmail,
-    roles: features.roles,
-    status: normalizeApplicationStatus(app.status),
-    createdAt: app.createdAt.toISOString(),
-    features,
-    fingerprint: featureFingerprint(features),
-    evals,
+    submission,
+    name: String(data.fullName || data.name || submission.contactEmail || "Applicant"),
+    roles: stringArray(data, "roles"),
+    images,
+    portfolioVisuallyReviewed,
+    location: stringValue(data, "cityState") || stringValue(data, "location") || "Unknown",
+    availabilityConfirmed: data.availabilityConfirm === true,
+    portfolioProvided: images.length > 0 || evaluationEvidence(data).informationalSignals.portfolioLinkProvided,
+    socialProvided: evaluationEvidence(data).informationalSignals.socialLinkProvided,
+    ai: normalized,
+    provider: `${result.provider}:${result.model}`,
     rawScore,
     confidence,
-    evidenceCount,
-    missingFields,
+    unknownPenalty,
+    assessedWeight,
   };
 }
 
-// ---------------------------------------------------------------------------
-// Stage 6 — cohort comparison, tie-breaks, positional variance
-// ---------------------------------------------------------------------------
-
-function categoryRatio(profile: Profile, key: CategoryKey): number {
-  return profile.evals.find((e) => e.key === key)?.ratio ?? 0;
-}
-
-function chainValue(profile: Profile, key: CategoryKey | "confidence"): number {
-  return key === "confidence" ? profile.confidence / 100 : categoryRatio(profile, key);
-}
-
-/** Head-to-head comparator: raw score, then the declared tie-break chain. */
-function compareProfiles(a: Profile, b: Profile): number {
-  if (Math.abs(a.rawScore - b.rawScore) > 0.05) return b.rawScore - a.rawScore;
-  for (const step of TIE_BREAK_CHAIN) {
-    const diff = chainValue(b, step.key) - chainValue(a, step.key);
-    if (Math.abs(diff) > 0.005) return diff;
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await fn(items[index]);
+    }
   }
-  return a.id.localeCompare(b.id);
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, Math.max(items.length, 1)) }, () => worker())
+  );
+  return results;
+}
+
+function categoryScore(applicant: EvaluatedApplicant, key: CategoryKey): number {
+  return applicant.ai.categories.find((category) => category.key === key)?.score ?? -1;
+}
+
+function compareEvaluations(a: EvaluatedApplicant, b: EvaluatedApplicant): number {
+  const aAdjusted = a.rawScore - a.unknownPenalty;
+  const bAdjusted = b.rawScore - b.unknownPenalty;
+  if (Math.abs(aAdjusted - bAdjusted) > 0.05) return bAdjusted - aAdjusted;
+  for (const step of TIE_BREAK_CHAIN) {
+    const aValue = step.key === "confidence" ? a.confidence : categoryScore(a, step.key);
+    const bValue = step.key === "confidence" ? b.confidence : categoryScore(b, step.key);
+    if (Math.abs(aValue - bValue) > 0.05) return bValue - aValue;
+  }
+  return a.submission.id.localeCompare(b.submission.id);
+}
+
+function finalScore(applicant: EvaluatedApplicant, index: number): number {
+  const positionalAnchor = Math.max(55, 96 - index * 3);
+  const qualityAdjustment = Math.max(-8, Math.min(1, (applicant.rawScore - 70) * 0.08));
+  const score = positionalAnchor + qualityAdjustment - applicant.unknownPenalty;
+  const cap = applicant.rawScore >= 94 && applicant.confidence >= 92 ? 98.5 : 97;
+  return Math.round(Math.max(20, Math.min(cap, score)) * 10) / 10;
 }
 
 function tierFor(score: number): SessionApplicationRank["tier"] {
@@ -421,274 +362,310 @@ function tierFor(score: number): SessionApplicationRank["tier"] {
   return "Needs Review";
 }
 
-/**
- * Final score: cohort position sets the band (top ≈ 93–97, each rank ~3 points
- * lower), absolute evidence quality moves the applicant within and below the
- * band. Scores above 97 require near-perfect evidence AND high confidence.
- */
-function finalScore(profile: Profile, rank: number, cohortBest: number): number {
-  const anchor = Math.max(45, 95 - rank * 3.1);
-  // Quality factor: raw evidence strength normalized so a genuinely strong
-  // applicant (raw ≈ 85, near the saturation ceiling) reaches ~1.0.
-  const quality = Math.min(1, profile.rawScore / 85);
-  // Weak evidence pulls the score well below the positional band; a mediocre
-  // cohort leader must not inherit a 95.
-  const qualityPenalty = (1 - quality) * 22;
-  // Gap to cohort leader pulls trailing applicants further down within bands.
-  const gapPenalty = Math.max(0, (cohortBest - profile.rawScore) * 0.2);
-  let score = anchor - qualityPenalty - gapPenalty;
-  // Extraordinary gate: exceeding 97 demands exceptional evidence and certainty.
-  const cap = profile.rawScore >= 90 && profile.confidence >= 90 ? 98.6 : 97;
-  score = Math.min(cap, Math.max(20, score));
-  return Math.round(score * 10) / 10;
-}
-
-function tieBreakFor(profile: Profile, above: Profile | null): SessionApplicationRank["tieBreak"] {
-  if (!above || Math.abs(above.rawScore - profile.rawScore) > 1.5) return null;
+function tieBreakFor(
+  applicant: EvaluatedApplicant,
+  above: EvaluatedApplicant | null
+): SessionApplicationRank["tieBreak"] {
+  if (!above || Math.abs(above.rawScore - applicant.rawScore) > 1.5) return null;
   for (const step of TIE_BREAK_CHAIN) {
-    const mine = chainValue(profile, step.key);
-    const theirs = chainValue(above, step.key);
-    if (Math.abs(theirs - mine) > 0.005) {
+    const mine = step.key === "confidence" ? applicant.confidence : categoryScore(applicant, step.key);
+    const theirs = step.key === "confidence" ? above.confidence : categoryScore(above, step.key);
+    if (Math.abs(theirs - mine) > 0.05) {
       return {
         comparedWith: above.name,
         decidedBy: step.label,
-        detail: `${step.label}: ${Math.round(theirs * 100)}% vs ${Math.round(mine * 100)}% — ${above.name} wins this step.`,
-        chain: TIE_BREAK_CHAIN.map((s) => s.label),
+        detail: `${step.label}: ${theirs.toFixed(1)} vs ${mine.toFixed(1)}. ${above.name} wins this tie-break.`,
+        chain: TIE_BREAK_CHAIN.map((item) => item.label),
       };
     }
   }
   return {
     comparedWith: above.name,
-    decidedBy: "All metrics identical",
-    detail: "Every measurable metric is identical; order falls back to submission ID.",
-    chain: TIE_BREAK_CHAIN.map((s) => s.label),
+    decidedBy: "Identical evaluated metrics",
+    detail: "All evaluated metrics and confidence are identical; stable submission ID order was used.",
+    chain: TIE_BREAK_CHAIN.map((item) => item.label),
   };
 }
 
-function reasonForRank(profile: Profile, rank: number, above: Profile | null, cohortSize: number): string {
-  const best = [...profile.evals]
-    .filter((e) => e.evidence.length > 0)
-    .sort((a, b) => b.ratio - a.ratio)[0];
-  const bestLabel = CATEGORY_DEFINITIONS.find((d) => d.key === best?.key)?.label ?? "supplied evidence";
-  if (rank === 0) {
-    return `Leads the cohort of ${cohortSize}: highest evidence-weighted total (${profile.rawScore.toFixed(1)} raw), strongest in ${bestLabel}.`;
+function reasonForRank(
+  applicant: EvaluatedApplicant,
+  index: number,
+  above: EvaluatedApplicant | null,
+  cohortSize: number
+): string {
+  const strongest = [...applicant.ai.categories]
+    .filter((category) => category.score != null)
+    .sort((a, b) => b.score! - a.score!)[0];
+  if (index === 0) {
+    return `Ranked 1 of ${cohortSize}: highest weighted AI evaluation (${applicant.rawScore.toFixed(
+      1
+    )}), led by ${strongest?.key ?? "available evidence"}.`;
   }
-  if (!above) return `Ranked ${rank + 1} of ${cohortSize} on evidence-weighted total.`;
-  const decisive = TIE_BREAK_CHAIN.map((step) => ({
-    step,
-    diff: chainValue(above, step.key) - chainValue(profile, step.key),
-  })).find((d) => d.diff > 0.02);
-  const gap = above.rawScore - profile.rawScore;
-  if (gap > 1.5) {
-    return `Ranks below ${above.name} on overall evidence (${profile.rawScore.toFixed(1)} vs ${above.rawScore.toFixed(1)} raw); strongest own category is ${bestLabel}.`;
+  if (!above) return `Ranked ${index + 1} of ${cohortSize}.`;
+  if (Math.abs(above.rawScore - applicant.rawScore) <= 1.5) {
+    const tieBreak = tieBreakFor(applicant, above);
+    return tieBreak
+      ? `Near-equal with ${above.name}; ${tieBreak.decidedBy} decided the order.`
+      : `Ranked ${index + 1} after comparative evaluation.`;
   }
-  if (decisive) {
-    return `Near-equal with ${above.name}; tie-break on ${decisive.step.label} (${Math.round(chainValue(above, decisive.step.key) * 100)}% vs ${Math.round(chainValue(profile, decisive.step.key) * 100)}%) decided the order.`;
-  }
-  return `Effectively tied with ${above.name}; every tie-break metric matched, so order falls back to submission ID.`;
+  return `Ranked below ${above.name}: weighted AI evaluation ${applicant.rawScore.toFixed(
+    1
+  )} vs ${above.rawScore.toFixed(1)}. Strongest evaluated area: ${
+    strongest?.key ?? "insufficient evidence"
+  }.`;
 }
 
-// ---------------------------------------------------------------------------
-// Predictions — probabilities with intervals derived from observed evidence
-// ---------------------------------------------------------------------------
-
-function prediction(key: Prediction["key"], label: string, probability: number, confidence: number): Prediction {
-  const uncertainty = Math.max(6, Math.round((100 - confidence) * 0.3));
-  const p = Math.round(Math.max(5, Math.min(95, probability)));
-  return { key, label, probability: p, low: Math.max(1, p - uncertainty), high: Math.min(99, p + uncertainty), confidence };
-}
-
-function buildPredictions(profile: Profile): Prediction[] {
-  const r = (key: CategoryKey) => categoryRatio(profile, key) * 100;
-  const c = profile.confidence;
-  return [
-    prediction("repeatBookings", "Repeat bookings", 22 + r("reliability") * 0.38 + r("businessValue") * 0.25, c),
-    prediction("premiumClientSuccess", "Premium client success", 16 + r("brandAlignment") * 0.42 + r("portfolioQuality") * 0.3, c),
-    prediction("referralPotential", "Referral potential", 16 + r("professionalPresence") * 0.3 + r("marketingImpact") * 0.28, c),
-    prediction("upsellPotential", "Upsell potential", 15 + r("businessValue") * 0.4 + r("versatility") * 0.22, c),
-    prediction("leadershipPotential", "Leadership potential", 11 + r("experience") * 0.4 + r("businessValue") * 0.25, c),
-    prediction("brandAmbassador", "Brand ambassador", 13 + r("brandAlignment") * 0.35 + r("marketingImpact") * 0.3, c),
-    prediction("productionEfficiency", "Production efficiency", 18 + r("reliability") * 0.48 + r("experience") * 0.22, c),
-    prediction("marketingImpact", "Marketing impact", 11 + r("marketingImpact") * 0.58 + r("brandAlignment") * 0.17, c),
-  ];
-}
-
-// ---------------------------------------------------------------------------
-// Verified revenue — real Payment rows only, never estimates
-// ---------------------------------------------------------------------------
-
-async function verifiedRevenueByEmail(emails: string[]): Promise<Map<string, { total: number; count: number }>> {
+async function verifiedRevenueByEmail(
+  emails: string[]
+): Promise<Map<string, { total: number; count: number }>> {
   const map = new Map<string, { total: number; count: number }>();
-  const valid = emails.filter(Boolean);
-  if (valid.length === 0) return map;
+  const valid = [...new Set(emails.filter(Boolean))];
+  if (!valid.length) return map;
   const payments = await prisma.payment.findMany({
     where: { customerEmail: { in: valid }, status: "succeeded" },
     select: { customerEmail: true, amountCents: true },
   });
-  for (const p of payments) {
-    const entry = map.get(p.customerEmail) ?? { total: 0, count: 0 };
-    entry.total += p.amountCents / 100;
-    entry.count += 1;
-    map.set(p.customerEmail, entry);
+  for (const payment of payments) {
+    const current = map.get(payment.customerEmail) ?? { total: 0, count: 0 };
+    current.total += payment.amountCents / 100;
+    current.count += 1;
+    map.set(payment.customerEmail, current);
   }
   return map;
 }
 
-// ---------------------------------------------------------------------------
-// Stage 7 — rank all applicants
-// ---------------------------------------------------------------------------
-
-export interface RankableApplication {
-  id: string;
-  data: string;
-  status: string;
-  contactEmail: string;
-  createdAt: Date;
-}
-
-/** Pure cohort ranking — separated from data access so the engine is testable. */
-export function rankApplicationCohort(
-  apps: RankableApplication[],
-  revenue: Map<string, { total: number; count: number }>
+function buildRankedResults(
+  evaluated: EvaluatedApplicant[],
+  revenue: Map<string, { total: number; count: number }>,
+  evaluatedAt: string
 ): SessionApplicationRank[] {
-  const profiles = apps.map(buildProfile).sort(compareProfiles);
-  const cohortBest = profiles[0]?.rawScore ?? 0;
+  const cohort = [...evaluated].sort(compareEvaluations);
+  const scores: number[] = [];
 
-  // Assign final scores, enforcing separation unless evidence is truly identical.
-  const finals: number[] = [];
-  profiles.forEach((profile, rank) => {
-    let score = finalScore(profile, rank, cohortBest);
-    if (rank > 0) {
-      const above = profiles[rank - 1];
-      const identical = above.fingerprint === profile.fingerprint;
-      if (!identical && score >= finals[rank - 1]) {
-        score = Math.round((finals[rank - 1] - 0.2) * 10) / 10;
-      }
-      if (identical) score = finals[rank - 1];
+  return cohort.map((applicant, index) => {
+    let score = finalScore(applicant, index);
+    const above = index > 0 ? cohort[index - 1] : null;
+    const metricsIdentical =
+      above != null &&
+      TIE_BREAK_CHAIN.every((step) => {
+        const mine =
+          step.key === "confidence" ? applicant.confidence : categoryScore(applicant, step.key);
+        const theirs =
+          step.key === "confidence" ? above.confidence : categoryScore(above, step.key);
+        return Math.abs(mine - theirs) <= 0.05;
+      });
+    if (index > 0 && !metricsIdentical && score >= scores[index - 1]) {
+      score = Math.round((scores[index - 1] - 0.2) * 10) / 10;
     }
-    finals.push(Math.max(20, score));
-  });
+    if (index > 0 && metricsIdentical) score = scores[index - 1];
+    scores.push(score);
 
-  return profiles.map((profile, rank) => {
-    const score = finals[rank];
-    const above = rank > 0 ? profiles[rank - 1] : null;
-    const categories: RankedCategory[] = profile.evals.map((e) => {
-      const def = CATEGORY_DEFINITIONS.find((d) => d.key === e.key)!;
-      const catConfidence =
-        e.evidence.length === 0 ? 0 : Math.max(18, Math.min(96, Math.round(30 + e.evidence.length * 13 - e.missing.length * 5)));
+    const categories: RankedCategory[] = CATEGORY_DEFINITIONS.map((definition) => {
+      const category = applicant.ai.categories.find((item) => item.key === definition.key);
       return {
-        key: def.key,
-        label: def.label,
-        maxScore: def.maxScore,
-        score: Math.round(e.ratio * def.maxScore * 10) / 10,
-        confidence: catConfidence,
-        explanation:
-          e.evidence.length === 0
-            ? "Not scored — no supporting evidence was supplied."
-            : `Scored from ${e.evidence.length} observed signal${e.evidence.length === 1 ? "" : "s"}; graded continuously, not pass/fail.`,
-        evidence: e.evidence,
-        missing: e.missing,
-        improvements: e.improvements,
+        key: definition.key,
+        label: definition.label,
+        score:
+          category?.score == null
+            ? 0
+            : Math.round((category.score / 100) * definition.maxScore * 10) / 10,
+        maxScore: definition.maxScore,
+        confidence: Math.round(category?.confidence ?? 0),
+        explanation: category?.notes ?? "Not evaluated — insufficient evidence.",
+        evidence: category?.evidence ?? [],
+        missing: category?.missing ?? ["Insufficient evidence"],
+        improvements: category?.improvements ?? [],
       };
     });
-
-    const sortedByStrength = [...categories].filter((c) => c.confidence > 0).sort((a, b) => b.score / b.maxScore - a.score / a.maxScore);
-    const weakest = sortedByStrength[sortedByStrength.length - 1];
-    const paid = revenue.get(profile.email);
-    const rolesLower = profile.roles.join(" ").toLowerCase();
+    const payment = revenue.get(applicant.submission.contactEmail);
+    const reason = reasonForRank(applicant, index, above, cohort.length);
+    const riskLevel: SessionApplicationRank["riskLevel"] =
+      applicant.confidence < 45 || applicant.ai.riskSignals.length >= 3
+        ? "high"
+        : applicant.confidence < 70 || applicant.ai.riskSignals.length > 0
+          ? "medium"
+          : "low";
     const recommendation: SessionApplicationRank["recommendation"] =
-      score >= 90 && profile.confidence >= 72
+      score >= 91 && applicant.confidence >= 70
         ? "Invite to Interview"
-        : score >= 84 && profile.confidence >= 60
+        : score >= 85 && applicant.confidence >= 58
           ? "Shortlist"
-          : profile.confidence < 55
+          : applicant.confidence < 50
             ? "Request Evidence"
-            : score >= 75
+            : score >= 78
               ? "Review"
               : "Hold";
-    const reliabilityRatio = categoryRatio(profile, "reliability");
-    const riskLevel: SessionApplicationRank["riskLevel"] =
-      profile.confidence < 50 || reliabilityRatio < 0.45 ? "high" : profile.confidence < 72 || reliabilityRatio < 0.72 ? "medium" : "low";
 
     return {
-      id: profile.id,
-      name: profile.name,
-      email: profile.email,
-      roles: profile.roles,
-      status: profile.status,
+      id: applicant.submission.id,
+      name: applicant.name,
+      email: applicant.submission.contactEmail,
+      roles: applicant.roles,
+      status: normalizeApplicationStatus(applicant.submission.status),
       score,
-      confidence: profile.confidence,
+      confidence: applicant.confidence,
+      evaluatedAt,
+      evaluationVersion: APPLICATION_EVALUATION_VERSION,
+      evaluationProvider: applicant.provider,
+      unknownInformationPenalty: applicant.unknownPenalty,
       tier: tierFor(score),
       recommendation,
-      summary: reasonForRank(profile, rank, above, profiles.length),
-      strengths: sortedByStrength.slice(0, 3).map((c) => c.label),
-      weakness: weakest ? `${weakest.label}: ${weakest.improvements[0]}` : "Insufficient evidence for a reliable weakness assessment.",
+      summary: reason,
+      strengths: applicant.ai.strengths,
+      weakness: applicant.ai.weaknesses.join(" · "),
       badges: [
-        categoryRatio(profile, "portfolioQuality") >= 0.85 ? "Top Portfolio" : "",
-        categoryRatio(profile, "brandAlignment") >= 0.86 ? "Luxury Specialist" : "",
-        categoryRatio(profile, "businessValue") >= 0.84 ? "High Revenue Potential" : "",
-        profile.roles.length > 1 ? "Multi-Disciplinary" : "",
-        profile.confidence >= 88 ? "High Confidence" : "",
-        categoryRatio(profile, "marketingImpact") >= 0.78 ? "Brand Ambassador Potential" : "",
-        profile.features.images.length > 0 && profile.features.portfolioUrl ? "Verified Professional" : "",
+        applicant.portfolioProvided ? "Portfolio Provided" : "",
+        applicant.socialProvided ? "Social Profile Provided" : "",
+        applicant.availabilityConfirmed ? "Availability Confirmed" : "",
+        applicant.confidence >= 85 ? "High Confidence" : "",
       ].filter(Boolean),
       riskLevel,
-      expectedValue: paid
+      expectedValue: payment
         ? {
-            basis: "verified" as const,
-            amount: Math.round(paid.total),
-            low: Math.round(paid.total),
-            high: Math.round(paid.total),
-            confidence: 95,
-            rationale: `Verified: ${paid.count} settled payment${paid.count === 1 ? "" : "s"} linked to this email in the ÉLEVÉ database.`,
+            basis: "verified",
+            amount: Math.round(payment.total),
+            low: Math.round(payment.total),
+            high: Math.round(payment.total),
+            confidence: 100,
+            rationale: `Verified: ${payment.count} settled payment${
+              payment.count === 1 ? "" : "s"
+            } linked to this applicant.`,
           }
         : {
-            basis: "insufficient" as const,
+            basis: "insufficient",
             amount: 0,
             low: 0,
             high: 0,
             confidence: 0,
-            rationale: "Insufficient historical data. No settled payments are linked to this applicant.",
+            rationale: "Insufficient historical data.",
           },
-      reasonForRank: reasonForRank(profile, rank, above, profiles.length),
-      tieBreak: tieBreakFor(profile, above),
-      recommendedProject: rolesLower.includes("director")
-        ? "Premium campaign leadership"
-        : rolesLower.includes("photographer") || rolesLower.includes("videographer")
-          ? "Editorial brand campaign"
-          : rolesLower.includes("model")
-            ? "Luxury editorial production"
-            : "Paid collaborative test",
+      reasonForRank: reason,
+      tieBreak: tieBreakFor(applicant, above),
+      recommendedProject: applicant.ai.recommendedProjects.join(" · "),
       categories,
-      predictions: buildPredictions(profile),
+      predictions: [],
       dataQuality: {
-        portfolio:
-          profile.features.images.length > 0 && profile.features.portfolioUrl
-            ? ("verified" as const)
-            : profile.features.images.length > 0 || profile.features.portfolioUrl
-              ? ("provided" as const)
-              : ("missing" as const),
-        social: profile.features.instagram ? ("provided" as const) : ("missing" as const),
-        availability: profile.features.availabilityConfirmed ? ("confirmed" as const) : ("unknown" as const),
-        location: profile.features.location || "Unknown",
-        evidenceCount: profile.evidenceCount,
-        missingFields: profile.missingFields,
+        portfolio: applicant.portfolioVisuallyReviewed
+          ? "verified"
+          : applicant.portfolioProvided
+            ? "provided"
+            : "missing",
+        social: applicant.socialProvided ? "provided" : "missing",
+        availability: applicant.availabilityConfirmed ? "confirmed" : "unknown",
+        location: applicant.location,
+        evidenceCount: categories.reduce((sum, category) => sum + category.evidence.length, 0),
+        missingFields: [
+          ...new Set(categories.flatMap((category) => category.missing)),
+        ],
       },
-      href: `/admin/applications?focus=${profile.id}`,
-      createdAt: profile.createdAt,
+      href: `/admin/applications?focus=${applicant.submission.id}`,
+      createdAt: applicant.submission.createdAt.toISOString(),
     };
   });
 }
 
-export async function rankSessionApplications(volumeId?: string): Promise<SessionApplicationRank[]> {
-  const apps = await prisma.submission.findMany({
+async function loadApplications(volumeId?: string): Promise<SubmissionRecord[]> {
+  return prisma.submission.findMany({
     where: { type: "session", ...(volumeId ? { sessionVolumeId: volumeId } : {}) },
     orderBy: { createdAt: "desc" },
     take: 500,
-    select: { id: true, data: true, status: true, contactEmail: true, createdAt: true },
+    select: {
+      id: true,
+      data: true,
+      status: true,
+      contactEmail: true,
+      sessionVolumeId: true,
+      createdAt: true,
+    },
   });
-  const revenue = await verifiedRevenueByEmail(apps.map((a) => a.contactEmail));
-  return rankApplicationCohort(apps, revenue);
+}
+
+async function savedRankings(
+  applications: SubmissionRecord[]
+): Promise<SessionApplicationRank[] | null> {
+  if (!applications.length) return [];
+  const rows = await prisma.applicationEvaluation.findMany({
+    where: { submissionId: { in: applications.map((application) => application.id) } },
+    orderBy: { rank: "asc" },
+  });
+  if (rows.length !== applications.length) return null;
+  const applicationById = new Map(applications.map((application) => [application.id, application]));
+  const valid = rows.every((row) => {
+    const application = applicationById.get(row.submissionId);
+    return (
+      application &&
+      row.version === APPLICATION_EVALUATION_VERSION &&
+      row.inputHash === inputHash(application)
+    );
+  });
+  if (!valid) return null;
+  try {
+    return rows.map((row) => {
+      const stored = JSON.parse(row.result) as SessionApplicationRank;
+      const application = applicationById.get(row.submissionId)!;
+      return {
+        ...stored,
+        status: normalizeApplicationStatus(application.status),
+        evaluatedAt: row.evaluatedAt.toISOString(),
+        evaluationVersion: row.version,
+        evaluationProvider: row.provider,
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function rerankSessionApplications(
+  volumeId?: string
+): Promise<SessionApplicationRank[]> {
+  if (!isAIConfigured()) {
+    throw new Error("AI provider is not configured; rankings were not changed.");
+  }
+  const applications = await loadApplications(volumeId);
+  if (!applications.length) return [];
+
+  // Evaluate the entire cohort before saving anything. A partial AI failure leaves
+  // the previous persisted ranking intact.
+  const evaluated = await mapWithConcurrency(applications, 2, evaluateApplicant);
+  const evaluatedAt = new Date().toISOString();
+  const revenue = await verifiedRevenueByEmail(
+    applications.map((application) => application.contactEmail)
+  );
+  const ranked = buildRankedResults(evaluated, revenue, evaluatedAt);
+  const applicationById = new Map(applications.map((application) => [application.id, application]));
+  const providerById = new Map(evaluated.map((applicant) => [applicant.submission.id, applicant.provider]));
+
+  await prisma.$transaction(
+    ranked.map((result, index) => {
+      const application = applicationById.get(result.id)!;
+      const data = {
+        volumeId: application.sessionVolumeId,
+        score: result.score,
+        confidence: result.confidence,
+        rank: index + 1,
+        version: APPLICATION_EVALUATION_VERSION,
+        provider: providerById.get(result.id) ?? "unknown",
+        inputHash: inputHash(application),
+        result: JSON.stringify(result),
+        evaluatedAt: new Date(evaluatedAt),
+      };
+      return prisma.applicationEvaluation.upsert({
+        where: { submissionId: result.id },
+        create: { submissionId: result.id, ...data },
+        update: data,
+      });
+    })
+  );
+  return ranked;
+}
+
+export async function rankSessionApplications(
+  volumeId?: string
+): Promise<SessionApplicationRank[]> {
+  const applications = await loadApplications(volumeId);
+  const saved = await savedRankings(applications);
+  return saved ?? rerankSessionApplications(volumeId);
 }
 
 export async function generateApplicationRankingSummary(volumeId?: string): Promise<string> {

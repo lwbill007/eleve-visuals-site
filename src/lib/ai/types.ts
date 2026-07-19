@@ -5,6 +5,8 @@ export type AIMessageRole = "system" | "user" | "assistant" | "tool";
 export interface AIMessage {
   role: AIMessageRole;
   content: string;
+  /** Optional image URLs for vision-capable providers. Text remains the source of truth for non-vision fallbacks. */
+  images?: string[];
   toolName?: string;
 }
 
@@ -699,6 +701,10 @@ export interface SessionApplicationRank {
   status: string;
   score: number;
   confidence: number;
+  evaluatedAt: string;
+  evaluationVersion: string;
+  evaluationProvider: string;
+  unknownInformationPenalty: number;
   tier: "Exceptional" | "Elite" | "Excellent" | "Strong" | "Good" | "Average" | "Needs Review";
   recommendation: "Invite to Interview" | "Shortlist" | "Request Evidence" | "Review" | "Hold";
   summary: string;
@@ -730,11 +736,11 @@ export interface SessionApplicationRank {
       | "portfolioQuality"
       | "brandAlignment"
       | "businessValue"
-      | "reliability"
       | "versatility"
       | "professionalPresence"
       | "marketingImpact"
-      | "experience";
+      | "experience"
+      | "applicationQuality";
     label: string;
     score: number;
     maxScore: number;

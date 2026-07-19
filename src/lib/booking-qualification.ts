@@ -110,7 +110,7 @@ export function qualifyInquiry(input: QualificationInput): InquiryQualification 
   ]
     .filter(Boolean)
     .join(" ");
-  let segment = segmentFromPackage(pkg, input.projectCategory, visionBlob);
+  const segment = segmentFromPackage(pkg, input.projectCategory, visionBlob);
 
   const incomplete: string[] = [];
   if (!input.purpose?.trim() && !input.feelingPrompt?.trim()) incomplete.push("Missing emotional / purpose brief");

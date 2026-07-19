@@ -100,12 +100,12 @@ function ScoreRing({ score }: { score: number }) {
     <div
       className="relative grid h-20 w-20 shrink-0 place-items-center rounded-full"
       style={{ background: `conic-gradient(${color} ${score * 3.6}deg, rgba(255,255,255,.08) 0deg)` }}
-      aria-label={`Overall score ${score}`}
+      aria-label={`AI Evaluation Score ${score}`}
     >
       <div className="grid h-[68px] w-[68px] place-items-center rounded-full bg-ink">
         <div className="text-center">
           <p className="font-display text-2xl leading-none text-cream">{score.toFixed(1)}</p>
-          <p className="mt-1 text-[0.48rem] tracking-widest text-muted uppercase">Score</p>
+          <p className="mt-1 text-[0.48rem] tracking-widest text-muted uppercase">AI Score</p>
         </div>
       </div>
     </div>
@@ -163,6 +163,25 @@ export default function ApplicationsIntelligenceClient() {
       toast("Hiring intelligence could not be loaded.", "error");
     }
     setLoading(false);
+    setRefreshing(false);
+  }, [toast, volume]);
+
+  const rerank = useCallback(async () => {
+    setRefreshing(true);
+    const suffix = volume ? `?volumeId=${encodeURIComponent(volume)}` : "";
+    const response = await adminFetch(`/api/admin/ai/sessions/rank${suffix}`, {
+      method: "POST",
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      ranked?: SessionApplicationRank[];
+      error?: string;
+    };
+    if (response.ok) {
+      setRanked(payload.ranked ?? []);
+      toast(`Re-ranked ${payload.ranked?.length ?? 0} applicants with fresh AI evaluations.`);
+    } else {
+      toast(payload.error || "AI re-rank failed; previous rankings were preserved.", "error");
+    }
     setRefreshing(false);
   }, [toast, volume]);
 
@@ -256,7 +275,7 @@ export default function ApplicationsIntelligenceClient() {
       score: average(cohort.map((item) => item.score)),
       confidence: average(cohort.map((item) => item.confidence)),
       brand: average(cohort.map((item) => categoryRate(item, "brandAlignment"))),
-      reliability: average(cohort.map((item) => categoryRate(item, "reliability"))),
+      professionalism: average(cohort.map((item) => categoryRate(item, "professionalPresence"))),
     });
     return { current, previous, currentValues: values(current), previousValues: values(previous) };
   }, [ranked]);
@@ -289,7 +308,7 @@ export default function ApplicationsIntelligenceClient() {
       {
         tone: highRisk ? "risk" : "trend",
         title: highRisk ? `${highRisk} high-risk application${highRisk === 1 ? "" : "s"} need evidence before action` : "No high-risk profiles in this cohort",
-        detail: "Risk flags low evidence coverage, unconfirmed logistics, or weak reliability signals.",
+        detail: "Risk flags low evidence coverage or concerns identified during AI evaluation.",
       },
     ];
   }, [overview, ranked]);
@@ -358,7 +377,7 @@ export default function ApplicationsIntelligenceClient() {
                 Decide who creates the most value.
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-fog">
-                Evidence-weighted rankings, confidence, risk, and opportunity—separated so every decision remains auditable.
+                Ranked using AI evaluation based on portfolio, experience, business value, brand alignment, and supporting evidence.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -375,12 +394,18 @@ export default function ApplicationsIntelligenceClient() {
               </select>
               <button
                 type="button"
-                onClick={() => void load(true)}
+                onClick={() => void rerank()}
                 disabled={refreshing}
                 className="min-h-10 rounded-lg border border-stone/30 px-3 text-xs text-fog transition-colors hover:border-accent/40 hover:text-cream disabled:opacity-50"
               >
-                {refreshing ? "Recalculating…" : "↻ Refresh intelligence"}
+                {refreshing ? "Evaluating cohort…" : "✦ Re-Rank applicants"}
               </button>
+              {ranked[0] && (
+                <div className="w-full text-right text-[0.58rem] leading-relaxed text-muted">
+                  <p>Last evaluated {new Date(ranked[0].evaluatedAt).toLocaleString()}</p>
+                  <p>{ranked[0].evaluationVersion}</p>
+                </div>
+              )}
             </div>
           </header>
 
@@ -410,7 +435,14 @@ export default function ApplicationsIntelligenceClient() {
                   detail={ranked.some((item) => item.expectedValue.basis === "verified") ? "Settled payments only" : "Insufficient historical data"}
                 />
                 <MetricCard label="Brand fit" value={`${Math.round(average(ranked.map((item) => categoryRate(item, "brandAlignment"))))}%`} change={delta(overview.currentValues.brand, overview.previousValues.brand)} />
-                <MetricCard label="Reliability" value={`${Math.round(average(ranked.map((item) => categoryRate(item, "reliability"))))}%`} change={delta(overview.currentValues.reliability, overview.previousValues.reliability)} />
+                <MetricCard
+                  label="Professionalism"
+                  value={`${Math.round(average(ranked.map((item) => categoryRate(item, "professionalPresence"))))}%`}
+                  change={delta(
+                    overview.currentValues.professionalism,
+                    overview.previousValues.professionalism
+                  )}
+                />
               </section>
 
               <section className="mt-6 rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.07] to-transparent p-4 sm:p-5">
@@ -492,7 +524,7 @@ export default function ApplicationsIntelligenceClient() {
               </section>
 
               <div className="mt-4 flex items-center justify-between">
-                <p className="text-xs text-muted"><span className="text-cream">{filtered.length}</span> candidates · ranked by evidence-weighted score</p>
+                <p className="text-xs text-muted"><span className="text-cream">{filtered.length}</span> candidates · ranked by AI Evaluation Score</p>
                 <p className="text-[0.6rem] text-muted">98–100 is intentionally rare</p>
               </div>
 
@@ -526,6 +558,15 @@ export default function ApplicationsIntelligenceClient() {
                             <p className="text-[0.55rem] tracking-wider text-muted uppercase">Confidence</p>
                             <p className="mt-1 text-lg text-cream">{candidate.confidence}%</p>
                             <div className="mt-1 h-1 w-16 overflow-hidden rounded-full bg-stone/40"><div className="h-full bg-fog" style={{ width: `${candidate.confidence}%` }} /></div>
+                            {candidate.unknownInformationPenalty > 0 && (
+                              <p className="mt-1 text-[0.5rem] text-amber-300">
+                                −{candidate.unknownInformationPenalty} unknowns
+                              </p>
+                            )}
+                            <p className="mt-1 text-[0.5rem] text-muted">
+                              {new Date(candidate.evaluatedAt).toLocaleDateString()}
+                            </p>
+                            <p className="text-[0.48rem] text-muted">{candidate.evaluationVersion}</p>
                           </div>
                         </div>
 
@@ -610,7 +651,7 @@ export default function ApplicationsIntelligenceClient() {
                 {detail.categories.map((category) => (
                   <details key={category.key} className="group rounded-xl border border-stone/20 bg-charcoal/15 open:border-accent/25">
                     <summary className="flex cursor-pointer list-none items-center gap-3 p-3.5">
-                      <div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><p className="text-sm text-cream">{category.label}</p><p className="text-sm text-cream">{category.score.toFixed(1)} <span className="text-muted">/ {category.maxScore}</span></p></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone/40"><div className="h-full rounded-full bg-accent" style={{ width: `${(category.score / category.maxScore) * 100}%` }} /></div></div>
+                      <div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><p className="text-sm text-cream">{category.label}</p><p className="text-sm text-cream">{category.confidence === 0 ? <span className="text-muted">Not scored</span> : <>{category.score.toFixed(1)} <span className="text-muted">/ {category.maxScore}</span></>}</p></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone/40"><div className="h-full rounded-full bg-accent" style={{ width: `${category.confidence === 0 ? 0 : (category.score / category.maxScore) * 100}%` }} /></div></div>
                       <span className="text-xs text-muted">⌄</span>
                     </summary>
                     <div className="grid gap-4 border-t border-stone/15 p-4 text-xs sm:grid-cols-2">
@@ -650,6 +691,8 @@ export default function ApplicationsIntelligenceClient() {
               <div className="mt-3 space-y-2 text-xs leading-relaxed text-fog">
                 <p><span className="text-accent">Evidence:</span> {detail.dataQuality.evidenceCount} application signals across {detail.categories.filter((item) => item.confidence > 0).length} assessed categories.</p>
                 <p><span className="text-accent">Missing:</span> {detail.dataQuality.missingFields.join(" · ") || "No material form gaps detected."}</p>
+                <p><span className="text-accent">Unknown-information penalty:</span> {detail.unknownInformationPenalty} points. This reflects unassessed evaluation criteria, not unfilled form fields.</p>
+                <p><span className="text-accent">Evaluation:</span> {detail.evaluationVersion} · {new Date(detail.evaluatedAt).toLocaleString()} · {detail.evaluationProvider}</p>
                 <p><span className="text-accent">Fairness guardrail:</span> Age, gender, race, and other protected traits are not used. Workflow status is excluded from quality scoring to prevent outcome leakage.</p>
                 <p><span className="text-accent">Limitation:</span> Predictions are directional ranges based on supplied evidence and role assumptions. They must not be treated as guarantees.</p>
               </div>
@@ -672,7 +715,7 @@ export default function ApplicationsIntelligenceClient() {
                   ["Business value", "businessValue"],
                   ["Experience", "experience"],
                   ["Versatility", "versatility"],
-                  ["Reliability", "reliability"],
+                  ["Application quality", "applicationQuality"],
                   ["Marketing value", "marketingImpact"],
                 ].map(([label, key]) => (
                   <div key={key} className="contents">
