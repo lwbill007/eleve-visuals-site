@@ -650,40 +650,55 @@ async function loadApplications(volumeId?: string): Promise<SubmissionRecord[]> 
   });
 }
 
-async function savedRankings(
-  applications: SubmissionRecord[]
-): Promise<SessionApplicationRank[] | null> {
-  if (!applications.length) return [];
+export interface SavedRankingState {
+  ranked: SessionApplicationRank[];
+  applicationCount: number;
+  /** Applications with no current evaluation (never evaluated, stale, or superseded version). */
+  unevaluatedCount: number;
+}
+
+/**
+ * Returns whatever valid persisted evaluations exist. Never triggers AI work,
+ * so the page load is fast and an unevaluated cohort is reported honestly
+ * instead of appearing as "no applications".
+ */
+export async function getSavedRankingState(volumeId?: string): Promise<SavedRankingState> {
+  const applications = await loadApplications(volumeId);
+  if (!applications.length) return { ranked: [], applicationCount: 0, unevaluatedCount: 0 };
+
   const rows = await prisma.applicationEvaluation.findMany({
     where: { submissionId: { in: applications.map((application) => application.id) } },
     orderBy: { rank: "asc" },
   });
-  if (rows.length !== applications.length) return null;
   const applicationById = new Map(applications.map((application) => [application.id, application]));
-  const valid = rows.every((row) => {
+  const ranked: SessionApplicationRank[] = [];
+  for (const row of rows) {
     const application = applicationById.get(row.submissionId);
-    return (
-      application &&
-      row.version === APPLICATION_EVALUATION_VERSION &&
-      row.inputHash === inputHash(application)
-    );
-  });
-  if (!valid) return null;
-  try {
-    return rows.map((row) => {
+    if (
+      !application ||
+      row.version !== APPLICATION_EVALUATION_VERSION ||
+      row.inputHash !== inputHash(application)
+    ) {
+      continue;
+    }
+    try {
       const stored = JSON.parse(row.aiEvaluation) as SessionApplicationRank;
-      const application = applicationById.get(row.submissionId)!;
-      return {
+      ranked.push({
         ...stored,
         status: normalizeApplicationStatus(application.status),
         evaluatedAt: row.lastEvaluatedAt.toISOString(),
         evaluationVersion: row.version,
         evaluationProvider: row.provider,
-      };
-    });
-  } catch {
-    return null;
+      });
+    } catch {
+      /* treat unparsable rows as unevaluated */
+    }
   }
+  return {
+    ranked,
+    applicationCount: applications.length,
+    unevaluatedCount: applications.length - ranked.length,
+  };
 }
 
 export async function rerankSessionApplications(
@@ -753,9 +768,7 @@ export async function rerankSessionApplications(
 export async function rankSessionApplications(
   volumeId?: string
 ): Promise<SessionApplicationRank[]> {
-  const applications = await loadApplications(volumeId);
-  const saved = await savedRankings(applications);
-  return saved ?? rerankSessionApplications(volumeId);
+  return (await getSavedRankingState(volumeId)).ranked;
 }
 
 export async function generateApplicationRankingSummary(volumeId?: string): Promise<string> {

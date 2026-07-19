@@ -145,6 +145,7 @@ export default function ApplicationsIntelligenceClient() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [rankMeta, setRankMeta] = useState({ applicationCount: 0, unevaluatedCount: 0 });
   const focusId = searchParams.get("focus");
 
   const load = useCallback(async (quiet = false) => {
@@ -157,8 +158,16 @@ export default function ApplicationsIntelligenceClient() {
     ]);
     if (itemsResponse.ok) setItems((await itemsResponse.json()) as ApplicationRow[]);
     if (rankResponse.ok) {
-      const payload = (await rankResponse.json()) as { ranked?: SessionApplicationRank[] };
+      const payload = (await rankResponse.json()) as {
+        ranked?: SessionApplicationRank[];
+        applicationCount?: number;
+        unevaluatedCount?: number;
+      };
       setRanked(payload.ranked ?? []);
+      setRankMeta({
+        applicationCount: payload.applicationCount ?? payload.ranked?.length ?? 0,
+        unevaluatedCount: payload.unevaluatedCount ?? 0,
+      });
     } else {
       toast("Hiring intelligence could not be loaded.", "error");
     }
@@ -178,6 +187,7 @@ export default function ApplicationsIntelligenceClient() {
     };
     if (response.ok) {
       setRanked(payload.ranked ?? []);
+      setRankMeta({ applicationCount: payload.ranked?.length ?? 0, unevaluatedCount: 0 });
       toast(`Re-ranked ${payload.ranked?.length ?? 0} applicants with fresh AI evaluations.`);
     } else {
       toast(payload.error || "AI re-rank failed; previous rankings were preserved.", "error");
@@ -411,12 +421,49 @@ export default function ApplicationsIntelligenceClient() {
 
           {loading ? (
             <div className="mt-8"><WorkspaceLoading rows={9} /></div>
-          ) : ranked.length === 0 ? (
+          ) : ranked.length === 0 && rankMeta.applicationCount === 0 && items.length === 0 ? (
             <div className="mt-8">
               <WorkspaceEmpty title="No applications to analyze" detail="Applications will be ranked as soon as a candidate submits evidence." />
             </div>
+          ) : ranked.length === 0 ? (
+            <div className="mt-8 rounded-2xl border border-accent/25 bg-accent/[0.05] px-6 py-12 text-center">
+              <p className="text-[0.6rem] tracking-[0.18em] text-accent uppercase">Awaiting AI evaluation</p>
+              <p className="mt-3 font-display text-3xl text-cream">
+                {Math.max(rankMeta.applicationCount, items.length)} application
+                {Math.max(rankMeta.applicationCount, items.length) === 1 ? "" : "s"} ready to rank
+              </p>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-fog">
+                Rankings are created by the AI evaluation engine, not by profile completeness. Run
+                Re-Rank to evaluate the full cohort, compare every applicant head-to-head, and save
+                the results.
+              </p>
+              <button
+                type="button"
+                onClick={() => void rerank()}
+                disabled={refreshing}
+                className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-cream px-6 text-xs tracking-[0.12em] text-ink uppercase transition-colors hover:bg-accent disabled:opacity-50"
+              >
+                {refreshing ? "Evaluating cohort…" : "✦ Run first AI ranking"}
+              </button>
+            </div>
           ) : (
             <>
+              {rankMeta.unevaluatedCount > 0 && (
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+                  <p className="text-sm text-amber-200">
+                    {rankMeta.unevaluatedCount} application{rankMeta.unevaluatedCount === 1 ? "" : "s"} have
+                    no current AI evaluation (new or changed since the last run).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void rerank()}
+                    disabled={refreshing}
+                    className="min-h-9 rounded-lg border border-amber-400/40 px-3 text-xs text-amber-200 uppercase disabled:opacity-50"
+                  >
+                    {refreshing ? "Evaluating…" : "Re-Rank now"}
+                  </button>
+                </div>
+              )}
               <section className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-5 xl:grid-cols-10" aria-label="Executive overview">
                 <MetricCard label="Applications" value={String(ranked.length)} change={delta(overview.current.length, overview.previous.length)} />
                 <MetricCard label="Avg score" value={average(ranked.map((item) => item.score)).toFixed(1)} change={delta(overview.currentValues.score, overview.previousValues.score)} />

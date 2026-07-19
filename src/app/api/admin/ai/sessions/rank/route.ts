@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import {
-  rankSessionApplications,
+  getSavedRankingState,
   rerankSessionApplications,
   generateApplicationRankingSummary,
 } from "@/lib/ai/intelligence/sessions";
@@ -18,12 +18,12 @@ export async function GET(req: Request) {
   const volumeId = new URL(req.url).searchParams.get("volumeId") || undefined;
   const summary = new URL(req.url).searchParams.get("summary") === "1";
 
-  const ranked = await rankSessionApplications(volumeId);
-  if (summary) {
+  const state = await getSavedRankingState(volumeId);
+  if (summary && state.ranked.length > 0) {
     const text = await generateApplicationRankingSummary(volumeId);
-    return NextResponse.json({ ranked, summary: text });
+    return NextResponse.json({ ...state, summary: text });
   }
-  return NextResponse.json({ ranked });
+  return NextResponse.json(state);
 }
 
 export async function POST(req: Request) {
