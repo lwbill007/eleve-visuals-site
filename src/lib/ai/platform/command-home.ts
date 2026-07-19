@@ -3,9 +3,9 @@
  * Single executive composition. KPIs are owned metrics only.
  */
 
-import { resolveCommandKpis, type OwnedMetric } from "./metric-owners";
+import { resolveCommandKpis } from "./resolve-command-kpis";
+import { METRIC_OWNERS } from "./metric-owners";
 import { buildLiveBusinessHealth } from "../reasoning/live-health";
-import type { LiveBusinessHealth } from "../reasoning/types";
 import { getExecutiveOpportunities } from "../intelligence/opportunity-engine";
 import { getExecutiveRisks } from "../intelligence/risk-center";
 import { getOperatorMetrics } from "../intelligence/business-operator";
@@ -16,45 +16,11 @@ import { systemPromptForTask } from "../prompts/system";
 import {
   buildExecutiveRecommendation,
   toRecommendationContract,
-  type RecommendationContract,
 } from "./recommendation-contract";
 import type { ExecutiveOpportunity, ExecutiveRisk, PrioritizedRecommendation } from "../types";
-import { METRIC_OWNERS } from "./metric-owners";
+import type { ChangeInsight, CommandHomePayload } from "./command-home-types";
 
-export interface ChangeInsight {
-  id: string;
-  label: string;
-  period: "yesterday" | "last_week" | "last_month";
-  direction: "up" | "down" | "flat" | "unknown";
-  deltaLabel: string;
-  why: string;
-  evidence: string[];
-  ownerHref: string;
-  confidence: number;
-}
-
-export interface CommandHomePayload {
-  generatedAt: string;
-  executiveSummary: {
-    briefing: string;
-    biggestWin: { title: string; evidence: string[]; href: string } | null;
-    biggestProblem: { title: string; evidence: string[]; href: string } | null;
-    biggestOpportunity: { title: string; evidence: string[]; href: string } | null;
-    biggestRisk: { title: string; evidence: string[]; href: string } | null;
-  };
-  kpis: OwnedMetric[];
-  businessHealth: LiveBusinessHealth & {
-    domains: {
-      id: string;
-      label: string;
-      score: number | null;
-      href: string;
-      explain: string;
-    }[];
-  };
-  whatChanged: ChangeInsight[];
-  priorities: RecommendationContract[];
-}
+export type { ChangeInsight, CommandHomePayload } from "./command-home-types";
 
 const DOMAIN_HREFS: Record<string, string> = {
   revenue: METRIC_OWNERS.financial_center.href,

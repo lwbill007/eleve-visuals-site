@@ -11,7 +11,7 @@ import {
   WorkspaceError,
   WorkspaceLoading,
 } from "@/components/admin/os/WorkspaceFrame";
-import type { CommandHomePayload } from "@/lib/ai/platform/command-home";
+import type { CommandHomePayload } from "@/lib/ai/platform/command-home-types";
 import { cn } from "@/lib/utils";
 
 const RELATED = [
@@ -108,10 +108,10 @@ export function AdminDashboard() {
               Executive summary
             </p>
             <p className="mt-3 max-w-4xl text-base leading-relaxed text-cream">
-              {data.executiveSummary.briefing}
+              {data.executiveSummary?.briefing ?? "Executive summary unavailable."}
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {data.executiveSummary.biggestWin && (
+              {data.executiveSummary?.biggestWin && (
                 <SignalCard
                   eyebrow="Biggest win"
                   title={data.executiveSummary.biggestWin.title}
@@ -120,7 +120,7 @@ export function AdminDashboard() {
                   tone="win"
                 />
               )}
-              {data.executiveSummary.biggestProblem && (
+              {data.executiveSummary?.biggestProblem && (
                 <SignalCard
                   eyebrow="Biggest problem"
                   title={data.executiveSummary.biggestProblem.title}
@@ -129,7 +129,7 @@ export function AdminDashboard() {
                   tone="problem"
                 />
               )}
-              {data.executiveSummary.biggestOpportunity && (
+              {data.executiveSummary?.biggestOpportunity && (
                 <SignalCard
                   eyebrow="Biggest opportunity"
                   title={data.executiveSummary.biggestOpportunity.title}
@@ -138,7 +138,7 @@ export function AdminDashboard() {
                   tone="opportunity"
                 />
               )}
-              {data.executiveSummary.biggestRisk && (
+              {data.executiveSummary?.biggestRisk && (
                 <SignalCard
                   eyebrow="Biggest risk"
                   title={data.executiveSummary.biggestRisk.title}
@@ -177,14 +177,14 @@ export function AdminDashboard() {
             </p>
             <div className="mt-3 flex flex-wrap items-end gap-4">
               <p className="font-display text-5xl text-cream">
-                {data.businessHealth.overall == null
+                {data.businessHealth?.overall == null
                   ? "—"
                   : Math.round(data.businessHealth.overall)}
               </p>
-              <p className="max-w-xl text-sm text-fog">{data.businessHealth.disclaimer}</p>
+              <p className="max-w-xl text-sm text-fog">{data.businessHealth?.disclaimer}</p>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-              {(data.businessHealth.domains ?? []).map((domain) => (
+              {(data.businessHealth?.domains ?? []).map((domain) => (
                 <Link
                   key={domain.id}
                   href={domain.href}
@@ -225,7 +225,7 @@ export function AdminDashboard() {
                             : "text-muted"
                       )}
                     >
-                      {change.deltaLabel} · {change.period.replaceAll("_", " ")}
+                      {change.deltaLabel} · {(change.period ?? "unknown").replaceAll("_", " ")}
                     </span>
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-fog">{change.why}</p>

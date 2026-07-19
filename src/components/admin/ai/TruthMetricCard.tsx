@@ -41,6 +41,7 @@ function toTracedMetric(metric: TruthValue<number | string>): TracedMetric {
 
 function formatValue(v: number | string, currency = false): string {
   if (typeof v === "string") return v;
+  if (typeof v !== "number" || Number.isNaN(v)) return "—";
   if (currency) {
     if (v >= 1000) return `$${Math.round(v / 100) / 10}k`;
     return v > 0 ? `$${v.toLocaleString()}` : "—";

@@ -15,7 +15,7 @@ import {
   type WebsiteRecSort,
   type WebsiteRecommendation,
   type WebsiteTruthKind,
-} from "@/lib/ai/intelligence/website-engine";
+} from "@/lib/ai/intelligence/website-engine-types";
 import { cn } from "@/lib/utils";
 
 function truthTone(kind: WebsiteTruthKind) {

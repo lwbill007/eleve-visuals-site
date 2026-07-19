@@ -111,6 +111,11 @@ export function COOBar() {
       ? nextAction
       : null;
 
+  const verifiedPct = verification?.verifiedPct ?? 0;
+  const healthy = connectors?.healthy ?? 0;
+  const totalConnectors = connectors?.total ?? 0;
+  const disconnected = connectors?.disconnected ?? 0;
+
   return (
     <div className="border-b border-stone/15 bg-ink/80">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 text-[0.65rem] sm:px-6 lg:px-8">
@@ -124,23 +129,21 @@ export function COOBar() {
         )}
         <span className="flex items-center gap-1.5">
           <span className="tracking-[0.12em] text-muted uppercase">Trust</span>
-          <span className={cn("font-medium", trustColor(trustScore))}>{trustScore}</span>
+          <span className={cn("font-medium", trustColor(trustScore ?? 0))}>{trustScore ?? "—"}</span>
         </span>
         <Link href="/admin/memory" className="flex items-center gap-1.5 hover:underline">
           <span className="tracking-[0.12em] text-muted uppercase">Brain</span>
-          <span className={cn("font-medium", trustColor(verification.verifiedPct))}>
-            {verification.verifiedPct}%
-          </span>
+          <span className={cn("font-medium", trustColor(verifiedPct))}>{verifiedPct}%</span>
         </Link>
         <Link href="/admin/qa" className="flex items-center gap-1.5 hover:underline">
           <span className="tracking-[0.12em] text-muted uppercase">Sources</span>
           <span
             className={cn(
               "font-medium",
-              connectors.disconnected > 0 ? "text-amber-300" : "text-emerald-400"
+              disconnected > 0 ? "text-amber-300" : "text-emerald-400"
             )}
           >
-            {connectors.healthy}/{connectors.total}
+            {healthy}/{totalConnectors}
           </span>
         </Link>
         {!action && headline && (
