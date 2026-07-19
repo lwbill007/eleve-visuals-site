@@ -705,6 +705,8 @@ export interface SessionApplicationRank {
   evaluationVersion: string;
   evaluationProvider: string;
   unknownInformationPenalty: number;
+  /** Set when the AI evaluation for this applicant failed; the applicant is still listed. */
+  evaluationError?: string;
   tier: "Exceptional" | "Elite" | "Excellent" | "Strong" | "Good" | "Average" | "Needs Review";
   recommendation: "Invite to Interview" | "Shortlist" | "Request Evidence" | "Review" | "Hold";
   summary: string;

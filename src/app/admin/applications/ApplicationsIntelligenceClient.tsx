@@ -190,9 +190,18 @@ export default function ApplicationsIntelligenceClient() {
       error?: string;
     };
     if (response.ok) {
-      setRanked(payload.ranked ?? []);
-      setRankMeta({ applicationCount: payload.ranked?.length ?? 0, unevaluatedCount: 0 });
-      toast(`Re-ranked ${payload.ranked?.length ?? 0} applicants with fresh AI evaluations.`);
+      const results = payload.ranked ?? [];
+      setRanked(results);
+      setRankMeta({ applicationCount: results.length, unevaluatedCount: 0 });
+      const failedCount = results.filter((item) => item.evaluationError).length;
+      if (failedCount > 0) {
+        toast(
+          `Ranked ${results.length - failedCount} of ${results.length} applicants; ${failedCount} evaluation${failedCount === 1 ? "" : "s"} failed and are listed at the bottom.`,
+          "error"
+        );
+      } else {
+        toast(`Re-ranked ${results.length} applicants with fresh AI evaluations.`);
+      }
     } else {
       toast(payload.error || "AI re-rank failed; previous rankings were preserved.", "error");
     }
@@ -661,9 +670,26 @@ export default function ApplicationsIntelligenceClient() {
 
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap gap-1.5">
-                            {candidate.badges.slice(0, 3).map((badge) => <span key={badge} className="rounded-full border border-stone/30 px-2 py-1 text-[0.56rem] text-fog">{badge}</span>)}
+                            {candidate.badges.slice(0, 3).map((badge) => (
+                              <span
+                                key={badge}
+                                className={cn(
+                                  "rounded-full border px-2 py-1 text-[0.56rem]",
+                                  badge === "Evaluation Failed"
+                                    ? "border-red-400/40 bg-red-400/10 text-red-300"
+                                    : "border-stone/30 text-fog"
+                                )}
+                              >
+                                {badge}
+                              </span>
+                            ))}
                           </div>
                           <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-fog">{candidate.summary}</p>
+                          {candidate.evaluationError && (
+                            <p className="mt-1 line-clamp-2 text-[0.62rem] leading-snug text-red-300">
+                              {candidate.evaluationError}
+                            </p>
+                          )}
                           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.62rem]">
                             <span className="text-emerald-300">↑ {candidate.strengths.slice(0, 3).join(" · ")}</span>
                             <span className={candidate.riskLevel === "high" ? "text-red-300" : candidate.riskLevel === "medium" ? "text-amber-300" : "text-muted"}>Risk · {candidate.riskLevel}</span>

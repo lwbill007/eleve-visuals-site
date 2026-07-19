@@ -6,7 +6,10 @@ import { aiComplete } from "../adapter";
 import { isAIConfigured } from "../config";
 import { generateAIContent } from "../service";
 import type { SessionApplicationRank } from "../types";
-import { collectExternalApplicantEvidence } from "./applicant-evidence";
+import {
+  collectExternalApplicantEvidence,
+  type ExternalApplicantEvidence,
+} from "./applicant-evidence";
 
 type RankedCategory = SessionApplicationRank["categories"][number];
 type CategoryKey = RankedCategory["key"];
@@ -93,6 +96,8 @@ interface EvaluatedApplicant {
   assessedWeight: number;
   pairwiseWins: number;
   pairwiseLosses: number;
+  /** Populated when the AI evaluation for this applicant failed. */
+  evaluationError?: string;
 }
 
 function parseData(raw: string): Record<string, unknown> {
@@ -139,11 +144,93 @@ function inputHash(submission: SubmissionRecord): string {
 
 function extractJson(content: string): unknown {
   const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
-  const source = fenced ?? content;
-  const start = source.indexOf("{");
-  const end = source.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("AI evaluation did not return a JSON object");
-  return JSON.parse(source.slice(start, end + 1));
+  const candidates: string[] = [];
+  for (const source of [fenced, content]) {
+    if (!source) continue;
+    candidates.push(source);
+    const start = source.indexOf("{");
+    const end = source.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      const sliced = source.slice(start, end + 1);
+      candidates.push(sliced);
+      // Common LLM defect: trailing commas before closing brackets.
+      candidates.push(sliced.replace(/,\s*([}\]])/g, "$1"));
+    }
+  }
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === "object") return parsed;
+    } catch {
+      /* try next candidate */
+    }
+  }
+  throw new Error("AI evaluation did not return parsable JSON");
+}
+
+function clampNumber(value: unknown, min: number, max: number): number | null {
+  const num = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(num) ? Math.max(min, Math.min(max, num)) : null;
+}
+
+function stringList(value: unknown, max: number): string[] {
+  return Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        .map((item) => item.trim())
+        .slice(0, max)
+    : [];
+}
+
+/**
+ * Accepts imperfect model output instead of rejecting the whole evaluation.
+ * Invalid categories are dropped (they surface as "not evaluated" with zero
+ * confidence), numbers are clamped into range, and missing narrative fields
+ * get explicit placeholders.
+ */
+function normalizeAIEvaluation(raw: unknown): AIEvaluation {
+  const strict = aiEvaluationSchema.safeParse(raw);
+  if (strict.success) return strict.data;
+
+  const root = raw && typeof raw === "object" && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+  const validKeys = new Set<string>(CATEGORY_DEFINITIONS.map((definition) => definition.key));
+  const seen = new Set<string>();
+  const categories: AIEvaluation["categories"] = [];
+  if (Array.isArray(root.categories)) {
+    for (const item of root.categories) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+      const key = typeof row.key === "string" ? row.key : "";
+      if (!validKeys.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      categories.push({
+        key: key as CategoryKey,
+        score: clampNumber(row.score, 0, 100),
+        confidence: clampNumber(row.confidence, 0, 100) ?? 0,
+        notes:
+          typeof row.notes === "string" && row.notes.trim()
+            ? row.notes.trim()
+            : "No evaluation notes returned.",
+        evidence: stringList(row.evidence, 6),
+        missing: stringList(row.missing, 6),
+        improvements: stringList(row.improvements, 4),
+      });
+    }
+  }
+  const strengths = stringList(root.strengths, 5);
+  const weaknesses = stringList(root.weaknesses, 5);
+  const recommendedProjects = stringList(root.recommendedProjects, 4);
+  return {
+    categories,
+    strengths: strengths.length ? strengths : ["Not identified by the evaluation."],
+    weaknesses: weaknesses.length ? weaknesses : ["Not identified by the evaluation."],
+    recommendedProjects: recommendedProjects.length
+      ? recommendedProjects
+      : ["Standard evaluation session"],
+    riskSignals: stringList(root.riskSignals, 5),
+  };
 }
 
 function evaluationEvidence(data: Record<string, unknown>) {
@@ -222,7 +309,27 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
     stringValue(data, "portfolioWebsite") ||
     stringValue(data, "portfolioUrl");
   const socialUrl = stringValue(data, "instagram");
-  const external = await collectExternalApplicantEvidence(portfolioUrl, socialUrl);
+  // External pages are best-effort evidence; fetch failures reduce confidence
+  // but must never fail the evaluation itself.
+  let external: ExternalApplicantEvidence;
+  try {
+    external = await collectExternalApplicantEvidence(portfolioUrl, socialUrl);
+  } catch (error) {
+    console.error(
+      `[ai-rank] External evidence fetch failed for application ${submission.id} (portfolio=${portfolioUrl || "none"}, social=${socialUrl || "none"}):`,
+      error
+    );
+    external = {
+      portfolio: {
+        source: portfolioUrl,
+        fetched: false,
+        pageText: "",
+        imageUrls: [],
+        error: "Fetch failed",
+      },
+      social: { source: socialUrl, fetched: false, pageText: "", error: "Fetch failed" },
+    };
+  }
   const images = [
     ...new Set([
       ...stringArray(data, "portfolioImages"),
@@ -265,10 +372,12 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
   });
 
   if (!result?.content || result.finishReason === "error") {
-    throw new Error(`AI evaluation failed for application ${submission.id}`);
+    throw new Error(
+      `AI provider returned no usable completion (provider=${result?.provider ?? "none"}, model=${result?.model || "none"}, finishReason=${result?.finishReason ?? "none"}, images=${images.length})`
+    );
   }
 
-  const parsed = aiEvaluationSchema.parse(extractJson(result.content));
+  const parsed = normalizeAIEvaluation(extractJson(result.content));
   const portfolioVisuallyReviewed = images.length > 0 && result.provider === "openrouter";
   const byKey = new Map(parsed.categories.map((category) => [category.key, category]));
   const categories = CATEGORY_DEFINITIONS.map((definition) => {
@@ -352,6 +461,67 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
   };
 }
 
+function failedEvaluation(submission: SubmissionRecord, error: unknown): EvaluatedApplicant {
+  const data = parseData(submission.data);
+  const message = error instanceof Error ? error.message : String(error);
+  const portfolioProvided = Boolean(
+    stringValue(data, "portfolioLink") ||
+      stringValue(data, "portfolioWebsite") ||
+      stringValue(data, "portfolioUrl")
+  );
+  return {
+    submission,
+    name: String(data.fullName || data.name || submission.contactEmail || "Applicant"),
+    roles: stringArray(data, "roles"),
+    images: [],
+    portfolioVisuallyReviewed: false,
+    location: stringValue(data, "cityState") || stringValue(data, "location") || "Unknown",
+    availabilityConfirmed: data.availabilityConfirm === true,
+    portfolioProvided,
+    socialProvided: Boolean(stringValue(data, "instagram")),
+    ai: {
+      categories: [],
+      strengths: ["Not evaluated — the AI run failed for this application."],
+      weaknesses: [`Evaluation failed: ${message}`],
+      recommendedProjects: ["Re-run the AI evaluation for this applicant."],
+      riskSignals: ["AI evaluation failed"],
+    },
+    provider: "evaluation-failed",
+    evidenceFingerprint: createHash("sha256")
+      .update(`failed:${submission.id}:${submission.data}`)
+      .digest("hex"),
+    rawScore: 0,
+    confidence: 0,
+    unknownPenalty: 0,
+    assessedWeight: 0,
+    pairwiseWins: 0,
+    pairwiseLosses: 0,
+    evaluationError: message,
+  };
+}
+
+/**
+ * Isolates each applicant's evaluation: one transient AI failure gets a single
+ * retry, and a persistent failure produces a visible "Evaluation Failed"
+ * placeholder instead of aborting the entire cohort.
+ */
+async function evaluateApplicantSafely(submission: SubmissionRecord): Promise<EvaluatedApplicant> {
+  let lastError: unknown = new Error("Evaluation did not run");
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return await evaluateApplicant(submission);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : "no stack";
+      console.error(
+        `[ai-rank] Evaluation attempt ${attempt}/2 failed | application=${submission.id} | error=${message}\n${stack}`
+      );
+    }
+  }
+  return failedEvaluation(submission, lastError);
+}
+
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -376,6 +546,10 @@ function categoryScore(applicant: EvaluatedApplicant, key: CategoryKey): number 
 }
 
 function compareEvaluations(a: EvaluatedApplicant, b: EvaluatedApplicant): number {
+  // Failed evaluations always rank below successfully evaluated applicants.
+  if (Boolean(a.evaluationError) !== Boolean(b.evaluationError)) {
+    return a.evaluationError ? 1 : -1;
+  }
   const aAdjusted = a.rawScore - a.unknownPenalty;
   const bAdjusted = b.rawScore - b.unknownPenalty;
   if (Math.abs(aAdjusted - bAdjusted) > 0.05) return bAdjusted - aAdjusted;
@@ -502,6 +676,69 @@ async function verifiedRevenueByEmail(
   return map;
 }
 
+function buildFailedResult(
+  applicant: EvaluatedApplicant,
+  index: number,
+  cohortSize: number,
+  evaluatedAt: string
+): SessionApplicationRank {
+  const reason = `Ranked ${index + 1} of ${cohortSize}: the AI evaluation failed for this application (${applicant.evaluationError}). It is listed unranked at the bottom; re-run Re-Rank to retry.`;
+  return {
+    id: applicant.submission.id,
+    name: applicant.name,
+    email: applicant.submission.contactEmail,
+    roles: applicant.roles,
+    status: normalizeApplicationStatus(applicant.submission.status),
+    score: 0,
+    confidence: 0,
+    evaluatedAt,
+    evaluationVersion: APPLICATION_EVALUATION_VERSION,
+    evaluationProvider: "evaluation-failed",
+    unknownInformationPenalty: 0,
+    evaluationError: applicant.evaluationError,
+    tier: "Needs Review",
+    recommendation: "Review",
+    summary: reason,
+    strengths: applicant.ai.strengths,
+    weakness: applicant.ai.weaknesses.join(" · "),
+    badges: ["Evaluation Failed"],
+    riskLevel: "high",
+    expectedValue: {
+      basis: "insufficient",
+      amount: 0,
+      low: 0,
+      high: 0,
+      confidence: 0,
+      rationale: "No historical data available.",
+    },
+    reasonForRank: reason,
+    tieBreak: null,
+    recommendedProject: applicant.ai.recommendedProjects.join(" · "),
+    categories: CATEGORY_DEFINITIONS.map((definition) => ({
+      key: definition.key,
+      label: definition.label,
+      score: 0,
+      maxScore: definition.maxScore,
+      confidence: 0,
+      explanation: "Not scored — the AI evaluation failed for this application.",
+      evidence: [],
+      missing: ["AI evaluation failed"],
+      improvements: ["Re-run the AI ranking."],
+    })),
+    predictions: [],
+    dataQuality: {
+      portfolio: applicant.portfolioProvided ? "provided" : "missing",
+      social: applicant.socialProvided ? "provided" : "missing",
+      availability: applicant.availabilityConfirmed ? "confirmed" : "unknown",
+      location: applicant.location,
+      evidenceCount: 0,
+      missingFields: ["AI evaluation failed"],
+    },
+    href: `/admin/applications?focus=${applicant.submission.id}`,
+    createdAt: applicant.submission.createdAt.toISOString(),
+  };
+}
+
 function buildRankedResults(
   evaluated: EvaluatedApplicant[],
   revenue: Map<string, { total: number; count: number }>,
@@ -511,8 +748,12 @@ function buildRankedResults(
   const scores: number[] = [];
 
   return cohort.map((applicant, index) => {
+    if (applicant.evaluationError) {
+      scores.push(0);
+      return buildFailedResult(applicant, index, cohort.length, evaluatedAt);
+    }
     let score = finalScore(applicant, index);
-    const above = index > 0 ? cohort[index - 1] : null;
+    const above = index > 0 && !cohort[index - 1].evaluationError ? cohort[index - 1] : null;
     const metricsIdentical =
       above != null &&
       TIE_BREAK_CHAIN.every((step) => {
@@ -710,9 +951,22 @@ export async function rerankSessionApplications(
   const applications = await loadApplications(volumeId);
   if (!applications.length) return [];
 
-  // Evaluate the entire cohort before saving anything. A partial AI failure leaves
-  // the previous persisted ranking intact.
-  const evaluated = await mapWithConcurrency(applications, 2, evaluateApplicant);
+  // Each evaluation is isolated: individual failures become visible
+  // "Evaluation Failed" entries instead of aborting the cohort.
+  const evaluated = await mapWithConcurrency(applications, 2, evaluateApplicantSafely);
+  const failures = evaluated.filter((applicant) => applicant.evaluationError);
+  if (failures.length === evaluated.length) {
+    throw new Error(
+      `AI evaluation failed for all ${evaluated.length} applications; previous rankings were preserved. First error: ${failures[0]?.evaluationError ?? "unknown"}`
+    );
+  }
+  if (failures.length) {
+    console.error(
+      `[ai-rank] ${failures.length}/${evaluated.length} evaluations failed and will be listed as "Evaluation Failed": ${failures
+        .map((applicant) => `${applicant.submission.id} (${applicant.evaluationError})`)
+        .join("; ")}`
+    );
+  }
   const evaluatedAt = new Date().toISOString();
   const revenue = await verifiedRevenueByEmail(
     applications.map((application) => application.contactEmail)
