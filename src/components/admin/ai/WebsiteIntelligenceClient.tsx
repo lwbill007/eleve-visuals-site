@@ -5,7 +5,10 @@ import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import {
   sortWebsiteRecommendations,
   type WebsiteIntelligenceEngine,
@@ -58,19 +61,86 @@ export function WebsiteIntelligenceClient() {
     [data, sort]
   );
 
+  const owner = METRIC_OWNERS.analytics;
+  const siteCapabilities: OsCapability[] = useMemo(
+    () => [
+      {
+        id: "evidence",
+        label: "Evidence grades",
+        status: data ? "live" : "planned",
+        summary: data
+          ? "Recommendations are truth-labeled — Measured / AI / Best practice."
+          : "Load Website Intelligence to grade evidence.",
+      },
+      {
+        id: "heatmaps",
+        label: "Heatmaps",
+        status: "planned",
+        summary: "Heatmaps are not measured on this page.",
+        missing: {
+          label: "Heatmaps",
+          reason: "No heatmap connector",
+          required: ["Heatmap vendor", "Consent review"],
+          confidence: 0,
+          unlockAfter: "Unlock after heatmap connector",
+          owner,
+          unlockHref: "/admin/analytics",
+        },
+      },
+      {
+        id: "ab",
+        label: "A/B tests",
+        status: "planned",
+        summary: "Site-wide experiments require Analytics experiment framework.",
+        missing: {
+          label: "A/B tests",
+          reason: "No experiment runner",
+          required: ["Variant assignment", "Outcome metrics"],
+          confidence: 0,
+          unlockAfter: "Unlock after A/B framework in Analytics",
+          owner,
+          unlockHref: "/admin/analytics",
+        },
+      },
+      {
+        id: "traffic",
+        label: "Traffic charts",
+        status: "planned",
+        summary: "Traffic charts live only in Analytics SSoT — not duplicated here.",
+        href: "/admin/analytics",
+        missing: {
+          label: "Traffic (on this page)",
+          reason: "Analytics owns traffic — open SSoT instead of duplicating",
+          required: ["Use Analytics for pageviews and funnel"],
+          confidence: 0,
+          unlockAfter: "Open Analytics for traffic",
+          owner,
+          unlockHref: "/admin/analytics",
+        },
+      },
+    ],
+    [data, owner]
+  );
+
   return (
     <WorkspaceChrome
-      eyebrow="Command Center · Website"
-      title="Website Intelligence Engine"
-      description="What: evidence-graded website health. Why: prioritize by business value without fabricating rankings or Lighthouse scores. Next: act on measured gaps first."
+      eyebrow={osEyebrow("grow", "Is the site healthy?")}
+      title="Website Intelligence"
+      description="Perf, a11y, SEO, forms, errors — evidence only. Traffic charts stay in Analytics SSoT; heatmaps and A/B stay MissingMetric."
       extra={<AskAIButton />}
       related={[
-        { label: "Analytics", href: "/admin/analytics", desc: "Measured traffic" },
-        { label: "Memory", href: "/admin/memory", desc: "Run SEO scan" },
-        { label: "Portfolio", href: "/admin/portfolio", desc: "Projects" },
-        { label: "Homepage", href: "/admin/homepage", desc: "Hero & CTA" },
+        { label: "Analytics", href: "/admin/analytics", desc: "What is traffic doing?" },
+        { label: "Homepage Intelligence", href: "/admin/homepage", desc: "Is the homepage converting?" },
+        { label: "Business Brain", href: "/admin/memory", desc: "What have we learned?" },
+        { label: "Portfolio", href: "/admin/portfolio", desc: "Which work drives business?" },
       ]}
     >
+      <OsCapabilityGrid
+        className="mb-6"
+        title="Website measurement"
+        subtitle="Never invent Lighthouse, heatmaps, or traffic duplicates here."
+        capabilities={siteCapabilities}
+      />
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-sm text-fog">
           Facts and recommendations are labeled. Missing connectors stay{" "}

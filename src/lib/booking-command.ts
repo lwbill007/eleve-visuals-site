@@ -4,7 +4,10 @@
  */
 
 import { getAddOnById, getPackageById, formatPackagePrice } from "./booking-packages";
-import { normalizeInquiryStatus, type ProductionStatus } from "./booking-pipeline";
+import {
+  INQUIRY_STATUS_LABELS,
+  normalizeInquiryStatus,
+} from "./booking-pipeline";
 
 export type OpportunityGrade = "A+" | "A" | "B" | "C" | "D";
 
@@ -339,7 +342,7 @@ export function buildHealth(data: Record<string, unknown>): HealthItem[] {
       key: "invoice",
       label: "Invoice",
       status: "deferred",
-      detail: "Invoice automation not connected — create via Payments / Email",
+      detail: "Invoice automation not connected — create via Financial Center / Email",
       requestSubject: "ÉLEVÉ — Invoice",
     },
     {
@@ -353,7 +356,7 @@ export function buildHealth(data: Record<string, unknown>): HealthItem[] {
       key: "payment",
       label: "Payment / Retainer",
       status: "deferred",
-      detail: "Link payment manually in Payments — no silent auto-charge",
+      detail: "Link payment manually in Financial Center — no silent auto-charge",
       requestSubject: "ÉLEVÉ — Retainer payment",
     },
     {
@@ -561,19 +564,6 @@ export function parseOps(data: Record<string, unknown>): BookingOpsState {
 }
 
 export function statusLabel(status: string): string {
-  const n = normalizeInquiryStatus(status) as ProductionStatus;
-  const map: Record<string, string> = {
-    lead: "Lead · Inquiry",
-    qualified: "Qualified",
-    discovery: "Discovery",
-    proposal: "Proposal",
-    booked: "Booked",
-    planning: "Planning",
-    production: "Production",
-    editing: "Editing",
-    delivered: "Delivered",
-    follow_up: "Follow-up",
-    archived: "Archived",
-  };
-  return map[n] || status;
+  const n = normalizeInquiryStatus(status);
+  return INQUIRY_STATUS_LABELS[n] || status;
 }

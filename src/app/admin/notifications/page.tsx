@@ -9,9 +9,11 @@ import {
   WorkspaceChrome,
   WorkspaceLoading,
 } from "@/components/admin/os/WorkspaceFrame";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import { adminFetch } from "@/lib/admin-fetch";
 import { saveAdminContent } from "@/lib/admin-save";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/defaults";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import {
   getExistingSubscription,
   isPushSupported,
@@ -28,10 +30,23 @@ import type {
 } from "@/lib/types";
 
 const NOTIFICATIONS_RELATED = [
-  { label: "Automations", href: "/admin/automations", desc: "System jobs" },
-  { label: "QA", href: "/admin/qa", desc: "Missing intel" },
-  { label: "Settings", href: "/admin/settings", desc: "Integrations" },
+  { label: "Automation Center", href: "/admin/automations", desc: "What is running?" },
+  { label: "Executive QA", href: "/admin/qa", desc: "What is broken?" },
+  { label: "Settings", href: "/admin/settings", desc: "Configuration" },
+  { label: "AI Operations", href: "/admin/ai-operations", desc: "Trust signals" },
 ];
+
+interface AIAlert {
+  id: string;
+  type: string;
+  severity: "high" | "medium" | "low" | string;
+  title: string;
+  detail: string;
+  href: string;
+  metric: string;
+  read: boolean;
+  createdAt: string;
+}
 
 interface ProviderStatus {
   email: { provider: string; configured: boolean };
@@ -386,9 +401,9 @@ export default function AdminNotificationsPage() {
   return (
     <AdminShell title="Notifications">
       <WorkspaceChrome
-        eyebrow="System"
-        title="Notifications"
-        description="What: alerts for every form submission across email, SMS, push, and webhooks. Why: never miss a lead. Next: configure channels and review delivery history. AI can help triage — delivery stays on these providers."
+        eyebrow="System · What needs attention now?"
+        title="Notification Center"
+        description="Only actionable notifications. Grouped by severity when available. Every alert should link to the screen where it can be resolved."
         onRefresh={() => {
           void loadHistory();
           void loadAnalytics();

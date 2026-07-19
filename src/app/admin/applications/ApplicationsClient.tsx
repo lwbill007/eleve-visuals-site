@@ -13,6 +13,7 @@ import {
   WorkspaceLoading,
   WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import {
   APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
@@ -234,16 +235,16 @@ export default function ApplicationsClient() {
   return (
     <AdminShell title="Session Applications">
       <WorkspaceChrome
-        eyebrow="Sessions"
-        title="Session Applications"
-        description="What: applicants for ÉLEVÉ Sessions volumes. Why: fill roles with the right talent. Next: review pending, accept/waitlist, export. AI can rank applicants by fit."
+        eyebrow={osEyebrow("create", "Who should we cast?")}
+        title="Applications"
+        description="Explainable casting decisions — review, accept, waitlist. Prefer Applications Intelligence for scored ranking."
         onRefresh={() => void load()}
         refreshing={loading}
         related={[
-          { label: "Sessions hub", href: "/admin/sessions-hub", desc: "Overview" },
-          { label: "Volumes", href: "/admin/sessions", desc: "Manage volumes" },
-          { label: "Email", href: "/admin/email", desc: "Status emails" },
-          { label: "Portfolio", href: "/admin/portfolio", desc: "Publish" },
+          { label: "Sessions", href: "/admin/sessions-hub", desc: "How do we produce the shoot?" },
+          { label: "Volumes", href: "/admin/sessions", desc: "How is this Volume performing?" },
+          { label: "Email", href: "/admin/email", desc: "What should we send?" },
+          { label: "Portfolio", href: "/admin/portfolio", desc: "Which work drives business?" },
         ]}
       >
       {needsDecision > 0 && !statusFilter && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
@@ -9,6 +9,7 @@ import {
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceChrome,
   WorkspaceEmpty,
@@ -17,6 +18,8 @@ import {
   WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
 import type { ConversionDashboard } from "@/lib/analytics-funnel";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 
 interface AnalyticsData {
   periodDays: number;
@@ -69,11 +72,104 @@ export function AnalyticsClient() {
     q.trim() ? p.path.toLowerCase().includes(q.trim().toLowerCase()) : true
   );
 
+  const hasTraffic = (data?.totals.uniqueSessions ?? 0) > 0;
+  const owner = METRIC_OWNERS.analytics;
+  const analyticsCapabilities: OsCapability[] = useMemo(
+    () => [
+      {
+        id: "ssot",
+        label: "Traffic SSoT",
+        status: hasTraffic ? "live" : "planned",
+        summary: hasTraffic
+          ? "This page owns site traffic charts. Other pages must link here — never duplicate."
+          : "Waiting for first-party analytics events.",
+        missing: hasTraffic
+          ? undefined
+          : {
+              label: "Traffic",
+              reason: "No analytics sessions recorded yet",
+              required: ["Analytics collector enabled", "Page views recorded"],
+              confidence: 0,
+              unlockAfter: "Unlock after analytics events begin flowing",
+              owner,
+              unlockHref: "/admin/qa",
+            },
+      },
+      {
+        id: "funnel",
+        label: "Conversion funnel",
+        status: hasTraffic ? "live" : "planned",
+        summary: "First-party funnel from homepage to inquiry when events exist.",
+      },
+      {
+        id: "heatmaps",
+        label: "Heatmaps",
+        status: "planned",
+        summary: "Click / scroll heatmaps are not connected.",
+        missing: {
+          label: "Heatmaps",
+          reason: "No heatmap connector — never invent click maps",
+          required: ["Heatmap vendor", "Consent review"],
+          confidence: 0,
+          unlockAfter: "Unlock after heatmap connector",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "ab",
+        label: "A/B tests",
+        status: "planned",
+        summary: "Experiment traffic split + significance not instrumented.",
+        missing: {
+          label: "A/B tests",
+          reason: "No experiment framework with measured outcomes",
+          required: ["Variant assignment", "Outcome events", "Sample size gate"],
+          confidence: 0,
+          unlockAfter: "Unlock after A/B experiment framework",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "session-replay",
+        label: "Session replay",
+        status: "planned",
+        summary: "Session replay is not connected.",
+        missing: {
+          label: "Session replay",
+          reason: "No replay vendor",
+          required: ["Replay connector", "PII redaction"],
+          confidence: 0,
+          unlockAfter: "Unlock after session replay connector",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "lighthouse-live",
+        label: "Live Lighthouse",
+        status: "planned",
+        summary: "Targets below are not live scores — verify in CI / Lighthouse after releases.",
+        missing: {
+          label: "Live Lighthouse scores",
+          reason: "No continuous Lighthouse ingest into Analytics",
+          required: ["CI Lighthouse job", "Score store"],
+          confidence: 0,
+          unlockAfter: "Unlock after Lighthouse CI ingest",
+          owner,
+          unlockHref: "/admin/website",
+        },
+      },
+    ],
+    [hasTraffic, owner]
+  );
+
   return (
     <WorkspaceChrome
-      eyebrow="Grow"
+      eyebrow={osEyebrow("grow", "What is traffic doing?")}
       title="Analytics"
-      description="Conversion Dashboard — first-party funnel from homepage to inquiry. Measure drop-off, then optimize."
+      description="Single analytics SSoT for site traffic — no duplicate charts elsewhere. Heatmaps, A/B, and replay stay MissingMetric until connected."
       onRefresh={() => void load()}
       refreshing={loading}
       extra={
@@ -89,10 +185,10 @@ export function AnalyticsClient() {
         </select>
       }
       related={[
-        { label: "Website Intel", href: "/admin/website", desc: "SEO · UX · convert" },
-        { label: "Homepage", href: "/admin/homepage", desc: "CMS · experiments" },
-        { label: "Marketing", href: "/admin/marketing", desc: "Campaigns" },
-        { label: "Revenue Leaks", href: "/admin/leaks", desc: "Lost $" },
+        { label: "Website Intelligence", href: "/admin/website", desc: "Is the site healthy?" },
+        { label: "Homepage Intelligence", href: "/admin/homepage", desc: "Is the homepage converting?" },
+        { label: "Marketing", href: "/admin/marketing", desc: "What campaigns should run?" },
+        { label: "Revenue Leaks", href: "/admin/leaks", desc: "Where are we losing money?" },
       ]}
     >
       {loading && !data ? (
@@ -108,6 +204,17 @@ export function AnalyticsClient() {
         />
       ) : (
         <div className="space-y-8">
+          <div className="rounded-xl border border-accent/25 bg-accent/5 px-4 py-3 text-sm text-fog">
+            This is the <span className="text-cream">traffic single source of truth</span>. Other
+            Create/Grow pages link here for views and funnel — they must not redraw these charts.
+          </div>
+
+          <OsCapabilityGrid
+            title="Measurement map"
+            subtitle="Live first-party traffic only. Advanced channels stay MissingMetric."
+            capabilities={analyticsCapabilities}
+          />
+
           <AdminPanel
             title="Conversion Dashboard"
             subtitle="Visitors → inquiry. Rates are first-party only."

@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { ExecuteButton } from "@/components/admin/ai/ExecuteButton";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceButton,
   WorkspaceChrome,
@@ -15,6 +16,7 @@ import {
   WorkspaceLoading,
 } from "@/components/admin/os/WorkspaceFrame";
 import { WORKBOARD_OPEN_STATUSES } from "@/lib/booking-pipeline";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 
 interface PipelineItem {
   id: string;
@@ -78,18 +80,108 @@ export default function WorkboardPage() {
     .filter((i) => (i.ageDays ?? 0) >= 3)
     .sort((a, b) => (b.ageDays ?? 0) - (a.ageDays ?? 0));
 
+  const production = columns
+    .filter((c) => ["planning", "production", "editing"].includes(c.id))
+    .flatMap((c) => c.items.map((i) => ({ ...i, stage: c.label })));
+
+  const delivered = columns.find((c) => c.id === "delivered")?.items ?? [];
+
+  const owner = METRIC_OWNERS.bookings;
+  const lanes: OsCapability[] = [
+    {
+      id: "tasks",
+      label: "Tasks",
+      status: inbox.length > 0 ? "live" : "partial",
+      summary: `${inbox.length} open inquiries need action (Measured · Pipeline).`,
+      href: "/admin/pipeline",
+    },
+    {
+      id: "shoots",
+      label: "Shoots",
+      status: production.length > 0 ? "live" : "partial",
+      summary: `${production.length} in booked/production/editing stages (Measured).`,
+      href: "/admin/submissions?type=booking",
+    },
+    {
+      id: "editing",
+      label: "Editing",
+      status: "partial",
+      summary: "Editing stage tracked via pipeline status — no edit-queue entity yet.",
+      href: "/admin/pipeline",
+    },
+    {
+      id: "deliveries",
+      label: "Deliveries",
+      status: delivered.length > 0 ? "live" : "partial",
+      summary: `${delivered.length} completed / delivered (Measured).`,
+      href: "/admin/pipeline",
+    },
+    {
+      id: "contracts",
+      label: "Contracts",
+      status: "planned",
+      summary: "Contract objects not first-class.",
+      missing: {
+        label: "Contracts",
+        reason: "No Contract entity linked to bookings",
+        required: ["Contract model", "Sent/signed status", "Booking link"],
+        confidence: 0,
+        unlockAfter: "Unlock after Contract schema",
+        owner,
+        unlockHref: "/admin/qa",
+      },
+    },
+    {
+      id: "invoices",
+      label: "Invoices",
+      status: "planned",
+      summary: "Owned by Financial Center when Invoice model exists.",
+      missing: {
+        label: "Invoices",
+        reason: "Invoice store not available — see Financial Center",
+        required: ["Invoice entity", "Due dates"],
+        confidence: 0,
+        unlockAfter: "Unlock after Financial Center invoices",
+        owner: METRIC_OWNERS.financial_center,
+        unlockHref: "/admin/financial",
+      },
+    },
+    {
+      id: "deadlines",
+      label: "Deadlines",
+      status: stale.length > 0 ? "live" : "partial",
+      summary: `${stale.length} deals idle 3+ days (Measured aging).`,
+      href: "/admin/pipeline",
+    },
+    {
+      id: "approvals",
+      label: "Approvals",
+      status: "planned",
+      summary: "Approval workflow not instrumented.",
+      missing: {
+        label: "Approvals",
+        reason: "No approval queue entity",
+        required: ["Approval requests", "Owner + deadline"],
+        confidence: 0,
+        unlockAfter: "Unlock after approval workflow",
+        owner,
+        unlockHref: "/admin/qa",
+      },
+    },
+  ];
+
   return (
     <AdminShell title="Workboard">
       <WorkspaceChrome
-        eyebrow="Work · Execute"
+        eyebrow="Work · What must I execute today?"
         title="Workboard"
-        description="What needs a reply, why deals are aging, and what to do next — advance stages or open the full pipeline."
+        description="Daily operating system — AI-prioritized inquiries, aging deals, and production lanes. Missing domains show unlock criteria at 0% confidence."
         onRefresh={() => void load()}
         refreshing={loading}
         related={[
-          { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
-          { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Inbox" },
-          { label: "Booking AI", href: "/admin/bookings-ai", desc: "Forecasts" },
+          { label: "Pipeline", href: "/admin/pipeline", desc: "Where is every deal?" },
+          { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Booking records" },
+          { label: "Booking Intelligence", href: "/admin/bookings-ai", desc: "Will it close?" },
         ]}
         extra={
           <WorkspaceButton href="/admin/pipeline" variant="primary">
@@ -102,81 +194,89 @@ export default function WorkboardPage() {
         ) : error && columns.length === 0 ? (
           <WorkspaceError message={error} onRetry={() => void load()} />
         ) : (
-          <div className="grid gap-6 lg:grid-cols-2">
-            <AdminPanel title="Open inquiries" subtitle="Lead → Proposal">
-              {inbox.length === 0 ? (
-                <WorkspaceEmpty title="Clear" detail="No open inquiries in early stages." />
-              ) : (
-                <ul className="space-y-3">
-                  {inbox.map((s) => (
-                    <li
-                      key={s.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone/15 p-3"
-                    >
-                      <div>
+          <div className="space-y-8">
+            <OsCapabilityGrid
+              title="Operating lanes"
+              subtitle="Tasks through Approvals — live counts from Pipeline; unknowns stay honest."
+              capabilities={lanes}
+            />
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <AdminPanel title="Open inquiries" subtitle="Lead → Proposal · AI priority = stale first">
+                {inbox.length === 0 ? (
+                  <WorkspaceEmpty title="Clear" detail="No open inquiries in early stages." />
+                ) : (
+                  <ul className="space-y-3">
+                    {inbox.map((s) => (
+                      <li
+                        key={s.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone/15 p-3"
+                      >
+                        <div>
+                          <Link
+                            href={`/admin/submissions?type=booking&focus=${s.id}`}
+                            className="text-sm text-cream hover:text-accent"
+                          >
+                            {s.name}
+                          </Link>
+                          <p className="text-[0.65rem] text-muted">
+                            {s.status} · {s.service || "—"} · ~${s.value.toLocaleString()}
+                            {s.ageDays != null ? ` · ${s.ageDays}d` : ""}
+                          </p>
+                        </div>
+                        <ExecuteButton
+                          target={{
+                            id: `booking-${s.id}`,
+                            title: `Advance ${s.name}`,
+                            href: `/admin/submissions?type=booking&focus=${s.id}`,
+                            actionLabel: "Advance to Consultation",
+                            kind: "mark_booking_contacted",
+                            submissionId: s.id,
+                          }}
+                          onDone={load}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </AdminPanel>
+
+              <AdminPanel title="Stale deals" subtitle="3+ days without update">
+                {stale.length === 0 ? (
+                  <p className="text-sm text-fog">No aging deals — pipeline is current.</p>
+                ) : (
+                  <ul className="space-y-3">
+                    {stale.slice(0, 10).map((i) => (
+                      <li key={i.id} className="rounded-lg border border-amber-500/20 p-3">
                         <Link
-                          href={`/admin/submissions?type=booking&focus=${s.id}`}
+                          href={`/admin/submissions?type=booking&focus=${i.id}`}
                           className="text-sm text-cream hover:text-accent"
                         >
-                          {s.name}
+                          {i.name}
                         </Link>
-                        <p className="text-[0.65rem] text-muted">
-                          {s.status} · {s.service || "—"} · ~${s.value.toLocaleString()}
-                          {s.ageDays != null ? ` · ${s.ageDays}d` : ""}
+                        <p className="text-[0.65rem] text-amber-200/80">
+                          {i.stage} · {i.ageDays}d idle · ~${i.value.toLocaleString()}
                         </p>
-                      </div>
-                      <ExecuteButton
-                        target={{
-                          id: `booking-${s.id}`,
-                          title: `Advance ${s.name}`,
-                          href: `/admin/submissions?type=booking&focus=${s.id}`,
-                          actionLabel: "Advance to Discovery",
-                          kind: "mark_booking_contacted",
-                          submissionId: s.id,
-                        }}
-                        onDone={load}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </AdminPanel>
-
-            <AdminPanel title="Stale deals" subtitle="3+ days without update">
-              {stale.length === 0 ? (
-                <p className="text-sm text-fog">No aging deals — pipeline is current.</p>
-              ) : (
-                <ul className="space-y-3">
-                  {stale.slice(0, 10).map((i) => (
-                    <li key={i.id} className="rounded-lg border border-amber-500/20 p-3">
-                      <Link
-                        href={`/admin/submissions?type=booking&focus=${i.id}`}
-                        className="text-sm text-cream hover:text-accent"
-                      >
-                        {i.name}
-                      </Link>
-                      <p className="text-[0.65rem] text-amber-200/80">
-                        {i.stage} · {i.ageDays}d idle · ~${i.value.toLocaleString()}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {stale.length > 0 && (
-                <div className="mt-4">
-                  <ExecuteButton
-                    target={{
-                      id: "stale-batch",
-                      title: "Advance stale leads to Discovery",
-                      href: "/admin/submissions?type=booking",
-                      actionLabel: "Advance stale leads",
-                      kind: "mark_stale_bookings_contacted",
-                    }}
-                    onDone={load}
-                  />
-                </div>
-              )}
-            </AdminPanel>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {stale.length > 0 && (
+                  <div className="mt-4">
+                    <ExecuteButton
+                      target={{
+                        id: "stale-batch",
+                        title: "Advance stale leads to Consultation",
+                        href: "/admin/submissions?type=booking",
+                        actionLabel: "Advance stale leads",
+                        kind: "mark_stale_bookings_contacted",
+                      }}
+                      onDone={load}
+                    />
+                  </div>
+                )}
+              </AdminPanel>
+            </div>
           </div>
         )}
       </WorkspaceChrome>

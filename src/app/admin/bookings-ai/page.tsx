@@ -3,7 +3,7 @@ import { BookingAssistantPanel } from "@/components/admin/ai/BookingAssistantPan
 
 export default function AdminBookingsAIPage() {
   return (
-    <AdminShell title="Booking Assistant">
+    <AdminShell title="Booking Intelligence">
       <BookingAssistantPanel />
     </AdminShell>
   );

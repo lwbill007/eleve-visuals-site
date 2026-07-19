@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useUploadsActive } from "@/lib/upload-tracker";
@@ -20,6 +20,10 @@ import {
   FileUpload,
   StringListEditor,
 } from "@/components/admin/AdminForm";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
+import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import {
   SESSION_VOLUME_STATUSES,
   type SessionTimelineStep,
@@ -211,8 +215,102 @@ export default function AdminSessionsPage() {
     setAppSaving(false);
   }
 
+  const hasVolumes = items.length > 0;
+  const volumeCapabilities: OsCapability[] = useMemo(() => {
+    const appsOwner = METRIC_OWNERS.applications;
+    const finance = METRIC_OWNERS.financial_center;
+    const analytics = METRIC_OWNERS.analytics;
+    return [
+      {
+        id: "apps",
+        label: "Applications",
+        status: hasVolumes ? "live" : "planned",
+        summary: hasVolumes
+          ? "Application pipeline is live — cast decisions live on Applications."
+          : "Applications attach to a Volume cycle.",
+        href: "/admin/applications",
+        missing: hasVolumes
+          ? undefined
+          : {
+              label: "Applications",
+              reason: "No Volume cycle to attach applications",
+              required: ["Session Volume published or open for apply"],
+              confidence: 0,
+              unlockAfter: "Unlock after creating a Volume",
+              owner: appsOwner,
+              unlockHref: "/admin/applications",
+            },
+      },
+      {
+        id: "revenue",
+        label: "Revenue",
+        status: "planned",
+        summary: "Volume revenue is owned by Financial Center — never invent ROI here.",
+        href: "/admin/financial",
+        missing: {
+          label: "Volume revenue",
+          reason: "No Payment ↔ Volume attribution",
+          required: ["Succeeded Payment rows", "Volume linked to settlement"],
+          confidence: 0,
+          unlockAfter: "Unlock after Financial Center attributes cash to Volumes",
+          owner: finance,
+          unlockHref: "/admin/financial",
+        },
+      },
+      {
+        id: "profit",
+        label: "Profit",
+        status: "planned",
+        summary: "Profit requires verified revenue − verified expenses.",
+        href: "/admin/financial",
+        missing: {
+          label: "Volume profit",
+          reason: "Cannot compute without expenses + attributed revenue",
+          required: ["Volume revenue attribution", "Expense / COGS ledger"],
+          confidence: 0,
+          unlockAfter: "Unlock after Financial Center expense + attribution",
+          owner: finance,
+          unlockHref: "/admin/financial",
+        },
+      },
+      {
+        id: "traffic",
+        label: "Traffic",
+        status: "planned",
+        summary: "Traffic is owned by Analytics SSoT — this page does not duplicate charts.",
+        href: "/admin/analytics",
+        missing: {
+          label: "Volume traffic",
+          reason: "No per-Volume path analytics attribution on this page",
+          required: ["Analytics events on /sessions/* paths", "Volume slug mapping"],
+          confidence: 0,
+          unlockAfter: "Unlock after Analytics attributes sessions paths to Volumes",
+          owner: analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+    ];
+  }, [hasVolumes]);
+
   return (
-    <AdminShell title="ÉLEVÉ Sessions">
+    <AdminShell title="Volumes">
+      <WorkspaceChrome
+        eyebrow={osEyebrow("create", "How is this Volume performing?")}
+        title="Volumes"
+        description="Signature campaigns with ROI and lessons learned. Production fields are editable here; revenue, profit, and traffic stay MissingMetric until owners can verify them."
+        related={[
+          { label: "Sessions", href: "/admin/sessions-hub", desc: "How do we produce the shoot?" },
+          { label: "Applications", href: "/admin/applications", desc: "Who should we cast?" },
+          { label: "Analytics", href: "/admin/analytics", desc: "What is traffic doing?" },
+          { label: "Financial Center", href: "/admin/financial", desc: "Where is the money?" },
+        ]}
+      >
+      <OsCapabilityGrid
+        className="mb-8"
+        title="Volume performance honesty"
+        subtitle="Apps may be live. Revenue, profit, and traffic are never invented on this page."
+        capabilities={volumeCapabilities}
+      />
       <div className="mb-6 flex gap-2">
         {(["volumes", "application"] as const).map((mode) => (
           <button
@@ -1107,6 +1205,7 @@ export default function AdminSessionsPage() {
       {message && <p className="mt-6 text-sm text-accent">{message}</p>}
         </>
       )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

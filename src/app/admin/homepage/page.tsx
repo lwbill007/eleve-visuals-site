@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
@@ -11,11 +11,14 @@ import {
   SaveBar,
   StringListEditor,
 } from "@/components/admin/AdminForm";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
 import { saveAdminContent } from "@/lib/admin-save";
 import { DEFAULT_HERO, DEFAULT_HOMEPAGE } from "@/lib/defaults";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import type { HeroContent, HomepageContent, SessionVolumeDTO, PortfolioItemDTO, TestimonialDTO } from "@/lib/types";
 
 export default function AdminHomepagePage() {
@@ -100,19 +103,116 @@ export default function AdminHomepagePage() {
     });
   }
 
+  const analytics = METRIC_OWNERS.analytics;
+  const homepageCapabilities: OsCapability[] = useMemo(
+    () => [
+      {
+        id: "cms",
+        label: "Homepage CMS",
+        status: "live",
+        summary: "Hero, sections, and CTA copy are editable here.",
+      },
+      {
+        id: "hero-ctr",
+        label: "Hero / CTA conversion",
+        status: "planned",
+        summary: "Conversion rates are owned by Analytics SSoT — not recalculated here.",
+        href: "/admin/analytics",
+        missing: {
+          label: "Homepage conversion metrics",
+          reason: "Metrics live in Analytics — this page edits content only",
+          required: ["Open Analytics for hero CTR and funnel"],
+          confidence: 0,
+          unlockAfter: "Open Analytics for measured homepage conversion",
+          owner: analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+      {
+        id: "scroll",
+        label: "Scroll depth",
+        status: "planned",
+        summary: "Scroll depth is not instrumented on this page.",
+        missing: {
+          label: "Scroll depth",
+          reason: "No scroll-depth events attributed to homepage versions",
+          required: ["Scroll analytics events", "Version tagging"],
+          confidence: 0,
+          unlockAfter: "Unlock after scroll instrumentation in Analytics",
+          owner: analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+      {
+        id: "ab",
+        label: "A/B / experiments",
+        status: homepage.experiment?.id ? "partial" : "planned",
+        summary: homepage.experiment?.id
+          ? "Experiment flags exist in CMS. Measured winners require Analytics sample size."
+          : "Homepage experiments need a measured framework.",
+        missing: {
+          label: "Homepage A/B winners",
+          reason: "No significance-gated experiment outcomes",
+          required: ["Traffic split", "Outcome events", "Sample size gate"],
+          confidence: 0,
+          unlockAfter: "Unlock after Analytics A/B framework",
+          owner: analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+      {
+        id: "heatmaps",
+        label: "Heatmaps",
+        status: "planned",
+        summary: "Heatmaps are not connected.",
+        missing: {
+          label: "Heatmaps",
+          reason: "No heatmap connector",
+          required: ["Heatmap vendor", "Consent review"],
+          confidence: 0,
+          unlockAfter: "Unlock after heatmap connector",
+          owner: analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+      {
+        id: "versions",
+        label: "Version history",
+        status: "partial",
+        summary: "Content saves overwrite CMS. Full version history with restore is partial.",
+        missing: {
+          label: "Homepage version history",
+          reason: "No immutable version store with restore",
+          required: ["Content version entity", "Diff + restore"],
+          confidence: 0,
+          unlockAfter: "Unlock after CMS versioning",
+          owner: analytics,
+          unlockHref: "/admin/qa",
+        },
+      },
+    ],
+    [analytics, homepage.experiment?.id]
+  );
+
   return (
-    <AdminShell title="Homepage">
+    <AdminShell title="Homepage Intelligence">
       <WorkspaceChrome
-        eyebrow="Grow · Website"
-        title="Homepage"
-        description="What: hero, sections, and CTA copy for the public site. Why: control first impression without code. Next: save, then verify Featured work in Portfolio and Media. AI can draft section copy — you approve before publish."
+        eyebrow={osEyebrow("grow", "Is the homepage converting?")}
+        title="Homepage Intelligence"
+        description="Hero/CTA/scroll/conversions with version history. Edit content here; measured conversion lives in Analytics SSoT. Heatmaps and A/B winners stay MissingMetric."
         related={[
-          { label: "Media", href: "/admin/media", desc: "Assets" },
-          { label: "Portfolio", href: "/admin/portfolio", desc: "Featured work" },
-          { label: "Analytics", href: "/admin/analytics", desc: "What converts" },
-          { label: "Forms", href: "/admin/forms", desc: "Lead capture" },
+          { label: "Analytics", href: "/admin/analytics", desc: "What is traffic doing?" },
+          { label: "Website Intelligence", href: "/admin/website", desc: "Is the site healthy?" },
+          { label: "Media", href: "/admin/media", desc: "Where is the asset?" },
+          { label: "Portfolio", href: "/admin/portfolio", desc: "Which work drives business?" },
         ]}
       >
+      <OsCapabilityGrid
+        className="mb-8"
+        title="Homepage measurement"
+        subtitle="Never invent CTR, scroll, or heatmap numbers on the CMS page."
+        capabilities={homepageCapabilities}
+      />
       <div className="space-y-10">
         <section className="border border-stone/30 p-6">
           <h2 className="mb-6 font-display text-xl">Hero</h2>

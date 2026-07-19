@@ -669,10 +669,10 @@ export function BookingCommandCenter({
               Pipeline
             </Link>
             <Link
-              href="/admin/payments"
+              href="/admin/financial"
               className="border border-stone/40 px-3 py-1.5 text-[0.65rem] tracking-[0.1em] text-fog uppercase"
             >
-              Payments
+              Financial
             </Link>
             <button
               type="button"

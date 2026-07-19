@@ -5,8 +5,10 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
 import { cn } from "@/lib/utils";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import type {
   ContinuousMonitorItem,
   ExecutiveResearchReport,
@@ -89,24 +91,85 @@ export function ResearchIntelligenceClient() {
 
   const conf = report?.researchConfidence;
 
+  const capabilities: OsCapability[] = [
+    {
+      id: "gated-pipeline",
+      label: "Gated research pipeline",
+      status: "live",
+      summary:
+        "External web evidence is gated, scored, and never treated as business truth. Internal memory always wins.",
+    },
+    {
+      id: "multi-source",
+      label: "Multi-source verification",
+      status: report ? "live" : "partial",
+      summary: report
+        ? "Last run applied multi-source gates and contradiction checks."
+        : "Run gated research to verify claims across sources.",
+    },
+    {
+      id: "outcome-learning",
+      label: "ÉLEVÉ outcome learning",
+      status: recent.length > 0 ? "partial" : "planned",
+      summary:
+        recent.length > 0
+          ? `${recent.length} research memories retained — outcome linkage still partial.`
+          : "No research memory yet.",
+      missing:
+        recent.length === 0
+          ? {
+              label: "Research → outcome linkage",
+              reason: "No research runs stored; cannot learn from ÉLEVÉ outcomes yet",
+              required: ["Completed gated research run", "Decision recorded against evidence"],
+              confidence: 0,
+              unlockAfter: "Unlock after first gated research + decision loop",
+              owner: METRIC_OWNERS.ai_operations,
+              unlockHref: "/admin/memory",
+            }
+          : undefined,
+    },
+    {
+      id: "web-as-truth",
+      label: "Web as source of truth",
+      status: "planned",
+      summary: "Intentionally never enabled — external web cannot override verified business data.",
+      missing: {
+        label: "Web as truth (blocked)",
+        reason: "Design rule: the gated pipeline never promotes web claims to verified truth",
+        required: ["Not applicable — web stays evidence only"],
+        confidence: 0,
+        unlockAfter: "Never unlock — external research informs; it does not decide",
+        owner: METRIC_OWNERS.ai_operations,
+        unlockHref: "/admin/research",
+      },
+    },
+  ];
+
   return (
     <WorkspaceChrome
-      eyebrow="Command · Research"
-      title="Web Research Intelligence v2"
-      description="Self-aware evidence quality — multi-source gates, contradiction detection, relevance filter, and learning from ÉLEVÉ outcomes. The web is never the source of truth."
+      eyebrow="Brain · What does external research say?"
+      title="Web Research"
+      description="Gated external research only. Multi-source gates, contradiction detection, and ÉLEVÉ memory always outrank the web — never treat the open web as truth."
       extra={<AskAIButton />}
       related={[
-        { label: "Briefing", href: "/admin/briefing", desc: "Report v3" },
-        { label: "Reports", href: "/admin/reports", desc: "BI" },
-        { label: "Memory", href: "/admin/memory", desc: "Research memory" },
-        { label: "Website", href: "/admin/website", desc: "SEO intel" },
+        { label: "Business Brain", href: "/admin/memory", desc: "Verified memory" },
+        { label: "Briefing", href: "/admin/briefing", desc: "Narrative" },
+        { label: "Reports", href: "/admin/reports", desc: "Leadership" },
+        { label: "Website", href: "/admin/website", desc: "Site health" },
       ]}
     >
       <div className="mb-6 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-fog">
-        Deep research only when justified. Single-source recommendations show a warning. Noise (e.g.
-        cosmetic Instagram fonts) is filtered; algorithm/reach changes alert. Never fabricate
-        benchmarks or competitor facts.
+        Gated pipeline rule: web findings are evidence candidates only. Single-source recommendations
+        warn. Noise is filtered. Never fabricate benchmarks or competitor facts — and never promote
+        web claims above Payments Verified or Business Brain memory.
       </div>
+
+      <OsCapabilityGrid
+        title="Research capabilities"
+        subtitle="Honesty first — the web never becomes the source of truth."
+        capabilities={capabilities}
+        className="mb-8"
+      />
 
       <AdminPanel title="Research mode" subtitle="Cost-aware" className="mb-6">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

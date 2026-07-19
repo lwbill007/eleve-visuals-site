@@ -13,6 +13,7 @@ import {
   WorkspaceLoading,
   WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
@@ -27,6 +28,8 @@ import {
 import { cn } from "@/lib/utils";
 import { formatInquiryId } from "@/lib/booking";
 import { BookingCommandCenter } from "@/components/admin/booking/BookingCommandCenter";
+import { METRIC_OWNERS, type MissingMetric } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow, osPage } from "@/lib/ai/platform/os-systems";
 
 interface Submission {
   id: string;
@@ -334,22 +337,111 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
           ? "Contact Messages"
           : "All Submissions";
 
-  const chromeTitle =
-    typeFilter === "booking"
-      ? "Bookings"
-      : typeFilter === "session"
-        ? "Session Applications"
-        : typeFilter === "contact"
-          ? "Contact Messages"
-          : "Inbox";
+  const bookingsPage = osPage("bookings")!;
+  const inboxPage = osPage("inbox")!;
+  const isBookingMode = typeFilter === "booking";
 
-  const chromeEyebrow =
-    typeFilter === "booking" ? "Work · Bookings" : "Work · Inbox";
+  const chromeTitle = isBookingMode
+    ? "Bookings"
+    : typeFilter === "session"
+      ? "Session Applications"
+      : typeFilter === "contact"
+        ? "Contact Messages"
+        : "Inbox";
 
-  const chromeDescription =
-    typeFilter === "booking"
-      ? "Mission control for every inquiry — value, next action, timeline, production."
-      : "What: every form response in one inbox. Why: nothing falls through. Next: triage unread and update status. AI can summarize threads and draft replies.";
+  const chromeEyebrow = isBookingMode
+    ? osEyebrow("work", bookingsPage.question)
+    : osEyebrow("work", inboxPage.question);
+
+  const chromeDescription = isBookingMode
+    ? bookingsPage.purpose
+    : inboxPage.purpose;
+
+  const channelMissing = (
+    label: string,
+    reason: string,
+    required: string[]
+  ): MissingMetric => ({
+    label,
+    reason,
+    required,
+    confidence: 0,
+    unlockAfter: `Unlock after ${label} is connected.`,
+    owner: METRIC_OWNERS.bookings,
+    unlockHref: "/admin/qa",
+  });
+
+  const inboxChannels: OsCapability[] = [
+    {
+      id: "website",
+      label: "Website",
+      status: "live",
+      summary: "Booking + contact form submissions land here.",
+      href: "/admin/submissions",
+    },
+    {
+      id: "instagram",
+      label: "Instagram DM",
+      status: "planned",
+      summary: "IG messaging is not connected.",
+      missing: channelMissing("Instagram DM", "No Instagram messaging connector.", [
+        "Meta IG messaging API",
+        "Thread sync into Inbox",
+      ]),
+    },
+    {
+      id: "facebook",
+      label: "Facebook",
+      status: "planned",
+      summary: "Facebook Messenger is not connected.",
+      missing: channelMissing("Facebook Messenger", "No FB Messenger connector.", [
+        "Meta Messenger API",
+        "Thread sync into Inbox",
+      ]),
+    },
+    {
+      id: "email",
+      label: "Email",
+      status: "planned",
+      summary: "Inbound email is not mirrored into Inbox.",
+      missing: channelMissing("Email", "No inbound email connector into this Inbox.", [
+        "Inbound email sync",
+        "Thread ↔ client linkage",
+      ]),
+    },
+    {
+      id: "sms",
+      label: "SMS",
+      status: "planned",
+      summary: "SMS channel is not connected.",
+      missing: channelMissing("SMS", "No SMS provider linked to Inbox.", [
+        "SMS provider",
+        "Number verification",
+      ]),
+    },
+  ];
+
+  const bookingListCapabilities: OsCapability[] = [
+    {
+      id: "list",
+      label: "Booking list",
+      status: "live",
+      summary: "Every booking inquiry with stage, value, and command center.",
+    },
+    {
+      id: "next",
+      label: "Needs next",
+      status: "live",
+      summary: "Open a row for Timeline → Files — MissingMetric domains stay honest inside Command Center.",
+    },
+    {
+      id: "payments",
+      label: "Payments",
+      status: "partial",
+      summary: "Cash is owned by Financial Center — link from each booking.",
+      href: "/admin/financial",
+    },
+  ];
 
   return (
     <AdminShell title={pageTitle}>
@@ -360,10 +452,10 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
         onRefresh={() => void load()}
         refreshing={loading}
         related={[
-          { label: "Workboard", href: "/admin/workboard", desc: "Stale first" },
+          { label: "Workboard", href: "/admin/workboard", desc: "Execute today" },
           { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
-          { label: "CRM", href: "/admin/crm", desc: "People" },
-          { label: "Email", href: "/admin/email", desc: "Send" },
+          { label: "Clients", href: "/admin/crm", desc: "People" },
+          { label: "Financial", href: "/admin/financial", desc: "Money" },
         ]}
       >
       <WorkspaceToolbar
@@ -371,6 +463,23 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
         onSearch={setSearch}
         searchPlaceholder="Search name, email, message..."
       />
+
+      {isBookingMode ? (
+        <OsCapabilityGrid
+          className="mb-8"
+          title="Booking record"
+          subtitle="One booking answers: what does this need next? Open a row for the full capability map."
+          capabilities={bookingListCapabilities}
+        />
+      ) : (
+        <OsCapabilityGrid
+          className="mb-8"
+          title="Channels"
+          subtitle="Website forms are live. Other channels stay MissingMetric until connected."
+          capabilities={inboxChannels}
+        />
+      )}
+
       <div className="mb-6 flex flex-wrap items-center gap-2">
         {!forcedType &&
           ["all", "booking", "session", "contact"].map((t) => (

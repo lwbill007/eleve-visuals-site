@@ -63,16 +63,22 @@ export function normalizeInquiryStatus(status: string): ProductionStatus {
   return LEGACY_TO_PRODUCTION[status] ?? "lead";
 }
 
+/**
+ * Display labels for the Work Pipeline vision:
+ * Lead → Qualified → Consultation → Proposal → Booked → Completed → Archived.
+ * Status IDs stay stable in the DB; Contract Sent / Deposit Paid are not yet
+ * distinct statuses — surface those as MissingMetric on the Pipeline page.
+ */
 export const INQUIRY_STATUS_LABELS: Record<ProductionStatus, string> = {
   lead: "Lead",
   qualified: "Qualified",
-  discovery: "Discovery",
+  discovery: "Consultation",
   proposal: "Proposal",
   booked: "Booked",
   planning: "Planning",
   production: "Production",
   editing: "Editing",
-  delivered: "Delivered",
+  delivered: "Completed",
   follow_up: "Follow-up",
   archived: "Archived",
 };
@@ -91,19 +97,23 @@ export const INQUIRY_STATUS_COLORS: Record<ProductionStatus, string> = {
   archived: "text-muted border-stone/30",
 };
 
-/** Pipeline columns (excludes archived from active board — shown as Inactive). */
+/**
+ * Pipeline columns. Labels follow the sales vision where IDs map cleanly
+ * (Consultation, Completed). Contract Sent / Deposit Paid are not status IDs —
+ * show them as MissingMetric on PipelineClient, do not mislabel booked/planning.
+ */
 export const PIPELINE_STAGES = [
-  { id: "lead" as const, label: "Lead" },
-  { id: "qualified" as const, label: "Qualified" },
-  { id: "discovery" as const, label: "Discovery" },
-  { id: "proposal" as const, label: "Proposal" },
-  { id: "booked" as const, label: "Booked" },
-  { id: "planning" as const, label: "Planning" },
-  { id: "production" as const, label: "Production" },
-  { id: "editing" as const, label: "Editing" },
-  { id: "delivered" as const, label: "Delivered" },
-  { id: "follow_up" as const, label: "Follow-up" },
-  { id: "archived" as const, label: "Inactive" },
+  { id: "lead" as const, label: INQUIRY_STATUS_LABELS.lead },
+  { id: "qualified" as const, label: INQUIRY_STATUS_LABELS.qualified },
+  { id: "discovery" as const, label: INQUIRY_STATUS_LABELS.discovery },
+  { id: "proposal" as const, label: INQUIRY_STATUS_LABELS.proposal },
+  { id: "booked" as const, label: INQUIRY_STATUS_LABELS.booked },
+  { id: "planning" as const, label: INQUIRY_STATUS_LABELS.planning },
+  { id: "production" as const, label: INQUIRY_STATUS_LABELS.production },
+  { id: "editing" as const, label: INQUIRY_STATUS_LABELS.editing },
+  { id: "delivered" as const, label: INQUIRY_STATUS_LABELS.delivered },
+  { id: "follow_up" as const, label: INQUIRY_STATUS_LABELS.follow_up },
+  { id: "archived" as const, label: INQUIRY_STATUS_LABELS.archived },
 ];
 
 /** Open / needs-attention statuses (stale detection). */

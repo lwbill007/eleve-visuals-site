@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceButton,
   WorkspaceChrome,
@@ -14,6 +15,8 @@ import {
   WorkspaceError,
   WorkspaceLoading,
 } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 
 interface Template {
   id: string;
@@ -73,19 +76,95 @@ export default function EmailPage() {
     setSending(false);
   }
 
+  const emailCapabilities: OsCapability[] = useMemo(() => {
+    const owner = METRIC_OWNERS.clients;
+    return [
+      {
+        id: "templates",
+        label: "Templates",
+        status: templates.length > 0 ? "live" : "planned",
+        summary:
+          templates.length > 0
+            ? `${templates.length} sendable template${templates.length === 1 ? "" : "s"}.`
+            : "Templates load from the email API when ready.",
+        missing:
+          templates.length > 0
+            ? undefined
+            : {
+                label: "Templates",
+                reason: "No email templates available",
+                required: ["Email API ready", "Template definitions"],
+                confidence: 0,
+                unlockAfter: "Unlock after email templates load",
+                owner,
+                unlockHref: "/admin/qa",
+              },
+      },
+      {
+        id: "send",
+        label: "One-off send",
+        status: ready ? "live" : "planned",
+        summary: ready
+          ? "Resend is configured for template sends."
+          : "Resend keys required before sends.",
+        missing: ready
+          ? undefined
+          : {
+              label: "Email send",
+              reason: "RESEND_API_KEY / EMAIL_FROM not ready",
+              required: ["RESEND_API_KEY", "EMAIL_FROM"],
+              confidence: 0,
+              unlockAfter: "Unlock after Resend env is set",
+              owner,
+              unlockHref: "/admin/qa",
+            },
+      },
+      {
+        id: "sequences",
+        label: "Sequences",
+        status: "planned",
+        summary: "Automated nurture sequences are not instrumented.",
+        missing: {
+          label: "Sequences",
+          reason: "No sequence / drip engine",
+          required: ["Sequence entity", "Trigger rules", "Send log"],
+          confidence: 0,
+          unlockAfter: "Unlock after sequence engine",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "opens",
+        label: "Open / click rates",
+        status: "planned",
+        summary: "Engagement metrics require provider webhooks — never invent open rates.",
+        missing: {
+          label: "Email engagement",
+          reason: "No open/click webhook ingest",
+          required: ["Resend webhooks", "Event store"],
+          confidence: 0,
+          unlockAfter: "Unlock after email engagement webhooks",
+          owner: METRIC_OWNERS.analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+    ];
+  }, [ready, templates.length]);
+
   return (
     <AdminShell title="Email">
       <WorkspaceChrome
-        eyebrow="Grow · Email"
+        eyebrow={osEyebrow("grow", "What should we send?")}
         title="Email"
-        description="What was sent, why a follow-up is due, and what to do next — send a template or draft with AI. Execute-first Email v1."
+        description="Campaigns, sequences, and AI-written follow-ups. Template sends are live when Resend is ready; sequences and engagement stay MissingMetric."
         onRefresh={() => void load()}
         refreshing={loading}
         related={[
-          { label: "Workboard", href: "/admin/workboard", desc: "Inbox" },
-          { label: "Clients", href: "/admin/crm", desc: "People" },
-          { label: "Marketing", href: "/admin/marketing", desc: "Campaigns" },
-          { label: "Missing Intel", href: "/admin/qa", desc: "Setup" },
+          { label: "Marketing", href: "/admin/marketing", desc: "What campaigns should run?" },
+          { label: "Clients", href: "/admin/crm", desc: "Who is this customer?" },
+          { label: "Inbox", href: "/admin/submissions", desc: "What needs a reply?" },
+          { label: "Executive QA", href: "/admin/qa", desc: "What is broken or incomplete?" },
         ]}
       >
         {loading && templates.length === 0 ? (
@@ -94,6 +173,12 @@ export default function EmailPage() {
           <WorkspaceError message={error} onRetry={() => void load()} />
         ) : (
           <>
+            <OsCapabilityGrid
+              className="mb-8"
+              title="Email capabilities"
+              subtitle="Never invent open rates or sequence performance."
+              capabilities={emailCapabilities}
+            />
             {!ready && (
               <div
                 className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-fog"
@@ -102,7 +187,7 @@ export default function EmailPage() {
                 Resend not ready — set <code className="text-cream">RESEND_API_KEY</code> and{" "}
                 <code className="text-cream">EMAIL_FROM</code>. See{" "}
                 <Link href="/admin/qa" className="text-accent hover:underline">
-                  Missing Intel
+                  Executive QA
                 </Link>
                 .
               </div>

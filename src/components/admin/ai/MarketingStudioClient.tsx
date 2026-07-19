@@ -7,12 +7,15 @@ import { AskAIButton } from "./AskAIPanel";
 import { BusinessActionBar } from "./BusinessActionBar";
 import { useSetAIPage } from "./AIContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceButton,
   WorkspaceChrome,
   WorkspaceLoading,
 } from "@/components/admin/os/WorkspaceFrame";
 import { adminFetch } from "@/lib/admin-fetch";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import type { MarketingRecommendation } from "@/lib/ai/types";
 import type { CMOIntelligence } from "@/lib/ai/marketing/types";
 import { cn } from "@/lib/utils";
@@ -78,21 +81,105 @@ export function MarketingStudioClient() {
     setLoadingCmo(false);
   }
 
+  const analytics = METRIC_OWNERS.analytics;
+  const channelCapabilities: OsCapability[] = [
+    {
+      id: "owned-drafts",
+      label: "Owned channel drafts",
+      status: "live",
+      summary: "AI drafts for Instagram, email, SEO, and more are available in Create.",
+    },
+    {
+      id: "email",
+      label: "Email sends",
+      status: "partial",
+      summary: "Template sends live on Email. Full sequences / nurture are partial.",
+      href: "/admin/email",
+    },
+    {
+      id: "paid",
+      label: "Paid ads",
+      status: "planned",
+      summary: "Paid media connectors are not instrumented.",
+      missing: {
+        label: "Paid ads",
+        reason: "No Meta / Google Ads connector",
+        required: ["Ad account OAuth", "Spend + conversion import"],
+        confidence: 0,
+        unlockAfter: "Unlock after paid media connector",
+        owner: analytics,
+        unlockHref: "/admin/qa",
+      },
+    },
+    {
+      id: "heatmaps",
+      label: "Heatmaps",
+      status: "planned",
+      summary: "Heatmaps are not measured — never invent click maps.",
+      missing: {
+        label: "Heatmaps",
+        reason: "No heatmap / session replay connector",
+        required: ["Heatmap vendor", "Consent + privacy review"],
+        confidence: 0,
+        unlockAfter: "Unlock after heatmap connector",
+        owner: analytics,
+        unlockHref: "/admin/analytics",
+      },
+    },
+    {
+      id: "ab",
+      label: "A/B tests",
+      status: "planned",
+      summary: "Recommendations may suggest tests; winners require measured sample size.",
+      missing: {
+        label: "A/B tests",
+        reason: "No experiment runner with traffic split + significance",
+        required: ["Experiment framework", "Variant assignment", "Outcome metrics from Analytics"],
+        confidence: 0,
+        unlockAfter: "Unlock after A/B experiment framework",
+        owner: analytics,
+        unlockHref: "/admin/analytics",
+      },
+    },
+    {
+      id: "attribution",
+      label: "Revenue attribution",
+      status: "planned",
+      summary: "Campaign → Payment attribution is owned by Financial Center — never invent ROI.",
+      href: "/admin/financial",
+      missing: {
+        label: "Campaign revenue",
+        reason: "No campaign ↔ Payment attribution",
+        required: ["Campaign IDs on inquiries", "Succeeded Payment linkage"],
+        confidence: 0,
+        unlockAfter: "Unlock after Financial Center campaign attribution",
+        owner: METRIC_OWNERS.financial_center,
+        unlockHref: "/admin/financial",
+      },
+    },
+  ];
+
   return (
     <WorkspaceChrome
-      eyebrow="Grow · Marketing"
-      title="Marketing Intelligence"
-      description="What performed, why it worked, what to publish next — and whether ÉLEVÉ can draft it for you. Every campaign becomes institutional memory."
+      eyebrow={osEyebrow("grow", "What campaigns should run?")}
+      title="Marketing"
+      description="One campaign center across channels. Drafts are live; paid, heatmaps, and A/B stay MissingMetric until connectors exist."
       onRefresh={() => void refreshCMO()}
       refreshing={loadingCmo}
       extra={<AskAIButton />}
       related={[
-        { label: "Content studio", href: "/admin/content", desc: "Assets" },
-        { label: "Email", href: "/admin/email", desc: "Send" },
-        { label: "Analytics", href: "/admin/analytics", desc: "Funnel" },
-        { label: "Business Brain", href: "/admin/memory", desc: "Context" },
+        { label: "Email", href: "/admin/email", desc: "What should we send?" },
+        { label: "Analytics", href: "/admin/analytics", desc: "What is traffic doing?" },
+        { label: "Financial Center", href: "/admin/financial", desc: "Where is the money?" },
+        { label: "Business Brain", href: "/admin/memory", desc: "What have we learned?" },
       ]}
     >
+      <OsCapabilityGrid
+        className="mb-8"
+        title="Channel & measurement honesty"
+        subtitle="Missing channels show unlock paths — never invent campaign ROI or heatmap data."
+        capabilities={channelCapabilities}
+      />
       <div className="mb-6 flex flex-wrap gap-2 border-b border-stone/20 pb-4" role="tablist" aria-label="Marketing views">
         {(
           [

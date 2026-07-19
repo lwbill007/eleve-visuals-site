@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { MissingMetricCard } from "@/components/admin/ai/OwnedMetricCard";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceChrome,
   WorkspaceError,
@@ -10,6 +12,7 @@ import {
   WorkspaceButton,
 } from "@/components/admin/os/WorkspaceFrame";
 import type { ProductionReadinessReport } from "@/lib/ai/truth/types";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import { cn } from "@/lib/utils";
 
 interface MissingIntelItem {
@@ -47,7 +50,7 @@ export function ExecutiveQADashboard() {
         adminFetch("/api/admin/ai/missing-intel"),
       ]);
       if (!qaRes.ok && !missRes.ok) {
-        throw new Error("Could not load Missing Intelligence.");
+        throw new Error("Could not load Executive QA.");
       }
       if (qaRes.ok) setReport(await qaRes.json());
       else setReport(null);
@@ -59,7 +62,7 @@ export function ExecutiveQADashboard() {
     } catch (e) {
       setReport(null);
       setMissing(null);
-      setError(e instanceof Error ? e.message : "Could not load Missing Intelligence.");
+      setError(e instanceof Error ? e.message : "Could not load Executive QA.");
     } finally {
       setLoading(false);
     }
@@ -76,18 +79,74 @@ export function ExecutiveQADashboard() {
         ? "text-amber-300"
         : "text-red-400";
 
+  const critical = missing?.items.filter((i) => i.severity === "critical" || i.severity === "high") ?? [];
+  const capabilities: OsCapability[] = [
+    {
+      id: "gaps",
+      label: "Missing intelligence",
+      status: (missing?.items.length ?? 0) > 0 ? "live" : "partial",
+      summary:
+        (missing?.items.length ?? 0) > 0
+          ? `${missing!.items.length} gaps · ${critical.length} critical/high.`
+          : "No critical gaps loaded — or sources look healthy.",
+    },
+    {
+      id: "readiness",
+      label: "Platform readiness",
+      status: report ? "live" : "partial",
+      summary: report
+        ? `Score ${report.overallScore} · ${report.issues.length} engineering issues.`
+        : "Readiness report unavailable.",
+    },
+    {
+      id: "payments",
+      label: "Payments verification path",
+      status: missing?.payments.hasPayments ? "live" : "planned",
+      summary: missing?.payments.hasPayments
+        ? `${missing.payments.count} settled Payment rows (Verified path live).`
+        : "No settled payments — revenue stays Estimated until Stripe lands.",
+      href: "/admin/financial",
+      missing: missing?.payments.hasPayments
+        ? undefined
+        : {
+            label: "Payments Verified",
+            reason: "No settled Payment rows — cash cannot be verified",
+            required: ["Stripe webhook writing Payment rows", "At least one succeeded payment"],
+            confidence: 0,
+            unlockAfter: "Unlock after Financial Center records a settled payment",
+            owner: METRIC_OWNERS.financial_center,
+            unlockHref: "/admin/financial",
+          },
+    },
+    {
+      id: "auto-fix-verify",
+      label: "Auto-fix verification loop",
+      status: "planned",
+      summary: "Fix suggestions exist; automated re-verify after fix is not wired.",
+      missing: {
+        label: "Auto-fix verification",
+        reason: "Gaps list howToFix but do not auto-reverify after connector changes",
+        required: ["Connector health re-probe", "Gap closed confirmation"],
+        confidence: 0,
+        unlockAfter: "Unlock after QA re-probe jobs on connector change",
+        owner: METRIC_OWNERS.ai_operations,
+        unlockHref: "/admin/ai-operations",
+      },
+    },
+  ];
+
   return (
     <WorkspaceChrome
-      eyebrow="Trust"
-      title="Missing Business Intelligence"
-      description="What: every data gap that blocks confident decisions. Why: estimated revenue and weak recommendations. Next: fix the highest-severity gaps. AI surfaces gaps — you connect Stripe and verify sources."
+      eyebrow="Trust · What is broken or incomplete?"
+      title="Executive QA"
+      description="Automated audits with evidence, fix paths, and verification targets. Gaps stay honest — never invent readiness."
       onRefresh={() => void load()}
       refreshing={loading}
       related={[
-        { label: "Payments", href: "/admin/payments", desc: "Verified $" },
-        { label: "Settings", href: "/admin/settings", desc: "Integrations" },
-        { label: "Automations", href: "/admin/automations", desc: "System jobs" },
-        { label: "Memory", href: "/admin/memory", desc: "Verification" },
+        { label: "Financial Center", href: "/admin/financial", desc: "Where is the money?" },
+        { label: "AI Operations", href: "/admin/ai-operations", desc: "Is AI trustworthy?" },
+        { label: "Settings", href: "/admin/settings", desc: "Configuration" },
+        { label: "Business Brain", href: "/admin/memory", desc: "Verification" },
       ]}
     >
       {loading && !report && !missing ? (
@@ -104,12 +163,20 @@ export function ExecutiveQADashboard() {
               </button>
             </p>
           )}
+
+          <OsCapabilityGrid
+            title="QA capabilities"
+            subtitle="Every domain visible. Unknowns use MissingMetric unlock criteria."
+            capabilities={capabilities}
+            className="mb-8"
+          />
+
           {missing && (
             <div className="mb-6 rounded-xl border border-stone/20 bg-charcoal/20 px-4 py-3 text-sm text-fog">
-              Payments:{" "}
+              Financial Center:{" "}
               <span className="text-cream">
                 {missing.payments.hasPayments
-                  ? `${missing.payments.count} settled row${missing.payments.count === 1 ? "" : "s"} (Verified path live)`
+                  ? `${missing.payments.count} settled row${missing.payments.count === 1 ? "" : "s"} (Payments Verified)`
                   : "None yet — revenue stays Estimated until Stripe webhooks land"}
               </span>
             </div>
@@ -157,7 +224,7 @@ export function ExecutiveQADashboard() {
                       <dd className="mt-1 text-cream">{item.howToFix}</dd>
                     </div>
                     <div>
-                      <dt className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">After fix</dt>
+                      <dt className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">After fix (Estimated)</dt>
                       <dd className="mt-1 text-emerald-400/90">{item.estimatedImprovement}</dd>
                     </div>
                   </dl>
@@ -175,6 +242,22 @@ export function ExecutiveQADashboard() {
                 </WorkspaceButton>
               </div>
             </AdminPanel>
+          )}
+
+          {!missing?.payments.hasPayments && (
+            <div className="mb-8">
+              <MissingMetricCard
+                missing={{
+                  label: "Payments Verified",
+                  reason: "No settled Payment rows — cash stage cannot be verified",
+                  required: ["Stripe webhook writing Payment rows", "At least one succeeded payment"],
+                  confidence: 0,
+                  unlockAfter: "Unlock after Financial Center records a settled payment",
+                  owner: METRIC_OWNERS.financial_center,
+                  unlockHref: "/admin/financial",
+                }}
+              />
+            </div>
           )}
 
           {report && (

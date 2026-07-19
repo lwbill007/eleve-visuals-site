@@ -6,6 +6,7 @@ import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceButton,
   WorkspaceChrome,
@@ -13,6 +14,7 @@ import {
   WorkspaceError,
   WorkspaceLoading,
 } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 
 interface SystemAutomation {
   id: string;
@@ -115,11 +117,74 @@ export function AutomationsClient() {
     setBuilding(false);
   }
 
+  const capabilities: OsCapability[] = [
+    {
+      id: "status",
+      label: "Job status",
+      status: system.length > 0 ? "live" : "planned",
+      summary:
+        system.length > 0
+          ? `${system.length} system jobs defined — run manually or via intelligence cron.`
+          : "No system automation definitions loaded.",
+    },
+    {
+      id: "failures",
+      label: "Failure history",
+      status: "planned",
+      summary: "Per-job failure logs are not persisted yet.",
+      missing: {
+        label: "Automation failures",
+        reason: "Runs return toast messages only — no durable failure ledger",
+        required: ["AutomationRun log table", "Failure reason + timestamp", "Retry count"],
+        confidence: 0,
+        unlockAfter: "Unlock after automation run history is stored",
+        owner: METRIC_OWNERS.ai_operations,
+        unlockHref: "/admin/ai-operations",
+      },
+    },
+    {
+      id: "cost",
+      label: "Automation cost",
+      status: "planned",
+      summary: "Token/API cost per job is not metered here.",
+      missing: {
+        label: "Automation cost",
+        reason: "No cost attribution for system jobs or draft workflows",
+        required: ["Token usage per run", "Provider cost mapping"],
+        confidence: 0,
+        unlockAfter: "Unlock after AI Operations cost signals attach to automation runs",
+        owner: METRIC_OWNERS.ai_operations,
+        unlockHref: "/admin/ai-operations",
+      },
+    },
+    {
+      id: "dependencies",
+      label: "Job dependencies",
+      status: "partial",
+      summary: "Triggers and effects are listed; dependency graph not modeled.",
+    },
+    {
+      id: "custom-runner",
+      label: "Custom workflow runner",
+      status: "planned",
+      summary: "AI drafts are ideas only until a full runner ships.",
+      missing: {
+        label: "Executable custom workflows",
+        reason: "Saved drafts are not executable",
+        required: ["Workflow runner", "Step executor", "Permission gates"],
+        confidence: 0,
+        unlockAfter: "Unlock after workflow runner ships",
+        owner: METRIC_OWNERS.settings,
+        unlockHref: "/admin/settings",
+      },
+    },
+  ];
+
   return (
     <WorkspaceChrome
-      eyebrow="Trust"
-      title="Automations"
-      description="What should run without you — system jobs create real alerts. AI drafts are ideas only until a full runner ships."
+      eyebrow="Trust · What is running automatically?"
+      title="Automation Center"
+      description="Status, failures, cost, and dependencies for every job. System jobs create real alerts. AI drafts stay non-executable until a runner ships — never invent run health."
       onRefresh={() => void load()}
       refreshing={booting}
       extra={
@@ -135,10 +200,10 @@ export function AutomationsClient() {
         </div>
       }
       related={[
-        { label: "Notifications", href: "/admin/notifications", desc: "Delivery log" },
-        { label: "Risks", href: "/admin/risks", desc: "Attention" },
-        { label: "Missing Intel", href: "/admin/qa", desc: "Connectors" },
-        { label: "Business Brain", href: "/admin/memory", desc: "Context" },
+        { label: "Notifications", href: "/admin/notifications", desc: "What needs attention?" },
+        { label: "Risks", href: "/admin/risks", desc: "What could hurt us?" },
+        { label: "Executive QA", href: "/admin/qa", desc: "Gaps" },
+        { label: "AI Operations", href: "/admin/ai-operations", desc: "Trust signals" },
       ]}
     >
       {booting ? (
@@ -147,6 +212,12 @@ export function AutomationsClient() {
         <WorkspaceError message={error} onRetry={() => void load()} />
       ) : (
         <div className="space-y-8">
+          <OsCapabilityGrid
+            title="Automation capabilities"
+            subtitle="Live jobs vs MissingMetric unlock paths for failures and cost."
+            capabilities={capabilities}
+          />
+
           <AdminPanel
             title="System automations"
             subtitle="These run for real — manually or via intelligence cron"

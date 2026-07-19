@@ -5,8 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
-import { WorkspaceEmpty, WorkspaceLoading } from "@/components/admin/os/WorkspaceFrame";
+import {
+  WorkspaceChrome,
+  WorkspaceEmpty,
+  WorkspaceLoading,
+} from "@/components/admin/os/WorkspaceFrame";
 import { adminFetch } from "@/lib/admin-fetch";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import type { SessionApplicationRank } from "@/lib/ai/types";
 import {
   APPLICATION_STATUS_LABELS,
@@ -386,51 +391,52 @@ export default function ApplicationsIntelligenceClient() {
   ].filter(Boolean).length;
 
   return (
-    <AdminShell title="Applications Intelligence">
-      <main className="relative min-h-screen overflow-hidden bg-ink px-4 py-6 sm:px-6 lg:px-8">
+    <AdminShell title="Applications">
+      <WorkspaceChrome
+        eyebrow={osEyebrow("create", "Who should we cast?")}
+        title="Applications"
+        description="Explainable AI scores — applications become leads. Scores show category evidence; unevaluated applicants stay unscored."
+        onRefresh={() => void load()}
+        refreshing={refreshing}
+        related={[
+          { label: "Sessions", href: "/admin/sessions-hub", desc: "How do we produce the shoot?" },
+          { label: "Volumes", href: "/admin/sessions", desc: "How is this Volume performing?" },
+          { label: "Clients", href: "/admin/crm", desc: "Who is this customer?" },
+          { label: "Pipeline", href: "/admin/pipeline", desc: "Where is every deal?" },
+        ]}
+        extra={
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={volume}
+              onChange={(event) => setVolume(event.target.value)}
+              className="min-h-10 w-auto rounded-lg border-stone/30 bg-charcoal/70 px-3 py-2 text-xs"
+              aria-label="Application cycle"
+            >
+              <option value="">All application cycles</option>
+              {volumes.map((item) => (
+                <option key={item.id} value={item.id}>Vol. {item.volumeNumber} — {item.title}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void rerank()}
+              disabled={refreshing}
+              className="min-h-10 rounded-lg border border-stone/30 px-3 text-xs text-fog transition-colors hover:border-accent/40 hover:text-cream disabled:opacity-50"
+            >
+              {refreshing ? "Evaluating cohort…" : "✦ Re-Rank applicants"}
+            </button>
+          </div>
+        }
+      >
+      <main className="relative min-h-0 overflow-hidden">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(circle_at_35%_0%,rgba(184,168,138,.11),transparent_58%)]" />
         <div className="relative mx-auto max-w-[1600px]">
-          <header className="flex flex-col gap-5 border-b border-stone/20 pb-6 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <div className="mb-2 flex items-center gap-2 text-[0.6rem] tracking-[0.2em] text-accent uppercase">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                Executive talent intelligence · Live
-              </div>
-              <h2 className="max-w-3xl font-display text-4xl leading-none text-cream sm:text-5xl">
-                Decide who creates the most value.
-              </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-fog">
-                Ranked using AI evaluation based on portfolio, experience, business value, brand alignment, and supporting evidence.
-              </p>
+          {ranked[0] && (
+            <div className="mb-4 text-right text-[0.58rem] leading-relaxed text-muted">
+              <p>Last evaluated {new Date(ranked[0].evaluatedAt).toLocaleString()}</p>
+              <p>{ranked[0].evaluationVersion} · Explainable category evidence below</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={volume}
-                onChange={(event) => setVolume(event.target.value)}
-                className="min-h-10 w-auto rounded-lg border-stone/30 bg-charcoal/70 px-3 py-2 text-xs"
-                aria-label="Application cycle"
-              >
-                <option value="">All application cycles</option>
-                {volumes.map((item) => (
-                  <option key={item.id} value={item.id}>Vol. {item.volumeNumber} — {item.title}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => void rerank()}
-                disabled={refreshing}
-                className="min-h-10 rounded-lg border border-stone/30 px-3 text-xs text-fog transition-colors hover:border-accent/40 hover:text-cream disabled:opacity-50"
-              >
-                {refreshing ? "Evaluating cohort…" : "✦ Re-Rank applicants"}
-              </button>
-              {ranked[0] && (
-                <div className="w-full text-right text-[0.58rem] leading-relaxed text-muted">
-                  <p>Last evaluated {new Date(ranked[0].evaluatedAt).toLocaleString()}</p>
-                  <p>{ranked[0].evaluationVersion}</p>
-                </div>
-              )}
-            </div>
-          </header>
+          )}
 
           {loading ? (
             <div className="mt-8"><WorkspaceLoading rows={9} /></div>
@@ -855,6 +861,7 @@ export default function ApplicationsIntelligenceClient() {
           </div>
         </div>
       )}
+      </WorkspaceChrome>
     </AdminShell>
   );
 }

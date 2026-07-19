@@ -3,7 +3,7 @@ import { BIReportsClient } from "@/components/admin/ai/BIReportsClient";
 
 export default function AdminReportsPage() {
   return (
-    <AdminShell title="Business Intelligence">
+    <AdminShell title="Reports">
       <BIReportsClient />
     </AdminShell>
   );

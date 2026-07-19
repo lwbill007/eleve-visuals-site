@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { BusinessActionBar } from "@/components/admin/ai/BusinessActionBar";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminMetricCard, AdminPanel, AdminBarChart } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceButton,
   WorkspaceChrome,
   WorkspaceError,
   WorkspaceLoading,
 } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import type { SessionsOperatorIntel } from "@/lib/ai/types";
 
 type AppStats = {
@@ -89,6 +92,192 @@ export function SessionsHubClient() {
       value: d.count,
     })) ?? [];
 
+  const hasVolume = volumes > 0;
+  const hasApps = (appStats?.totalApplications ?? 0) > 0;
+  const owner = METRIC_OWNERS.applications;
+
+  const capabilities: OsCapability[] = useMemo(
+    () => [
+      {
+        id: "planning",
+        label: "Planning",
+        status: hasVolume ? "partial" : "planned",
+        summary: hasVolume
+          ? "Volume records exist. Full shoot planning board is partial."
+          : "No volumes yet — planning unlocks after the first Volume.",
+        href: "/admin/sessions",
+        missing: hasVolume
+          ? undefined
+          : {
+              label: "Planning",
+              reason: "No Session Volume to plan against",
+              required: ["Session Volume created", "Shoot date + status"],
+              confidence: 0,
+              unlockAfter: "Unlock after creating a Volume",
+              owner,
+              unlockHref: "/admin/sessions",
+            },
+      },
+      {
+        id: "moodboard",
+        label: "Moodboard",
+        status: hasVolume ? "live" : "planned",
+        summary: hasVolume
+          ? "Mood boards live on each Volume editor."
+          : "Moodboard attaches to a Volume.",
+        href: "/admin/sessions",
+        missing: hasVolume
+          ? undefined
+          : {
+              label: "Moodboard",
+              reason: "No Volume with moodBoard assets",
+              required: ["Session Volume", "Mood board images uploaded"],
+              confidence: 0,
+              unlockAfter: "Unlock after Volume mood board images exist",
+              owner,
+              unlockHref: "/admin/sessions",
+            },
+      },
+      {
+        id: "checklist",
+        label: "Checklist",
+        status: "partial",
+        summary: "AI can draft a pre-shoot checklist. Persistent shoot checklist entity is not stored yet.",
+        missing: {
+          label: "Shoot checklist (persisted)",
+          reason: "No first-class checklist store — drafts are AI-only",
+          required: ["Checklist entity per Volume", "Item completion tracking"],
+          confidence: 0,
+          unlockAfter: "Unlock after checklist schema",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "timeline",
+        label: "Timeline",
+        status: hasVolume ? "live" : "planned",
+        summary: hasVolume
+          ? "Volume timeline steps are editable on each Volume."
+          : "Timeline requires a Volume.",
+        href: "/admin/sessions",
+        missing: hasVolume
+          ? undefined
+          : {
+              label: "Timeline",
+              reason: "No Volume timeline yet",
+              required: ["Session Volume", "Timeline steps filled"],
+              confidence: 0,
+              unlockAfter: "Unlock after Volume timeline is set",
+              owner,
+              unlockHref: "/admin/sessions",
+            },
+      },
+      {
+        id: "gear",
+        label: "Gear",
+        status: "planned",
+        summary: "Gear / kit lists are not instrumented.",
+        missing: {
+          label: "Gear",
+          reason: "No gear inventory linked to shoots",
+          required: ["Gear list per Volume", "Pack status"],
+          confidence: 0,
+          unlockAfter: "Unlock after gear schema",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "location",
+        label: "Location",
+        status: hasVolume ? "partial" : "planned",
+        summary: hasVolume
+          ? "Location / city fields exist on Volumes. Scout logistics remain partial."
+          : "Location fields live on Volume records.",
+        href: "/admin/sessions",
+        missing: hasVolume
+          ? undefined
+          : {
+              label: "Location",
+              reason: "No Volume location recorded",
+              required: ["Session Volume", "Location + city"],
+              confidence: 0,
+              unlockAfter: "Unlock after Volume location is set",
+              owner,
+              unlockHref: "/admin/sessions",
+            },
+      },
+      {
+        id: "deliverables",
+        label: "Deliverables",
+        status: "partial",
+        summary: "Gallery delivery notes exist on Volumes. Structured deliverable tracking is partial.",
+        href: "/admin/sessions",
+        missing: {
+          label: "Deliverables (tracked)",
+          reason: "No deliverable completion ledger per shoot",
+          required: ["Deliverable checklist", "Client handoff status"],
+          confidence: 0,
+          unlockAfter: "Unlock after deliverables model",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "client",
+        label: "Client",
+        status: "partial",
+        summary: "Clients live in CRM. Session ↔ client linkage is not a dedicated production view.",
+        href: "/admin/crm",
+        missing: {
+          label: "Session client linkage",
+          reason: "No first-class client assignment on every shoot",
+          required: ["Client linked to Volume or booking", "Contact + brief"],
+          confidence: 0,
+          unlockAfter: "Unlock after Session ↔ Client link",
+          owner: METRIC_OWNERS.clients,
+          unlockHref: "/admin/crm",
+        },
+      },
+      {
+        id: "revenue",
+        label: "Revenue",
+        status: "planned",
+        summary: "Session revenue is owned by Financial Center — never invent shoot ROI here.",
+        href: "/admin/financial",
+        missing: {
+          label: "Session revenue",
+          reason: "No Volume ↔ Payment attribution yet",
+          required: ["Succeeded Payment rows", "Link payments to Session Volume"],
+          confidence: 0,
+          unlockAfter: "Unlock after Financial Center attributes payments to Volumes",
+          owner: METRIC_OWNERS.financial_center,
+          unlockHref: "/admin/financial",
+        },
+      },
+      {
+        id: "performance",
+        label: "Performance",
+        status: hasApps ? "partial" : "planned",
+        summary: hasApps
+          ? "Application counts are live. Post-shoot performance (views → revenue) is not attributed here."
+          : "Performance needs applications and post-publish metrics.",
+        href: "/admin/applications",
+        missing: {
+          label: "Session performance",
+          reason: "No end-to-end Volume performance scorecard (traffic → revenue)",
+          required: ["Analytics per Volume path", "Inquiry attribution", "Payment attribution"],
+          confidence: 0,
+          unlockAfter: "Unlock after Analytics + Financial attribution to Volumes",
+          owner: METRIC_OWNERS.analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+    ],
+    [hasApps, hasVolume, owner]
+  );
+
   if (loading && !appStats && !sessionsIntel) {
     return <WorkspaceLoading />;
   }
@@ -99,9 +288,9 @@ export function SessionsHubClient() {
 
   return (
     <WorkspaceChrome
-      eyebrow="Make · Sessions"
-      title="Sessions Hub"
-      description="What happened with applications, why volumes need attention, and what to do next — accept, edit, or draft emails."
+      eyebrow={osEyebrow("create", "How do we produce the shoot?")}
+      title="Sessions"
+      description="Planning through performance for every session. Live counts only where data exists — gaps stay MissingMetric."
       onRefresh={() => void load()}
       refreshing={loading}
       extra={
@@ -110,10 +299,10 @@ export function SessionsHubClient() {
         </WorkspaceButton>
       }
       related={[
-        { label: "Applications", href: "/admin/applications", desc: "Decide" },
-        { label: "Volumes", href: "/admin/sessions", desc: "Edit" },
-        { label: "Portfolio", href: "/admin/portfolio", desc: "Publish" },
-        { label: "Business Brain", href: "/admin/memory", desc: "Context" },
+        { label: "Applications", href: "/admin/applications", desc: "Who should we cast?" },
+        { label: "Volumes", href: "/admin/sessions", desc: "How is this Volume performing?" },
+        { label: "Portfolio", href: "/admin/portfolio", desc: "Which work drives business?" },
+        { label: "Financial Center", href: "/admin/financial", desc: "Where is the money?" },
       ]}
     >
       {error && (
@@ -131,6 +320,13 @@ export function SessionsHubClient() {
         <AdminMetricCard label="Accepted" value={appStats?.acceptedCount ?? "—"} href="/admin/applications" />
         <AdminMetricCard label="Acceptance Rate" value={appStats ? `${appStats.acceptanceRate}%` : "—"} />
       </div>
+
+      <OsCapabilityGrid
+        className="mt-8"
+        title="Produce the shoot"
+        subtitle="Every production capability is always visible. Unknowns show unlock criteria — never invent readiness."
+        capabilities={capabilities}
+      />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <Link href="/admin/applications" className="rounded-xl border border-stone/25 p-5 hover:border-accent/30">

@@ -15,7 +15,8 @@ export type MetricOwnerId =
   | "pipeline"
   | "ai_operations"
   | "clients"
-  | "applications";
+  | "applications"
+  | "settings";
 
 export interface MetricOwner {
   id: MetricOwnerId;
@@ -27,8 +28,7 @@ export const METRIC_OWNERS: Record<MetricOwnerId, MetricOwner> = {
   financial_center: {
     id: "financial_center",
     label: "Financial Center",
-    // Phase 6 destination; temporary owner is Payments until Financial Center ships.
-    href: "/admin/payments",
+    href: "/admin/financial",
   },
   bookings: {
     id: "bookings",
@@ -48,7 +48,7 @@ export const METRIC_OWNERS: Record<MetricOwnerId, MetricOwner> = {
   ai_operations: {
     id: "ai_operations",
     label: "AI Operations",
-    href: "/admin/ai-health",
+    href: "/admin/ai-operations",
   },
   clients: {
     id: "clients",
@@ -59,6 +59,11 @@ export const METRIC_OWNERS: Record<MetricOwnerId, MetricOwner> = {
     id: "applications",
     label: "Applications",
     href: "/admin/applications",
+  },
+  settings: {
+    id: "settings",
+    label: "Settings",
+    href: "/admin/settings",
   },
 };
 

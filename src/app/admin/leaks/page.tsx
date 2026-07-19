@@ -97,7 +97,7 @@ export default function LeaksPage() {
         related={[
           { label: "Risks", href: "/admin/risks", desc: "Threats" },
           { label: "Workboard", href: "/admin/workboard", desc: "Act" },
-          { label: "Payments", href: "/admin/payments", desc: "Ledger" },
+          { label: "Payments", href: "/admin/financial", desc: "Ledger" },
           { label: "Briefing", href: "/admin/briefing", desc: "Report" },
         ]}
       >

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { MissingMetricCard } from "@/components/admin/ai/OwnedMetricCard";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceChrome,
   WorkspaceEmpty,
@@ -12,6 +14,8 @@ import {
   WorkspaceLoading,
   WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS, type MissingMetric } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow, osPage } from "@/lib/ai/platform/os-systems";
 import { cn } from "@/lib/utils";
 
 interface PipelineItem {
@@ -24,12 +28,33 @@ interface PipelineItem {
   createdAt: string;
   updatedAt?: string;
   ageDays?: number;
+  leadScore?: number;
+  priority?: string;
 }
 
 interface PipelineColumn {
   id: string;
   label: string;
   items: PipelineItem[];
+}
+
+const page = osPage("pipeline")!;
+
+function predMissing(
+  label: string,
+  reason: string,
+  required: string[],
+  unlockAfter: string
+): MissingMetric {
+  return {
+    label,
+    reason,
+    required,
+    confidence: 0,
+    unlockAfter,
+    owner: METRIC_OWNERS.pipeline,
+    unlockHref: "/admin/bookings-ai",
+  };
 }
 
 export function PipelineClient() {
@@ -73,7 +98,7 @@ export function PipelineClient() {
     });
     setBusyId(null);
     if (res.ok) {
-      toast(newStatus === "discovery" ? "Advanced to Discovery." : "Stage updated.");
+      toast(newStatus === "discovery" ? "Advanced to Consultation." : "Stage updated.");
       void load();
     } else {
       toast("Update failed.", "error");
@@ -104,19 +129,116 @@ export function PipelineClient() {
   }, [columns, q, staleOnly]);
 
   const totalItems = columns.reduce((s, c) => s + c.items.length, 0);
+  const hasEstimatedValue = totalValue > 0;
+
+  const predictionCapabilities: OsCapability[] = [
+    {
+      id: "win",
+      label: "Win probability",
+      status: "planned",
+      summary: "Per-deal close probability requires Booking Intelligence model + outcomes.",
+      missing: predMissing(
+        "Win probability",
+        "No trained win model wired to pipeline cards.",
+        ["Historical close outcomes", "Booking Intelligence predictions"],
+        "Unlock after Booking Intelligence verifies predictions."
+      ),
+    },
+    {
+      id: "ghost",
+      label: "Ghost risk",
+      status: "planned",
+      summary: "Ghost / no-reply risk is not scored on the board yet.",
+      missing: predMissing(
+        "Ghost risk",
+        "No ghost-risk scorer on pipeline deals.",
+        ["Reply latency features", "Outcome labels"],
+        "Unlock after silence outcomes are labeled."
+      ),
+    },
+    {
+      id: "followup",
+      label: "Follow-up timing",
+      status: "planned",
+      summary: "Next best follow-up time is not predicted per deal.",
+      missing: predMissing(
+        "Follow-up timing",
+        "No follow-up scheduler model on pipeline.",
+        ["Contact cadence history", "Response rates"],
+        "Unlock after cadence learning ships."
+      ),
+    },
+    {
+      id: "value",
+      label: "Deal value",
+      status: hasEstimatedValue ? "partial" : "planned",
+      summary: hasEstimatedValue
+        ? `~$${totalValue.toLocaleString()} from form budgets — Estimated, not ledger-verified.`
+        : "No budget estimates on open deals.",
+      href: hasEstimatedValue ? undefined : "/admin/qa",
+      missing: hasEstimatedValue
+        ? undefined
+        : predMissing(
+            "Deal value",
+            "No open booking budget estimates to sum.",
+            ["Budget range on inquiry", "Open pipeline stage"],
+            "Unlock after inquiries include budget data."
+          ),
+    },
+    {
+      id: "cancel",
+      label: "Cancel risk",
+      status: "planned",
+      summary: "Cancellation risk is not modeled on the board.",
+      missing: predMissing(
+        "Cancel risk",
+        "No cancel-risk model — never invent churn odds.",
+        ["Cancel / no-show outcomes", "Deposit status"],
+        "Unlock after cancel outcomes are tracked."
+      ),
+    },
+    {
+      id: "contract_sent",
+      label: "Contract Sent",
+      status: "planned",
+      summary: "Not a distinct status ID — proposal stage is the closest live column.",
+      missing: predMissing(
+        "Contract Sent stage",
+        "No contract_sent status in DB — cannot move deals into a Contract Sent column.",
+        ["Contract entity", "Optional new status or ops flag"],
+        "Unlock after contracts are first-class."
+      ),
+    },
+    {
+      id: "deposit_paid",
+      label: "Deposit Paid",
+      status: "planned",
+      summary: "Deposit settlement lives in Financial Center — not a pipeline status.",
+      missing: {
+        ...predMissing(
+          "Deposit Paid stage",
+          "No deposit_paid status — settled cash is owned by Financial Center.",
+          ["Payment linked to booking", "Optional deposit_paid status"],
+          "Unlock after booking ↔ payment linkage."
+        ),
+        owner: METRIC_OWNERS.financial_center,
+        unlockHref: "/admin/financial",
+      },
+    },
+  ];
 
   return (
     <WorkspaceChrome
-      eyebrow="Work"
+      eyebrow={osEyebrow("work", page.question)}
       title="Pipeline"
-      description={`What: deal board for booking inquiries. Why: speed-to-lead. Next: drag stages or mark contacted. AI can prioritize stale deals. Pipeline: ~$${totalValue.toLocaleString()} est.`}
+      description={page.purpose}
       onRefresh={() => void load()}
       refreshing={loading}
       related={[
-        { label: "Workboard", href: "/admin/workboard", desc: "Stale first" },
-        { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Inbox" },
+        { label: "Workboard", href: "/admin/workboard", desc: "Execute today" },
+        { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Needs next" },
         { label: "Clients", href: "/admin/crm", desc: "People" },
-        { label: "Payments", href: "/admin/payments", desc: "Verified $" },
+        { label: "Financial", href: "/admin/financial", desc: "Verified $" },
       ]}
     >
       <WorkspaceToolbar
@@ -133,6 +255,13 @@ export function PipelineClient() {
           Stale 3+ days
         </label>
       </WorkspaceToolbar>
+
+      {hasEstimatedValue && (
+        <p className="mb-4 text-xs text-muted">
+          Pipeline value ~${totalValue.toLocaleString()}{" "}
+          <span className="text-amber-200/80">(Estimated from budgets)</span>
+        </p>
+      )}
 
       {loading ? (
         <WorkspaceLoading rows={3} />
@@ -163,7 +292,7 @@ export function PipelineClient() {
               <div className="min-h-[200px] space-y-2 rounded-xl border border-stone/20 bg-charcoal/10 p-2">
                 {col.items.map((item) => {
                   const stale =
-                    (item.ageDays ?? 0) >= 3 && (col.id === "new" || col.id === "contacted");
+                    (item.ageDays ?? 0) >= 3 && (col.id === "lead" || col.id === "qualified" || col.id === "discovery");
                   return (
                     <div
                       key={item.id}
@@ -222,7 +351,7 @@ export function PipelineClient() {
                           }}
                           className="mt-3 w-full rounded-lg border border-accent/35 bg-accent/10 px-2 py-1.5 text-[0.6rem] tracking-[0.1em] text-accent uppercase hover:bg-accent/20 disabled:opacity-50"
                         >
-                          Advance to Discovery
+                          Advance to Consultation
                         </button>
                       )}
                     </div>
@@ -237,10 +366,32 @@ export function PipelineClient() {
         </div>
       )}
 
-      <AdminPanel title="How to use" subtitle="Speed-to-lead is the highest ROI action" className="mt-6">
+      <OsCapabilityGrid
+        className="mt-8"
+        title="AI predictions & vision stages"
+        subtitle="Win / ghost / follow-up / cancel stay MissingMetric until models exist. Contract Sent and Deposit Paid are not DB status IDs — do not invent columns."
+        capabilities={predictionCapabilities}
+      />
+
+      {!hasEstimatedValue && !loading && totalItems > 0 && (
+        <div className="mt-4">
+          <MissingMetricCard
+            missing={predMissing(
+              "Pipeline value",
+              "Deals exist but none have budget estimates.",
+              ["Budget range on inquiry"],
+              "Unlock after budget fields are filled."
+            )}
+          />
+        </div>
+      )}
+
+      <AdminPanel title="How to use" subtitle="Status IDs stay stable — labels follow the sales vision" className="mt-6">
         <p className="text-sm text-fog">
-          Drag cards to update stage, or Advance to Discovery on new leads. Values are estimated from form
-          budget ranges until Stripe payments are connected.
+          Drag cards to update stage, or Advance to Consultation on new leads. Values are estimated from form
+          budget ranges until Financial Center verifies payments. Target board: Lead → Qualified →
+          Consultation → Proposal → Contract Sent → Deposit Paid → Booked → Completed → Archived —
+          missing stages appear above as MissingMetric, not fake columns.
         </p>
       </AdminPanel>
     </WorkspaceChrome>

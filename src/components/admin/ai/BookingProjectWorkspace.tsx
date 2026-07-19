@@ -121,8 +121,8 @@ export function BookingProjectWorkspace({
           <Link href="/admin/pipeline" className="text-muted hover:text-accent hover:underline">
             Pipeline →
           </Link>
-          <Link href="/admin/payments" className="text-muted hover:text-accent hover:underline">
-            Payments →
+          <Link href="/admin/financial" className="text-muted hover:text-accent hover:underline">
+            Financial →
           </Link>
         </div>
       </div>

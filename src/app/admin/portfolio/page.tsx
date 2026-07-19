@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -22,7 +22,10 @@ import { PORTFOLIO_CATEGORIES, type AspectRatio, type PortfolioItemDTO, type Por
 import { PortfolioAssistantPanel } from "@/components/admin/ai/PortfolioAssistantPanel";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
 import { suggestPortfolioSeo } from "@/lib/seo/portfolio-seo";
 
@@ -147,20 +150,118 @@ export default function AdminPortfolioPage() {
     if (res.ok) load();
   }
 
+  const hasProjects = items.length > 0;
+  const attributionCapabilities: OsCapability[] = useMemo(() => {
+    const analytics = METRIC_OWNERS.analytics;
+    const bookings = METRIC_OWNERS.bookings;
+    const finance = METRIC_OWNERS.financial_center;
+    return [
+      {
+        id: "views",
+        label: "Project views",
+        status: "planned",
+        summary: "Per-project view counts are owned by Analytics — not recalculated here.",
+        href: "/admin/analytics",
+        missing: {
+          label: "Project views",
+          reason: "No project-level view attribution on Portfolio",
+          required: ["Analytics events on /portfolio/*", "Project slug mapping"],
+          confidence: 0,
+          unlockAfter: "Unlock after Analytics attributes pageviews to projects",
+          owner: analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+      {
+        id: "traffic",
+        label: "Traffic",
+        status: "planned",
+        summary: "Traffic is Analytics SSoT. This page does not duplicate charts.",
+        href: "/admin/analytics",
+        missing: {
+          label: "Portfolio traffic",
+          reason: "Traffic charts live only in Analytics",
+          required: ["Analytics collector", "Portfolio path filters"],
+          confidence: 0,
+          unlockAfter: "Open Analytics for traffic — never invent counts here",
+          owner: analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+      {
+        id: "inquiries",
+        label: "Inquiries",
+        status: "planned",
+        summary: "Inquiry attribution from portfolio → booking is not linked per project yet.",
+        href: "/admin/submissions?type=booking",
+        missing: {
+          label: "Project inquiries",
+          reason: "No portfolio project → inquiry attribution",
+          required: ["UTM or referrer from project pages", "Submission linkage"],
+          confidence: 0,
+          unlockAfter: "Unlock after inquiry attribution to projects",
+          owner: bookings,
+          unlockHref: "/admin/submissions?type=booking",
+        },
+      },
+      {
+        id: "revenue",
+        label: "Revenue attribution",
+        status: "planned",
+        summary: "Revenue is owned by Financial Center — never invent project ROI here.",
+        href: "/admin/financial",
+        missing: {
+          label: "Project revenue",
+          reason: "No Payment ↔ Portfolio project attribution",
+          required: ["Succeeded Payment rows", "Project linked to settlement"],
+          confidence: 0,
+          unlockAfter: "Unlock after Financial Center attributes cash to projects",
+          owner: finance,
+          unlockHref: "/admin/financial",
+        },
+      },
+      {
+        id: "catalog",
+        label: "Project catalog",
+        status: hasProjects ? "live" : "planned",
+        summary: hasProjects
+          ? `${items.length} project${items.length === 1 ? "" : "s"} in the catalog.`
+          : "Add a project to start the portfolio catalog.",
+        missing: hasProjects
+          ? undefined
+          : {
+              label: "Project catalog",
+              reason: "No portfolio projects yet",
+              required: ["Portfolio item created", "Published when ready"],
+              confidence: 0,
+              unlockAfter: "Unlock after adding the first project",
+              owner: analytics,
+              unlockHref: "/admin/portfolio",
+            },
+      },
+    ];
+  }, [hasProjects, items.length]);
+
   return (
     <AdminShell title="Portfolio">
       <WorkspaceChrome
-        eyebrow="Make · Portfolio"
+        eyebrow={osEyebrow("create", "Which work drives business?")}
         title="Portfolio"
-        description="What: projects, galleries, and portfolio page settings. Why: publish cinematic work that converts. Next: add or edit a project, then feature it on Homepage. AI can help draft captions and case-study copy."
+        description="Views → inquiries → revenue attribution per project. Catalog editing is live; attribution stays MissingMetric until Analytics and Financial Center can verify."
         extra={<AskAIButton />}
         related={[
-          { label: "Media", href: "/admin/media", desc: "Assets" },
-          { label: "Sessions", href: "/admin/sessions", desc: "Volumes" },
-          { label: "Content hub", href: "/admin/content-hub", desc: "Drafts" },
-          { label: "Marketing", href: "/admin/marketing", desc: "Campaigns" },
+          { label: "Media", href: "/admin/media", desc: "Where is the asset?" },
+          { label: "Analytics", href: "/admin/analytics", desc: "What is traffic doing?" },
+          { label: "Financial Center", href: "/admin/financial", desc: "Where is the money?" },
+          { label: "Marketing", href: "/admin/marketing", desc: "What campaigns should run?" },
         ]}
       >
+      <OsCapabilityGrid
+        className="mb-8"
+        title="Business attribution"
+        subtitle="Never invent views, traffic, inquiries, or revenue on this page."
+        capabilities={attributionCapabilities}
+      />
       <div className="mb-6 -mx-4 flex gap-2 overflow-x-auto border-b border-stone/30 px-4 pb-px sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
         {TABS.map((t) => (
           <button

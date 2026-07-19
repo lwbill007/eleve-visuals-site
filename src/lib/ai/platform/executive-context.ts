@@ -185,13 +185,13 @@ function toNextAction(
     executeKind = "open_applications";
   } else if (href.includes("/admin/memory")) {
     executeKind = "open_memory_verify";
-  } else if (href.includes("/admin/qa") || href.includes("/admin/payments")) {
+  } else if (href.includes("/admin/qa") || href.includes("/admin/financial")) {
     executeKind = "open_payments_trust";
   }
 
   const actionLabel =
     executeKind === "mark_stale_bookings_contacted"
-      ? "Advance to Discovery"
+      ? "Advance to Consultation"
       : executeKind === "open_memory_verify"
         ? "Verify"
         : executeKind === "open_payments_trust"
@@ -432,7 +432,7 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       severity: staleInquiries >= 3 ? "critical" : "high",
       evidence,
       href: "/admin/submissions?type=booking",
-      actionLabel: "Advance to Discovery",
+      actionLabel: "Advance to Consultation",
       potentialImpact,
       confidence: 0.88,
       costOfIgnore: buildCostOfIgnore({

@@ -3,7 +3,7 @@ import { PipelineClient } from "@/components/admin/os/PipelineClient";
 
 export default function AdminPipelinePage() {
   return (
-    <AdminShell title="Lead Pipeline">
+    <AdminShell title="Pipeline">
       <PipelineClient />
     </AdminShell>
   );

@@ -3,7 +3,7 @@ import { CRMClient } from "@/components/admin/os/CRMClient";
 
 export default function AdminCRMPage() {
   return (
-    <AdminShell title="CRM">
+    <AdminShell title="Clients">
       <CRMClient />
     </AdminShell>
   );

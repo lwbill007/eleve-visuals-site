@@ -1,3 +1,10 @@
+/**
+ * Launch-complete IA — six systems, one business question per page.
+ * Labels match ÉLEVÉ OS; secondary CMS stays out of primary nav.
+ */
+
+import { OS_PAGES, OS_SYSTEM_LABELS, type OsSystemId } from "@/lib/ai/platform/os-systems";
+
 export type AdminNavItem = {
   label: string;
   href: string;
@@ -9,84 +16,27 @@ export type AdminNavSection = {
   items: AdminNavItem[];
 };
 
-/**
- * Launch-complete IA — every primary item is a live workspace (no scaffolds).
- * Secondary items are also live CMS / tools reachable via ⌘K.
- */
-export const ADMIN_NAV: AdminNavSection[] = [
-  {
-    label: "Command",
-    items: [
-      { label: "Home", href: "/admin", desc: "Command Center · health · execute" },
-      { label: "AI Briefing", href: "/admin/briefing", desc: "CEO morning brief · refresh" },
-      { label: "Opportunities", href: "/admin/opportunities", desc: "Ranked queue · execute" },
-      { label: "Risks", href: "/admin/risks", desc: "Attention · blockers" },
-      { label: "Revenue Leaks", href: "/admin/leaks", desc: "Lost money · recovery" },
-    ],
-  },
-  {
-    label: "Work",
-    items: [
-      { label: "Workboard", href: "/admin/workboard", desc: "Inbox + stale deals" },
-      { label: "Pipeline", href: "/admin/pipeline", desc: "Deals · stages" },
-      { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Mission control · inquiries" },
-      { label: "Clients", href: "/admin/crm", desc: "People · timeline · AI" },
-      { label: "Inbox", href: "/admin/submissions", desc: "All submissions" },
-    ],
-  },
-  {
-    label: "Make",
-    items: [
-      { label: "Sessions", href: "/admin/sessions-hub", desc: "Volumes hub" },
-      { label: "Volumes", href: "/admin/sessions", desc: "Edit volumes" },
-      { label: "Applications", href: "/admin/applications", desc: "Accept · email" },
-      { label: "Portfolio", href: "/admin/portfolio", desc: "Work archive" },
-      { label: "Media", href: "/admin/media", desc: "Assets" },
-    ],
-  },
-  {
-    label: "Grow",
-    items: [
-      { label: "Marketing", href: "/admin/marketing", desc: "Campaigns · captions" },
-      { label: "Email", href: "/admin/email", desc: "Send follow-ups" },
-      { label: "Analytics", href: "/admin/analytics", desc: "Traffic · conversion" },
-      { label: "Website", href: "/admin/website", desc: "SEO · UX · conversion intel" },
-      { label: "Homepage", href: "/admin/homepage", desc: "Public homepage CMS" },
-      { label: "Reports", href: "/admin/reports", desc: "AI business reports" },
-    ],
-  },
-  {
-    label: "Brain",
-    items: [
-      { label: "Business Brain", href: "/admin/memory", desc: "Know · graph · simulate" },
-      { label: "Web Research", href: "/admin/research", desc: "Gated external intel" },
-      { label: "Timeline", href: "/admin/timeline", desc: "Business events" },
-      { label: "Booking AI", href: "/admin/bookings-ai", desc: "Forecasts (estimated)" },
-    ],
-  },
-  {
-    label: "Trust",
-    items: [
-      { label: "Executive QA", href: "/admin/qa", desc: "Missing intel · readiness" },
-      { label: "Payments", href: "/admin/payments", desc: "Settled cash" },
-      { label: "Automations", href: "/admin/automations", desc: "System jobs" },
-      { label: "AI Health", href: "/admin/ai-health", desc: "Models · reliability · retries" },
-      { label: "Notifications", href: "/admin/notifications", desc: "Delivery log" },
-      { label: "Settings", href: "/admin/settings", desc: "Brand · access" },
-    ],
-  },
-];
+const SYSTEM_ORDER: OsSystemId[] = ["command", "work", "create", "grow", "brain", "trust"];
+
+export const ADMIN_NAV: AdminNavSection[] = SYSTEM_ORDER.map((system) => ({
+  label: OS_SYSTEM_LABELS[system].label,
+  items: OS_PAGES.filter((p) => p.system === system).map((p) => ({
+    label: p.label,
+    href: p.href,
+    desc: p.question,
+  })),
+}));
 
 export const ADMIN_QUICK_ACTIONS = [
-  { label: "AI Briefing", href: "/admin/briefing", desc: "Morning brief" },
-  { label: "Execute next", href: "/admin/opportunities", desc: "Highest-impact action" },
-  { label: "Workboard", href: "/admin/workboard", desc: "Inbox + stale" },
-  { label: "Clients", href: "/admin/crm", desc: "People" },
-  { label: "Send email", href: "/admin/email", desc: "Follow-up" },
-  { label: "Business Brain", href: "/admin/memory", desc: "Knowledge" },
+  { label: "AI Briefing", href: "/admin/briefing", desc: "Why did it happen?" },
+  { label: "Execute next", href: "/admin/opportunities", desc: "How do we grow?" },
+  { label: "Workboard", href: "/admin/workboard", desc: "What must I execute?" },
+  { label: "Clients", href: "/admin/crm", desc: "Who is this customer?" },
+  { label: "Financial Center", href: "/admin/financial", desc: "Where is the money?" },
+  { label: "Business Brain", href: "/admin/memory", desc: "What have we learned?" },
 ];
 
-/** Live secondary workspaces — command palette + Website section. */
+/** Live secondary workspaces — command palette only (not primary OS nav). */
 export const ADMIN_SECONDARY_NAV: AdminNavItem[] = [
   { label: "Services", href: "/admin/services", desc: "Offerings CMS" },
   { label: "Testimonials", href: "/admin/testimonials", desc: "Social proof CMS" },
@@ -98,6 +48,8 @@ export const ADMIN_SECONDARY_NAV: AdminNavItem[] = [
   { label: "Sponsorship", href: "/admin/sponsorship", desc: "Sponsor metrics" },
   { label: "Referrals hub", href: "/admin/referrals", desc: "Referral sources · CRM" },
   { label: "Content studio", href: "/admin/content-hub", desc: "AI content drafts" },
+  { label: "Payments (legacy)", href: "/admin/payments", desc: "Redirects to Financial Center" },
+  { label: "AI Health (legacy)", href: "/admin/ai-health", desc: "Redirects to AI Operations" },
 ];
 
 export const ADMIN_COMMANDS = [

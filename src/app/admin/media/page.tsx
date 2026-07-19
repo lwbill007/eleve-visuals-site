@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminField, AdminInput } from "@/components/admin/AdminForm";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import { WorkspaceChrome, WorkspaceToolbar } from "@/components/admin/os/WorkspaceFrame";
 import { adminFetch } from "@/lib/admin-fetch";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import { uploadMediaFile } from "@/lib/upload-client";
 import { ADMIN_MEDIA_ACCEPT } from "@/lib/upload-constants";
 
@@ -125,18 +128,119 @@ export default function AdminMediaPage() {
     }
   }
 
+  const hasAssets = items.length > 0;
+  const damCapabilities: OsCapability[] = useMemo(() => {
+    const owner = METRIC_OWNERS.analytics;
+    return [
+      {
+        id: "library",
+        label: "Asset library",
+        status: hasAssets ? "live" : "planned",
+        summary: hasAssets
+          ? `${items.length} asset${items.length === 1 ? "" : "s"} searchable in the library.`
+          : "Upload media to populate the DAM library.",
+        missing: hasAssets
+          ? undefined
+          : {
+              label: "Asset library",
+              reason: "No media assets indexed yet",
+              required: ["Upload via Media or any editor"],
+              confidence: 0,
+              unlockAfter: "Unlock after first upload",
+              owner,
+              unlockHref: "/admin/media",
+            },
+      },
+      {
+        id: "search",
+        label: "Search",
+        status: "live",
+        summary: "Filename / alt search is live on this library.",
+      },
+      {
+        id: "versions",
+        label: "Versions",
+        status: "planned",
+        summary: "Version history per asset is not modeled yet.",
+        missing: {
+          label: "Versions",
+          reason: "No asset version graph",
+          required: ["Version entity", "Replace / restore flow"],
+          confidence: 0,
+          unlockAfter: "Unlock after DAM versioning",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "cloudinary",
+        label: "Cloudinary",
+        status: "partial",
+        summary: "Uploads use configured storage. Full Cloudinary DAM sync (folders, transforms) is partial.",
+        missing: {
+          label: "Cloudinary DAM sync",
+          reason: "Folder sync + transform presets not a first-class OS surface",
+          required: ["Cloudinary connector health", "Folder mirror", "Transform presets"],
+          confidence: 0,
+          unlockAfter: "Unlock after Cloudinary DAM connector",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "usage",
+        label: "Usage / where used",
+        status: "planned",
+        summary: "Cross-page usage graph (portfolio, homepage, sessions) is not indexed yet.",
+        missing: {
+          label: "Asset usage",
+          reason: "No reverse index of where each asset is attached",
+          required: ["Usage index across CMS entities"],
+          confidence: 0,
+          unlockAfter: "Unlock after asset usage indexing",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "metadata",
+        label: "Metadata",
+        status: hasAssets ? "partial" : "planned",
+        summary: hasAssets
+          ? "Filename + alt are editable. Tags, rights, and expiry are not."
+          : "Metadata editing unlocks after assets exist.",
+        missing: {
+          label: "Rich metadata",
+          reason: "Tags, rights, and license fields missing",
+          required: ["Tag taxonomy", "Rights / license fields"],
+          confidence: 0,
+          unlockAfter: "Unlock after metadata schema expansion",
+          owner,
+          unlockHref: "/admin/qa",
+        },
+      },
+    ];
+  }, [hasAssets, items.length]);
+
   return (
-    <AdminShell title="Media Library">
+    <AdminShell title="Media">
       <WorkspaceChrome
-        eyebrow="Make · Media"
-        title="Media Library"
-        description="What: centralized images and video for the whole site. Why: reuse assets without re-uploading. Next: upload or search, then attach from Portfolio or Homepage editors. AI can suggest alt text — you approve before saving."
+        eyebrow={osEyebrow("create", "Where is the asset?")}
+        title="Media"
+        description="Professional DAM — search, versions, Cloudinary. Search and upload are live; versions and usage stay MissingMetric until connected."
         related={[
-          { label: "Portfolio", href: "/admin/portfolio", desc: "Projects" },
-          { label: "Homepage", href: "/admin/homepage", desc: "Hero & CTA" },
-          { label: "Content hub", href: "/admin/content-hub", desc: "Drafts" },
+          { label: "Portfolio", href: "/admin/portfolio", desc: "Which work drives business?" },
+          { label: "Homepage Intelligence", href: "/admin/homepage", desc: "Is the homepage converting?" },
+          { label: "Sessions", href: "/admin/sessions-hub", desc: "How do we produce the shoot?" },
+          { label: "Executive QA", href: "/admin/qa", desc: "What is broken or incomplete?" },
         ]}
       >
+      <OsCapabilityGrid
+        className="mb-8"
+        title="DAM capabilities"
+        subtitle="Always show what is live vs MissingMetric — never invent DAM readiness."
+        capabilities={damCapabilities}
+      />
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <button
           type="button"

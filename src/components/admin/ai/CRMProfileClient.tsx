@@ -7,11 +7,34 @@ import type { CRMContactIntelligence } from "@/lib/ai/types";
 import { AskAIButton } from "./AskAIPanel";
 import { useSetAIPage } from "./AIContextProvider";
 import { AdminPanel, AdminStatusBadge } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceChrome,
   WorkspaceLoading,
   WorkspaceButton,
 } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS, type MissingMetric } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow, osPage } from "@/lib/ai/platform/os-systems";
+
+const page = osPage("clients")!;
+
+function profileMissing(
+  label: string,
+  reason: string,
+  required: string[],
+  unlockAfter: string,
+  owner = METRIC_OWNERS.clients
+): MissingMetric {
+  return {
+    label,
+    reason,
+    required,
+    confidence: 0,
+    unlockAfter,
+    owner,
+    unlockHref: "/admin/qa",
+  };
+}
 
 export function CRMProfileClient({ email }: { email: string }) {
   const [intel, setIntel] = useState<CRMContactIntelligence | null>(null);
@@ -42,12 +65,13 @@ export function CRMProfileClient({ email }: { email: string }) {
   if (!intel) {
     return (
       <WorkspaceChrome
-        eyebrow="AI CRM"
+        eyebrow={osEyebrow("work", page.question)}
         title={email}
-        description="What: client intelligence for this contact. Why: know LTV and next action. Next: draft follow-up. AI personalizes outreach — you send."
+        description={page.purpose}
         related={[
           { label: "Clients", href: "/admin/crm", desc: "All people" },
           { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
+          { label: "Financial", href: "/admin/financial", desc: "Cash" },
           { label: "Email", href: "/admin/email", desc: "Send" },
         ]}
       >
@@ -57,12 +81,84 @@ export function CRMProfileClient({ email }: { email: string }) {
   }
 
   const { contact } = intel;
+  const hasRevenue = intel.revenueGenerated > 0;
+  const hasBookings = intel.bookingHistory.length > 0;
+
+  const capabilities: OsCapability[] = [
+    {
+      id: "identity",
+      label: "Who",
+      status: "live",
+      summary: `${contact.email}${contact.phone ? ` · ${contact.phone}` : ""}`,
+    },
+    {
+      id: "ltv",
+      label: "LTV / revenue",
+      status: hasRevenue || intel.predictedLTV > 0 ? "partial" : "planned",
+      summary: hasRevenue
+        ? `$${intel.revenueGenerated.toLocaleString()} recorded — Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated).`
+        : intel.predictedLTV > 0
+          ? `Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated) — not ledger-verified.`
+          : "No revenue or predicted LTV for this client.",
+      href: "/admin/financial",
+      missing:
+        hasRevenue || intel.predictedLTV > 0
+          ? undefined
+          : profileMissing(
+              "Verified LTV",
+              "No settled payments or predicted LTV for this client.",
+              ["Payment linked to email", "Financial Center attribution"],
+              "Unlock after payments settle for this client.",
+              METRIC_OWNERS.financial_center
+            ),
+    },
+    {
+      id: "projects",
+      label: "Projects",
+      status: hasBookings ? "live" : "partial",
+      summary: hasBookings
+        ? `${intel.bookingHistory.length} booking(s) on file.`
+        : "No bookings yet.",
+      href: "/admin/submissions?type=booking",
+    },
+    {
+      id: "invoices",
+      label: "Invoices",
+      status: "planned",
+      summary: "Per-client invoices not linked.",
+      missing: profileMissing(
+        "Invoices",
+        "No Invoice records for this client.",
+        ["Invoice entity", "Client linkage"],
+        "Unlock after Financial Center invoices.",
+        METRIC_OWNERS.financial_center
+      ),
+    },
+    {
+      id: "messages",
+      label: "Messages",
+      status: "planned",
+      summary: "Unified message history not connected.",
+      missing: profileMissing(
+        "Messages",
+        "No inbox thread store for this client.",
+        ["Channel sync", "Thread linkage"],
+        "Unlock after Inbox channels connect."
+      ),
+    },
+    {
+      id: "ai_summary",
+      label: "AI summary",
+      status: "partial",
+      summary: "Relationship summary and drafts below — review before sending.",
+    },
+  ];
 
   return (
     <WorkspaceChrome
-      eyebrow="AI CRM"
+      eyebrow={osEyebrow("work", page.question)}
       title={contact.name || contact.email}
-      description={`What: relationship intelligence for ${contact.email}. Why: predicted LTV and next best action. Next: send follow-up or upsell. AI drafts personalized outreach — you review and send.`}
+      description={page.purpose}
       extra={
         <div className="flex gap-2">
           <AskAIButton />
@@ -74,14 +170,21 @@ export function CRMProfileClient({ email }: { email: string }) {
       related={[
         { label: "Clients", href: "/admin/crm", desc: "All people" },
         { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
-        { label: "Email", href: "/admin/email", desc: "Send" },
+        { label: "Financial", href: "/admin/financial", desc: "Cash" },
         { label: "Bookings", href: "/admin/submissions?type=booking", desc: "Inquiries" },
       ]}
     >
+      <OsCapabilityGrid
+        className="mb-8"
+        title="Customer record"
+        subtitle="Honesty first — Predicted LTV is Estimated; invoices/messages stay MissingMetric until instrumented."
+        capabilities={capabilities}
+      />
+
       <div className="space-y-8">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <AdminPanel className="!p-4">
-            <p className="text-[0.6rem] uppercase text-muted">Predicted LTV</p>
+            <p className="text-[0.6rem] uppercase text-muted">Predicted LTV (Estimated)</p>
             <p className="mt-1 font-display text-2xl text-cream">${intel.predictedLTV.toLocaleString()}</p>
           </AdminPanel>
           <AdminPanel className="!p-4">

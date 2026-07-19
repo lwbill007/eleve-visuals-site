@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceChrome,
   WorkspaceError,
@@ -14,7 +15,15 @@ import {
 import { MemoryGraphVisual } from "@/components/admin/ai/MemoryGraphVisual";
 import type { CognitiveArchitecture, KnowledgeObject, StrategySimulation } from "@/lib/ai/cognitive/types";
 import type { MemoryExplanation } from "@/lib/ai/memory/knowledge/types";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import { cn } from "@/lib/utils";
+
+const BRAIN_CHROME = {
+  eyebrow: "Brain · What have we learned?",
+  title: "Business Brain",
+  description:
+    "Rules, decisions, patterns, and confidence from verified business memory — never invented lessons. You verify what the AI proposes.",
+} as const;
 
 function CognitiveSection({
   step,
@@ -225,20 +234,15 @@ export function CognitiveArchitectureClient() {
   }
 
   const related = [
-    { label: "Timeline", href: "/admin/timeline", desc: "Activity" },
+    { label: "Timeline", href: "/admin/timeline", desc: "What happened?" },
     { label: "Briefing", href: "/admin/briefing", desc: "Daily brief" },
     { label: "Opportunities", href: "/admin/opportunities", desc: "Execute" },
-    { label: "QA", href: "/admin/qa", desc: "Missing intel" },
+    { label: "Executive QA", href: "/admin/qa", desc: "Gaps" },
   ];
 
   if (loading && !arch) {
     return (
-      <WorkspaceChrome
-        eyebrow="Brain · Knowledge Engine"
-        title="Business Brain"
-        description="Permanent executive reasoning. Every event becomes knowledge, prediction, and decision — you verify what the AI proposes."
-        related={related}
-      >
+      <WorkspaceChrome {...BRAIN_CHROME} related={related}>
         <WorkspaceLoading rows={5} />
       </WorkspaceChrome>
     );
@@ -246,16 +250,61 @@ export function CognitiveArchitectureClient() {
 
   if (!arch) {
     return (
-      <WorkspaceChrome
-        eyebrow="Brain · Knowledge Engine"
-        title="Business Brain"
-        description="Permanent executive reasoning. Every event becomes knowledge, prediction, and decision — you verify what the AI proposes."
-        related={related}
-      >
+      <WorkspaceChrome {...BRAIN_CHROME} related={related}>
         <WorkspaceError message={error || "Failed to load cognitive architecture."} onRetry={() => void load()} />
       </WorkspaceChrome>
     );
   }
+
+  const capabilities: OsCapability[] = [
+    {
+      id: "rules",
+      label: "Business rules",
+      status: arch.businessDna.mission ? "live" : "planned",
+      summary: arch.businessDna.mission
+        ? "Business DNA (positioning, pricing, creative, growth) is loaded from memory."
+        : "Business DNA not yet populated.",
+    },
+    {
+      id: "decisions",
+      label: "Decision journal",
+      status: arch.decisionJournal.length > 0 ? "live" : "partial",
+      summary:
+        arch.decisionJournal.length > 0
+          ? `${arch.decisionJournal.length} recorded Execute decisions.`
+          : "Journal ready — no Execute decisions recorded yet.",
+    },
+    {
+      id: "patterns",
+      label: "Learned patterns",
+      status: arch.learningPatterns.length > 0 ? "live" : "partial",
+      summary:
+        arch.learningPatterns.length > 0
+          ? `${arch.learningPatterns.length} recent learnings from the engine.`
+          : "Learning engine online — awaiting verified outcomes.",
+    },
+    {
+      id: "graph",
+      label: "Knowledge graph",
+      status: arch.graph.totalNodes > 0 ? "live" : "partial",
+      summary: `${arch.graph.totalNodes} nodes · ${arch.graph.totalEdges} edges · health ${arch.graph.health.healthScore}%`,
+    },
+    {
+      id: "outcome-accuracy",
+      label: "Outcome accuracy rollup",
+      status: "planned",
+      summary: "Global prediction→outcome accuracy not aggregated here.",
+      missing: {
+        label: "Outcome accuracy",
+        reason: "No verified prediction→outcome rollup wired on Business Brain yet",
+        required: ["AILearningOutcome coverage", "PredictionContract verification"],
+        confidence: 0,
+        unlockAfter: "Unlock after prediction verification rollup",
+        owner: METRIC_OWNERS.ai_operations,
+        unlockHref: "/admin/ai-operations",
+      },
+    },
+  ];
 
   let step = 0;
   const next = () => ++step;
@@ -271,9 +320,7 @@ export function CognitiveArchitectureClient() {
 
   return (
     <WorkspaceChrome
-      eyebrow="Brain · Knowledge Engine"
-      title="Business Brain"
-      description="Permanent executive reasoning. Every event becomes knowledge, prediction, and decision — you verify and pin what the AI proposes."
+      {...BRAIN_CHROME}
       onRefresh={() => void refreshIntelligence()}
       refreshing={refreshing}
       extra={
@@ -286,6 +333,13 @@ export function CognitiveArchitectureClient() {
       {message && (
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-cream">{message}</p>
       )}
+
+      <OsCapabilityGrid
+        title="What the brain can answer"
+        subtitle="Live capabilities only. Unknowns stay MissingMetric — never invented confidence."
+        capabilities={capabilities}
+        className="mb-8"
+      />
 
       {verifyStats && (
         <AdminPanel title="Verification Queue" subtitle={`Target ${verifyStats.targetPct}% verified · currently ${verifyStats.verifiedPct}%`} className="mb-8">

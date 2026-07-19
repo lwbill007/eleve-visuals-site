@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
 import type { AIReportResult, AIReportType } from "@/lib/ai/types";
 import { AskAIButton } from "./AskAIPanel";
 import { useSetAIPage } from "./AIContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import { ExecutiveReportV2View } from "./ExecutiveReportV2View";
 
 const REPORT_TYPES: { type: AIReportType; label: string }[] = [
@@ -48,24 +51,95 @@ export function BIReportsClient() {
     setLoading(null);
   }
 
+  const reportCapabilities: OsCapability[] = useMemo(() => {
+    const analytics = METRIC_OWNERS.analytics;
+    const finance = METRIC_OWNERS.financial_center;
+    return [
+      {
+        id: "period",
+        label: "Period reports",
+        status: "live",
+        summary: "Monthly / quarterly / yearly drafts generate from live studio data.",
+      },
+      {
+        id: "export",
+        label: "One-click export",
+        status: "partial",
+        summary: "On-screen Report 2.0 is live. Dedicated PDF/CSV export package is partial.",
+        missing: {
+          label: "Export package",
+          reason: "No one-click PDF/CSV export pipeline yet",
+          required: ["Export renderer", "Download endpoint"],
+          confidence: 0,
+          unlockAfter: "Unlock after export pipeline",
+          owner: analytics,
+          unlockHref: "/admin/qa",
+        },
+      },
+      {
+        id: "traffic",
+        label: "Traffic figures",
+        status: "planned",
+        summary: "Traffic numbers must come from Analytics SSoT — never invent in narratives.",
+        href: "/admin/analytics",
+        missing: {
+          label: "Embedded traffic charts",
+          reason: "Reports must cite Analytics — not duplicate charts",
+          required: ["Cross-check Analytics before sharing"],
+          confidence: 0,
+          unlockAfter: "Open Analytics for verified traffic",
+          owner: analytics,
+          unlockHref: "/admin/analytics",
+        },
+      },
+      {
+        id: "revenue",
+        label: "Revenue figures",
+        status: "planned",
+        summary: "Settled cash is owned by Financial Center — never invent recoverable $.",
+        href: "/admin/financial",
+        missing: {
+          label: "Verified revenue in reports",
+          reason: "Narrative drafts are not ledger-verified",
+          required: ["Succeeded Payment rows", "Cross-check Financial Center"],
+          confidence: 0,
+          unlockAfter: "Cross-check Financial Center before sharing money claims",
+          owner: finance,
+          unlockHref: "/admin/financial",
+        },
+      },
+    ];
+  }, []);
+
   return (
     <WorkspaceChrome
-      eyebrow="Command Center"
-      title="AI Business Intelligence"
-      description="What: Executive Intelligence Platform v3 from live studio data. Why: five-layer truth — never invent recoverable $, brand equity lifts, or conversion targets. Next: generate, review evidence, approve before acting."
+      eyebrow={osEyebrow("grow", "What should leadership see?")}
+      title="Reports"
+      description="Automatic period reports with one-click export. Structured layers are labeled; money claims must cross-check Financial Center and traffic must cross-check Analytics."
       extra={<AskAIButton />}
       related={[
-        { label: "Analytics", href: "/admin/analytics", desc: "Live metrics" },
-        { label: "Website", href: "/admin/website", desc: "SEO · UX intel" },
-        { label: "Research", href: "/admin/research", desc: "Gated web intel" },
-        { label: "Briefing", href: "/admin/briefing", desc: "Daily brief" },
+        { label: "Analytics", href: "/admin/analytics", desc: "What is traffic doing?" },
+        { label: "Website Intelligence", href: "/admin/website", desc: "Is the site healthy?" },
+        { label: "Financial Center", href: "/admin/financial", desc: "Where is the money?" },
+        { label: "Briefing", href: "/admin/briefing", desc: "Why did it happen?" },
       ]}
     >
+      <OsCapabilityGrid
+        className="mb-6"
+        title="Report honesty"
+        subtitle="Never invent recoverable revenue or duplicate Analytics charts in exports."
+        capabilities={reportCapabilities}
+      />
+
       <div className="mb-6 rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-fog">
         Structured reports label <span className="text-cream">Measured Data</span>,{" "}
         <span className="text-cream">AI Analysis</span>, and{" "}
         <span className="text-cream">AI Prediction</span>. Narrative drafts are optional and never
-        verified financials — cross-check Analytics and Payments before sharing.
+        verified financials — cross-check Analytics and{" "}
+        <Link href="/admin/financial" className="text-accent hover:underline">
+          Financial Center
+        </Link>{" "}
+        before sharing.
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

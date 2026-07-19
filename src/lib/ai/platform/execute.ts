@@ -231,7 +231,7 @@ export function executeLabel(kind: ExecuteKind, fallback = "Open"): string {
   switch (kind) {
     case "mark_booking_contacted":
     case "mark_stale_bookings_contacted":
-      return "Advance to Discovery";
+      return "Advance to Consultation";
     case "complete_mission":
       return "Complete";
     case "open_pipeline":

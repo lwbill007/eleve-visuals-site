@@ -7,6 +7,7 @@ import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminPanel, AdminStatusBadge } from "@/components/admin/os/AdminOSComponents";
+import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceChrome,
   WorkspaceEmpty,
@@ -14,6 +15,8 @@ import {
   WorkspaceLoading,
   WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
+import { METRIC_OWNERS, type MissingMetric } from "@/lib/ai/platform/metric-owners";
+import { osEyebrow, osPage } from "@/lib/ai/platform/os-systems";
 
 interface Contact {
   id: string;
@@ -29,6 +32,26 @@ interface Contact {
   contacts: number;
   revenue: number;
   lastActivity: string;
+}
+
+const page = osPage("clients")!;
+
+function clientMissing(
+  label: string,
+  reason: string,
+  required: string[],
+  unlockAfter: string,
+  owner = METRIC_OWNERS.clients
+): MissingMetric {
+  return {
+    label,
+    reason,
+    required,
+    confidence: 0,
+    unlockAfter,
+    owner,
+    unlockHref: "/admin/qa",
+  };
 }
 
 export function CRMClient() {
@@ -94,21 +117,149 @@ export function CRMClient() {
       return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
     });
 
+  const withRevenue = contacts.filter((c) => c.revenue > 0).length;
+  const withBookings = contacts.filter((c) => c.bookings > 0).length;
+
+  const capabilities: OsCapability[] = [
+    {
+      id: "profile",
+      label: "Customer profile",
+      status: contacts.length > 0 ? "live" : "partial",
+      summary:
+        contacts.length > 0
+          ? `${contacts.length} people from bookings & applications.`
+          : "No clients yet — created automatically from inquiries.",
+    },
+    {
+      id: "ltv",
+      label: "LTV",
+      status: withRevenue > 0 ? "partial" : "planned",
+      summary:
+        withRevenue > 0
+          ? `${withRevenue} contacts show revenue totals — verify against Financial Center.`
+          : "No settled revenue attributed to clients yet.",
+      href: "/admin/financial",
+      missing:
+        withRevenue > 0
+          ? undefined
+          : clientMissing(
+              "LTV",
+              "No verified client revenue to compute lifetime value.",
+              ["Succeeded payments linked to client email", "Optional predicted LTV model"],
+              "Unlock after Financial Center attributes payments to clients.",
+              METRIC_OWNERS.financial_center
+            ),
+    },
+    {
+      id: "projects",
+      label: "Projects",
+      status: withBookings > 0 ? "live" : "partial",
+      summary:
+        withBookings > 0
+          ? `${withBookings} clients have booking history counts.`
+          : "No booking-linked projects yet.",
+      href: "/admin/submissions?type=booking",
+    },
+    {
+      id: "invoices",
+      label: "Invoices",
+      status: "planned",
+      summary: "Per-client invoices are not first-class yet.",
+      missing: clientMissing(
+        "Invoices",
+        "Invoice objects are not linked to CRM contacts.",
+        ["Invoice entity", "Client linkage"],
+        "Unlock after Financial Center invoices.",
+        METRIC_OWNERS.financial_center
+      ),
+    },
+    {
+      id: "payments",
+      label: "Payments",
+      status: "partial",
+      summary: "Cash ownership lives in Financial Center.",
+      href: "/admin/financial",
+    },
+    {
+      id: "notes",
+      label: "Notes",
+      status: "partial",
+      summary: "Notes live on individual booking / CRM profile records — not a global CRM notes store.",
+      href: "/admin/crm",
+    },
+    {
+      id: "messages",
+      label: "Messages",
+      status: "planned",
+      summary: "Unified message history per client is not connected.",
+      missing: clientMissing(
+        "Messages",
+        "No unified client message thread in CRM.",
+        ["Inbox channel sync", "Thread ↔ client linkage"],
+        "Unlock after Inbox channels connect."
+      ),
+    },
+    {
+      id: "preferences",
+      label: "Preferences",
+      status: "planned",
+      summary: "Client preference profiles are not stored yet.",
+      missing: clientMissing(
+        "Preferences",
+        "No preference schema on contacts.",
+        ["Preference fields", "Capture in booking / CRM"],
+        "Unlock after preference model ships."
+      ),
+    },
+    {
+      id: "referrals",
+      label: "Referrals",
+      status: "partial",
+      summary: "Referral program page exists — not embedded as a CRM capability metric.",
+      href: "/admin/referrals",
+    },
+    {
+      id: "reviews",
+      label: "Reviews",
+      status: "planned",
+      summary: "Review collection is not connected to CRM.",
+      missing: clientMissing(
+        "Reviews",
+        "No review entities linked to clients.",
+        ["Review capture", "Client linkage"],
+        "Unlock after review workflow ships."
+      ),
+    },
+    {
+      id: "ai_summary",
+      label: "AI summary",
+      status: "partial",
+      summary: "Open a client profile for AI relationship summary — list view stays honest.",
+    },
+  ];
+
   return (
     <WorkspaceChrome
-      eyebrow="Work · Clients"
+      eyebrow={osEyebrow("work", page.question)}
       title="Clients"
-      description="What happened with every person who touched ÉLEVÉ, why they matter (LTV & activity), and what to do next — follow up or re-engage."
+      description={page.purpose}
       onRefresh={load}
       refreshing={loading}
       extra={<AskAIButton />}
       related={[
         { label: "Pipeline", href: "/admin/pipeline", desc: "Deals" },
-        { label: "Workboard", href: "/admin/workboard", desc: "Inbox" },
+        { label: "Workboard", href: "/admin/workboard", desc: "Execute" },
+        { label: "Financial", href: "/admin/financial", desc: "Cash" },
         { label: "Email", href: "/admin/email", desc: "Send" },
-        { label: "Business Brain", href: "/admin/memory", desc: "Context" },
       ]}
     >
+      <OsCapabilityGrid
+        className="mb-8"
+        title="Customer record"
+        subtitle="Who is this customer? Live counts from CRM; invoices/preferences/reviews stay MissingMetric until instrumented."
+        capabilities={capabilities}
+      />
+
       <WorkspaceToolbar
         search={query}
         onSearch={setQuery}
@@ -147,7 +298,7 @@ export function CRMClient() {
           title={contacts.length === 0 ? "No clients yet" : "No clients match"}
           detail={
             contacts.length === 0
-              ? "Bookings and applications create people automatically. Once leads arrive, they appear here with LTV and activity."
+              ? "Bookings and applications create people automatically. Once leads arrive, they appear here with activity."
               : "Try a different search or sort."
           }
           actionHref={contacts.length === 0 ? "/admin/pipeline" : undefined}
@@ -163,7 +314,7 @@ export function CRMClient() {
                 <th className="px-4 py-3">Segment</th>
                 <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3">Bookings</th>
-                <th className="px-4 py-3">LTV</th>
+                <th className="px-4 py-3">Revenue</th>
                 <th className="px-4 py-3">Last Active</th>
               </tr>
             </thead>
@@ -201,7 +352,14 @@ export function CRMClient() {
                   <td className="px-4 py-4 text-fog">{c.source}</td>
                   <td className="px-4 py-4 text-cream">{c.bookings}</td>
                   <td className="px-4 py-4 text-cream">
-                    {c.revenue > 0 ? `$${c.revenue.toLocaleString()}` : "—"}
+                    {c.revenue > 0 ? (
+                      <>
+                        ${c.revenue.toLocaleString()}{" "}
+                        <span className="text-[0.55rem] text-muted">(est.)</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-4 py-4 text-muted">
                     {new Date(c.lastActivity).toLocaleDateString()}
