@@ -201,6 +201,14 @@ export async function generateBookingProductionIntel(
         },
       ],
       maxTokens: 700,
+      responseFormat: "json",
+      task: "business_analysis",
+      validateResponse: (content) => {
+        const json = content.match(/\{[\s\S]*\}/)?.[0];
+        if (!json) return false;
+        JSON.parse(json);
+        return true;
+      },
     });
 
     if (!result?.content) return base;

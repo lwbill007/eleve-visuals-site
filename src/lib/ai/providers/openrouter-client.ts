@@ -1,6 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { getAIConfig } from "../config";
-import { logAIAction } from "../log";
+import { logAIAction, logAIRequest } from "../log";
 import type { AICompletionRequest, AICompletionResult, AIStreamChunk, AIToolCall } from "../types";
+import {
+  recordOpenRouterModelResult,
+  routeOpenRouterModels,
+} from "./openrouter-model-router";
 
 let lastRequestAt = 0;
 
@@ -23,14 +28,14 @@ function headers() {
   };
 }
 
-function formatMessages(messages: AICompletionRequest["messages"]) {
+function formatMessages(messages: AICompletionRequest["messages"], includeImages = true) {
   return messages.map((m) => {
     const role = m.role === "tool" ? ("user" as const) : m.role === "assistant" ? ("assistant" as const) : m.role;
     const text = m.role === "tool" ? `[Tool: ${m.toolName}]\n${m.content}` : m.content;
     return {
       role,
       content:
-        m.images?.length && m.role === "user"
+        includeImages && m.images?.length && m.role === "user"
           ? [
               { type: "text" as const, text },
               ...m.images.slice(0, 8).map((url) => ({
@@ -80,7 +85,7 @@ function parseToolCalls(raw: unknown): AIToolCall[] | undefined {
 }
 
 function shouldRetryStatus(status: number): boolean {
-  return status === 429 || status === 502 || status === 503 || status === 504;
+  return [408, 429, 500, 502, 503, 504, 520, 522, 524, 529].includes(status);
 }
 
 async function sleep(ms: number) {
@@ -139,79 +144,195 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
 
   const config = getAIConfig();
   const hasImages = request.messages.some((message) => message.images?.length);
-  const models = hasImages
-    ? [
-        config.openrouter.visionModel,
-        ...config.openrouter.modelChain.filter(
-          (model) => model !== config.openrouter.visionModel
-        ),
-      ]
-    : config.openrouter.modelChain;
+  const models = await routeOpenRouterModels(request);
+  const requestId = randomUUID();
   let lastError = "";
+  let totalAttempts = 0;
 
-  for (const model of models) {
-    // If a model rejects JSON mode (e.g. 400 unsupported parameter), retry it
-    // once without response_format before moving down the chain.
-    let useJsonMode = request.responseFormat === "json";
+  modelLoop: for (const model of models) {
+    let useStructuredOutput = Boolean(
+      request.responseSchema && request.responseFormat === "json" && model.structuredOutputs
+    );
+    let useJsonMode = Boolean(
+      request.responseFormat === "json" && (model.jsonMode || model.source === "configured")
+    );
 
     for (let attempt = 0; attempt <= config.openrouter.maxRetries; attempt++) {
+      if (totalAttempts >= config.openrouter.maxAttempts) break modelLoop;
       if (attempt > 0) await sleep(config.openrouter.retryDelayMs * attempt);
+      totalAttempts += 1;
+      const startedAt = Date.now();
 
       try {
         await throttle();
         const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: headers(),
+          signal: AbortSignal.timeout(config.openrouter.timeoutMs),
           body: JSON.stringify({
-            model,
-            messages: formatMessages(request.messages),
+            model: model.id,
+            messages: formatMessages(request.messages, !hasImages || model.vision),
             tools: formatTools(request.tools),
             tool_choice: request.tools?.length ? "auto" : undefined,
             temperature: request.temperature ?? 0.7,
             max_tokens: request.maxTokens ?? 2048,
-            ...(useJsonMode ? { response_format: { type: "json_object" } } : {}),
+            ...(useStructuredOutput && request.responseSchema
+              ? {
+                  response_format: {
+                    type: "json_schema",
+                    json_schema: {
+                      name: request.responseSchema.name,
+                      strict: true,
+                      schema: request.responseSchema.schema,
+                    },
+                  },
+                  provider: { require_parameters: true },
+                }
+              : useJsonMode
+                ? { response_format: { type: "json_object" } }
+                : {}),
           }),
         });
+        const latencyMs = Date.now() - startedAt;
 
         if (!res.ok) {
           lastError = `HTTP ${res.status}: ${await res.text()}`;
           console.error(
-            `[openrouter] model=${model} jsonMode=${useJsonMode} status=${res.status} body=${lastError.slice(0, 500)}`
+            `[openrouter] request=${requestId} model=${model.id} structured=${useStructuredOutput} jsonMode=${useJsonMode} status=${res.status} body=${lastError.slice(0, 1000)}`
           );
-          if (useJsonMode && res.status >= 400 && res.status < 500 && res.status !== 429) {
-            useJsonMode = false;
-            attempt -= 1; // retry the same model immediately without JSON mode
-            continue;
+          recordOpenRouterModelResult(model.id, { ok: false, latencyMs });
+          await logAIRequest({
+            requestId,
+            task: request.task ?? "general",
+            provider: "openrouter",
+            model: model.id,
+            outcome: shouldRetryStatus(res.status) ? "retry" : "failure",
+            latencyMs,
+            attempt: totalAttempts,
+            status: res.status,
+            jsonRequested: request.responseFormat === "json",
+            vision: hasImages && model.vision,
+            error: lastError.slice(0, 500),
+          });
+          if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+            if (useStructuredOutput) {
+              // Downgrade strict schema → JSON mode on the same model.
+              useStructuredOutput = false;
+              useJsonMode = model.jsonMode || model.source === "configured";
+              attempt -= 1;
+              continue;
+            }
+            if (useJsonMode) {
+              // Last same-model fallback is prompt-only JSON.
+              useJsonMode = false;
+              attempt -= 1;
+              continue;
+            }
           }
           if (shouldRetryStatus(res.status)) continue;
           break;
         }
 
         const data = await res.json();
+        // Raw provider response is written before content extraction/validation.
+        console.info(
+          `[openrouter] Raw response | request=${requestId} | model=${model.id} | status=${res.status}\n${JSON.stringify(data)}`
+        );
         const toolCalls = parseToolCalls(data);
         const choice = data.choices?.[0];
         const content = extractContent(choice?.message?.content);
         const nativeFinishReason: string =
           choice?.native_finish_reason ?? choice?.finish_reason ?? "unknown";
+        const usage = data.usage as
+          | { prompt_tokens?: number; completion_tokens?: number }
+          | undefined;
 
         if (!content && !toolCalls?.length) {
-          lastError = `Empty completion (finish_reason=${nativeFinishReason}) from ${model}`;
+          lastError = `Empty completion (finish_reason=${nativeFinishReason}) from ${model.id}`;
           console.error(
-            `[openrouter] model=${model} returned empty content. finish_reason=${nativeFinishReason} raw=${JSON.stringify(data).slice(0, 500)}`
+            `[openrouter] request=${requestId} model=${model.id} returned empty content. finish_reason=${nativeFinishReason}`
           );
+          recordOpenRouterModelResult(model.id, { ok: false, latencyMs });
           continue;
+        }
+
+        if (nativeFinishReason === "length" || nativeFinishReason === "error") {
+          lastError = `Completion ended with finish_reason=${nativeFinishReason}`;
+          recordOpenRouterModelResult(model.id, { ok: false, latencyMs });
+          await logAIRequest({
+            requestId,
+            task: request.task ?? "general",
+            provider: "openrouter",
+            model: model.id,
+            outcome: "retry",
+            latencyMs,
+            attempt: totalAttempts,
+            finishReason: nativeFinishReason,
+            jsonRequested: request.responseFormat === "json",
+            vision: hasImages && model.vision,
+            promptTokens: usage?.prompt_tokens,
+            completionTokens: usage?.completion_tokens,
+            error: lastError,
+          });
+          continue;
+        }
+
+        let responseValid = true;
+        if (request.validateResponse && !toolCalls?.length) {
+          try {
+            responseValid = request.validateResponse(content);
+            if (!responseValid) lastError = "Response validator rejected the completion";
+          } catch (error) {
+            responseValid = false;
+            lastError = error instanceof Error ? error.message : String(error);
+          }
+        }
+        if (!responseValid) {
+          console.error(
+            `[openrouter] request=${requestId} model=${model.id} semantic validation failed: ${lastError}`
+          );
+          recordOpenRouterModelResult(model.id, { ok: false, latencyMs });
+          await logAIRequest({
+            requestId,
+            task: request.task ?? "general",
+            provider: "openrouter",
+            model: model.id,
+            outcome: "retry",
+            latencyMs,
+            attempt: totalAttempts,
+            finishReason: nativeFinishReason,
+            jsonRequested: request.responseFormat === "json",
+            jsonValid: false,
+            vision: hasImages && model.vision,
+            promptTokens: usage?.prompt_tokens,
+            completionTokens: usage?.completion_tokens,
+            error: lastError.slice(0, 500),
+          });
+          break;
         }
 
         await logAIAction(
           "openrouter_complete",
-          model,
-          `finish=${nativeFinishReason} chars=${content.length} jsonMode=${useJsonMode}`
+          model.id,
+          `finish=${nativeFinishReason} chars=${content.length} structured=${useStructuredOutput} jsonMode=${useJsonMode}`
         );
-        if (nativeFinishReason === "length") {
-          console.warn(
-            `[openrouter] model=${model} completion was truncated at max_tokens=${request.maxTokens ?? 2048}`
-          );
-        }
+        recordOpenRouterModelResult(model.id, { ok: true, latencyMs });
+        await logAIRequest({
+          requestId,
+          task: request.task ?? "general",
+          provider: "openrouter",
+          model: model.id,
+          outcome: "success",
+          latencyMs,
+          attempt: totalAttempts,
+          status: res.status,
+          finishReason: nativeFinishReason,
+          jsonRequested: request.responseFormat === "json",
+          jsonValid: request.responseFormat === "json" ? true : undefined,
+          vision: hasImages && model.vision,
+          promptTokens: usage?.prompt_tokens,
+          completionTokens: usage?.completion_tokens,
+        });
 
         return {
           content,
@@ -219,17 +340,43 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
           finishReason: toolCalls?.length ? "tool_calls" : "stop",
           nativeFinishReason,
           provider: "openrouter",
-          model,
+          model: model.id,
+          latencyMs,
+          attempts: totalAttempts,
+          visionUsed: hasImages && model.vision,
         };
       } catch (err) {
         lastError = err instanceof Error ? err.message : "Unknown error";
-        console.error(`[openrouter] model=${model} request failed: ${lastError}`);
+        const latencyMs = Date.now() - startedAt;
+        console.error(
+          `[openrouter] request=${requestId} model=${model.id} request failed: ${lastError}`,
+          err
+        );
+        recordOpenRouterModelResult(model.id, { ok: false, latencyMs });
+        await logAIRequest({
+          requestId,
+          task: request.task ?? "general",
+          provider: "openrouter",
+          model: model.id,
+          outcome: attempt < config.openrouter.maxRetries ? "retry" : "failure",
+          latencyMs,
+          attempt: totalAttempts,
+          jsonRequested: request.responseFormat === "json",
+          vision: hasImages && model.vision,
+          error: lastError.slice(0, 500),
+        });
       }
     }
   }
 
   await logAIAction("openrouter_error", "all_models", lastError.slice(0, 200));
-  return { content: "", finishReason: "error", provider: "openrouter", model: models[0] ?? "" };
+  return {
+    content: "",
+    finishReason: "error",
+    provider: "openrouter",
+    model: models[0]?.id ?? "",
+    attempts: totalAttempts,
+  };
 }
 
 export async function* openRouterStream(request: AICompletionRequest): AsyncGenerator<AIStreamChunk> {
@@ -239,17 +386,20 @@ export async function* openRouterStream(request: AICompletionRequest): AsyncGene
   }
 
   const config = getAIConfig();
-  const models = config.openrouter.modelChain;
+  const models = await routeOpenRouterModels({ ...request, task: request.task ?? "chat" });
+  const hasImages = request.messages.some((message) => message.images?.length);
 
   for (const model of models) {
+    const startedAt = Date.now();
     try {
       await throttle();
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: headers(),
+        signal: AbortSignal.timeout(config.openrouter.timeoutMs),
         body: JSON.stringify({
-          model,
-          messages: formatMessages(request.messages),
+          model: model.id,
+          messages: formatMessages(request.messages, !hasImages || model.vision),
           stream: true,
           temperature: request.temperature ?? 0.7,
           max_tokens: request.maxTokens ?? 2048,
@@ -283,11 +433,17 @@ export async function* openRouterStream(request: AICompletionRequest): AsyncGene
         }
       }
 
-      await logAIAction("openrouter_stream", model, "done");
+      const latencyMs = Date.now() - startedAt;
+      recordOpenRouterModelResult(model.id, { ok: true, latencyMs });
+      await logAIAction("openrouter_stream", model.id, `done latencyMs=${latencyMs}`);
       yield { type: "done" };
       return;
-    } catch {
-      /* try next model */
+    } catch (error) {
+      recordOpenRouterModelResult(model.id, {
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+      });
+      console.error(`[openrouter] stream model=${model.id} failed:`, error);
     }
   }
 

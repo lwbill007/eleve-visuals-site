@@ -38,7 +38,7 @@ export async function runAIChat(
 
   while (iterations < config.maxToolIterations) {
     iterations += 1;
-    const result = await aiComplete({ messages, tools: BUSINESS_TOOLS });
+    const result = await aiComplete({ messages, tools: BUSINESS_TOOLS, task: "business_analysis" });
 
     if (!result || result.finishReason === "error" || !result.toolCalls?.length) {
       await logAIAction("ai_chat", "assistant", userMessage.slice(0, 200));
@@ -56,7 +56,7 @@ export async function runAIChat(
     }
   }
 
-  const final = await aiComplete({ messages });
+  const final = await aiComplete({ messages, task: "chat" });
   await logAIAction("ai_chat", "assistant", userMessage.slice(0, 200));
   return {
     content: final?.content || "I couldn't complete that request.",
@@ -95,7 +95,7 @@ export async function* streamAIChat(
   ];
 
   let streamedText = false;
-  for await (const chunk of aiStream({ messages })) {
+  for await (const chunk of aiStream({ messages, task: "chat" })) {
     if (chunk.type === "text" && chunk.text) streamedText = true;
     if (chunk.type === "error" && !streamedText) {
       const probe = isOpenRouterConfigured() ? await probeOpenRouterKey() : null;
@@ -137,6 +137,7 @@ export async function generateAIContent(
         { role: "user", content: `${request.prompt}${contextStr}` },
       ],
       temperature: 0.8,
+      task: request.task === "analytics_explain" ? "business_analysis" : "content_generation",
     });
   } catch (err) {
     await logAIAction("ai_generate_error", request.task, err instanceof Error ? err.message : "unknown");

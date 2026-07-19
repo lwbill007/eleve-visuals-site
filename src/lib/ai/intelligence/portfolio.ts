@@ -71,9 +71,17 @@ export async function analyzePortfolioImages(
           {
             role: "user",
             content: JSON.stringify({ project: title, images: images.map((img) => img.url) }),
+            images: images.map((img) => img.url).slice(0, 8),
           },
         ],
         maxTokens: 2000,
+        task: "portfolio_review",
+        validateResponse: (content) => {
+          const json = content.match(/\[[\s\S]*\]/)?.[0];
+          if (!json) return false;
+          const parsed = JSON.parse(json);
+          return Array.isArray(parsed);
+        },
       });
 
       const match = result?.content.match(/\[[\s\S]*\]/);

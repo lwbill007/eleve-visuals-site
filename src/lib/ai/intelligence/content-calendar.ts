@@ -125,6 +125,13 @@ Channels: instagram, email, blog, tiktok, portfolio. 6 items.`;
     ],
     temperature: 0.4,
     maxTokens: 1200,
+    task: "marketing_strategy",
+    validateResponse: (content) => {
+      const json = content.match(/\[[\s\S]*\]/)?.[0];
+      if (!json) return false;
+      const parsed = JSON.parse(json);
+      return Array.isArray(parsed);
+    },
   });
 
   if (result) {

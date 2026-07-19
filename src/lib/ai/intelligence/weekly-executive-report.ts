@@ -152,6 +152,7 @@ export async function generateWeeklyExecutiveReport(
   if (isAIConfigured()) {
     try {
       const result = await aiComplete({
+        task: "long_form_reasoning",
         messages: [
           {
             role: "system",

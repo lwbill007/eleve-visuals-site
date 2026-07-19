@@ -1,5 +1,21 @@
 export type AIProviderId = "openrouter" | "ollama";
 
+export type AIRoutingTask =
+  | "applicant_ranking"
+  | "business_analysis"
+  | "portfolio_review"
+  | "vision_analysis"
+  | "executive_summary"
+  | "hiring_intelligence"
+  | "creative_feedback"
+  | "financial_analysis"
+  | "marketing_strategy"
+  | "json_extraction"
+  | "long_form_reasoning"
+  | "chat"
+  | "content_generation"
+  | "general";
+
 export type AIMessageRole = "system" | "user" | "assistant" | "tool";
 
 export interface AIMessage {
@@ -29,6 +45,18 @@ export interface AICompletionRequest {
   maxTokens?: number;
   /** Request a JSON object response from providers that support JSON mode. */
   responseFormat?: "json";
+  /** Optional JSON Schema used when the selected model supports structured outputs. */
+  responseSchema?: {
+    name: string;
+    schema: Record<string, unknown>;
+  };
+  /** Used by the central router to select the strongest compatible model. */
+  task?: AIRoutingTask;
+  /**
+   * Optional semantic validation. A rejected completion is retried on the next
+   * compatible model instead of escaping the provider fallback chain.
+   */
+  validateResponse?: (content: string) => boolean;
 }
 
 export interface AICompletionResult {
@@ -39,6 +67,10 @@ export interface AICompletionResult {
   nativeFinishReason?: string;
   provider: AIProviderId;
   model: string;
+  latencyMs?: number;
+  cached?: boolean;
+  attempts?: number;
+  visionUsed?: boolean;
 }
 
 export interface AIStreamChunk {

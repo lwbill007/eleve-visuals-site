@@ -70,6 +70,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
       { label: "Executive QA", href: "/admin/qa", desc: "Missing intel · readiness" },
       { label: "Payments", href: "/admin/payments", desc: "Settled cash" },
       { label: "Automations", href: "/admin/automations", desc: "System jobs" },
+      { label: "AI Health", href: "/admin/ai-health", desc: "Models · reliability · retries" },
       { label: "Notifications", href: "/admin/notifications", desc: "Delivery log" },
       { label: "Settings", href: "/admin/settings", desc: "Brand · access" },
     ],

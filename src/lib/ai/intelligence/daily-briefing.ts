@@ -156,6 +156,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
   if (isAIConfigured()) {
     try {
       const result = await aiComplete({
+        task: "executive_summary",
         messages: [
           {
             role: "system",

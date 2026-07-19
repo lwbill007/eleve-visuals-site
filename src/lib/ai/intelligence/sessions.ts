@@ -2,8 +2,10 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { normalizeApplicationStatus } from "@/lib/types";
+import { getCached, setCache } from "../cache";
 import { aiComplete } from "../adapter";
 import { isAIConfigured } from "../config";
+import { logAIAction } from "../log";
 import { generateAIContent } from "../service";
 import type { SessionApplicationRank } from "../types";
 import {
@@ -15,6 +17,7 @@ type RankedCategory = SessionApplicationRank["categories"][number];
 type CategoryKey = RankedCategory["key"];
 
 export const APPLICATION_EVALUATION_VERSION = "ai-evaluation-v3.0";
+const APPLICANT_EVALUATION_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const CATEGORY_DEFINITIONS: { key: CategoryKey; label: string; maxScore: number }[] = [
   { key: "portfolioQuality", label: "Portfolio Quality", maxScore: 25 },
@@ -67,6 +70,45 @@ const aiEvaluationSchema = z.object({
 });
 
 type AIEvaluation = z.infer<typeof aiEvaluationSchema>;
+
+const APPLICANT_EVALUATION_JSON_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: ["categories", "strengths", "weaknesses", "recommendedProjects", "riskSignals"],
+  properties: {
+    categories: {
+      type: "array",
+      minItems: 8,
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["key", "score", "confidence", "notes", "evidence", "missing", "improvements"],
+        properties: {
+          key: {
+            type: "string",
+            enum: CATEGORY_DEFINITIONS.map((definition) => definition.key),
+          },
+          score: { type: ["number", "null"], minimum: 0, maximum: 100 },
+          confidence: { type: "number", minimum: 0, maximum: 100 },
+          notes: { type: "string" },
+          evidence: { type: "array", maxItems: 6, items: { type: "string" } },
+          missing: { type: "array", maxItems: 6, items: { type: "string" } },
+          improvements: { type: "array", maxItems: 4, items: { type: "string" } },
+        },
+      },
+    },
+    strengths: { type: "array", minItems: 1, maxItems: 5, items: { type: "string" } },
+    weaknesses: { type: "array", minItems: 1, maxItems: 5, items: { type: "string" } },
+    recommendedProjects: {
+      type: "array",
+      minItems: 1,
+      maxItems: 4,
+      items: { type: "string" },
+    },
+    riskSignals: { type: "array", maxItems: 5, items: { type: "string" } },
+  },
+};
 
 interface SubmissionRecord {
   id: string;
@@ -428,6 +470,15 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
     temperature: 0.1,
     maxTokens: 6000,
     responseFormat: "json",
+    responseSchema: {
+      name: "applicant_evaluation",
+      schema: APPLICANT_EVALUATION_JSON_SCHEMA,
+    },
+    task: "applicant_ranking",
+    validateResponse: (content) => {
+      normalizeAIEvaluation(extractJson(content));
+      return true;
+    },
   });
 
   if (!result?.content || result.finishReason === "error") {
@@ -450,7 +501,7 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
     throw new Error(`${message} Model: ${result.model} (finish=${result.nativeFinishReason ?? "unknown"}).`);
   }
   const parsed = normalizeAIEvaluation(extracted);
-  const portfolioVisuallyReviewed = images.length > 0 && result.provider === "openrouter";
+  const portfolioVisuallyReviewed = images.length > 0 && result.visionUsed === true;
   const byKey = new Map(parsed.categories.map((category) => [category.key, category]));
   const categories = CATEGORY_DEFINITIONS.map((definition) => {
     const category = byKey.get(definition.key);
@@ -578,10 +629,27 @@ function failedEvaluation(submission: SubmissionRecord, error: unknown): Evaluat
  * placeholder instead of aborting the entire cohort.
  */
 async function evaluateApplicantSafely(submission: SubmissionRecord): Promise<EvaluatedApplicant> {
+  const cacheKey = `applicant-evaluation:${submission.id}:${inputHash(submission)}`;
+  const cached = await getCached<EvaluatedApplicant>(cacheKey).catch(() => null);
+  if (cached) {
+    await logAIAction("ai_cache_hit", submission.id, cacheKey);
+    return {
+      ...cached,
+      submission: {
+        ...cached.submission,
+        createdAt: new Date(cached.submission.createdAt),
+      },
+      pairwiseWins: 0,
+      pairwiseLosses: 0,
+    };
+  }
+
   let lastError: unknown = new Error("Evaluation did not run");
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      return await evaluateApplicant(submission);
+      const evaluated = await evaluateApplicant(submission);
+      await setCache(cacheKey, evaluated, APPLICANT_EVALUATION_CACHE_TTL_MS).catch(() => {});
+      return evaluated;
     } catch (error) {
       lastError = error;
       const message = error instanceof Error ? error.message : String(error);

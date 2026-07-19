@@ -26,8 +26,10 @@ export function getAIConfig() {
       visionModel: process.env.OPENROUTER_VISION_MODEL || "google/gemini-2.5-flash",
       siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://www.eleve-visuals.com",
       maxRetries: Number(process.env.AI_MAX_RETRIES) || 2,
+      maxAttempts: Number(process.env.AI_MAX_MODEL_ATTEMPTS) || 8,
       retryDelayMs: Number(process.env.AI_RETRY_DELAY_MS) || 600,
       minIntervalMs: Number(process.env.AI_MIN_INTERVAL_MS) || 120,
+      timeoutMs: Number(process.env.AI_REQUEST_TIMEOUT_MS) || 45_000,
     },
     ollama: {
       baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
@@ -59,7 +61,7 @@ export function getConfiguredProviders(): { id: AIProviderId; configured: boolea
     },
     {
       id: "ollama",
-      configured: !!config.ollama.baseUrl,
+      configured: config.provider === "ollama" || Boolean(process.env.OLLAMA_BASE_URL),
       model: config.ollama.model,
     },
   ];
