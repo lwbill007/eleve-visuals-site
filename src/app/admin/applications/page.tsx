@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import ApplicationsClient from "./ApplicationsClient";
+import ApplicationsIntelligenceClient from "./ApplicationsIntelligenceClient";
 import { AdminPageSkeleton } from "@/components/admin/AdminPageSkeleton";
 
 export default function AdminApplicationsPage() {
@@ -11,7 +11,7 @@ export default function AdminApplicationsPage() {
         </div>
       }
     >
-      <ApplicationsClient />
+      <ApplicationsIntelligenceClient />
     </Suspense>
   );
 }

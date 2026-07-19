@@ -698,8 +698,65 @@ export interface SessionApplicationRank {
   roles: string[];
   status: string;
   score: number;
+  confidence: number;
+  tier: "Exceptional" | "Elite" | "Excellent" | "Strong" | "Good" | "Average" | "Needs Review";
+  recommendation: "Invite to Interview" | "Shortlist" | "Request Evidence" | "Review" | "Hold";
   summary: string;
   strengths: string[];
+  weakness: string;
+  badges: string[];
+  riskLevel: "low" | "medium" | "high";
+  expectedValue: {
+    amount: number;
+    low: number;
+    high: number;
+    confidence: number;
+    rationale: string;
+  };
+  recommendedProject: string;
+  categories: {
+    key:
+      | "portfolioQuality"
+      | "brandAlignment"
+      | "businessValue"
+      | "reliability"
+      | "versatility"
+      | "professionalPresence"
+      | "marketingImpact"
+      | "experience";
+    label: string;
+    score: number;
+    maxScore: number;
+    confidence: number;
+    explanation: string;
+    evidence: string[];
+    missing: string[];
+    improvements: string[];
+  }[];
+  predictions: {
+    key:
+      | "repeatBookings"
+      | "premiumClientSuccess"
+      | "referralPotential"
+      | "upsellPotential"
+      | "leadershipPotential"
+      | "brandAmbassador"
+      | "productionEfficiency"
+      | "marketingImpact";
+    label: string;
+    probability: number;
+    low: number;
+    high: number;
+    confidence: number;
+  }[];
+  dataQuality: {
+    portfolio: "verified" | "provided" | "missing";
+    social: "verified" | "provided" | "missing";
+    availability: "confirmed" | "unknown";
+    location: string;
+    evidenceCount: number;
+    missingFields: string[];
+  };
   href: string;
   createdAt: string;
 }
