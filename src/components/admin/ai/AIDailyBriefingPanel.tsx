@@ -6,6 +6,25 @@ import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import { ExecutiveInsightCard } from "@/components/admin/os/ExecutiveOSComponents";
 import { ExecutiveReportV2View } from "@/components/admin/ai/ExecutiveReportV2View";
 
+function Section({
+  step,
+  title,
+  children,
+}: {
+  step: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-stone/20 bg-charcoal/15 p-5">
+      <p className="text-[0.55rem] tracking-[0.16em] text-accent uppercase">
+        {step} · {title}
+      </p>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
 function ScoreRing({ label, value }: { label: string; value: number }) {
   return (
     <div className="text-center">
@@ -34,6 +53,194 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
 
   if (!briefing) return null;
 
+  const contract = briefing.commandContract;
+
+  if (!compact && contract) {
+    return (
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="label-caps text-accent">AI Briefing · Why did it happen?</p>
+            <h2 className="mt-2 font-display text-xl text-cream">{briefing.ceoHeadline}</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-cream-dim">
+              {briefing.summary}
+            </p>
+            <p className="mt-2 text-xs text-muted">
+              Updated {new Date(briefing.generatedAt).toLocaleString()}
+              {briefing.provider !== "rules" && ` · ${briefing.provider}`}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {refresh && (
+              <button
+                type="button"
+                onClick={() => void refresh()}
+                className="rounded-lg border border-stone/30 px-3 py-2 text-xs text-fog uppercase hover:border-accent"
+              >
+                Refresh
+              </button>
+            )}
+            <Link
+              href="/admin"
+              className="rounded-lg border border-stone/30 px-3 py-2 text-xs tracking-[0.1em] text-cream uppercase hover:border-accent"
+            >
+              Home
+            </Link>
+          </div>
+        </div>
+
+        <Section step="01" title="Measured Facts">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {contract.measuredFacts.map((fact) => (
+              <div key={fact.label} className="rounded-lg border border-stone/20 p-3">
+                <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
+                  {fact.label}
+                </p>
+                <p className="mt-1 font-display text-2xl text-cream">{fact.value}</p>
+                <p className="mt-1 text-[0.62rem] text-fog">{fact.evidence[0]}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section step="02" title="What Changed">
+          <div className="space-y-3">
+            {contract.whatChanged.map((item) => (
+              <div key={item.label}>
+                <p className="text-sm text-cream">{item.label}</p>
+                <p className="mt-1 text-sm text-fog">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section step="03" title="Why It Changed">
+          <div className="space-y-3">
+            {contract.why.map((item) => (
+              <div key={item.statement}>
+                <p className="text-sm leading-relaxed text-cream">{item.statement}</p>
+                <ul className="mt-2 space-y-0.5">
+                  {item.evidence.map((e) => (
+                    <li key={e} className="text-[0.65rem] text-muted">
+                      {e}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section step="04" title="Evidence">
+          <ul className="space-y-1">
+            {contract.evidence.map((e) => (
+              <li key={e} className="text-sm text-fog">
+                • {e}
+              </li>
+            ))}
+          </ul>
+        </Section>
+
+        <Section step="05" title="Predictions">
+          <div className="space-y-3">
+            {contract.predictions.map((p) => (
+              <div key={p.id} className="rounded-lg border border-violet-400/20 bg-violet-400/[0.04] p-3">
+                <p className="text-sm text-cream">{p.prediction}</p>
+                <p className="mt-2 text-xs text-violet-200">
+                  Probability {Math.round(p.probability * 100)}% · Confidence{" "}
+                  {Math.round(p.confidence * 100)}%
+                </p>
+                <p className="mt-2 text-[0.65rem] text-fog">
+                  Supported by: {p.reasons.join(" · ")}
+                </p>
+                <p className="mt-1 text-[0.65rem] text-amber-200">
+                  Unknowns: {p.unknowns.join(" · ")}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section step="06" title="Recommendations">
+          <div className="space-y-3">
+            {contract.recommendations.length === 0 ? (
+              <p className="text-sm text-muted">
+                No evidence-backed recommendations yet.
+              </p>
+            ) : (
+              contract.recommendations.map((r) => (
+                <div key={r.id} className="rounded-lg border border-stone/20 p-3">
+                  <p className="text-sm text-cream">{r.recommendation}</p>
+                  <p className="mt-1 text-xs text-fog">{r.problem}</p>
+                  <p className="mt-2 text-[0.65rem] text-muted">
+                    Confidence {Math.round(r.confidence * 100)}% · {r.timeRequiredMinutes}m ·{" "}
+                    {r.owner} · {r.successMetric}
+                  </p>
+                  <ul className="mt-2 space-y-0.5">
+                    {r.evidence.slice(0, 3).map((e) => (
+                      <li key={e} className="text-[0.65rem] text-fog">
+                        Evidence · {e}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            )}
+          </div>
+        </Section>
+
+        <Section step="07" title="Confidence">
+          <p className="font-display text-3xl text-cream">
+            {Math.round(contract.confidence.overall * 100)}%
+          </p>
+          <ul className="mt-2 space-y-1">
+            {contract.confidence.why.map((w) => (
+              <li key={w} className="text-sm text-fog">
+                • {w}
+              </li>
+            ))}
+          </ul>
+        </Section>
+
+        <Section step="08" title="Actions">
+          <div className="flex flex-wrap gap-2">
+            {contract.actions.length === 0 ? (
+              <p className="text-sm text-muted">No actions available.</p>
+            ) : (
+              contract.actions.map((a) => (
+                <Link
+                  key={a.id}
+                  href={a.href}
+                  className="rounded-lg bg-cream px-3 py-2 text-[0.65rem] tracking-wider text-ink uppercase"
+                  title={a.evidence.join(" · ")}
+                >
+                  {a.label}
+                </Link>
+              ))
+            )}
+            <Link
+              href="/admin/opportunities"
+              className="rounded-lg border border-stone/30 px-3 py-2 text-[0.65rem] text-fog uppercase"
+            >
+              Open opportunities
+            </Link>
+          </div>
+        </Section>
+
+        {briefing.reportV2 && (
+          <details className="rounded-2xl border border-stone/20 p-4">
+            <summary className="cursor-pointer text-xs tracking-[0.12em] text-muted uppercase">
+              Extended report v2
+            </summary>
+            <div className="mt-4">
+              <ExecutiveReportV2View report={briefing.reportV2} />
+            </div>
+          </details>
+        )}
+      </section>
+    );
+  }
+
   if (!compact && briefing.reportV2) {
     return (
       <section className="space-y-4">
@@ -60,7 +267,7 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
               href="/admin"
               className="rounded-lg border border-stone/30 px-3 py-2 text-xs tracking-[0.1em] text-cream uppercase hover:border-accent"
             >
-              Command Center
+              Home
             </Link>
           </div>
         </div>
@@ -76,243 +283,45 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
           <p className="label-caps text-accent">CEO Briefing</p>
           <h2 className="mt-2 font-display text-xl text-cream">{briefing.ceoHeadline}</h2>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-cream-dim">{briefing.summary}</p>
-
-          {briefing.executiveMorning && (
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                <p className="text-[0.55rem] uppercase text-emerald-400">Biggest win</p>
-                <p className="mt-1 text-xs text-cream">{briefing.executiveMorning.biggestWin}</p>
-              </div>
-              <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
-                <p className="text-[0.55rem] uppercase text-red-400">Revenue leak</p>
-                <p className="mt-1 text-xs text-cream">{briefing.executiveMorning.biggestRevenueLeak}</p>
-              </div>
-              <div className="rounded-lg border border-accent/20 bg-accent/5 p-3">
-                <p className="text-[0.55rem] uppercase text-accent">Top opportunity</p>
-                <p className="mt-1 text-xs text-cream">{briefing.executiveMorning.biggestOpportunity}</p>
-              </div>
-            </div>
-          )}
-
           <p className="mt-2 text-xs text-muted">
             Updated {new Date(briefing.generatedAt).toLocaleString()}
             {briefing.provider !== "rules" && ` · ${briefing.provider}`}
           </p>
         </div>
-        <div className="flex gap-2">
-          {refresh && (
-            <button
-              type="button"
-              onClick={() => void refresh()}
-              className="rounded-lg border border-stone/30 px-3 py-2 text-xs text-fog uppercase hover:border-accent"
-            >
-              Refresh
-            </button>
-          )}
-          <Link
-            href="/admin"
-            className="rounded-lg border border-stone/30 px-3 py-2 text-xs tracking-[0.1em] text-cream uppercase hover:border-accent"
-          >
-            Command Center
-          </Link>
+        <div className="flex gap-4">
+          <ScoreRing label="Health" value={briefing.scores.businessHealth} />
+          <ScoreRing label="Sales" value={briefing.scores.sales} />
+          <ScoreRing label="Growth" value={briefing.scores.growth} />
         </div>
       </div>
-
-      {!compact && (
-        <>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-            <AdminPanel className="!p-4">
-              <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Revenue Today</p>
-              <p className="mt-1 font-display text-2xl text-accent">
-                ${briefing.today.revenue.toLocaleString()}
-              </p>
-              <p className="text-xs text-fog">pipeline estimate</p>
-            </AdminPanel>
-            <AdminPanel className="!p-4">
-              <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Revenue MTD</p>
-              <p className="mt-1 font-display text-2xl text-cream">
-                ${briefing.month.revenue.toLocaleString()}
-              </p>
-              <p
-                className={`text-xs ${briefing.month.revenueChange >= 0 ? "text-green-400" : "text-red-400"}`}
-              >
-                {briefing.month.revenueChange >= 0 ? "+" : ""}
-                {briefing.month.revenueChange}% vs last month
-              </p>
-            </AdminPanel>
-            <AdminPanel className="!p-4">
-              <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Projected Month</p>
-              <p className="mt-1 font-display text-2xl text-cream">
-                ${briefing.executive.projectedMonthlyRevenue.toLocaleString()}
-              </p>
-              <p className="text-xs text-fog">forecast from current pace</p>
-            </AdminPanel>
-            <AdminPanel className="!p-4">
-              <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">At Risk</p>
-              <p className="mt-1 font-display text-2xl text-cream">
-                ${briefing.executive.potentialLostRevenue.toLocaleString()}
-              </p>
-              <p className="text-xs text-fog">stale leads + inactive clients</p>
-            </AdminPanel>
-            <AdminPanel className="!p-4">
-              <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Traffic</p>
-              <p className="mt-1 font-display text-2xl text-cream">
-                {briefing.traffic.visitors30.toLocaleString()}
-              </p>
-              <p className="text-xs text-fog">
-                {briefing.traffic.conversionRate}% conv ·{" "}
-                {briefing.traffic.conversionChange >= 0 ? "+" : ""}
-                {briefing.traffic.conversionChange}% change
-              </p>
-            </AdminPanel>
-            <AdminPanel className="!p-4">
-              <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Follow-ups</p>
-              <p className="mt-1 font-display text-2xl text-cream">
-                {briefing.followUp.inactiveClients.length}
-              </p>
-              <p className="text-xs text-fog">inactive clients flagged</p>
-            </AdminPanel>
-          </div>
-
-          {briefing.weeklyPriorities.length > 0 && (
-            <div className="mt-6 rounded-lg border border-stone/20 p-4">
-              <p className="mb-2 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
-                Weekly priorities
-              </p>
-              <ul className="space-y-1.5">
-                {briefing.weeklyPriorities.map((p) => (
-                  <li key={p} className="flex items-center gap-2 text-sm text-cream">
-                    <span className="text-accent">◆</span> {p}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {briefing.intelligence && (
-            <div className="mt-6 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-lg border border-stone/20 p-4">
-                <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">Risks</p>
-                <ul className="mt-2 space-y-2">
-                  {briefing.intelligence.risks.slice(0, 3).map((r) => (
-                    <li key={r.id} className="text-sm text-cream-dim">
-                      <span className="text-amber-400">{r.severity}</span> — {r.title}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-lg border border-stone/20 p-4">
-                <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">
-                  Recent AI learnings
-                </p>
-                <ul className="mt-2 space-y-2">
-                  {briefing.intelligence.recentLearnings.length > 0 ? (
-                    briefing.intelligence.recentLearnings.map((l) => (
-                      <li key={l} className="text-sm text-cream-dim">
-                        • {l}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="text-sm text-muted">
-                      Learning accumulates from verified business events.
-                    </li>
-                  )}
-                </ul>
-              </div>
-              <div className="rounded-lg border border-stone/20 p-4 lg:col-span-2">
-                <p className="text-[0.6rem] tracking-[0.14em] text-muted uppercase">
-                  Performance snapshot
-                </p>
-                <div className="mt-2 grid gap-2 sm:grid-cols-3 text-xs text-fog">
-                  <p>{briefing.intelligence.websitePerformance.summary}</p>
-                  <p>{briefing.intelligence.portfolioPerformance.summary}</p>
-                  <p>{briefing.intelligence.sessionsPerformance.summary}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-            <ScoreRing label="Business" value={briefing.scores.businessHealth} />
-            <ScoreRing
-              label="Revenue"
-              value={
-                briefing.executiveScores?.find((s) => s.key === "revenue")?.value ??
-                briefing.scores.growth
-              }
-            />
-            <ScoreRing label="Marketing" value={briefing.scores.marketing} />
-            <ScoreRing label="Sales" value={briefing.scores.sales} />
-            <ScoreRing
-              label="Brand"
-              value={
-                briefing.executiveScores?.find((s) => s.key === "brand")?.value ??
-                briefing.scores.growth
-              }
-            />
-            <ScoreRing
-              label="Operations"
-              value={
-                briefing.executiveScores?.find((s) => s.key === "operations")?.value ??
-                briefing.scores.productivity
-              }
-            />
-            <ScoreRing label="Clients" value={briefing.scores.customerSatisfaction} />
-            <ScoreRing label="Productivity" value={briefing.scores.productivity} />
-          </div>
-        </>
-      )}
-
-      {briefing.cmo?.biggestOpportunity && !compact && (
-        <div className="mt-6 rounded-xl border border-accent/20 bg-accent/5 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[0.6rem] tracking-[0.14em] text-accent uppercase">
-                CMO · Top opportunity
-              </p>
-              <p className="mt-1 text-sm font-medium text-cream">
-                {briefing.cmo.biggestOpportunity.title}
-              </p>
-              <p className="mt-1 text-xs text-fog">{briefing.cmo.biggestOpportunity.detail}</p>
-            </div>
-            <Link href="/admin/marketing" className="text-xs text-accent hover:text-cream">
-              Marketing Intel →
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {briefing.recommendedActions.length > 0 && (
-        <div className="mt-6">
-          <p className="mb-3 text-[0.6rem] tracking-[0.14em] text-muted uppercase">
-            Actionable Insights
-          </p>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {briefing.recommendedActions.slice(0, compact ? 4 : 6).map((item) => (
-              <ExecutiveInsightCard
-                key={item.id}
-                severity={item.severity}
-                category={item.category}
-                title={item.title}
-                detail={item.detail}
-                why={item.why}
-                metric={item.metric}
-                revenueImpact={item.revenueImpact}
-                timeSavedMinutes={item.timeSavedMinutes}
-                actions={item.actions}
-              />
+      {briefing.weeklyPriorities.length > 0 && (
+        <AdminPanel title="Priorities" className="mt-6">
+          <ul className="space-y-2">
+            {briefing.weeklyPriorities.map((p) => (
+              <li key={p} className="text-sm text-fog">
+                • {p}
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </AdminPanel>
       )}
-
-      {compact && briefing.reportV2 && (
-        <div className="mt-4">
-          <Link href="/admin/briefing" className="text-xs text-accent hover:underline">
-            Open full Report 2.0 →
-          </Link>
+      {briefing.recommendedActions.slice(0, 3).map((a) => (
+        <div key={a.id} className="mt-3">
+          <ExecutiveInsightCard
+            severity="medium"
+            title={a.title}
+            detail={a.detail}
+            actions={[
+              {
+                id: a.id,
+                label: a.action,
+                type: "navigate",
+                href: a.href,
+              },
+            ]}
+          />
         </div>
-      )}
+      ))}
     </section>
   );
 }

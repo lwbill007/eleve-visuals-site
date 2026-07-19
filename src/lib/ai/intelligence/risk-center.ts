@@ -2,6 +2,36 @@ import { getAnalyticsSummary } from "@/lib/analytics-server";
 import type { ExecutiveRisk } from "../types";
 import { getOperatorMetrics, OS_ROUTES } from "./business-operator";
 
+function enrichRisk(risk: ExecutiveRisk): ExecutiveRisk {
+  const deadlineDays =
+    risk.severity === "critical" ? 2 : risk.severity === "high" ? 5 : 14;
+  return {
+    ...risk,
+    owner: risk.owner ?? "Studio owner",
+    deadline: risk.deadline ?? new Date(Date.now() + deadlineDays * 86400000).toISOString(),
+    recoveryPlan:
+      risk.recoveryPlan ??
+      (risk.mitigations.map((m) => m.label).join(" → ") ||
+        "Review evidence and execute mitigations"),
+    verification:
+      risk.verification ??
+      "Re-check the triggering measured metric after the deadline window.",
+    domain:
+      risk.domain ??
+      (risk.category === "technical"
+        ? "Technology"
+        : risk.category === "crm"
+          ? "Clients"
+          : risk.category === "sessions"
+            ? "Portfolio"
+            : risk.category === "marketing"
+              ? "Website"
+              : risk.category === "revenue"
+                ? "Cash Flow"
+                : "Operations"),
+  };
+}
+
 export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
   const [metrics, analytics30, analytics7] = await Promise.all([
     getOperatorMetrics(),
@@ -21,13 +51,20 @@ export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
       category: "revenue",
       severity: metrics.month.bookingsChange <= -25 ? "critical" : "high",
       likelihood: 0.85,
-      potentialImpact: metrics.revenue.thisMonth * 0.3,
-      evidence: [`${metrics.month.bookingsChange}% month-over-month change`, "Submission counts verified"],
+      potentialImpact: 0,
+      evidence: [
+        `${metrics.month.bookingsChange}% month-over-month change (Measured)`,
+        "Dollar forecast impact: More financial data required — do not invent loss",
+      ],
       mitigations: [
         { id: "m-bookings", label: "Launch recovery campaign", type: "create_campaign", href: "/admin/marketing?focus=launch_campaign" },
         { id: "m-pipeline", label: "Review pipeline", type: "navigate", href: "/admin/pipeline" },
       ],
       detectedAt: now,
+      owner: "Studio owner",
+      domain: "Bookings",
+      recoveryPlan: "Recover abandoned inquiries first, then launch acquisition only if pipeline is clean.",
+      verification: "Booking MoM change and stale-inquiry count must improve within 14 days.",
     });
   }
 
@@ -40,13 +77,20 @@ export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
       category: "sales",
       severity: metrics.attention.abandonedInquiries >= 6 ? "critical" : "high",
       likelihood: 0.9,
-      potentialImpact: metrics.attention.abandonedInquiries * 1200,
-      evidence: [`${metrics.attention.abandonedInquiries} stale inquiries`, "Status: new/contacted"],
+      potentialImpact: 0,
+      evidence: [
+        `${metrics.attention.abandonedInquiries} stale inquiries (Measured)`,
+        "Status: new/contacted",
+        "Dollar impact: More financial data required — do not invent loss",
+      ],
       mitigations: [
         { id: "m-follow", label: "Draft follow-ups", type: "email_clients", href: OS_ROUTES.marketingFollowUp, task: "follow_up" },
         { id: "m-auto", label: "Create automation", type: "create_workflow", href: OS_ROUTES.automations },
       ],
       detectedAt: now,
+      domain: "Bookings",
+      recoveryPlan: "Respond to every stale inquiry within 48 hours.",
+      verification: "Stale inquiry count must fall after the follow-up window.",
     });
   }
 
@@ -59,13 +103,18 @@ export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
       category: "marketing",
       severity: "medium",
       likelihood: 0.75,
-      potentialImpact: metrics.revenue.pipeline * 0.15,
-      evidence: [`${metrics.traffic.trafficChange}% traffic change`, `Top page: ${metrics.traffic.topPage}`],
+      potentialImpact: 0,
+      evidence: [
+        `${metrics.traffic.trafficChange}% traffic change (Measured)`,
+        `Top page: ${metrics.traffic.topPage}`,
+        "Dollar impact: More financial data required",
+      ],
       mitigations: [
         { id: "m-analytics", label: "View analytics", type: "navigate", href: "/admin/analytics" },
         { id: "m-campaign", label: "Marketing campaign", type: "create_campaign", href: OS_ROUTES.marketingCampaign },
       ],
       detectedAt: now,
+      domain: "Website",
     });
   }
 
@@ -78,13 +127,18 @@ export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
       category: "marketing",
       severity: "medium",
       likelihood: 0.7,
-      potentialImpact: metrics.revenue.thisMonth * 0.2,
-      evidence: [`${metrics.traffic.conversionRate}% conversion`, `${metrics.traffic.conversionChange}% change`],
+      potentialImpact: 0,
+      evidence: [
+        `${metrics.traffic.conversionRate}% conversion (Measured)`,
+        `${metrics.traffic.conversionChange}% change (Measured)`,
+        "Dollar impact: More financial data required",
+      ],
       mitigations: [
         { id: "m-book", label: "Review booking flow", type: "navigate", href: "/admin/submissions?type=booking" },
         { id: "m-home", label: "Edit homepage CTA", type: "navigate", href: "/admin/homepage" },
       ],
       detectedAt: now,
+      domain: "Website",
     });
   }
 
@@ -97,13 +151,20 @@ export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
       category: "crm",
       severity: "medium",
       likelihood: 0.65,
-      potentialImpact: metrics.attention.followUpValue,
-      evidence: [`${metrics.attention.followUpClients} inactive contacts`, "CRM last-activity dates"],
+      potentialImpact: 0,
+      evidence: [
+        `${metrics.attention.followUpClients} inactive contacts (Measured)`,
+        "CRM last-activity dates",
+        metrics.attention.followUpValue > 0
+          ? `Historical CRM value $${metrics.attention.followUpValue.toLocaleString()} (Historical — not predicted recovery)`
+          : "More financial data required for recovery projection",
+      ],
       mitigations: [
         { id: "m-crm", label: "Open CRM", type: "open_crm", href: "/admin/crm" },
         { id: "m-email", label: "Re-engagement email", type: "email_clients", href: OS_ROUTES.marketingFollowUp },
       ],
       detectedAt: now,
+      domain: "Clients",
     });
   }
 
@@ -119,12 +180,13 @@ export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
       severity: "medium",
       likelihood: 0.6,
       potentialImpact: 0,
-      evidence: [`${sessionsPage.views} session page views`, "Analytics pageview data"],
+      evidence: [`${sessionsPage.views} session page views (Measured)`, "Analytics pageview data"],
       mitigations: [
         { id: "m-sessions", label: "Sessions hub", type: "navigate", href: "/admin/sessions-hub" },
         { id: "m-promo", label: "Promote volume", type: "create_campaign", href: OS_ROUTES.marketingCampaign },
       ],
       detectedAt: now,
+      domain: "Portfolio",
     });
   }
 
@@ -137,16 +199,22 @@ export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
       category: "operations",
       severity: "medium",
       likelihood: 0.8,
-      potentialImpact: metrics.attention.galleriesAwaiting * 800,
-      evidence: [`${metrics.attention.galleriesAwaiting} idle booked projects`],
+      potentialImpact: 0,
+      evidence: [
+        `${metrics.attention.galleriesAwaiting} idle booked projects (Measured)`,
+        "Dollar impact: More financial data required",
+      ],
       mitigations: [
         { id: "m-deliver", label: "Review bookings", type: "navigate", href: "/admin/submissions?type=booking&status=scheduled" },
       ],
       detectedAt: now,
+      domain: "Operations",
     });
   }
 
-  return risks.sort((a, b) => {
+  return risks
+    .map(enrichRisk)
+    .sort((a, b) => {
     const sev = { critical: 4, high: 3, medium: 2, low: 1 };
     return sev[b.severity] - sev[a.severity] || b.potentialImpact - a.potentialImpact;
   });

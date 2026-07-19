@@ -11,6 +11,57 @@ import type { PrioritizedRecommendation } from "../types";
 
 export type RecommendationUrgency = "critical" | "high" | "medium" | "low";
 
+export type LearningStatus =
+  | "proposed"
+  | "accepted"
+  | "in_progress"
+  | "completed"
+  | "verified"
+  | "rejected"
+  | "expired";
+
+/** Canonical recommendation contract — every Command recommendation must satisfy this. */
+export interface RecommendationContract {
+  id: string;
+  recommendation: string;
+  problem: string;
+  evidence: string[];
+  confidence: number;
+  businessImpact: string;
+  estimatedRevenueImpact: number;
+  timeRequiredMinutes: number;
+  cost: string;
+  owner: string;
+  dependencies: string[];
+  successMetric: string;
+  verificationMethod: string;
+  learningStatus: LearningStatus;
+  difficulty: string;
+  status: LearningStatus;
+  category: string;
+  actions: BusinessAction[];
+}
+
+export interface PredictionContract {
+  id: string;
+  prediction: string;
+  probability: number;
+  confidence: number;
+  reasons: string[];
+  unknowns: string[];
+  evidence: string[];
+}
+
+export interface OutcomeRecord {
+  recommendationId: string;
+  accepted: boolean;
+  completed: boolean;
+  result: string | null;
+  predictionCorrect: boolean | null;
+  confidenceDelta: number | null;
+  recordedAt: string;
+}
+
 export interface ExecutiveRecommendation {
   id: string;
   problem: string;
@@ -41,6 +92,9 @@ export interface ExecutiveRecommendation {
   learningValue: string;
   actions: BusinessAction[];
   confidenceDetail: ExecutiveConfidence;
+  verificationMethod?: string;
+  learningStatus?: LearningStatus;
+  cost?: string;
 }
 
 function urgencyFromPriority(p: string): RecommendationUrgency {
@@ -119,6 +173,10 @@ export function buildExecutiveRecommendation(
     learningValue: rec.confidence < 0.7 ? "High — fills thin outcome history" : "Medium — confirms existing pattern",
     actions: rec.actions,
     confidenceDetail,
+    verificationMethod:
+      "Compare success metric before/after within 14 days using owned Analytics or Bookings data",
+    learningStatus: "proposed",
+    cost: "Unknown — no cost ledger linked",
   };
 }
 
@@ -136,4 +194,51 @@ export function rankRecommendations(recs: ExecutiveRecommendation[]): ExecutiveR
       b.confidence - a.confidence
     );
   });
+}
+
+export function toRecommendationContract(
+  rec: ExecutiveRecommendation
+): RecommendationContract {
+  return {
+    id: rec.id,
+    recommendation: rec.title,
+    problem: rec.problem,
+    evidence: rec.evidence,
+    confidence: rec.confidence,
+    businessImpact: rec.detail,
+    estimatedRevenueImpact: rec.expectedRevenueImpact,
+    timeRequiredMinutes: rec.timeRequiredMinutes,
+    cost: rec.cost ?? "Unknown — no cost ledger linked",
+    owner: rec.owner,
+    dependencies: rec.dependencies,
+    successMetric: rec.successMetric,
+    verificationMethod:
+      rec.verificationMethod ??
+      "Compare success metric before/after within 14 days using owned Analytics or Bookings data",
+    learningStatus: rec.learningStatus ?? "proposed",
+    difficulty: rec.difficulty,
+    status: rec.learningStatus ?? "proposed",
+    category: rec.category,
+    actions: rec.actions,
+  };
+}
+
+export function buildPredictionContract(input: {
+  id: string;
+  prediction: string;
+  probability: number;
+  confidence: number;
+  reasons: string[];
+  unknowns: string[];
+  evidence?: string[];
+}): PredictionContract {
+  return {
+    id: input.id,
+    prediction: input.prediction,
+    probability: Math.max(0, Math.min(1, input.probability)),
+    confidence: Math.max(0, Math.min(1, input.confidence)),
+    reasons: input.reasons,
+    unknowns: input.unknowns,
+    evidence: input.evidence ?? input.reasons,
+  };
 }

@@ -6,6 +6,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { IntelligenceCard } from "@/components/admin/ai/IntelligenceCard";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useExecutiveContext } from "@/components/admin/ai/ExecutiveContextProvider";
+import { useAdminToast } from "@/components/admin/AdminToast";
 import { OpportunityRevenueBanner } from "@/components/admin/os/ExecutiveIntelligenceComponents";
 import {
   WorkspaceChrome,
@@ -14,12 +15,15 @@ import {
   WorkspaceLoading,
   WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
+import { adminFetch } from "@/lib/admin-fetch";
 
 export default function OpportunitiesPage() {
   useSetAIPage("opportunities");
+  const { toast } = useAdminToast();
   const { context, loading, error, refresh } = useExecutiveContext();
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"impact" | "confidence">("impact");
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const recs = useMemo(() => {
     let list = context?.recommendations ?? [];
@@ -41,19 +45,57 @@ export default function OpportunitiesPage() {
 
   const total = recs.reduce((s, r) => s + r.estimatedRevenue, 0);
 
+  async function recordOutcome(
+    recommendationId: string,
+    title: string,
+    status: "accepted" | "completed" | "rejected"
+  ) {
+    setBusyId(recommendationId);
+    try {
+      const res = await adminFetch("/api/admin/ai/opportunities/outcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recommendationId,
+          title,
+          status,
+          result:
+            status === "completed"
+              ? "Marked complete — verify success metric in owned Analytics/Bookings data"
+              : status === "accepted"
+                ? "Accepted into execution queue"
+                : "Rejected — will not execute",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast(
+        status === "accepted"
+          ? "Opportunity accepted — outcome learning started."
+          : status === "completed"
+            ? "Opportunity completed — recorded for Business Brain learning."
+            : "Opportunity rejected."
+      );
+      refresh();
+    } catch {
+      toast("Could not record opportunity outcome.", "error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <AdminShell title="Opportunities">
       <WorkspaceChrome
-        eyebrow="Command · Execute"
-        title="What to do next"
-        description="Every opportunity answers: if you act, if you don’t, how sure we are, and what evidence supports it. Execute records a Decision automatically."
+        eyebrow="Command · How do we grow?"
+        title="Opportunities"
+        description="Every opportunity includes problem, evidence, impact, confidence, time, difficulty, owner, status, and outcome tracking. Nothing without evidence."
         onRefresh={() => refresh()}
         refreshing={loading}
         related={[
           { label: "Risks", href: "/admin/risks", desc: "Attention" },
           { label: "Leaks", href: "/admin/leaks", desc: "Lost $" },
           { label: "Workboard", href: "/admin/workboard", desc: "Execute ops" },
-          { label: "Business Brain", href: "/admin/memory", desc: "Context" },
+          { label: "Business Brain", href: "/admin/memory", desc: "Learning" },
         ]}
       >
         <WorkspaceToolbar
@@ -122,6 +164,34 @@ export default function OpportunitiesPage() {
                       expectedRevenue: r.estimatedRevenue,
                       expectedOutcome: r.expectedOutcome,
                     },
+                    secondaryAction: (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          onClick={() => void recordOutcome(r.id, r.title, "accepted")}
+                          className="rounded-lg border border-accent/40 px-2.5 py-1.5 text-[0.58rem] tracking-wider text-accent uppercase disabled:opacity-50"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          onClick={() => void recordOutcome(r.id, r.title, "completed")}
+                          className="rounded-lg border border-emerald-400/40 px-2.5 py-1.5 text-[0.58rem] tracking-wider text-emerald-300 uppercase disabled:opacity-50"
+                        >
+                          Complete + learn
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          onClick={() => void recordOutcome(r.id, r.title, "rejected")}
+                          className="rounded-lg border border-stone/30 px-2.5 py-1.5 text-[0.58rem] tracking-wider text-muted uppercase disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    ),
                   }}
                 />
               ))}

@@ -16,6 +16,12 @@ import type { AIDailyBriefing } from "../types";
 import type { CMODailyBriefing } from "../marketing/types";
 import { buildExecutiveMorningBrief } from "./intelligence-suite";
 import { buildExecutiveReportV2 } from "../platform/build-executive-report-v2";
+import {
+  buildExecutiveRecommendation,
+  buildPredictionContract,
+  toRecommendationContract,
+} from "../platform/recommendation-contract";
+import type { PrioritizedRecommendation } from "../types";
 
 function startOfDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -28,7 +34,7 @@ function startOfWeek(d = new Date()) {
 }
 
 export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing> {
-  const cacheKey = "daily-briefing-v9";
+  const cacheKey = "daily-briefing-v10-command";
   if (!force) {
     const cached = await getCached<AIDailyBriefing>(cacheKey);
     if (cached) return cached;
@@ -202,6 +208,131 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
         ? `$${operatorMetrics.attention.followUpValue.toLocaleString()} in inactive client value · ${operatorMetrics.month.bookings} bookings this month`
         : `${operatorMetrics.month.bookings} bookings · ${operatorMetrics.traffic.visitors30} visitors · ${operatorMetrics.traffic.conversionRate}% conversion`;
 
+  const commandRecommendations = opportunities.slice(0, 5).map((o) => {
+    const prioritized: PrioritizedRecommendation = {
+      id: o.id,
+      title: o.title,
+      detail: o.detail,
+      category: o.category,
+      estimatedRevenue: o.expectedRevenue,
+      confidence: o.confidence,
+      timeToCompleteMinutes: o.estimatedMinutes,
+      difficulty: o.effort === "low" ? "easy" : o.effort === "high" ? "hard" : "moderate",
+      priority:
+        o.urgency === "critical"
+          ? "critical"
+          : o.urgency === "high"
+            ? "high"
+            : o.urgency === "low"
+              ? "low"
+              : "medium",
+      whyNow: o.why,
+      evidence: o.evidence,
+      actions: o.actions,
+    };
+    return toRecommendationContract(
+      buildExecutiveRecommendation(prioritized, { owner: o.owner ?? "Studio owner" })
+    );
+  });
+
+  const commandContract: NonNullable<AIDailyBriefing["commandContract"]> = {
+    measuredFacts: [
+      {
+        label: "Bookings today",
+        value: String(operatorMetrics.today.bookings),
+        evidence: ["Submission.type=booking created today (Measured)"],
+      },
+      {
+        label: "Bookings MTD",
+        value: String(operatorMetrics.month.bookings),
+        evidence: [`${operatorMetrics.month.bookingsChange}% vs prior month (Measured)`],
+      },
+      {
+        label: "Visitors (30d)",
+        value: String(operatorMetrics.traffic.visitors30),
+        evidence: [`Owned by Analytics · top page ${operatorMetrics.traffic.topPage}`],
+      },
+      {
+        label: "Stale inquiries",
+        value: String(operatorMetrics.attention.abandonedInquiries),
+        evidence: ["Inquiries in new/contacted untouched 3+ days (Measured)"],
+      },
+    ],
+    whatChanged: [
+      {
+        label: "Booking volume",
+        detail: `Bookings ${operatorMetrics.month.bookingsChange >= 0 ? "increased" : "decreased"} ${Math.abs(operatorMetrics.month.bookingsChange)}% vs last month.`,
+        evidence: [`${operatorMetrics.month.bookings} bookings this month`],
+      },
+      {
+        label: "Traffic",
+        detail:
+          operatorMetrics.traffic.visitors7 === 0
+            ? "No weekly traffic signal yet — change explanation unavailable."
+            : `Traffic ${operatorMetrics.traffic.trafficChange >= 0 ? "up" : "down"} ${Math.abs(operatorMetrics.traffic.trafficChange)}% week-over-week.`,
+        evidence: [`${operatorMetrics.traffic.visitors7} visitors this week`],
+      },
+    ],
+    why: [
+      {
+        statement:
+          operatorMetrics.attention.abandonedInquiries > 0
+            ? "Slow response on open inquiries is the primary operational drag visible in measured submission timestamps."
+            : operatorMetrics.month.bookingsChange < 0
+              ? "Fewer booking submissions this month reduced top-of-funnel volume versus the prior period."
+              : "No single high-severity change dominates — protect speed-to-lead and keep pipeline hygiene.",
+        evidence: [
+          `${operatorMetrics.attention.abandonedInquiries} stale inquiries`,
+          `${operatorMetrics.month.bookingsChange}% booking MoM`,
+        ],
+      },
+    ],
+    evidence: [
+      "Submission counts and statuses (Measured)",
+      "Analytics unique sessions (Calculated)",
+      "Pipeline dollars are Estimated unless Payment-settled",
+    ],
+    predictions: [
+      buildPredictionContract({
+        id: "pred-followup-recovery",
+        prediction:
+          operatorMetrics.attention.abandonedInquiries > 0
+            ? "Recovering stale inquiries may improve consultation volume if response latency is the binding constraint."
+            : "Maintaining current response latency should keep inquiry conversion stable.",
+        probability: operatorMetrics.attention.abandonedInquiries > 0 ? 0.62 : 0.55,
+        confidence: 0.58,
+        reasons: [
+          "Supported by internal stale-inquiry counts",
+          "Historical ÉLEVÉ follow-up outcomes are limited",
+        ],
+        unknowns: [
+          "No studio-specific close-rate after follow-up is recorded yet",
+          "No A/B test on response-time SLA",
+        ],
+      }),
+    ],
+    recommendations: commandRecommendations,
+    confidence: {
+      overall: Math.round(
+        (commandRecommendations.reduce((s, r) => s + r.confidence, 0) /
+          Math.max(commandRecommendations.length, 1)) *
+          100
+      ) / 100,
+      why: [
+        "Confidence reflects evidence completeness, not wishful impact",
+        "Dollar recovery remains Predicted until Payment outcomes are linked",
+      ],
+    },
+    actions: commandRecommendations.flatMap((r) =>
+      r.actions.slice(0, 1).map((a) => ({
+        id: `${r.id}-${a.id}`,
+        label: a.label,
+        href: a.href,
+        evidence: r.evidence,
+      }))
+    ),
+  };
+
   const briefing: AIDailyBriefing = {
     generatedAt: now.toISOString(),
     provider,
@@ -324,6 +455,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     },
     cmo: cmoBriefing,
     executiveMorning,
+    commandContract,
     ...(reportV2 ? { reportV2 } : {}),
   };
 

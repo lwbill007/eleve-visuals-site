@@ -1,8 +1,42 @@
 import { getOperatorMetrics } from "../intelligence/business-operator";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
+import { getConversionDashboard } from "@/lib/analytics-funnel";
+import { getAdminPipeline } from "@/lib/admin-os-server";
+import { getPaymentRevenueSummary, dollarsFromCents } from "@/lib/payments";
 import { getMemory } from "../memory/store";
 import { recommendExperiments } from "../marketing/experiment-engine";
+import { METRIC_OWNERS, type MissingMetric } from "../platform/metric-owners";
 import type { BusinessAction } from "../types";
+
+export type RevenueFunnelStageId =
+  | "traffic"
+  | "portfolio"
+  | "booking"
+  | "inquiry"
+  | "consultation"
+  | "contract"
+  | "deposit"
+  | "completed"
+  | "paid";
+
+export interface RevenueFunnelStage {
+  id: RevenueFunnelStageId;
+  label: string;
+  /** Measured count when known; null when the stage is MissingMetric. */
+  count: number | null;
+  /** Drop-off % from previous known stage; null if either side unknown. */
+  dropOffPct: number | null;
+  evidence: string[];
+  potentialCause: string | null;
+  confidence: number;
+  /** Historical conversion outcome note, or null when unknown. */
+  historicalOutcome: string | null;
+  suggestedFix: BusinessAction | null;
+  /** Dollar leak estimate — always AI Prediction unless paymentVerified. */
+  estimatedLoss: number;
+  lossTruthKind: "AI Prediction" | "Payments Verified" | "Unknown";
+  missing: MissingMetric | null;
+}
 
 export interface RevenueLeak {
   id: string;
@@ -21,7 +55,8 @@ export interface RevenueLeak {
     | "abandonment"
     | "engagement"
     | "upsell"
-    | "retention";
+    | "retention"
+    | "funnel";
   /** Heuristic only — always treat as AI Prediction, never ledger fact */
   estimatedLoss: number;
   recoveryPotential: number;
@@ -31,6 +66,7 @@ export interface RevenueLeak {
   truthKind: "AI Prediction";
   formula: string;
   financialDataSufficient: boolean;
+  funnelStageId?: RevenueFunnelStageId;
 }
 
 function leak(
@@ -47,35 +83,426 @@ function leak(
   };
 }
 
+function dropOff(from: number | null, to: number | null): number | null {
+  if (from == null || to == null || from <= 0) return null;
+  return Math.round(((from - to) / from) * 1000) / 10;
+}
+
+function missingStage(
+  label: string,
+  reason: string,
+  required: string[],
+  unlockAfter: string,
+  owner = METRIC_OWNERS.pipeline
+): MissingMetric {
+  return {
+    label,
+    reason,
+    required,
+    confidence: 0,
+    unlockAfter,
+    owner,
+    unlockHref: "/admin/qa",
+  };
+}
+
+/** Full Command funnel: Traffic → … → Paid. Every stage always present. */
+export async function buildRevenueFunnel(): Promise<RevenueFunnelStage[]> {
+  const [metrics, conversion, pipeline, payments] = await Promise.all([
+    getOperatorMetrics(),
+    getConversionDashboard(30).catch(() => null),
+    getAdminPipeline(),
+    getPaymentRevenueSummary(),
+  ]);
+
+  const col = (id: string) => pipeline.columns.find((c) => c.id === id)?.items.length ?? 0;
+
+  const traffic = conversion?.visitors ?? metrics.traffic.visitors30 ?? null;
+  const portfolio = conversion?.portfolioViews ?? null;
+  const bookingStarts = conversion?.bookingStarts ?? null;
+  const inquiries = conversion?.bookingCompletions ?? metrics.month.bookings ?? null;
+  const consultation = col("discovery") + col("qualified");
+  const contract = col("proposal");
+  const deposit = col("booked");
+  const completed = col("delivered") + col("editing") + col("production");
+  const paidCount = payments.hasPayments ? payments.count : null;
+  const paidDollars = payments.hasPayments ? dollarsFromCents(payments.totalCents) : null;
+
+  const stages: Array<{
+    id: RevenueFunnelStageId;
+    label: string;
+    count: number | null;
+    evidence: string[];
+    potentialCause: string | null;
+    confidence: number;
+    historicalOutcome: string | null;
+    suggestedFix: BusinessAction | null;
+    estimatedLoss: number;
+    lossTruthKind: RevenueFunnelStage["lossTruthKind"];
+    missing: MissingMetric | null;
+  }> = [
+    {
+      id: "traffic",
+      label: "Traffic",
+      count: traffic != null && traffic > 0 ? traffic : traffic === 0 ? 0 : null,
+      evidence:
+        traffic != null
+          ? [`${traffic.toLocaleString()} unique visitors / 30d (Measured · Analytics)`]
+          : [],
+      potentialCause: traffic === 0 ? "No recent site traffic recorded" : null,
+      confidence: traffic != null ? 0.95 : 0,
+      historicalOutcome: null,
+      suggestedFix: {
+        id: "fix-traffic",
+        label: "Open Analytics",
+        type: "navigate",
+        href: "/admin/analytics",
+      },
+      estimatedLoss: 0,
+      lossTruthKind: "Unknown",
+      missing:
+        traffic == null
+          ? missingStage(
+              "Traffic",
+              "Visitor count unavailable from Analytics owner",
+              ["Analytics events with sessionId", "Pageview tracking active"],
+              "Unlock after Analytics records pageviews",
+              METRIC_OWNERS.analytics
+            )
+          : null,
+    },
+    {
+      id: "portfolio",
+      label: "Portfolio",
+      count: portfolio,
+      evidence:
+        portfolio != null
+          ? [`${portfolio.toLocaleString()} portfolio views / 30d (Measured)`]
+          : [],
+      potentialCause:
+        traffic != null && portfolio != null && traffic > 0 && portfolio / traffic < 0.15
+          ? "Low homepage → portfolio transition"
+          : null,
+      confidence: portfolio != null ? 0.9 : 0,
+      historicalOutcome: null,
+      suggestedFix: {
+        id: "fix-portfolio",
+        label: "Review portfolio",
+        type: "navigate",
+        href: "/admin/portfolio",
+      },
+      estimatedLoss: 0,
+      lossTruthKind: "Unknown",
+      missing:
+        portfolio == null
+          ? missingStage(
+              "Portfolio views",
+              "Portfolio funnel events not available",
+              ["Funnel event portfolio_viewed or /portfolio pageviews"],
+              "Unlock after Analytics funnel instrumentation",
+              METRIC_OWNERS.analytics
+            )
+          : null,
+    },
+    {
+      id: "booking",
+      label: "Booking",
+      count: bookingStarts,
+      evidence:
+        bookingStarts != null
+          ? [`${bookingStarts.toLocaleString()} booking starts / 30d (Measured)`]
+          : [],
+      potentialCause:
+        portfolio != null &&
+        bookingStarts != null &&
+        portfolio > 20 &&
+        bookingStarts / portfolio < 0.05
+          ? "Weak portfolio → /book CTA"
+          : null,
+      confidence: bookingStarts != null ? 0.88 : 0,
+      historicalOutcome: null,
+      suggestedFix: {
+        id: "fix-book",
+        label: "Review booking flow",
+        type: "navigate",
+        href: "/book",
+      },
+      estimatedLoss: 0,
+      lossTruthKind: "Unknown",
+      missing:
+        bookingStarts == null
+          ? missingStage(
+              "Booking starts",
+              "Booking-start funnel events missing",
+              ["Funnel event booking_started or /book pageviews"],
+              "Unlock after booking funnel tracking",
+              METRIC_OWNERS.analytics
+            )
+          : null,
+    },
+    {
+      id: "inquiry",
+      label: "Inquiry",
+      count: inquiries,
+      evidence:
+        inquiries != null
+          ? [
+              `${inquiries} booking inquiries / 30d (Measured)`,
+              metrics.attention.abandonedInquiries > 0
+                ? `${metrics.attention.abandonedInquiries} stale inquiries (Measured)`
+                : "No stale inquiries",
+            ]
+          : [],
+      potentialCause:
+        bookingStarts != null &&
+        inquiries != null &&
+        bookingStarts > 5 &&
+        inquiries / bookingStarts < 0.25
+          ? "Form friction between start and submit"
+          : metrics.attention.abandonedInquiries > 0
+            ? "Inquiries idle without response"
+            : null,
+      confidence: inquiries != null ? 0.92 : 0,
+      historicalOutcome:
+        metrics.attention.abandonedInquiries > 0
+          ? `${metrics.attention.abandonedInquiries} inquiries went stale historically in current open set`
+          : null,
+      suggestedFix: {
+        id: "fix-inquiry",
+        label: "Review inquiries",
+        type: "navigate",
+        href: "/admin/submissions?type=booking",
+      },
+      estimatedLoss: 0,
+      lossTruthKind: "Unknown",
+      missing:
+        inquiries == null
+          ? missingStage(
+              "Inquiries",
+              "Booking submission count unavailable",
+              ["Submission rows type=booking"],
+              "Unlock after bookings are recorded",
+              METRIC_OWNERS.bookings
+            )
+          : null,
+    },
+    {
+      id: "consultation",
+      label: "Consultation",
+      count: consultation,
+      evidence: [
+        `${consultation} in Discovery/Qualified (Measured · Pipeline)`,
+        "Consultation = Creative Consultation stages in pipeline",
+      ],
+      potentialCause:
+        (inquiries ?? 0) > 3 && consultation === 0
+          ? "Inquiries not advancing to consultation"
+          : null,
+      confidence: 0.85,
+      historicalOutcome: null,
+      suggestedFix: {
+        id: "fix-consult",
+        label: "Open pipeline",
+        type: "navigate",
+        href: "/admin/pipeline",
+      },
+      estimatedLoss: 0,
+      lossTruthKind: "Unknown",
+      missing: null,
+    },
+    {
+      id: "contract",
+      label: "Contract",
+      count: contract,
+      evidence: [`${contract} in Proposal (Measured · Pipeline)`],
+      potentialCause:
+        consultation > 2 && contract === 0
+          ? "Consultations not converting to proposals"
+          : null,
+      confidence: 0.8,
+      historicalOutcome: null,
+      suggestedFix: {
+        id: "fix-contract",
+        label: "Open pipeline",
+        type: "navigate",
+        href: "/admin/pipeline",
+      },
+      estimatedLoss: 0,
+      lossTruthKind: "Unknown",
+      missing: null,
+    },
+    {
+      id: "deposit",
+      label: "Deposit",
+      count: deposit,
+      evidence: [
+        `${deposit} Booked / retainer stage (Measured · Pipeline)`,
+        "Deposit stage uses booked status — Stripe deposit linkage may still be missing",
+      ],
+      potentialCause:
+        contract > 1 && deposit === 0 ? "Proposals stalling before retainer" : null,
+      confidence: 0.75,
+      historicalOutcome: null,
+      suggestedFix: {
+        id: "fix-deposit",
+        label: "Open payments",
+        type: "navigate",
+        href: "/admin/payments",
+      },
+      estimatedLoss: 0,
+      lossTruthKind: "Unknown",
+      missing: null,
+    },
+    {
+      id: "completed",
+      label: "Completed",
+      count: completed,
+      evidence: [
+        `${completed} in production/editing/delivered (Measured · Pipeline)`,
+      ],
+      potentialCause:
+        metrics.attention.galleriesAwaiting > 0
+          ? `${metrics.attention.galleriesAwaiting} booked projects idle 14+ days`
+          : null,
+      confidence: 0.8,
+      historicalOutcome:
+        metrics.attention.galleriesAwaiting > 0
+          ? "Delivery backlog present in current booked set"
+          : null,
+      suggestedFix: {
+        id: "fix-completed",
+        label: "Review bookings",
+        type: "navigate",
+        href: "/admin/submissions?type=booking",
+      },
+      estimatedLoss: 0,
+      lossTruthKind: "Unknown",
+      missing: null,
+    },
+    {
+      id: "paid",
+      label: "Paid",
+      count: paidCount,
+      evidence: payments.hasPayments
+        ? [
+            `${payments.count} succeeded Payment rows (Payments Verified)`,
+            `$${Math.round(paidDollars ?? 0).toLocaleString()} lifetime settled`,
+            `$${Math.round(dollarsFromCents(payments.thisMonthCents)).toLocaleString()} MTD settled`,
+          ]
+        : [],
+      potentialCause: !payments.hasPayments
+        ? "No Stripe Payment rows yet — cash stage cannot be verified"
+        : deposit > 0 && payments.thisMonthCents === 0
+          ? "Booked work without settled payments MTD"
+          : null,
+      confidence: payments.hasPayments ? 0.98 : 0,
+      historicalOutcome: payments.hasPayments
+        ? `Lifetime settled $${Math.round(paidDollars ?? 0).toLocaleString()} (Payments Verified)`
+        : null,
+      suggestedFix: {
+        id: "fix-paid",
+        label: "Open payments",
+        type: "navigate",
+        href: "/admin/payments",
+      },
+      estimatedLoss: 0,
+      lossTruthKind: payments.hasPayments ? "Payments Verified" : "Unknown",
+      missing: !payments.hasPayments
+        ? missingStage(
+            "Paid",
+            "No verified Payment rows — dollar losses cannot be ledger-backed",
+            ["Stripe webhook writing Payment rows", "At least one succeeded payment"],
+            "Unlock after Payments records settled charges",
+            METRIC_OWNERS.financial_center
+          )
+        : null,
+    },
+  ];
+
+  // Attach drop-offs between consecutive measured stages
+  let prevCount: number | null = null;
+  return stages.map((stage) => {
+    const drop = dropOff(prevCount, stage.count);
+    if (stage.count != null) prevCount = stage.count;
+    // Soft AI Prediction loss only when drop-off is severe AND we refuse dollar invention without payments
+    let estimatedLoss = 0;
+    let lossTruthKind = stage.lossTruthKind;
+    if (
+      stage.id === "inquiry" &&
+      metrics.attention.abandonedInquiries > 0 &&
+      !payments.hasPayments
+    ) {
+      // Qualitative only — keep $ at 0
+      estimatedLoss = 0;
+      lossTruthKind = "Unknown";
+    }
+    return {
+      ...stage,
+      dropOffPct: drop,
+      estimatedLoss,
+      lossTruthKind,
+    };
+  });
+}
+
 /** Continuously detect where revenue is being lost across the business. */
-export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
-  const [metrics, analytics, websiteHealth] = await Promise.all([
+export async function detectRevenueLeaks(
+  funnelOverride?: RevenueFunnelStage[]
+): Promise<RevenueLeak[]> {
+  const [metrics, analytics, websiteHealth, funnel] = await Promise.all([
     getOperatorMetrics(),
     getAnalyticsSummary(30),
     getMemory("marketing", "executive_report", "website-health").catch(() => null),
+    funnelOverride ? Promise.resolve(funnelOverride) : buildRevenueFunnel(),
   ]);
 
   const leaks: RevenueLeak[] = [];
-  const avgValue =
-    metrics.month.bookings > 0
-      ? metrics.revenue.thisMonth / metrics.month.bookings
-      : 1500;
+
+  // Stage pressure leaks (MissingMetric honesty lives on the funnel stages, not duplicated here)
+  for (const stage of funnel) {
+    if (stage.missing) continue;
+
+    if (stage.potentialCause && (stage.dropOffPct == null || stage.dropOffPct >= 40)) {
+      leaks.push(
+        leak({
+          id: `leak-funnel-${stage.id}`,
+          title: `${stage.label} funnel pressure`,
+          reason: stage.potentialCause,
+          category: "funnel",
+          funnelStageId: stage.id,
+          estimatedLoss: 0,
+          recoveryPotential: 0,
+          confidence: stage.confidence,
+          formula:
+            stage.lossTruthKind === "Payments Verified"
+              ? "Payments-verified stage — still no invented incremental loss"
+              : "Dollar leakage omitted — More financial data / Payments verification required",
+          evidence: [
+            ...stage.evidence,
+            stage.dropOffPct != null ? `${stage.dropOffPct}% drop-off from prior stage` : "Drop-off not computable",
+            stage.historicalOutcome ?? "No historical outcome recorded for this stage",
+          ],
+          actions: stage.suggestedFix ? [stage.suggestedFix] : [],
+        })
+      );
+    }
+  }
 
   if (metrics.attention.abandonedInquiries > 0) {
-    const loss = Math.round(metrics.attention.abandonedInquiries * avgValue * 0.35);
     leaks.push(
       leak({
+        id: "leak-stale-inquiries",
         title: `${metrics.attention.abandonedInquiries} stale booking inquiries`,
         reason: "Inquiries without response for 3+ days — leads may go cold before consultation",
         category: "follow_up",
-        estimatedLoss: loss,
-        recoveryPotential: Math.round(loss * 0.6),
-        confidence: 0.55,
-        formula: "staleInquiries × avgProjectValue × 0.35 (heuristic — not measured recovery)",
+        funnelStageId: "inquiry",
+        estimatedLoss: 0,
+        recoveryPotential: 0,
+        confidence: 0.7,
+        formula: "No $ projection — Payments verification required before loss estimates",
         evidence: [
           `${metrics.attention.abandonedInquiries} untouched inquiries (Measured)`,
-          "AI Prediction: dollar exposure uses heuristic coefficients — not studio-verified recovery",
-          "Industry Best Practice ranges are not cited as ÉLEVÉ facts",
+          "AI Prediction dollars intentionally omitted — not studio-verified recovery",
         ],
         actions: [
           { id: "submissions", label: "Review inquiries", type: "navigate", href: "/admin/submissions?type=booking" },
@@ -116,6 +543,7 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
         title: "Conversion soft relative to common studio ranges",
         reason: `Site converts at ${metrics.traffic.conversionRate}% (Measured). Gap-to-benchmark dollars are not computed — external benchmarks are unverified for this studio.`,
         category: "booking_flow",
+        funnelStageId: "booking",
         estimatedLoss: 0,
         recoveryPotential: 0,
         confidence: 0.5,
@@ -168,6 +596,7 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
           title: "High-traffic portfolio without conversion path",
           reason: `${topPage.path} drives ${topPage.views} views (Measured) but may lack strong booking CTA`,
           category: "cta",
+          funnelStageId: "portfolio",
           estimatedLoss: 0,
           recoveryPotential: 0,
           confidence: 0.55,
@@ -187,6 +616,7 @@ export async function detectRevenueLeaks(): Promise<RevenueLeak[]> {
         title: `${metrics.attention.galleriesAwaiting} booked projects idle 14+ days`,
         reason: "Delayed delivery may risk satisfaction and referrals — $ impact unknown",
         category: "retention",
+        funnelStageId: "completed",
         estimatedLoss: 0,
         recoveryPotential: 0,
         confidence: 0.65,
@@ -229,6 +659,6 @@ export function totalLeakExposure(leaks: RevenueLeak[]): {
     disclaimer:
       loss > 0 || recoverable > 0
         ? "AI Prediction only — heuristic coefficients, not audited recoverable revenue. Do not cite as fact."
-        : "More financial data required — exposure shown as qualitative risks without invented dollars.",
+        : "More financial data required — exposure shown as qualitative funnel risks without invented dollars. Stages always visible; unknowns use MissingMetric unlock criteria.",
   };
 }

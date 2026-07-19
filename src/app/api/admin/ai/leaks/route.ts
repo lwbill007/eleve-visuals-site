@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { detectRevenueLeaks, totalLeakExposure } from "@/lib/ai/executive/revenue-leaks";
+import {
+  buildRevenueFunnel,
+  detectRevenueLeaks,
+  totalLeakExposure,
+} from "@/lib/ai/executive/revenue-leaks";
 
 export async function GET() {
   try {
@@ -9,13 +13,15 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const leaks = await detectRevenueLeaks();
+  const funnel = await buildRevenueFunnel();
+  const leaks = await detectRevenueLeaks(funnel);
   const exposure = totalLeakExposure(leaks);
 
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
     exposure,
     recoverable: leaks.reduce((s, l) => s + l.recoveryPotential, 0),
+    funnel,
     leaks,
   });
 }

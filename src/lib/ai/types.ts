@@ -248,6 +248,16 @@ export interface ExecutiveOpportunity {
   evidence: string[];
   actions: BusinessAction[];
   estimatedMinutes: number;
+  /** Recommendation contract fields */
+  problem?: string;
+  owner?: string;
+  difficulty?: RecommendationDifficulty;
+  status?: "proposed" | "accepted" | "in_progress" | "completed" | "verified" | "rejected";
+  cost?: string;
+  dependencies?: string[];
+  successMetric?: string;
+  verificationMethod?: string;
+  learningStatus?: "proposed" | "accepted" | "in_progress" | "completed" | "verified" | "rejected";
 }
 
 export interface ExecutiveRisk {
@@ -255,13 +265,18 @@ export interface ExecutiveRisk {
   title: string;
   detail: string;
   why: string;
-  category: "revenue" | "marketing" | "sales" | "operations" | "technical" | "crm" | "sessions";
+  category: "revenue" | "marketing" | "sales" | "operations" | "technical" | "crm" | "sessions" | "website" | "cash" | "portfolio" | "seo" | "ai" | "payments";
   severity: "critical" | "high" | "medium" | "low";
   likelihood: number;
   potentialImpact: number;
   evidence: string[];
   mitigations: BusinessAction[];
   detectedAt: string;
+  owner?: string;
+  deadline?: string | null;
+  recoveryPlan?: string;
+  verification?: string;
+  domain?: string;
 }
 
 export interface ExecutiveDecision {
@@ -420,6 +435,20 @@ export interface AIDailyBriefing {
   executiveMorning?: ExecutiveMorningBrief;
   /** Executive Intelligence Report 2.0 — evidence-graded, truth-labeled */
   reportV2?: import("./platform/executive-report-v2").ExecutiveReportV2;
+  /**
+   * Command Briefing contract (Phase 1):
+   * Measured Facts → What Changed → Why → Evidence → Predictions → Recommendations → Confidence → Actions
+   */
+  commandContract?: {
+    measuredFacts: { label: string; value: string; evidence: string[] }[];
+    whatChanged: { label: string; detail: string; evidence: string[] }[];
+    why: { statement: string; evidence: string[] }[];
+    evidence: string[];
+    predictions: import("./platform/recommendation-contract").PredictionContract[];
+    recommendations: import("./platform/recommendation-contract").RecommendationContract[];
+    confidence: { overall: number; why: string[] };
+    actions: { id: string; label: string; href: string; evidence: string[] }[];
+  };
 }
 
 export type RecommendationPriority = "critical" | "high" | "medium" | "low";

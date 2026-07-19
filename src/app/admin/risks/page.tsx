@@ -43,9 +43,9 @@ export default function RisksPage() {
   return (
     <AdminShell title="Risks">
       <WorkspaceChrome
-        eyebrow="Command · Attention"
-        title="What needs attention"
-        description="Derived from Truth Layer, verification, and connectors — not invented alerts. Every risk shows cost of ignore and confidence."
+        eyebrow="Command · What could hurt us?"
+        title="Risks"
+        description="Severity, likelihood, evidence, impact, owner, deadline, recovery plan, and verification. Domains: Website, Bookings, Cash Flow, Portfolio, SEO, AI, Payments."
         onRefresh={() => refresh()}
         refreshing={loading}
         related={[
@@ -75,7 +75,21 @@ export default function RisksPage() {
                 model={{
                   id: risk.id,
                   title: risk.title,
-                  why: risk.detail,
+                  why: [
+                    risk.detail,
+                    risk.domain ? `Domain · ${risk.domain}` : null,
+                    risk.owner ? `Owner · ${risk.owner}` : null,
+                    typeof risk.likelihood === "number"
+                      ? `Likelihood · ${Math.round(risk.likelihood * 100)}%`
+                      : null,
+                    risk.deadline
+                      ? `Deadline · ${new Date(risk.deadline).toLocaleDateString()}`
+                      : null,
+                    risk.recoveryPlan ? `Recovery · ${risk.recoveryPlan}` : null,
+                    risk.verification ? `Verification · ${risk.verification}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join("\n"),
                   evidence: risk.evidence,
                   estimatedRevenue: risk.potentialImpact,
                   confidence: risk.confidence,

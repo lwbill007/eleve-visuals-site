@@ -73,6 +73,12 @@ export interface RiskSignal {
   expectedOutcome: string;
   reasoning: string;
   prediction: string;
+  likelihood?: number;
+  owner?: string;
+  deadline?: string | null;
+  recoveryPlan?: string;
+  verification?: string;
+  domain?: string;
 }
 
 export interface ExecutiveContext {
@@ -442,6 +448,12 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       expectedOutcome: "Recover warm pipeline before leads go cold",
       reasoning: "Response latency is the highest-leverage sales variable for a studio with open inquiries.",
       prediction: `Ignoring risks ~$${Math.round(potentialImpact * 0.72).toLocaleString()} opportunity loss`,
+      likelihood: 0.9,
+      owner: "Studio owner",
+      deadline: new Date(Date.now() + 2 * 86400000).toISOString(),
+      recoveryPlan: "Contact every stale inquiry within 48 hours; advance stage or archive with reason.",
+      verification: "Recount stale inquiries after follow-up window using Submission timestamps.",
+      domain: "Bookings",
     });
   }
   if (revenueMtd === 0 && pipeline > 0) {
@@ -471,6 +483,12 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       expectedOutcome: "Convert open pipeline into settled revenue",
       reasoning: "Pipeline without cash conversion is a false sense of health.",
       prediction: `~$${Math.round(pipeline * 0.4).toLocaleString()} at risk if sales stall`,
+      likelihood: 0.7,
+      owner: "Studio owner",
+      deadline: new Date(Date.now() + 7 * 86400000).toISOString(),
+      recoveryPlan: "Prioritize consultation → proposal → deposit for highest-value open inquiries.",
+      verification: "Settled Payment.amountCents MTD must increase while pipeline stages advance.",
+      domain: "Cash Flow",
     });
   }
   if (verification.verifiedPct < 50 && verification.total > 20) {
@@ -500,6 +518,12 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       expectedOutcome: "Raise knowledge trust so recommendations stay explainable",
       reasoning: "Business Brain confidence is capped by verification coverage.",
       prediction: "Composite AI confidence stays medium/low until verified ≥ target",
+      likelihood: 0.75,
+      owner: "Studio owner",
+      deadline: new Date(Date.now() + 14 * 86400000).toISOString(),
+      recoveryPlan: "Verify pending memories in batches; reject unverifiable claims.",
+      verification: "Verification queue verifiedPct must reach targetPct.",
+      domain: "AI",
     });
   }
   for (const label of degradedLabels.slice(0, 3)) {
@@ -525,6 +549,14 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       expectedOutcome: "Restore source so blocked decisions become Verified",
       reasoning: "Missing connectors force Estimated/Unknown labels on dependent claims.",
       prediction: "Related forecasts remain capped until reconnect",
+      likelihood: 0.8,
+      owner: "Studio owner",
+      deadline: new Date(Date.now() + 7 * 86400000).toISOString(),
+      recoveryPlan: `Restore ${label} connector health via Executive QA.`,
+      verification: `${label} connector status must return to healthy.`,
+      domain: label.toLowerCase().includes("stripe") || label.toLowerCase().includes("payment")
+        ? "Payments"
+        : "Technology",
     });
   }
 

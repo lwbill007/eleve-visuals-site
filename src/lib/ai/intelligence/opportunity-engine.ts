@@ -17,6 +17,8 @@ function urgencyFromSeverity(severity: string, revenue: number): ExecutiveOpport
 
 function insightToOpportunity(insight: BusinessInsight): ExecutiveOpportunity {
   const expectedRevenue = insight.revenueImpact ?? 0;
+  const difficulty =
+    insight.severity === "high" ? "moderate" : insight.severity === "low" ? "easy" : "moderate";
   return {
     id: insight.id,
     title: insight.title,
@@ -38,6 +40,15 @@ function insightToOpportunity(insight: BusinessInsight): ExecutiveOpportunity {
     evidence: [insight.detail, insight.why, insight.metric ? `Metric: ${insight.metric}` : ""].filter(Boolean),
     actions: insight.actions,
     estimatedMinutes: insight.timeSavedMinutes ?? 30,
+    problem: insight.detail,
+    owner: "Studio owner",
+    difficulty: difficulty as ExecutiveOpportunity["difficulty"],
+    status: "proposed",
+    learningStatus: "proposed",
+    cost: "Unknown — no cost ledger linked",
+    dependencies: [],
+    successMetric: "Target metric improves within 14 days using owned Analytics or Bookings data",
+    verificationMethod: "Compare before/after owned metric; record outcome in Business Brain",
   };
 }
 
@@ -90,6 +101,15 @@ export async function getExecutiveOpportunities(): Promise<ExecutiveOpportunity[
         },
       ],
       estimatedMinutes: 25,
+      problem: "Stale booking inquiries past response SLA",
+      owner: "Studio owner",
+      difficulty: "easy",
+      status: "proposed",
+      learningStatus: "proposed",
+      cost: "Owner time only",
+      dependencies: ["Booking inbox access"],
+      successMetric: "Stale inquiry count decreases within 7 days",
+      verificationMethod: "Recount abandoned inquiries from Submission timestamps",
     });
   }
 
@@ -129,6 +149,15 @@ export async function getExecutiveOpportunities(): Promise<ExecutiveOpportunity[
         },
       ],
       estimatedMinutes: 45,
+      problem: "Inactive past clients with no recent engagement",
+      owner: "Studio owner",
+      difficulty: "moderate",
+      status: "proposed",
+      learningStatus: "proposed",
+      cost: "Unknown — campaign spend not linked",
+      dependencies: ["CRM", "Email"],
+      successMetric: "At least one re-engaged client advances in Pipeline within 30 days",
+      verificationMethod: "Track Pipeline stage changes for re-engaged contacts",
     });
   }
 
