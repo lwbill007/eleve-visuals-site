@@ -6,6 +6,7 @@ import { aiComplete } from "../adapter";
 import { isAIConfigured } from "../config";
 import { generateAIContent } from "../service";
 import type { SessionApplicationRank } from "../types";
+import { collectExternalApplicantEvidence } from "./applicant-evidence";
 
 type RankedCategory = SessionApplicationRank["categories"][number];
 type CategoryKey = RankedCategory["key"];
@@ -85,10 +86,13 @@ interface EvaluatedApplicant {
   socialProvided: boolean;
   ai: AIEvaluation;
   provider: string;
+  evidenceFingerprint: string;
   rawScore: number;
   confidence: number;
   unknownPenalty: number;
   assessedWeight: number;
+  pairwiseWins: number;
+  pairwiseLosses: number;
 }
 
 function parseData(raw: string): Record<string, unknown> {
@@ -213,7 +217,19 @@ Include all eight category keys exactly once.`;
 
 async function evaluateApplicant(submission: SubmissionRecord): Promise<EvaluatedApplicant> {
   const data = parseData(submission.data);
-  const images = stringArray(data, "portfolioImages").slice(0, 8);
+  const portfolioUrl =
+    stringValue(data, "portfolioLink") ||
+    stringValue(data, "portfolioWebsite") ||
+    stringValue(data, "portfolioUrl");
+  const socialUrl = stringValue(data, "instagram");
+  const external = await collectExternalApplicantEvidence(portfolioUrl, socialUrl);
+  const images = [
+    ...new Set([
+      ...stringArray(data, "portfolioImages"),
+      ...external.portfolio.imageUrls,
+    ]),
+  ].slice(0, 8);
+  const evidence = evaluationEvidence(data);
   const result = await aiComplete({
     messages: [
       { role: "system", content: EVALUATOR_PROMPT },
@@ -221,7 +237,22 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
         role: "user",
         content: JSON.stringify({
           applicantId: submission.id,
-          evidence: evaluationEvidence(data),
+          evidence: {
+            ...evidence,
+            externalPortfolio: {
+              fetched: external.portfolio.fetched,
+              source: external.portfolio.source,
+              pageText: external.portfolio.pageText,
+              discoveredImages: external.portfolio.imageUrls.length,
+              error: external.portfolio.error,
+            },
+            externalSocial: {
+              fetched: external.social.fetched,
+              source: external.social.source,
+              pageText: external.social.pageText,
+              error: external.social.error,
+            },
+          },
           attachedImageCount: images.length,
           instruction:
             "Evaluate this applicant. Attached images, when present, are the only source for Portfolio Quality.",
@@ -298,14 +329,26 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
     portfolioVisuallyReviewed,
     location: stringValue(data, "cityState") || stringValue(data, "location") || "Unknown",
     availabilityConfirmed: data.availabilityConfirm === true,
-    portfolioProvided: images.length > 0 || evaluationEvidence(data).informationalSignals.portfolioLinkProvided,
-    socialProvided: evaluationEvidence(data).informationalSignals.socialLinkProvided,
+    portfolioProvided: images.length > 0 || evidence.informationalSignals.portfolioLinkProvided,
+    socialProvided: evidence.informationalSignals.socialLinkProvided,
     ai: normalized,
     provider: `${result.provider}:${result.model}`,
+    evidenceFingerprint: createHash("sha256")
+      .update(
+        JSON.stringify({
+          evidence,
+          portfolioPage: external.portfolio.pageText,
+          socialPage: external.social.pageText,
+          images,
+        })
+      )
+      .digest("hex"),
     rawScore,
     confidence,
     unknownPenalty,
     assessedWeight,
+    pairwiseWins: 0,
+    pairwiseLosses: 0,
   };
 }
 
@@ -342,6 +385,29 @@ function compareEvaluations(a: EvaluatedApplicant, b: EvaluatedApplicant): numbe
     if (Math.abs(aValue - bValue) > 0.05) return bValue - aValue;
   }
   return a.submission.id.localeCompare(b.submission.id);
+}
+
+/**
+ * Explicit all-pairs comparison. Every applicant is evaluated head-to-head
+ * against every other applicant before the final order is produced.
+ */
+function rankByAllPairs(evaluated: EvaluatedApplicant[]): EvaluatedApplicant[] {
+  for (const applicant of evaluated) {
+    applicant.pairwiseWins = 0;
+    applicant.pairwiseLosses = 0;
+  }
+  for (let left = 0; left < evaluated.length; left += 1) {
+    for (let right = left + 1; right < evaluated.length; right += 1) {
+      const comparison = compareEvaluations(evaluated[left], evaluated[right]);
+      const winner = comparison <= 0 ? evaluated[left] : evaluated[right];
+      const loser = comparison <= 0 ? evaluated[right] : evaluated[left];
+      winner.pairwiseWins += 1;
+      loser.pairwiseLosses += 1;
+    }
+  }
+  return [...evaluated].sort(
+    (a, b) => b.pairwiseWins - a.pairwiseWins || compareEvaluations(a, b)
+  );
 }
 
 function finalScore(applicant: EvaluatedApplicant, index: number): number {
@@ -397,9 +463,11 @@ function reasonForRank(
     .filter((category) => category.score != null)
     .sort((a, b) => b.score! - a.score!)[0];
   if (index === 0) {
-    return `Ranked 1 of ${cohortSize}: highest weighted AI evaluation (${applicant.rawScore.toFixed(
+    return `Ranked 1 of ${cohortSize}: won ${applicant.pairwiseWins} of ${
+      cohortSize - 1
+    } head-to-head comparisons with a weighted AI evaluation of ${applicant.rawScore.toFixed(
       1
-    )}), led by ${strongest?.key ?? "available evidence"}.`;
+    )}, led by ${strongest?.key ?? "available evidence"}.`;
   }
   if (!above) return `Ranked ${index + 1} of ${cohortSize}.`;
   if (Math.abs(above.rawScore - applicant.rawScore) <= 1.5) {
@@ -408,7 +476,7 @@ function reasonForRank(
       ? `Near-equal with ${above.name}; ${tieBreak.decidedBy} decided the order.`
       : `Ranked ${index + 1} after comparative evaluation.`;
   }
-  return `Ranked below ${above.name}: weighted AI evaluation ${applicant.rawScore.toFixed(
+  return `Ranked below ${above.name}: ${applicant.pairwiseWins} head-to-head wins and weighted AI evaluation ${applicant.rawScore.toFixed(
     1
   )} vs ${above.rawScore.toFixed(1)}. Strongest evaluated area: ${
     strongest?.key ?? "insufficient evidence"
@@ -439,7 +507,7 @@ function buildRankedResults(
   revenue: Map<string, { total: number; count: number }>,
   evaluatedAt: string
 ): SessionApplicationRank[] {
-  const cohort = [...evaluated].sort(compareEvaluations);
+  const cohort = rankByAllPairs(evaluated);
   const scores: number[] = [];
 
   return cohort.map((applicant, index) => {
@@ -454,10 +522,12 @@ function buildRankedResults(
           step.key === "confidence" ? above.confidence : categoryScore(above, step.key);
         return Math.abs(mine - theirs) <= 0.05;
       });
-    if (index > 0 && !metricsIdentical && score >= scores[index - 1]) {
+    const inputsIdentical =
+      above != null && above.evidenceFingerprint === applicant.evidenceFingerprint;
+    if (index > 0 && !(metricsIdentical && inputsIdentical) && score >= scores[index - 1]) {
       score = Math.round((scores[index - 1] - 0.2) * 10) / 10;
     }
-    if (index > 0 && metricsIdentical) score = scores[index - 1];
+    if (index > 0 && metricsIdentical && inputsIdentical) score = scores[index - 1];
     scores.push(score);
 
     const categories: RankedCategory[] = CATEGORY_DEFINITIONS.map((definition) => {
@@ -537,7 +607,7 @@ function buildRankedResults(
             low: 0,
             high: 0,
             confidence: 0,
-            rationale: "Insufficient historical data.",
+            rationale: "No historical data available.",
           },
       reasonForRank: reason,
       tieBreak: tieBreakFor(applicant, above),
@@ -601,12 +671,12 @@ async function savedRankings(
   if (!valid) return null;
   try {
     return rows.map((row) => {
-      const stored = JSON.parse(row.result) as SessionApplicationRank;
+      const stored = JSON.parse(row.aiEvaluation) as SessionApplicationRank;
       const application = applicationById.get(row.submissionId)!;
       return {
         ...stored,
         status: normalizeApplicationStatus(application.status),
-        evaluatedAt: row.evaluatedAt.toISOString(),
+        evaluatedAt: row.lastEvaluatedAt.toISOString(),
         evaluationVersion: row.version,
         evaluationProvider: row.provider,
       };
@@ -639,16 +709,36 @@ export async function rerankSessionApplications(
   await prisma.$transaction(
     ranked.map((result, index) => {
       const application = applicationById.get(result.id)!;
+      const dimension = (key: CategoryKey) => {
+        const category = result.categories.find((item) => item.key === key);
+        return category?.confidence === 0
+          ? null
+          : category
+            ? Math.round((category.score / category.maxScore) * 1000) / 10
+            : null;
+      };
       const data = {
         volumeId: application.sessionVolumeId,
-        score: result.score,
+        overallScore: result.score,
         confidence: result.confidence,
         rank: index + 1,
         version: APPLICATION_EVALUATION_VERSION,
         provider: providerById.get(result.id) ?? "unknown",
         inputHash: inputHash(application),
-        result: JSON.stringify(result),
-        evaluatedAt: new Date(evaluatedAt),
+        aiEvaluation: JSON.stringify(result),
+        portfolioScore: dimension("portfolioQuality"),
+        brandAlignment: dimension("brandAlignment"),
+        businessValue: dimension("businessValue"),
+        professionalism: dimension("professionalPresence"),
+        versatility: dimension("versatility"),
+        experience: dimension("experience"),
+        marketingImpact: dimension("marketingImpact"),
+        applicationQuality: dimension("applicationQuality"),
+        riskLevel: result.riskLevel,
+        strengths: JSON.stringify(result.strengths),
+        weaknesses: JSON.stringify([result.weakness]),
+        reasoning: result.reasonForRank,
+        lastEvaluatedAt: new Date(evaluatedAt),
       };
       return prisma.applicationEvaluation.upsert({
         where: { submissionId: result.id },

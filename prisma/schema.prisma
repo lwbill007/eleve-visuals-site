@@ -116,21 +116,33 @@ model ApplicationEvaluation {
   id            String   @id @default(cuid())
   submissionId  String   @unique
   volumeId      String?
-  score         Float
+  overallScore  Float    @map("score")
   confidence    Int
   rank          Int
   version       String
   provider      String
   inputHash     String
-  result        String
-  evaluatedAt   DateTime @default(now())
+  aiEvaluation  String   @map("result")
+  portfolioScore Float?
+  brandAlignment Float?
+  businessValue Float?
+  professionalism Float?
+  versatility Float?
+  experience Float?
+  marketingImpact Float?
+  applicationQuality Float?
+  riskLevel     String   @default("medium")
+  strengths     String   @default("[]")
+  weaknesses    String   @default("[]")
+  reasoning     String   @default("")
+  lastEvaluatedAt DateTime @default(now()) @map("evaluatedAt")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@index([volumeId, rank])
-  @@index([evaluatedAt])
+  @@index([lastEvaluatedAt])
 }
 
 /// Settled payments from Stripe webhooks (or manual admin entry).

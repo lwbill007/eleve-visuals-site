@@ -432,7 +432,7 @@ export default function ApplicationsIntelligenceClient() {
                       ? formatMoney(ranked.reduce((sum, item) => sum + item.expectedValue.amount, 0))
                       : "—"
                   }
-                  detail={ranked.some((item) => item.expectedValue.basis === "verified") ? "Settled payments only" : "Insufficient historical data"}
+                  detail={ranked.some((item) => item.expectedValue.basis === "verified") ? "Settled payments only" : "No historical data available"}
                 />
                 <MetricCard label="Brand fit" value={`${Math.round(average(ranked.map((item) => categoryRate(item, "brandAlignment"))))}%`} change={delta(overview.currentValues.brand, overview.previousValues.brand)} />
                 <MetricCard
@@ -588,7 +588,7 @@ export default function ApplicationsIntelligenceClient() {
                             {candidate.expectedValue.basis === "verified" ? (
                               <p className="mt-1 text-sm text-cream">{formatMoney(candidate.expectedValue.amount)}</p>
                             ) : (
-                              <p className="mt-1 text-[0.62rem] leading-snug text-muted">Insufficient historical data</p>
+                              <p className="mt-1 text-[0.62rem] leading-snug text-muted">No historical data available</p>
                             )}
                           </div>
                           <div><p className="text-[0.52rem] tracking-wider text-muted uppercase">Portfolio</p><p className="mt-1 text-xs capitalize text-fog">{candidate.dataQuality.portfolio}</p></div>
@@ -680,7 +680,7 @@ export default function ApplicationsIntelligenceClient() {
                 {detail.expectedValue.basis === "verified" ? (
                   <p className="mt-1 text-2xl text-cream">{formatMoney(detail.expectedValue.amount)}</p>
                 ) : (
-                  <p className="mt-1 text-lg text-muted">Insufficient historical data</p>
+                  <p className="mt-1 text-lg text-muted">No historical data available</p>
                 )}
                 <p className="mt-1 text-xs text-fog">{detail.expectedValue.rationale}</p>
               </div>
@@ -726,7 +726,7 @@ export default function ApplicationsIntelligenceClient() {
                 <div className="py-3 text-xs text-muted">Verified revenue</div>
                 {compareCandidates.map((candidate) => (
                   <div key={candidate.id} className="py-3 text-sm text-cream">
-                    {candidate.expectedValue.basis === "verified" ? formatMoney(candidate.expectedValue.amount) : <span className="text-xs text-muted">Insufficient historical data</span>}
+                    {candidate.expectedValue.basis === "verified" ? formatMoney(candidate.expectedValue.amount) : <span className="text-xs text-muted">No historical data available</span>}
                   </div>
                 ))}
                 <div className="py-3 text-xs text-muted">Strengths</div>

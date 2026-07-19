@@ -123,7 +123,15 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
   }
 
   const config = getAIConfig();
-  const models = config.openrouter.modelChain;
+  const hasImages = request.messages.some((message) => message.images?.length);
+  const models = hasImages
+    ? [
+        config.openrouter.visionModel,
+        ...config.openrouter.modelChain.filter(
+          (model) => model !== config.openrouter.visionModel
+        ),
+      ]
+    : config.openrouter.modelChain;
   let lastError = "";
 
   for (const model of models) {

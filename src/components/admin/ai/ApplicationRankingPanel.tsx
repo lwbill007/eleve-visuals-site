@@ -26,7 +26,10 @@ export function ApplicationRankingPanel({ volumeId }: { volumeId?: string }) {
     const params = volumeId ? `?volumeId=${volumeId}` : "";
     const res = await adminFetch(`/api/admin/ai/sessions/rank${params}`, { method: "POST" });
     const d = await res.json();
-    if (res.ok) setRanked(d.ranked ?? []);
+    if (res.ok) {
+      setRanked(d.ranked ?? []);
+      if (typeof d.summary === "string") setSummary(d.summary);
+    }
     setLoading(false);
   }
 

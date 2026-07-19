@@ -36,7 +36,10 @@ export async function POST(req: Request) {
   const volumeId = new URL(req.url).searchParams.get("volumeId") || undefined;
   try {
     const ranked = await rerankSessionApplications(volumeId);
-    return NextResponse.json({ ranked });
+    // Summary generation is deliberately last: it cannot run until the complete
+    // cohort has been evaluated, persisted, and sorted.
+    const summary = await generateApplicationRankingSummary(volumeId);
+    return NextResponse.json({ ranked, summary });
   } catch (error) {
     console.error("Application re-rank failed:", error);
     return NextResponse.json(

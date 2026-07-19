@@ -23,6 +23,7 @@ export function getAIConfig() {
       apiKey: process.env.OPENROUTER_API_KEY || "",
       model: primaryModel,
       modelChain,
+      visionModel: process.env.OPENROUTER_VISION_MODEL || "google/gemini-2.5-flash",
       siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://www.eleve-visuals.com",
       maxRetries: Number(process.env.AI_MAX_RETRIES) || 2,
       retryDelayMs: Number(process.env.AI_RETRY_DELAY_MS) || 600,
