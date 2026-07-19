@@ -200,6 +200,7 @@ export default function AdminNotificationsPage() {
   );
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [history, setHistory] = useState<NotificationLogDTO[]>([]);
+  const [alerts, setAlerts] = useState<AIAlert[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
@@ -248,14 +249,18 @@ export default function AdminNotificationsPage() {
   }, [showArchived, channelFilter, statusFilter, search]);
 
   const loadAnalytics = useCallback(async () => {
-    const [a, h, act] = await Promise.all([
+    const [a, h, act, ai] = await Promise.all([
       adminFetch("/api/admin/notifications/analytics").then((r) => (r.ok ? r.json() : null)),
       adminFetch("/api/admin/notifications/health").then((r) => (r.ok ? r.json() : null)),
       adminFetch("/api/admin/notifications/activity").then((r) => (r.ok ? r.json() : null)),
+      adminFetch("/api/admin/ai/notifications").then((r) => (r.ok ? r.json() : null)),
     ]);
     if (a) setAnalytics(a);
     if (h) setHealth(h);
     if (act) setActivity(act.activity);
+    if (ai?.notifications && Array.isArray(ai.notifications)) {
+      setAlerts(ai.notifications as AIAlert[]);
+    }
   }, []);
 
   useEffect(() => {
@@ -398,12 +403,74 @@ export default function AdminNotificationsPage() {
     setSettings({ ...settings, webhooks });
   }
 
+  async function dismissAlert(id: string) {
+    const res = await adminFetch(`/api/admin/ai/notifications/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "dismiss" }),
+    });
+    if (res.ok) {
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+      toast("Alert dismissed.");
+    }
+  }
+
+  const actionableAlerts = alerts.filter(
+    (a) => a.severity === "high" || a.severity === "medium" || a.severity === "critical"
+  );
+  const alertsBySeverity = {
+    high: actionableAlerts.filter((a) => a.severity === "high" || a.severity === "critical"),
+    medium: actionableAlerts.filter((a) => a.severity === "medium"),
+  };
+  const failedDeliveries = history.filter((h) => h.status === "failed" && !h.archived);
+
+  const channelCapabilities: OsCapability[] = [
+    {
+      id: "actionable",
+      label: "Actionable alerts",
+      status: actionableAlerts.length > 0 || failedDeliveries.length > 0 ? "live" : "partial",
+      summary:
+        actionableAlerts.length + failedDeliveries.length > 0
+          ? `${actionableAlerts.length} AI alerts · ${failedDeliveries.length} failed deliveries.`
+          : "No high/medium alerts or failed deliveries right now.",
+    },
+    {
+      id: "email",
+      label: "Email delivery",
+      status: status?.email.configured ? "live" : "planned",
+      summary: status?.email.configured
+        ? `Provider ${status.email.provider} configured.`
+        : "Email provider not configured.",
+    },
+    {
+      id: "severity-rollup",
+      label: "Severity grouping",
+      status: "live",
+      summary: "High/medium actionable alerts grouped above. Low informational noise is hidden.",
+    },
+    {
+      id: "sla",
+      label: "Alert SLA",
+      status: "planned",
+      summary: "Response-time SLAs are not enforced here.",
+      missing: {
+        label: "Alert SLA",
+        reason: "No severity→SLA policy or escalation timers",
+        required: ["SLA policy per severity", "Escalation job", "Owner assignment"],
+        confidence: 0,
+        unlockAfter: "Unlock after notification SLA policy ships",
+        owner: METRIC_OWNERS.settings,
+        unlockHref: "/admin/settings",
+      },
+    },
+  ];
+
   return (
     <AdminShell title="Notifications">
       <WorkspaceChrome
-        eyebrow="System · What needs attention now?"
-        title="Notification Center"
-        description="Only actionable notifications. Grouped by severity when available. Every alert should link to the screen where it can be resolved."
+        eyebrow="Trust · What needs attention now?"
+        title="Notifications"
+        description="Only actionable alerts — grouped by severity. Low informational noise stays out of the inbox. Channel delivery settings remain below."
         onRefresh={() => {
           void loadHistory();
           void loadAnalytics();
@@ -415,6 +482,105 @@ export default function AdminNotificationsPage() {
         <WorkspaceLoading rows={5} />
       ) : (
       <>
+      <OsCapabilityGrid
+        title="Notification capabilities"
+        subtitle="Actionable inbox first. Missing SLAs stay MissingMetric."
+        capabilities={channelCapabilities}
+        className="mb-8"
+      />
+
+      <section className="mb-10 space-y-6">
+        <div>
+          <h2 className="font-display text-xl text-cream">Actionable alerts</h2>
+          <p className="mt-1 text-sm text-fog">
+            High and medium only. Low/positive signals are filtered out.
+          </p>
+        </div>
+
+        {failedDeliveries.length > 0 && (
+          <div className="rounded-xl border border-red-500/35 bg-red-500/5 p-4">
+            <p className="text-[0.55rem] tracking-[0.14em] text-red-300 uppercase">
+              Critical · Failed delivery
+            </p>
+            <ul className="mt-3 space-y-2">
+              {failedDeliveries.slice(0, 8).map((row) => (
+                <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span className="text-cream">
+                    {row.channel} → {row.recipient || "—"} · {row.error || "delivery failed"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void retry(row.id)}
+                    disabled={busyRow === row.id}
+                    className="text-xs text-accent hover:underline disabled:opacity-50"
+                  >
+                    Retry
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {(["high", "medium"] as const).map((sev) => {
+          const items = alertsBySeverity[sev];
+          if (items.length === 0) return null;
+          return (
+            <div key={sev}>
+              <p
+                className={`mb-3 text-[0.55rem] tracking-[0.14em] uppercase ${
+                  sev === "high" ? "text-amber-300" : "text-fog"
+                }`}
+              >
+                {sev} · {items.length}
+              </p>
+              <ul className="space-y-3">
+                {items.map((alert) => (
+                  <li
+                    key={alert.id}
+                    className={`rounded-xl border p-4 ${
+                      sev === "high"
+                        ? "border-amber-500/30 bg-amber-500/5"
+                        : "border-stone/25 bg-charcoal/20"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-display text-lg text-cream">{alert.title}</p>
+                        <p className="mt-1 text-sm text-fog">{alert.detail}</p>
+                        {alert.metric && (
+                          <p className="mt-2 text-[0.65rem] text-muted">{alert.metric}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {alert.href && (
+                          <a href={alert.href} className="text-accent hover:underline">
+                            Open →
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => void dismissAlert(alert.id)}
+                          className="text-fog hover:text-cream"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+
+        {actionableAlerts.length === 0 && failedDeliveries.length === 0 && (
+          <p className="rounded border border-stone/30 bg-charcoal/30 px-4 py-6 text-center text-sm text-muted">
+            Nothing actionable right now — high/medium alerts and failed deliveries will appear here.
+          </p>
+        )}
+      </section>
+
       {analytics && (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
