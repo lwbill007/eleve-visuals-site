@@ -117,6 +117,21 @@ export async function probeOpenRouterKey(): Promise<{ ok: boolean; error?: strin
   }
 }
 
+/** Some providers return message content as an array of typed parts. */
+function extractContent(rawContent: unknown): string {
+  if (typeof rawContent === "string") return rawContent;
+  if (Array.isArray(rawContent)) {
+    return rawContent
+      .map((part) => {
+        if (typeof part === "string") return part;
+        const block = part as { type?: string; text?: string };
+        return typeof block?.text === "string" ? block.text : "";
+      })
+      .join("");
+  }
+  return "";
+}
+
 export async function openRouterComplete(request: AICompletionRequest): Promise<AICompletionResult> {
   if (!isOpenRouterConfigured()) {
     return { content: "", finishReason: "error", provider: "openrouter", model: "" };
@@ -135,6 +150,10 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
   let lastError = "";
 
   for (const model of models) {
+    // If a model rejects JSON mode (e.g. 400 unsupported parameter), retry it
+    // once without response_format before moving down the chain.
+    let useJsonMode = request.responseFormat === "json";
+
     for (let attempt = 0; attempt <= config.openrouter.maxRetries; attempt++) {
       if (attempt > 0) await sleep(config.openrouter.retryDelayMs * attempt);
 
@@ -150,30 +169,61 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
             tool_choice: request.tools?.length ? "auto" : undefined,
             temperature: request.temperature ?? 0.7,
             max_tokens: request.maxTokens ?? 2048,
+            ...(useJsonMode ? { response_format: { type: "json_object" } } : {}),
           }),
         });
 
         if (!res.ok) {
-          lastError = await res.text();
+          lastError = `HTTP ${res.status}: ${await res.text()}`;
+          console.error(
+            `[openrouter] model=${model} jsonMode=${useJsonMode} status=${res.status} body=${lastError.slice(0, 500)}`
+          );
+          if (useJsonMode && res.status >= 400 && res.status < 500 && res.status !== 429) {
+            useJsonMode = false;
+            attempt -= 1; // retry the same model immediately without JSON mode
+            continue;
+          }
           if (shouldRetryStatus(res.status)) continue;
           break;
         }
 
         const data = await res.json();
         const toolCalls = parseToolCalls(data);
-        const content = data.choices?.[0]?.message?.content ?? "";
+        const choice = data.choices?.[0];
+        const content = extractContent(choice?.message?.content);
+        const nativeFinishReason: string =
+          choice?.native_finish_reason ?? choice?.finish_reason ?? "unknown";
 
-        await logAIAction("openrouter_complete", model, `finish=${toolCalls?.length ? "tool_calls" : "stop"}`);
+        if (!content && !toolCalls?.length) {
+          lastError = `Empty completion (finish_reason=${nativeFinishReason}) from ${model}`;
+          console.error(
+            `[openrouter] model=${model} returned empty content. finish_reason=${nativeFinishReason} raw=${JSON.stringify(data).slice(0, 500)}`
+          );
+          continue;
+        }
+
+        await logAIAction(
+          "openrouter_complete",
+          model,
+          `finish=${nativeFinishReason} chars=${content.length} jsonMode=${useJsonMode}`
+        );
+        if (nativeFinishReason === "length") {
+          console.warn(
+            `[openrouter] model=${model} completion was truncated at max_tokens=${request.maxTokens ?? 2048}`
+          );
+        }
 
         return {
           content,
           toolCalls,
           finishReason: toolCalls?.length ? "tool_calls" : "stop",
+          nativeFinishReason,
           provider: "openrouter",
           model,
         };
       } catch (err) {
         lastError = err instanceof Error ? err.message : "Unknown error";
+        console.error(`[openrouter] model=${model} request failed: ${lastError}`);
       }
     }
   }

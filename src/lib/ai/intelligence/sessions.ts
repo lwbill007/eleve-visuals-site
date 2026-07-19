@@ -142,30 +142,80 @@ function inputHash(submission: SubmissionRecord): string {
     .digest("hex");
 }
 
-function extractJson(content: string): unknown {
+/** Repairs the most common LLM JSON defects without touching valid JSON. */
+function repairJsonCandidate(source: string): string[] {
+  const repaired: string[] = [];
+  // Trailing commas before a closing bracket.
+  const noTrailingCommas = source.replace(/,\s*([}\]])/g, "$1");
+  repaired.push(noTrailingCommas);
+  // Smart quotes and raw control characters (unescaped newlines inside strings).
+  repaired.push(
+    noTrailingCommas
+      .replace(/[\u201c\u201d]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, " ")
+      .replace(/\r?\n/g, " ")
+  );
+  // Single-quoted JSON — only attempted when the text has no double quotes at all.
+  if (!source.includes('"') && source.includes("'")) {
+    repaired.push(noTrailingCommas.replace(/'/g, '"'));
+  }
+  return repaired;
+}
+
+/**
+ * Layered JSON extraction: whole response → fenced block → first {...} object
+ * → first [...] array, each with repair variants. Throws a diagnostic error
+ * (first parser failure with character position and surrounding text) only
+ * when every strategy fails.
+ */
+export function extractJson(content: string): unknown {
   const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
   const candidates: string[] = [];
-  for (const source of [fenced, content]) {
+  const push = (value: string | undefined | null) => {
+    const trimmed = value?.trim();
+    if (trimmed && !candidates.includes(trimmed)) candidates.push(trimmed);
+  };
+
+  for (const source of [content, fenced]) {
     if (!source) continue;
-    candidates.push(source);
-    const start = source.indexOf("{");
-    const end = source.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      const sliced = source.slice(start, end + 1);
-      candidates.push(sliced);
-      // Common LLM defect: trailing commas before closing brackets.
-      candidates.push(sliced.replace(/,\s*([}\]])/g, "$1"));
-    }
+    push(source);
+    const objectStart = source.indexOf("{");
+    const objectEnd = source.lastIndexOf("}");
+    if (objectStart >= 0 && objectEnd > objectStart) push(source.slice(objectStart, objectEnd + 1));
+    const arrayStart = source.indexOf("[");
+    const arrayEnd = source.lastIndexOf("]");
+    if (arrayStart >= 0 && arrayEnd > arrayStart) push(source.slice(arrayStart, arrayEnd + 1));
   }
+  for (const candidate of [...candidates]) {
+    for (const repaired of repairJsonCandidate(candidate)) push(repaired);
+  }
+
+  let firstFailure: { candidate: string; message: string } | null = null;
   for (const candidate of candidates) {
     try {
       const parsed = JSON.parse(candidate);
       if (parsed && typeof parsed === "object") return parsed;
-    } catch {
-      /* try next candidate */
+    } catch (error) {
+      if (!firstFailure) {
+        firstFailure = {
+          candidate,
+          message: error instanceof Error ? error.message : String(error),
+        };
+      }
     }
   }
-  throw new Error("AI evaluation did not return parsable JSON");
+
+  const positionMatch = firstFailure?.message.match(/position (\d+)/);
+  const position = positionMatch ? Number(positionMatch[1]) : -1;
+  const context =
+    firstFailure && position >= 0
+      ? ` Near: "${firstFailure.candidate.slice(Math.max(0, position - 40), position + 40)}"`
+      : "";
+  throw new Error(
+    `AI returned malformed JSON. Parser: ${firstFailure?.message ?? "no JSON-like content found"}.${context} Raw response saved to logs.`
+  );
 }
 
 function clampNumber(value: unknown, min: number, max: number): number | null {
@@ -300,7 +350,15 @@ Return exactly:
   "riskSignals": ["evidence gap or operational concern"]
 }
 
-Include all eight category keys exactly once.`;
+Include all eight category keys exactly once.
+
+OUTPUT FORMAT — ABSOLUTE:
+You MUST return exactly one valid JSON object.
+Do not include explanations.
+Do not include markdown.
+Do not wrap the JSON in code fences.
+Do not include any text before or after the JSON.
+Keep every string on a single line (no raw newlines inside strings).`;
 
 async function evaluateApplicant(submission: SubmissionRecord): Promise<EvaluatedApplicant> {
   const data = parseData(submission.data);
@@ -337,38 +395,39 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
     ]),
   ].slice(0, 8);
   const evidence = evaluationEvidence(data);
+  const userPrompt = JSON.stringify({
+    applicantId: submission.id,
+    evidence: {
+      ...evidence,
+      externalPortfolio: {
+        fetched: external.portfolio.fetched,
+        source: external.portfolio.source,
+        pageText: external.portfolio.pageText,
+        discoveredImages: external.portfolio.imageUrls.length,
+        error: external.portfolio.error,
+      },
+      externalSocial: {
+        fetched: external.social.fetched,
+        source: external.social.source,
+        pageText: external.social.pageText,
+        error: external.social.error,
+      },
+    },
+    attachedImageCount: images.length,
+    instruction:
+      "Evaluate this applicant. Attached images, when present, are the only source for Portfolio Quality.",
+  });
+  console.info(
+    `[ai-rank] Request | application=${submission.id} | provider=openrouter | images=${images.length} | promptChars=${userPrompt.length}\nPrompt (first 2000 chars): ${userPrompt.slice(0, 2000)}`
+  );
   const result = await aiComplete({
     messages: [
       { role: "system", content: EVALUATOR_PROMPT },
-      {
-        role: "user",
-        content: JSON.stringify({
-          applicantId: submission.id,
-          evidence: {
-            ...evidence,
-            externalPortfolio: {
-              fetched: external.portfolio.fetched,
-              source: external.portfolio.source,
-              pageText: external.portfolio.pageText,
-              discoveredImages: external.portfolio.imageUrls.length,
-              error: external.portfolio.error,
-            },
-            externalSocial: {
-              fetched: external.social.fetched,
-              source: external.social.source,
-              pageText: external.social.pageText,
-              error: external.social.error,
-            },
-          },
-          attachedImageCount: images.length,
-          instruction:
-            "Evaluate this applicant. Attached images, when present, are the only source for Portfolio Quality.",
-        }),
-        images,
-      },
+      { role: "user", content: userPrompt, images },
     ],
     temperature: 0.1,
-    maxTokens: 3000,
+    maxTokens: 6000,
+    responseFormat: "json",
   });
 
   if (!result?.content || result.finishReason === "error") {
@@ -377,7 +436,20 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
     );
   }
 
-  const parsed = normalizeAIEvaluation(extractJson(result.content));
+  // Always persist the raw completion to the logs BEFORE parsing so malformed
+  // output can be inspected verbatim.
+  console.info(
+    `[ai-rank] Raw completion | application=${submission.id} | model=${result.model} | provider=${result.provider} | finish=${result.nativeFinishReason ?? "unknown"} | chars=${result.content.length}\n${result.content.slice(0, 6000)}`
+  );
+
+  let extracted: unknown;
+  try {
+    extracted = extractJson(result.content);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${message} Model: ${result.model} (finish=${result.nativeFinishReason ?? "unknown"}).`);
+  }
+  const parsed = normalizeAIEvaluation(extracted);
   const portfolioVisuallyReviewed = images.length > 0 && result.provider === "openrouter";
   const byKey = new Map(parsed.categories.map((category) => [category.key, category]));
   const categories = CATEGORY_DEFINITIONS.map((definition) => {

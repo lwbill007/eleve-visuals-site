@@ -27,12 +27,16 @@ export interface AICompletionRequest {
   tools?: AIToolDefinition[];
   temperature?: number;
   maxTokens?: number;
+  /** Request a JSON object response from providers that support JSON mode. */
+  responseFormat?: "json";
 }
 
 export interface AICompletionResult {
   content: string;
   toolCalls?: AIToolCall[];
   finishReason: "stop" | "tool_calls" | "error";
+  /** Provider-native finish reason, e.g. "length" when the completion was truncated. */
+  nativeFinishReason?: string;
   provider: AIProviderId;
   model: string;
 }
