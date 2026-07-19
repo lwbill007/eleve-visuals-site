@@ -400,7 +400,15 @@ export default function ApplicationsIntelligenceClient() {
                 <MetricCard label="High risk" value={String(ranked.filter((item) => item.riskLevel === "high").length)} detail="Evidence gap" />
                 <MetricCard label="Interviews" value={String(ranked.filter((item) => item.recommendation === "Invite to Interview").length)} detail="AI recommended" />
                 <MetricCard label="Confidence" value={`${Math.round(average(ranked.map((item) => item.confidence)))}%`} change={delta(overview.currentValues.confidence, overview.previousValues.confidence)} />
-                <MetricCard label="Revenue opp." value={formatMoney(ranked.reduce((sum, item) => sum + item.expectedValue.amount, 0))} detail="Directional" />
+                <MetricCard
+                  label="Verified revenue"
+                  value={
+                    ranked.some((item) => item.expectedValue.basis === "verified")
+                      ? formatMoney(ranked.reduce((sum, item) => sum + item.expectedValue.amount, 0))
+                      : "—"
+                  }
+                  detail={ranked.some((item) => item.expectedValue.basis === "verified") ? "Settled payments only" : "Insufficient historical data"}
+                />
                 <MetricCard label="Brand fit" value={`${Math.round(average(ranked.map((item) => categoryRate(item, "brandAlignment"))))}%`} change={delta(overview.currentValues.brand, overview.previousValues.brand)} />
                 <MetricCard label="Reliability" value={`${Math.round(average(ranked.map((item) => categoryRate(item, "reliability"))))}%`} change={delta(overview.currentValues.reliability, overview.previousValues.reliability)} />
               </section>
@@ -534,7 +542,14 @@ export default function ApplicationsIntelligenceClient() {
 
                         <div className="grid grid-cols-2 gap-2 border-t border-stone/20 pt-3 sm:grid-cols-4 xl:w-[26%] xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
                           <div><p className="text-[0.52rem] tracking-wider text-muted uppercase">Decision</p><p className="mt-1 text-xs text-accent">{candidate.recommendation}</p></div>
-                          <div><p className="text-[0.52rem] tracking-wider text-muted uppercase">Expected value</p><p className="mt-1 text-sm text-cream">{formatMoney(candidate.expectedValue.amount)}</p><p className="text-[0.55rem] text-muted">{formatMoney(candidate.expectedValue.low)}–{formatMoney(candidate.expectedValue.high)}</p></div>
+                          <div>
+                            <p className="text-[0.52rem] tracking-wider text-muted uppercase">Verified revenue</p>
+                            {candidate.expectedValue.basis === "verified" ? (
+                              <p className="mt-1 text-sm text-cream">{formatMoney(candidate.expectedValue.amount)}</p>
+                            ) : (
+                              <p className="mt-1 text-[0.62rem] leading-snug text-muted">Insufficient historical data</p>
+                            )}
+                          </div>
                           <div><p className="text-[0.52rem] tracking-wider text-muted uppercase">Portfolio</p><p className="mt-1 text-xs capitalize text-fog">{candidate.dataQuality.portfolio}</p></div>
                           <div><p className="text-[0.52rem] tracking-wider text-muted uppercase">Availability</p><p className="mt-1 text-xs capitalize text-fog">{candidate.dataQuality.availability}</p></div>
                         </div>
@@ -577,6 +592,18 @@ export default function ApplicationsIntelligenceClient() {
               </div>
             </section>
 
+            <section className="mt-6 rounded-xl border border-stone/20 bg-charcoal/15 p-4">
+              <p className="text-[0.58rem] tracking-wider text-accent uppercase">Why ranked here</p>
+              <p className="mt-2 text-sm leading-relaxed text-fog">{detail.reasonForRank}</p>
+              {detail.tieBreak && (
+                <div className="mt-3 border-t border-stone/15 pt-3">
+                  <p className="text-[0.56rem] tracking-wider text-amber-300 uppercase">Tie-break vs {detail.tieBreak.comparedWith}</p>
+                  <p className="mt-1 text-xs text-fog">{detail.tieBreak.detail}</p>
+                  <p className="mt-2 text-[0.6rem] text-muted">Chain: {detail.tieBreak.chain.join(" → ")} · decided by {detail.tieBreak.decidedBy}</p>
+                </div>
+              )}
+            </section>
+
             <section className="mt-7">
               <div className="flex items-end justify-between"><div><p className="text-[0.58rem] tracking-wider text-accent uppercase">Explainable score</p><h3 className="mt-1 text-2xl text-cream">Weighted evidence</h3></div><p className="text-[0.6rem] text-muted">Click any category to audit</p></div>
               <div className="mt-3 space-y-2">
@@ -607,7 +634,15 @@ export default function ApplicationsIntelligenceClient() {
                   </div>
                 ))}
               </div>
-              <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4"><p className="text-[0.58rem] tracking-wider text-emerald-300 uppercase">Expected value to ÉLEVÉ</p><p className="mt-1 text-2xl text-cream">{formatMoney(detail.expectedValue.amount)} <span className="text-sm text-muted">({formatMoney(detail.expectedValue.low)}–{formatMoney(detail.expectedValue.high)})</span></p><p className="mt-1 text-xs text-fog">{detail.expectedValue.rationale}</p></div>
+              <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
+                <p className="text-[0.58rem] tracking-wider text-emerald-300 uppercase">Verified revenue to ÉLEVÉ</p>
+                {detail.expectedValue.basis === "verified" ? (
+                  <p className="mt-1 text-2xl text-cream">{formatMoney(detail.expectedValue.amount)}</p>
+                ) : (
+                  <p className="mt-1 text-lg text-muted">Insufficient historical data</p>
+                )}
+                <p className="mt-1 text-xs text-fog">{detail.expectedValue.rationale}</p>
+              </div>
             </section>
 
             <details className="mt-7 rounded-xl border border-stone/20 p-4">
@@ -626,7 +661,7 @@ export default function ApplicationsIntelligenceClient() {
       {compareOpen && compareCandidates.length >= 2 && (
         <div className="fixed inset-0 z-[80] overflow-y-auto bg-ink/90 p-4 backdrop-blur-xl sm:p-8" role="dialog" aria-modal="true" aria-label="Candidate comparison">
           <div className="mx-auto max-w-7xl">
-            <div className="flex items-start justify-between"><div><p className="text-[0.6rem] tracking-[0.18em] text-accent uppercase">AI candidate comparison</p><h2 className="mt-1 text-4xl text-cream">Evidence, side by side.</h2><p className="mt-2 text-sm text-fog">Recommended choice: <span className="text-accent">{compareCandidates[0].name}</span> leads on score and confidence-weighted evidence.</p></div><button type="button" onClick={() => setCompareOpen(false)} className="grid h-11 w-11 place-items-center rounded-full border border-stone/30 text-xl text-fog">×</button></div>
+            <div className="flex items-start justify-between"><div><p className="text-[0.6rem] tracking-[0.18em] text-accent uppercase">AI candidate comparison</p><h2 className="mt-1 text-4xl text-cream">Evidence, side by side.</h2><p className="mt-2 max-w-3xl text-sm text-fog">Recommended choice: <span className="text-accent">{compareCandidates[0].name}</span>. {compareCandidates[0].reasonForRank}</p></div><button type="button" onClick={() => setCompareOpen(false)} className="grid h-11 w-11 place-items-center rounded-full border border-stone/30 text-xl text-fog">×</button></div>
             <div className="mt-6 overflow-x-auto">
               <div className="grid min-w-[760px] gap-3" style={{ gridTemplateColumns: `160px repeat(${compareCandidates.length}, minmax(180px, 1fr))` }}>
                 <div />
@@ -645,12 +680,18 @@ export default function ApplicationsIntelligenceClient() {
                     {compareCandidates.map((candidate) => { const value = categoryRate(candidate, key as SessionApplicationRank["categories"][number]["key"]); return <div key={candidate.id + key} className="border-b border-stone/15 py-3"><div className="flex justify-between text-xs"><span className="text-fog">{Math.round(value)}%</span></div><div className="mt-2"><ProbabilityBar value={value} /></div></div>; })}
                   </div>
                 ))}
-                <div className="py-3 text-xs text-muted">Predicted revenue</div>
-                {compareCandidates.map((candidate) => <div key={candidate.id} className="py-3 text-sm text-cream">{formatMoney(candidate.expectedValue.amount)}<p className="text-[0.58rem] text-muted">{formatMoney(candidate.expectedValue.low)}–{formatMoney(candidate.expectedValue.high)}</p></div>)}
+                <div className="py-3 text-xs text-muted">Verified revenue</div>
+                {compareCandidates.map((candidate) => (
+                  <div key={candidate.id} className="py-3 text-sm text-cream">
+                    {candidate.expectedValue.basis === "verified" ? formatMoney(candidate.expectedValue.amount) : <span className="text-xs text-muted">Insufficient historical data</span>}
+                  </div>
+                ))}
                 <div className="py-3 text-xs text-muted">Strengths</div>
                 {compareCandidates.map((candidate) => <div key={candidate.id} className="py-3 text-xs leading-relaxed text-emerald-300">{candidate.strengths.join(" · ")}</div>)}
                 <div className="py-3 text-xs text-muted">Weakness</div>
                 {compareCandidates.map((candidate) => <div key={candidate.id} className="py-3 text-xs leading-relaxed text-amber-200">{candidate.weakness}</div>)}
+                <div className="py-3 text-xs text-muted">Why this order</div>
+                {compareCandidates.map((candidate) => <div key={candidate.id} className="py-3 text-xs leading-relaxed text-fog">{candidate.reasonForRank}</div>)}
               </div>
             </div>
           </div>

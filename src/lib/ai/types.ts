@@ -706,13 +706,24 @@ export interface SessionApplicationRank {
   weakness: string;
   badges: string[];
   riskLevel: "low" | "medium" | "high";
+  /** Verified revenue only — never estimated. basis "insufficient" means no historical data exists. */
   expectedValue: {
+    basis: "verified" | "insufficient";
     amount: number;
     low: number;
     high: number;
     confidence: number;
     rationale: string;
   };
+  /** Comparative explanation of why this applicant sits at this position. */
+  reasonForRank: string;
+  /** Present when the position was decided by the tie-break chain against a near-equal applicant. */
+  tieBreak: {
+    comparedWith: string;
+    decidedBy: string;
+    detail: string;
+    chain: string[];
+  } | null;
   recommendedProject: string;
   categories: {
     key:
