@@ -140,19 +140,21 @@ function startOfMonth(d = new Date()) {
 }
 
 /** Canonical KPI pack for Command Home — references only, no duplicate formulas. */
-export async function resolveCommandKpis(): Promise<OwnedMetric[]> {
+export async function resolveCommandKpis(
+  metricsOverride?: Awaited<ReturnType<typeof getOperatorMetrics>>
+): Promise<OwnedMetric[]> {
   const todayStart = startOfDay();
   const monthStart = startOfMonth();
   const [metrics, analytics, paymentsToday, paymentsMtd, bookingsToday, leadsToday] =
     await Promise.all([
-      getOperatorMetrics(),
+      metricsOverride ? Promise.resolve(metricsOverride) : getOperatorMetrics(),
       getAnalyticsSummary(30),
       prisma.payment.aggregate({
-        where: { status: "succeeded", createdAt: { gte: todayStart } },
+        where: { status: "succeeded", paidAt: { gte: todayStart } },
         _sum: { amountCents: true },
       }),
       prisma.payment.aggregate({
-        where: { status: "succeeded", createdAt: { gte: monthStart } },
+        where: { status: "succeeded", paidAt: { gte: monthStart } },
         _sum: { amountCents: true },
       }),
       prisma.submission.count({

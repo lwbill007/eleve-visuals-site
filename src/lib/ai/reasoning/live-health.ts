@@ -16,8 +16,10 @@ import { getLearningOutcomes } from "../memory/learning";
 import { searchMemories } from "../memory/store";
 import { getWorkspaceId } from "../memory/workspace";
 
-export async function buildLiveBusinessHealth(): Promise<LiveBusinessHealth> {
-  const metrics = await getOperatorMetrics();
+export async function buildLiveBusinessHealth(
+  metricsOverride?: Awaited<ReturnType<typeof getOperatorMetrics>>
+): Promise<LiveBusinessHealth> {
+  const metrics = metricsOverride ?? (await getOperatorMetrics());
   const scores = computeExecutiveScores(metrics);
 
   const byKey = (k: string) => scores.find((s) => s.key === k)?.value ?? null;

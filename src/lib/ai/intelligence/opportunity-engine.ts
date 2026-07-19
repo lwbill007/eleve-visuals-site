@@ -59,10 +59,12 @@ function opportunityScore(o: ExecutiveOpportunity): number {
   return revenueWeight + urgencyBonus;
 }
 
-export async function getExecutiveOpportunities(): Promise<ExecutiveOpportunity[]> {
+export async function getExecutiveOpportunities(
+  metricsOverride?: Awaited<ReturnType<typeof getOperatorMetrics>>
+): Promise<ExecutiveOpportunity[]> {
   const [insights, metrics] = await Promise.all([
-    getProactiveBusinessInsights(),
-    getOperatorMetrics(),
+    getProactiveBusinessInsights(metricsOverride),
+    metricsOverride ? Promise.resolve(metricsOverride) : getOperatorMetrics(),
   ]);
 
   const opportunities = insights.map(insightToOpportunity);

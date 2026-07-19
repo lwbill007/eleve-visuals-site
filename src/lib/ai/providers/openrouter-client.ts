@@ -214,6 +214,13 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
             vision: hasImages && model.vision,
             error: lastError.slice(0, 500),
           });
+          // Daily free-model quota exhausted — stop cascading through every model.
+          if (
+            res.status === 429 &&
+            /free-models-per-day|free-models-per-min/i.test(lastError)
+          ) {
+            break modelLoop;
+          }
           if (res.status >= 400 && res.status < 500 && res.status !== 429) {
             if (useStructuredOutput) {
               // Downgrade strict schema → JSON mode on the same model.

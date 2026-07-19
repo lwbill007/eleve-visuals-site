@@ -22,8 +22,13 @@ export default function AdminError({
           The error was logged. This is an isolated failure — the rest of ÉLEVÉ OS is unaffected. Retry, or
           return to the command center.
         </p>
+        {error.message && (
+          <p className="mt-3 break-words rounded-lg border border-stone/20 bg-ink/40 px-3 py-2 font-mono text-[0.65rem] text-amber-200/90">
+            {error.message}
+          </p>
+        )}
         {error.digest && (
-          <p className="mt-3 font-mono text-[0.65rem] text-muted">Ref: {error.digest}</p>
+          <p className="mt-2 font-mono text-[0.65rem] text-muted">Ref: {error.digest}</p>
         )}
         <div className="mt-6 flex justify-center gap-3">
           <button

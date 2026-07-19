@@ -203,14 +203,14 @@ export function toRecommendationContract(
     id: rec.id,
     recommendation: rec.title,
     problem: rec.problem,
-    evidence: rec.evidence,
+    evidence: rec.evidence ?? [],
     confidence: rec.confidence,
     businessImpact: rec.detail,
     estimatedRevenueImpact: rec.expectedRevenueImpact,
     timeRequiredMinutes: rec.timeRequiredMinutes,
     cost: rec.cost ?? "Unknown — no cost ledger linked",
     owner: rec.owner,
-    dependencies: rec.dependencies,
+    dependencies: rec.dependencies ?? [],
     successMetric: rec.successMetric,
     verificationMethod:
       rec.verificationMethod ??
@@ -219,7 +219,7 @@ export function toRecommendationContract(
     difficulty: rec.difficulty,
     status: rec.learningStatus ?? "proposed",
     category: rec.category,
-    actions: rec.actions,
+    actions: rec.actions ?? [],
   };
 }
 

@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   }
 
   const force = new URL(req.url).searchParams.get("refresh") === "1";
-  const cacheKey = "command-home-v1";
+  const cacheKey = "command-home-v3";
   try {
     if (!force) {
       const cached = await getCached<Awaited<ReturnType<typeof buildCommandHome>>>(cacheKey);

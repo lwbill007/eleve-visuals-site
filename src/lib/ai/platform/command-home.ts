@@ -113,23 +113,27 @@ async function buildExecutiveNarrative(input: {
   }
 
   try {
-    const result = await aiComplete({
-      task: "executive_summary",
-      temperature: 0.2,
-      maxTokens: 280,
-      messages: [
-        {
-          role: "system",
-          content: systemPromptForTask(
-            "Write a 3–5 sentence CEO executive summary for ÉLEVÉ Visuals. Use only the provided facts. Never invent revenue, ROI, or percentages. If a fact is missing, say data is limited."
-          ),
-        },
-        {
-          role: "user",
-          content: JSON.stringify(input),
-        },
-      ],
-    });
+    // Fail fast — never burn the free-model daily quota cascading retries on Home.
+    const result = await Promise.race([
+      aiComplete({
+        task: "executive_summary",
+        temperature: 0.2,
+        maxTokens: 280,
+        messages: [
+          {
+            role: "system",
+            content: systemPromptForTask(
+              "Write a 3–5 sentence CEO executive summary for ÉLEVÉ Visuals. Use only the provided facts. Never invent revenue, ROI, or percentages. If a fact is missing, say data is limited."
+            ),
+          },
+          {
+            role: "user",
+            content: JSON.stringify(input),
+          },
+        ],
+      }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 6_000)),
+    ]);
     return result?.content?.trim() || fallback;
   } catch {
     return fallback;
@@ -137,16 +141,26 @@ async function buildExecutiveNarrative(input: {
 }
 
 export async function buildCommandHome(): Promise<CommandHomePayload> {
-  const [kpis, health, opportunities, risks, metrics, analytics7, analytics30] =
-    await Promise.all([
-      resolveCommandKpis(),
-      buildLiveBusinessHealth(),
-      getExecutiveOpportunities(),
-      getExecutiveRisks(),
-      getOperatorMetrics(),
-      getAnalyticsSummary(7),
-      getAnalyticsSummary(30),
-    ]);
+  // Fetch shared metrics once — parallel getOperatorMetrics() calls exhaust the Prisma pool.
+  const [metrics, analytics7, analytics30] = await Promise.all([
+    getOperatorMetrics(),
+    getAnalyticsSummary(7),
+    getAnalyticsSummary(30),
+  ]);
+
+  // Soft-fail opportunities/risks so Home still loads when AI/Prisma fans out.
+  const [kpis, health, opportunities, risks] = await Promise.all([
+    resolveCommandKpis(metrics),
+    buildLiveBusinessHealth(metrics),
+    getExecutiveOpportunities(metrics).catch((err) => {
+      console.error("Command home opportunities failed:", err);
+      return [] as ExecutiveOpportunity[];
+    }),
+    getExecutiveRisks(metrics).catch((err) => {
+      console.error("Command home risks failed:", err);
+      return [] as ExecutiveRisk[];
+    }),
+  ]);
 
   const topOpp = opportunities[0] ?? null;
   const topRisk = risks[0] ?? null;

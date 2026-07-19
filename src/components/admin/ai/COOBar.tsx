@@ -114,10 +114,12 @@ export function COOBar() {
   return (
     <div className="border-b border-stone/15 bg-ink/80">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 text-[0.65rem] sm:px-6 lg:px-8">
-        {health && (
+        {health?.overall && (
           <span className="flex items-center gap-1.5" title={health.overall.note}>
             <span className="tracking-[0.12em] text-muted uppercase">Health</span>
-            <span className={cn("font-medium", trustColor(health.overall.score))}>{health.overall.score}</span>
+            <span className={cn("font-medium", trustColor(health.overall.score))}>
+              {health.overall.score}
+            </span>
           </span>
         )}
         <span className="flex items-center gap-1.5">

@@ -32,9 +32,11 @@ function enrichRisk(risk: ExecutiveRisk): ExecutiveRisk {
   };
 }
 
-export async function getExecutiveRisks(): Promise<ExecutiveRisk[]> {
+export async function getExecutiveRisks(
+  metricsOverride?: Awaited<ReturnType<typeof getOperatorMetrics>>
+): Promise<ExecutiveRisk[]> {
   const [metrics, analytics30, analytics7] = await Promise.all([
-    getOperatorMetrics(),
+    metricsOverride ? Promise.resolve(metricsOverride) : getOperatorMetrics(),
     getAnalyticsSummary(30),
     getAnalyticsSummary(7),
   ]);

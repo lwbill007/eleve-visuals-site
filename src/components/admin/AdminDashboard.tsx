@@ -30,7 +30,7 @@ function SignalCard({
 }: {
   eyebrow: string;
   title: string;
-  evidence: string[];
+  evidence?: string[] | null;
   href: string;
   tone: "win" | "problem" | "opportunity" | "risk";
 }) {
@@ -40,6 +40,7 @@ function SignalCard({
       : tone === "problem" || tone === "risk"
         ? "border-red-400/30 bg-red-400/[0.05]"
         : "border-accent/30 bg-accent/[0.05]";
+  const evidenceItems = evidence ?? [];
   return (
     <Link
       href={href}
@@ -48,7 +49,7 @@ function SignalCard({
       <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">{eyebrow}</p>
       <p className="mt-2 text-sm leading-snug text-cream">{title}</p>
       <ul className="mt-2 space-y-0.5">
-        {evidence.slice(0, 2).map((item) => (
+        {evidenceItems.slice(0, 2).map((item) => (
           <li key={item} className="text-[0.65rem] text-fog">
             {item}
           </li>
@@ -160,7 +161,7 @@ export function AdminDashboard() {
               <p className="text-xs text-muted">No duplicate calculations</p>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {data.kpis.map((kpi) => (
+              {(data.kpis ?? []).map((kpi) => (
                 <OwnedMetricCard
                   key={kpi.key}
                   owned={kpi}
@@ -183,7 +184,7 @@ export function AdminDashboard() {
               <p className="max-w-xl text-sm text-fog">{data.businessHealth.disclaimer}</p>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-              {data.businessHealth.domains.map((domain) => (
+              {(data.businessHealth.domains ?? []).map((domain) => (
                 <Link
                   key={domain.id}
                   href={domain.href}
@@ -206,7 +207,7 @@ export function AdminDashboard() {
               What’s changed
             </p>
             <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              {data.whatChanged.map((change) => (
+              {(data.whatChanged ?? []).map((change) => (
                 <Link
                   key={change.id}
                   href={change.ownerHref}
@@ -229,7 +230,7 @@ export function AdminDashboard() {
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-fog">{change.why}</p>
                   <ul className="mt-2 space-y-0.5">
-                    {change.evidence.map((item) => (
+                    {(change.evidence ?? []).map((item) => (
                       <li key={item} className="text-[0.65rem] text-muted">
                         {item}
                       </li>
@@ -255,13 +256,13 @@ export function AdminDashboard() {
               </Link>
             </div>
             <div className="mt-4 space-y-3">
-              {data.priorities.length === 0 ? (
+              {(data.priorities ?? []).length === 0 ? (
                 <p className="rounded-xl border border-stone/20 px-4 py-6 text-sm text-muted">
                   No ranked priorities yet. Opportunities appear when measured signals create
                   evidence-backed recommendations.
                 </p>
               ) : (
-                data.priorities.map((priority, index) => (
+                (data.priorities ?? []).map((priority, index) => (
                   <article
                     key={priority.id}
                     className="rounded-xl border border-stone/20 bg-charcoal/15 p-4"
@@ -283,7 +284,7 @@ export function AdminDashboard() {
                           {Math.round(priority.confidence * 100)}%
                         </p>
                         <ul className="mt-2 space-y-0.5">
-                          {priority.evidence.slice(0, 3).map((item) => (
+                          {(priority.evidence ?? []).slice(0, 3).map((item) => (
                             <li key={item} className="text-[0.65rem] text-fog">
                               Evidence · {item}
                             </li>
@@ -294,7 +295,7 @@ export function AdminDashboard() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {priority.actions.slice(0, 2).map((action) => (
+                        {(priority.actions ?? []).slice(0, 2).map((action) => (
                           <ExecuteButton
                             key={action.id}
                             target={{

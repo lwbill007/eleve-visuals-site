@@ -284,9 +284,11 @@ export async function getOperatorMetrics() {
   };
 }
 
-export async function getProactiveBusinessInsights(): Promise<BusinessInsight[]> {
+export async function getProactiveBusinessInsights(
+  metricsOverride?: Awaited<ReturnType<typeof getOperatorMetrics>>
+): Promise<BusinessInsight[]> {
   const [metrics, dashboard, analytics30, analytics7, analytics14] = await Promise.all([
-    getOperatorMetrics(),
+    metricsOverride ? Promise.resolve(metricsOverride) : getOperatorMetrics(),
     getAdminDashboardOS(),
     getAnalyticsSummary(30),
     getAnalyticsSummary(7),
