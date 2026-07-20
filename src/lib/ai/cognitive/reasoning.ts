@@ -28,9 +28,11 @@ export async function buildExecutiveReasoning(): Promise<ExecutiveReasoning> {
       : "Pipeline recovery and conversion optimization are the primary levers today",
     recommended: topRec?.title ?? "Review stale inquiries and strengthen top converting pages",
     expectedOutcome: topRec
-      ? `+${Math.round(topRec.estimatedRevenue / 1500)} bookings · ~$${topRec.estimatedRevenue.toLocaleString()} revenue`
+      ? topRec.estimatedRevenue > 0
+        ? `~$${topRec.estimatedRevenue.toLocaleString()} estimated revenue impact · booking-count Unknown without measured ASP`
+        : "Impact Unknown — recommendation has no verified $ estimate"
       : "Improved inquiry response rate within 48h",
-    confidence: topRec?.confidence ?? 0.7,
+    confidence: topRec?.confidence ?? 0,
     evidence: topRec?.evidence ?? context.facts.slice(0, 4),
     businessImpact: topRec
       ? topRec.confidenceDetail.businessImpact

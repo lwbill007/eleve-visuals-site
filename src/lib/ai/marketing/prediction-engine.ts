@@ -23,7 +23,11 @@ export async function generateMarketingPredictions(): Promise<MarketingPredictio
   ]);
 
   const conversionRate = analytics.totals.conversionRate / 100;
-  const avgBookingValue = metrics.revenue.thisMonth / Math.max(metrics.month.bookings, 1) || 1500;
+  const hasAvgBookingValue =
+    metrics.month.bookings > 0 && metrics.revenue.thisMonth > 0;
+  const avgBookingValue = hasAvgBookingValue
+    ? metrics.revenue.thisMonth / metrics.month.bookings
+    : null;
   const instagramVisits =
     analytics.topSources.find((s) => s.source.toLowerCase().includes("instagram"))?.visits ?? 0;
 
@@ -34,15 +38,22 @@ export async function generateMarketingPredictions(): Promise<MarketingPredictio
       subject: "Instagram carousel (portfolio feature)",
       platform: "instagram",
       expectedEngagement: `${Math.round(instagramVisits * 0.08)}–${Math.round(instagramVisits * 0.15)} profile visits`,
-      expectedLeads: Math.max(1, Math.round(instagramVisits * conversionRate * 0.3)),
+      expectedLeads: Math.max(0, Math.round(instagramVisits * conversionRate * 0.3)),
       expectedBookings: Math.max(0, Math.round(instagramVisits * conversionRate * 0.1)),
-      expectedRevenue: Math.round(instagramVisits * conversionRate * 0.1 * avgBookingValue),
-      expectedRoi: "High if organic",
+      expectedRevenue: avgBookingValue
+        ? Math.round(instagramVisits * conversionRate * 0.1 * avgBookingValue)
+        : 0,
+      expectedRoi: avgBookingValue
+        ? "High if organic"
+        : "Unknown — no verified avg booking value yet",
       probabilityOfSuccess: instagramVisits > 50 ? 0.72 : 0.55,
-      confidence: 0.7,
+      confidence: avgBookingValue ? 0.7 : 0.35,
       basis: [
         `${instagramVisits} Instagram referrals (30d)`,
         `${analytics.totals.conversionRate}% site conversion`,
+        avgBookingValue
+          ? `Avg booking value $${Math.round(avgBookingValue).toLocaleString()} (from MTD metrics)`
+          : "Avg booking value Unknown — revenue/bookings MTD insufficient",
         patterns.find((p) => p.category === "portfolio")?.pattern ?? "Portfolio drives trust",
       ],
       assumptions: ["Post during peak booking hours", "Strong CTA in caption", "Carousel with 5+ images"],
@@ -101,7 +112,7 @@ export async function generateMarketingPredictions(): Promise<MarketingPredictio
         expectedEngagement: "Based on historical campaign",
         expectedLeads: best.metrics.leads ?? 2,
         expectedBookings: best.metrics.bookings ?? 1,
-        expectedRevenue: best.metrics.revenue ?? avgBookingValue,
+        expectedRevenue: best.metrics.revenue ?? avgBookingValue ?? 0,
         expectedRoi: best.metrics.roi ? `${best.metrics.roi}%` : "Unknown",
         probabilityOfSuccess: 0.75,
         confidence: 0.85,

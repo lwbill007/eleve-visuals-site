@@ -96,7 +96,7 @@ export async function getExtendedBookingIntelligence(days = 90): Promise<Extende
               return "";
             }
           })()
-        ) || 1500,
+        ) || 0,
         href: `/admin/submissions?type=booking&focus=${b.id}`,
       };
     });

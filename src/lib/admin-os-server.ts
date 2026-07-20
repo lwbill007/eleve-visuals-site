@@ -131,7 +131,7 @@ export async function getAdminDashboardOS() {
     if (["new", "contacted", "scheduled"].includes(b.status)) {
       const data = parseSubmissionData(b.data);
       const budget = typeof data.budgetRange === "string" ? data.budgetRange : "";
-      pipelineValue += estimateBudgetValue(budget) || 1200;
+      pipelineValue += estimateBudgetValue(budget) || 0;
     }
   }
 

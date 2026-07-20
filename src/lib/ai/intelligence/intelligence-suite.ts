@@ -12,6 +12,7 @@ import { detectRevenueLeaks } from "../executive/revenue-leaks";
 import { getExecutiveRisks } from "./risk-center";
 import { getProactiveBusinessInsights } from "./business-operator";
 import type { ExecutiveMorningBrief, IntelligenceSuite } from "../types";
+import { getCached, setCache, withInflight } from "../cache";
 
 export async function buildExecutiveMorningBrief(): Promise<ExecutiveMorningBrief> {
   const [recs, leaks, risks, insights, highestRoi] = await Promise.all([
@@ -66,41 +67,49 @@ export async function buildExecutiveMorningBrief(): Promise<ExecutiveMorningBrie
 }
 
 export async function getIntelligenceSuite(): Promise<IntelligenceSuite> {
-  const [
-    revenueAttribution,
-    prioritizedRecommendations,
-    websiteHeat,
-    booking,
-    content,
-    clients,
-    financial,
-    predictive,
-    executiveMemory,
-    executiveMorning,
-  ] = await Promise.all([
-    getRevenueAttributionFunnel(),
-    getGuardedRecommendations(),
-    getWebsiteHeatIntelligence(),
-    getExtendedBookingIntelligence(),
-    getContentIntelligence(),
-    getClientIntelligenceSummary(),
-    getFinancialIntelligence(),
-    getPredictiveInsights(),
-    getExecutiveMemorySnapshot(),
-    buildExecutiveMorningBrief(),
-  ]);
+  return withInflight("intelligence-suite", async () => {
+    const cacheKey = "intelligence-suite-v2";
+    const cached = await getCached<IntelligenceSuite>(cacheKey);
+    if (cached) return cached;
 
-  return {
-    generatedAt: new Date().toISOString(),
-    revenueAttribution,
-    prioritizedRecommendations,
-    websiteHeat,
-    booking,
-    content,
-    clients,
-    financial,
-    predictive,
-    executiveMemory,
-    executiveMorning,
-  };
+    const [
+      revenueAttribution,
+      prioritizedRecommendations,
+      websiteHeat,
+      booking,
+      content,
+      clients,
+      financial,
+      predictive,
+      executiveMemory,
+      executiveMorning,
+    ] = await Promise.all([
+      getRevenueAttributionFunnel(),
+      getGuardedRecommendations(),
+      getWebsiteHeatIntelligence(),
+      getExtendedBookingIntelligence(),
+      getContentIntelligence(),
+      getClientIntelligenceSummary(),
+      getFinancialIntelligence(),
+      getPredictiveInsights(),
+      getExecutiveMemorySnapshot(),
+      buildExecutiveMorningBrief(),
+    ]);
+
+    const suite: IntelligenceSuite = {
+      generatedAt: new Date().toISOString(),
+      revenueAttribution,
+      prioritizedRecommendations,
+      websiteHeat,
+      booking,
+      content,
+      clients,
+      financial,
+      predictive,
+      executiveMemory,
+      executiveMorning,
+    };
+    await setCache(cacheKey, suite, 10 * 60_000).catch(() => {});
+    return suite;
+  });
 }

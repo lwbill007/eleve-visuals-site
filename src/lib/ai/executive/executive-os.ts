@@ -24,7 +24,7 @@ import { buildBusinessDNA } from "../cognitive/business-dna";
 import type { ExecutiveOS, CommandCenterState } from "./types";
 import { EXECUTIVE_MISSION } from "./types";
 
-function scoreVal(scores: { key: string; value: number }[], key: string, fallback = 50) {
+function scoreVal(scores: { key: string; value: number }[], key: string, fallback = 0) {
   return scores.find((s) => s.key === key)?.value ?? fallback;
 }
 
@@ -126,8 +126,9 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     marketingHealth: scoreVal(execScores, "marketing"),
     salesHealth: scoreVal(execScores, "sales"),
     revenueHealth: scoreVal(execScores, "revenue"),
-    websiteHealth: Math.min(100, Math.round(metrics.traffic.conversionRate * 10 + 40)),
-    seoHealth: Math.min(100, Math.round(50 + metrics.traffic.visitors30 / 30)),
+    // Website/SEO scores stay 0 until measured connectors exist — never invent from arbitrary baselines
+    websiteHealth: scoreVal(execScores, "website"),
+    seoHealth: scoreVal(execScores, "seo"),
     brandHealth: scoreVal(execScores, "brand"),
     clientHealth: scoreVal(execScores, "clientExperience"),
     operationsHealth: scoreVal(execScores, "operations"),
@@ -203,6 +204,6 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     },
   };
 
-  await setCache(cacheKey, os, 10 * 60 * 1000);
+  await setCache(cacheKey, os, 15 * 60 * 1000);
   return os;
 }

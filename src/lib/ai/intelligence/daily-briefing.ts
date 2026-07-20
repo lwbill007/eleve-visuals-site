@@ -131,9 +131,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
   const executiveScores = computeExecutiveScores(operatorMetrics);
   const scores = legacyScoresFromExecutive(executiveScores);
 
-  const potentialLostRevenue =
-    operatorMetrics.attention.followUpValue +
-    operatorMetrics.attention.abandonedInquiries * 1200;
+  const potentialLostRevenue = operatorMetrics.attention.followUpValue;
   const projectedMonthlyRevenue = Math.round(
     operatorMetrics.revenue.thisMonth * (1 + Math.max(operatorMetrics.revenue.monthChange, -30) / 100)
   );

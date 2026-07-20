@@ -36,11 +36,17 @@ const adminApiWithoutRequireAdmin = adminApiRoutes.filter((f) => {
   return !c.includes("requireAdmin") && !c.includes("x-vercel-signature");
 });
 
-// Client pages missing an explicit loading/empty state (heuristic).
-const pagesWithoutLoadingState = clientPages.filter((f) => {
-  const c = read(f);
-  return !/loading|Loading|isLoading|Skeleton|Suspense/.test(c);
-});
+  // Client pages missing loading UX: route loading.tsx OR inline loading state.
+  const pagesWithoutLoadingState = clientPages.filter((f) => {
+    const c = read(f);
+    if (/loading|Loading|isLoading|Skeleton|Suspense|WorkspaceLoading/.test(c)) return false;
+    const dir = f.replace(/\/page\.tsx$/, "");
+    try {
+      return !statSync(join(dir, "loading.tsx")).isFile();
+    } catch {
+      return true;
+    }
+  });
 
 // Executive Context adoption.
 const execContextConsumers = files.filter((f) => read(f).includes("useExecutiveContext(")).map(rel);

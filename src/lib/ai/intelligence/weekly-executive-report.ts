@@ -13,6 +13,7 @@ import { aiComplete } from "../adapter";
 import { charterSystemPrompt, charterResponseStructure } from "../executive/charter";
 import { buildExecutiveReportV2 } from "../platform/build-executive-report-v2";
 import type { ExecutiveReportV2 } from "../platform/executive-report-v2";
+import { getCached, setCache, withInflight } from "../cache";
 
 export interface WeeklyExecutiveReport {
   generatedAt: string;
@@ -44,6 +45,19 @@ function weekEndingLabel(): string {
 }
 
 export async function generateWeeklyExecutiveReport(
+  options?: { persist?: boolean }
+): Promise<WeeklyExecutiveReport> {
+  return withInflight("weekly-executive-report", async () => {
+    const cacheKey = "weekly-executive-report-v2";
+    const cached = await getCached<WeeklyExecutiveReport>(cacheKey);
+    if (cached && !options?.persist) return cached;
+    const report = await computeWeeklyExecutiveReport(options);
+    await setCache(cacheKey, report, 15 * 60_000).catch(() => {});
+    return report;
+  });
+}
+
+async function computeWeeklyExecutiveReport(
   options?: { persist?: boolean }
 ): Promise<WeeklyExecutiveReport> {
   const [

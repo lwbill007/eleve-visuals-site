@@ -20,7 +20,7 @@ export async function GET(req: Request) {
       if (cached) return NextResponse.json(cached);
     }
     const data = await buildCommandHome();
-    await setCache(cacheKey, data, 60_000).catch(() => {});
+    await setCache(cacheKey, data, 90_000).catch(() => {});
     return NextResponse.json(data);
   } catch (error) {
     console.error("Command home failed:", error);

@@ -97,12 +97,18 @@ function rulesBrief(data: BookingPayload): BookingProductionIntel {
     if (outdoor) upsells.push("Second location or blue-hour extension");
   }
 
+  const budgetSignal = budget > 0 ? budget : estimateBudgetValue(data.budgetRange || "") || 0;
+  const budgetLabel =
+    budgetSignal > 0
+      ? `~$${budgetSignal.toLocaleString()} (estimated from budget signal)`
+      : "Unknown — no budget signal on inquiry";
+
   return {
     executiveSummary:
       data.qualification?.aiSummary ||
       `${data.fullName || "Client"} inquired for ${pkg?.name || category}${
         data.location ? ` in ${data.location}` : ""
-      }. Investment signal ~$${budget || 1500} (estimated). Priority: discovery call within 24h.`,
+      }. Investment signal: ${budgetLabel}. Priority: discovery call within 24h.`,
     creativeBrief: [
       data.feelingPrompt && `Feeling: ${data.feelingPrompt}`,
       data.inspirationPrompt && `Inspiration: ${data.inspirationPrompt}`,
@@ -156,7 +162,9 @@ function rulesBrief(data: BookingPayload): BookingProductionIntel {
       typeof data.qualification?.leadScore === "number"
         ? `Lead score ${data.qualification.leadScore}/100.`
         : null,
-      `Respond within 24h. Investment signal ~$${budget || 1500} (estimated).`,
+      `Respond within 24h. Investment signal: ${
+        budget > 0 ? `~$${budget.toLocaleString()} (estimated)` : "Unknown — no budget signal"
+      }.`,
     ]
       .filter(Boolean)
       .join(" "),
@@ -267,18 +275,23 @@ export async function persistBookingProductionIntel(
   });
 
   // Proposal draft (human approval required before send)
+  const investment = estimateBudgetValue(data.budgetRange || "") || 0;
   await writeMemory({
     layer: "business",
     category: "booking_proposal",
     key: `proposal-${submissionId}`,
     title: `Proposal draft: ${data.fullName || submissionId}`,
-    summary: `${intel.suggestedPackage} · ~$${estimateBudgetValue(data.budgetRange || "") || 1500} investment signal`,
+    summary:
+      investment > 0
+        ? `${intel.suggestedPackage} · ~$${investment.toLocaleString()} investment signal (estimated)`
+        : `${intel.suggestedPackage} · investment Unknown (no budget signal)`,
     value: {
       submissionId,
       status: "draft",
       package: intel.suggestedPackage,
       timeline: intel.suggestedTimeline,
-      estimatedInvestment: estimateBudgetValue(data.budgetRange || "") || 1500,
+      estimatedInvestment: investment > 0 ? investment : null,
+      investmentUnknown: investment <= 0,
       addOns: intel.recommendedAddOns,
       upsells: intel.upsellOpportunities,
       notes: intel.salesNotes,

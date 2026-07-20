@@ -68,7 +68,7 @@ export async function syncFinancialMemory() {
   for (const b of completed) {
     const data = parseSubmissionData(b.data);
     const budget = typeof data.budgetRange === "string" ? data.budgetRange : "";
-    completedRevenue += parseBudgetValue(budget) || 1200;
+    completedRevenue += parseBudgetValue(budget) || 0;
     const svc = String(data.serviceType || data.service || "general");
     packageCounts.set(svc, (packageCounts.get(svc) ?? 0) + 1);
   }
@@ -76,7 +76,7 @@ export async function syncFinancialMemory() {
   for (const b of open) {
     const data = parseSubmissionData(b.data);
     const budget = typeof data.budgetRange === "string" ? data.budgetRange : "";
-    openPipeline += parseBudgetValue(budget) || 1200;
+    openPipeline += parseBudgetValue(budget) || 0;
   }
 
   await writeMemory({

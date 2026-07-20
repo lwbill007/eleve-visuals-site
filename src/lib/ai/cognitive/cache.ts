@@ -10,6 +10,7 @@ export async function invalidateIntelligenceCaches(): Promise<void> {
     invalidateCache("intelligence-suite"),
     invalidateCache("truth-metrics"),
     invalidateCache("executive-context"),
+    invalidateCache("weekly-executive-report"),
     invalidateCache("operator-metrics"),
     invalidateCache("executive-report-v3"),
   ]);

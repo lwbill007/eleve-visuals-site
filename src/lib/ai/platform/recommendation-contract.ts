@@ -126,7 +126,7 @@ export function buildExecutiveRecommendation(
 ): ExecutiveRecommendation {
   const confidenceDetail = rec.confidenceDetail ?? buildExecutiveConfidence(rec);
   const isSales = rec.category === "sales" || rec.category === "revenue";
-  const bookingImpact = Math.max(1, Math.round(rec.estimatedRevenue / 1500));
+  const bookingImpact = 0; // Unknown without measured avg booking value — never invent ASP
 
   return {
     id: rec.id,
