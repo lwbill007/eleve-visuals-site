@@ -19,7 +19,7 @@ export async function discoverMarketingPatterns(): Promise<MarketingPattern[]> {
   const workspaceId = getWorkspaceId();
   const since = new Date(Date.now() - 90 * 86400000);
 
-  const [analytics30, analytics7, crm, submissions, utmEvents, campaigns] = await Promise.all([
+  const [analytics30, analytics7, crm, submissions, utmEvents] = await Promise.all([
     getAnalyticsSummary(30),
     getAnalyticsSummary(7),
     getAdminCRMContacts(),
@@ -32,7 +32,6 @@ export async function discoverMarketingPatterns(): Promise<MarketingPattern[]> {
       select: { utmSource: true, utmCampaign: true, type: true, createdAt: true },
       take: 1000,
     }),
-    searchMemories({ workspaceId, layer: "marketing", category: "campaign_case_study", limit: 30 }),
   ]);
 
   const patterns: MarketingPattern[] = [];

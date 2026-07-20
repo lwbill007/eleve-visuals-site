@@ -1,0 +1,558 @@
+{
+  "generatedAt": "2026-07-20T20:58:14.415Z",
+  "gate": "PASS",
+  "summary": {
+    "pages": 31,
+    "working": 31,
+    "partial": 0,
+    "broken": 0,
+    "findingsP0": 0,
+    "findingsP1": 0,
+    "findingsTotal": 1,
+    "adminApisMissingAuth": 0,
+    "liveProbes": "skipped",
+    "gate": "PASS"
+  },
+  "pages": [
+    {
+      "id": "home",
+      "system": "command",
+      "label": "Home",
+      "href": "/admin",
+      "pageFile": "src/app/admin/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/os/dashboard",
+          "exists": true
+        },
+        {
+          "path": "/api/admin/ai/executive-context",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "briefing",
+      "system": "command",
+      "label": "AI Briefing",
+      "href": "/admin/briefing",
+      "pageFile": "src/app/admin/briefing/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/daily-briefing",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "opportunities",
+      "system": "command",
+      "label": "Opportunities",
+      "href": "/admin/opportunities",
+      "pageFile": "src/app/admin/opportunities/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/executive-context",
+          "exists": true
+        },
+        {
+          "path": "/api/admin/ai/opportunities/outcome",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "risks",
+      "system": "command",
+      "label": "Risks",
+      "href": "/admin/risks",
+      "pageFile": "src/app/admin/risks/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/executive-context",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "leaks",
+      "system": "command",
+      "label": "Revenue Leaks",
+      "href": "/admin/leaks",
+      "pageFile": "src/app/admin/leaks/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/leaks",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "workboard",
+      "system": "work",
+      "label": "Workboard",
+      "href": "/admin/workboard",
+      "pageFile": "src/app/admin/workboard/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/os/pipeline",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "pipeline",
+      "system": "work",
+      "label": "Pipeline",
+      "href": "/admin/pipeline",
+      "pageFile": "src/app/admin/pipeline/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/os/pipeline",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "bookings",
+      "system": "work",
+      "label": "Bookings",
+      "href": "/admin/submissions?type=booking",
+      "pageFile": "src/app/admin/submissions/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/submissions",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "clients",
+      "system": "work",
+      "label": "Clients",
+      "href": "/admin/crm",
+      "pageFile": "src/app/admin/crm/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/os/crm",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "inbox",
+      "system": "work",
+      "label": "Inbox",
+      "href": "/admin/submissions",
+      "pageFile": "src/app/admin/submissions/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/submissions",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "sessions",
+      "system": "create",
+      "label": "Sessions",
+      "href": "/admin/sessions-hub",
+      "pageFile": "src/app/admin/sessions-hub/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/applications/stats",
+          "exists": true
+        },
+        {
+          "path": "/api/admin/session-volumes",
+          "exists": true
+        },
+        {
+          "path": "/api/admin/ai/operator",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "volumes",
+      "system": "create",
+      "label": "Volumes",
+      "href": "/admin/sessions",
+      "pageFile": "src/app/admin/sessions/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/session-volumes",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "applications",
+      "system": "create",
+      "label": "Applications",
+      "href": "/admin/applications",
+      "pageFile": "src/app/admin/applications/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/applications/stats",
+          "exists": true
+        },
+        {
+          "path": "/api/admin/submissions",
+          "exists": true
+        },
+        {
+          "path": "/api/admin/ai/sessions/rank",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "portfolio",
+      "system": "create",
+      "label": "Portfolio",
+      "href": "/admin/portfolio",
+      "pageFile": "src/app/admin/portfolio/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/portfolio",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "media",
+      "system": "create",
+      "label": "Media",
+      "href": "/admin/media",
+      "pageFile": "src/app/admin/media/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/media",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "marketing",
+      "system": "grow",
+      "label": "Marketing",
+      "href": "/admin/marketing",
+      "pageFile": "src/app/admin/marketing/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/marketing/intelligence",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "email",
+      "system": "grow",
+      "label": "Email",
+      "href": "/admin/email",
+      "pageFile": "src/app/admin/email/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/email/send",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "analytics",
+      "system": "grow",
+      "label": "Analytics",
+      "href": "/admin/analytics",
+      "pageFile": "src/app/admin/analytics/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/analytics",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "website",
+      "system": "grow",
+      "label": "Website Intelligence",
+      "href": "/admin/website",
+      "pageFile": "src/app/admin/website/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/website-intelligence",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "homepage",
+      "system": "grow",
+      "label": "Homepage Intelligence",
+      "href": "/admin/homepage",
+      "pageFile": "src/app/admin/homepage/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/content",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "reports",
+      "system": "grow",
+      "label": "Reports",
+      "href": "/admin/reports",
+      "pageFile": "src/app/admin/reports/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/reports",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "memory",
+      "system": "brain",
+      "label": "Business Brain",
+      "href": "/admin/memory",
+      "pageFile": "src/app/admin/memory/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/memory",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "research",
+      "system": "brain",
+      "label": "Web Research",
+      "href": "/admin/research",
+      "pageFile": "src/app/admin/research/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/research",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "timeline",
+      "system": "brain",
+      "label": "Timeline",
+      "href": "/admin/timeline",
+      "pageFile": "src/app/admin/timeline/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/timeline",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "booking-intelligence",
+      "system": "brain",
+      "label": "Booking Intelligence",
+      "href": "/admin/bookings-ai",
+      "pageFile": "src/app/admin/bookings-ai/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/bookings",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "qa",
+      "system": "trust",
+      "label": "Executive QA",
+      "href": "/admin/qa",
+      "pageFile": "src/app/admin/qa/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/qa",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "financial",
+      "system": "trust",
+      "label": "Financial Center",
+      "href": "/admin/financial",
+      "pageFile": "src/app/admin/financial/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/payments",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "automations",
+      "system": "trust",
+      "label": "Automation Center",
+      "href": "/admin/automations",
+      "pageFile": "src/app/admin/automations/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/automations",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "ai-operations",
+      "system": "trust",
+      "label": "AI Operations",
+      "href": "/admin/ai-operations",
+      "pageFile": "src/app/admin/ai-operations/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/ai/health",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "notifications",
+      "system": "trust",
+      "label": "Notifications",
+      "href": "/admin/notifications",
+      "pageFile": "src/app/admin/notifications/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/notifications/health",
+          "exists": true
+        },
+        {
+          "path": "/api/admin/ai/notifications",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "settings",
+      "system": "trust",
+      "label": "Settings",
+      "href": "/admin/settings",
+      "pageFile": "src/app/admin/settings/page.tsx",
+      "pageExists": true,
+      "apis": [
+        {
+          "path": "/api/admin/content",
+          "exists": true
+        }
+      ],
+      "status": "working",
+      "notes": []
+    }
+  ],
+  "findings": [
+    {
+      "id": "live-probes-skipped",
+      "severity": "P3",
+      "category": "missing",
+      "title": "Live HTTP probes skipped",
+      "detail": "Set AUDIT_BASE_URL (or PRODUCTION_URL) and E2E_ADMIN_PASSWORD to enable live page/API probes."
+    }
+  ],
+  "liveResults": [],
+  "inventory": {
+    "osPages": 31,
+    "adminApiRoutes": 108,
+    "metricOwners": 8,
+    "aiTasks": 14
+  }
+}

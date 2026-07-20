@@ -9,7 +9,7 @@ export async function buildKnowledgeHealth(): Promise<KnowledgeHealthScore[]> {
   const workspaceId = getWorkspaceId();
   const now = Date.now();
 
-  const [total, verifiedCount, archived, relations, embeddings, learnings, stale, duplicates, verificationStats] =
+  const [total, , archived, relations, embeddings, learnings, stale, duplicates, verificationStats] =
     await Promise.all([
       prisma.aIMemory.count({ where: { workspaceId, archived: false } }),
       prisma.aIMemory.count({ where: { workspaceId, archived: false, verified: true } }),

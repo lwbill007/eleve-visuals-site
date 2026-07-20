@@ -61,6 +61,8 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     learnings,
     analytics30,
     reportV2,
+    morningBrief,
+    cmoResult,
   ] = await Promise.all([
     getOperatorMetrics(),
     getProactiveBusinessInsights(),
@@ -90,17 +92,14 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     getLearningOutcomes(undefined, 5),
     getAnalyticsSummary(30),
     buildExecutiveReportV2("daily_ceo").catch(() => null),
+    buildExecutiveMorningBrief().catch(() => null),
+    import("../marketing/cmo-intelligence")
+      .then((m) => m.getCMOIntelligence(false))
+      .catch(() => null),
   ]);
 
-  let cmoBriefing: CMODailyBriefing | undefined;
-  const executiveMorning = await buildExecutiveMorningBrief();
-  try {
-    const { getCMOIntelligence } = await import("../marketing/cmo-intelligence");
-    const cmo = await getCMOIntelligence(false);
-    cmoBriefing = cmo.briefing;
-  } catch {
-    /* CMO layer optional */
-  }
+  const executiveMorning = morningBrief ?? undefined;
+  const cmoBriefing: CMODailyBriefing | undefined = cmoResult?.briefing;
 
   const inactiveClients = crm.filter((c) => {
     const days = (Date.now() - new Date(c.lastActivity).getTime()) / 86400000;
@@ -156,7 +155,14 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
 
   const aiRecommendations = proactiveInsights.slice(0, 5).map((i) => i.title);
 
-  let summary = `Good morning, ${creator}. Today: ${operatorMetrics.today.bookings} booking${operatorMetrics.today.bookings === 1 ? "" : "s"}, ${operatorMetrics.today.applications} application${operatorMetrics.today.applications === 1 ? "" : "s"}, ~$${operatorMetrics.revenue.today.toLocaleString()} pipeline value. This month: ~$${operatorMetrics.revenue.thisMonth.toLocaleString()} (${operatorMetrics.revenue.monthChange >= 0 ? "+" : ""}${operatorMetrics.revenue.monthChange}%). ${operatorMetrics.attention.followUpClients} clients need follow-up. Top priority: ${weeklyPriorities[0] ?? "Protect speed-to-lead"}.`;
+  const revenueTodayLabel = operatorMetrics.revenue.verified
+    ? "settled cash"
+    : "pipeline estimate";
+  const revenueMonthLabel = operatorMetrics.revenue.verified
+    ? "settled cash MTD"
+    : "pipeline estimate MTD";
+
+  let summary = `Good morning, ${creator}. Today: ${operatorMetrics.today.bookings} booking${operatorMetrics.today.bookings === 1 ? "" : "s"}, ${operatorMetrics.today.applications} application${operatorMetrics.today.applications === 1 ? "" : "s"}, ~$${operatorMetrics.revenue.today.toLocaleString()} ${revenueTodayLabel}. This month: ~$${operatorMetrics.revenue.thisMonth.toLocaleString()} ${revenueMonthLabel} (${operatorMetrics.revenue.monthChange >= 0 ? "+" : ""}${operatorMetrics.revenue.monthChange}%). ${operatorMetrics.attention.followUpClients} clients need follow-up. Top priority: ${weeklyPriorities[0] ?? "Protect speed-to-lead"}.`;
   let provider: AIDailyBriefing["provider"] = "rules";
 
   if (isAIConfigured()) {

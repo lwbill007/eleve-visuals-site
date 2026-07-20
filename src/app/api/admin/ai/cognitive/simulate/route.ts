@@ -19,6 +19,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { guardMutatingAdminAi } = await import("@/lib/admin-request-guard");
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:cognitive");
+  if (blocked) return blocked;
+
   const body = (await req.json()) as { scenarioId?: string };
   if (!body.scenarioId) {
     return NextResponse.json({ error: "scenarioId required" }, { status: 400 });

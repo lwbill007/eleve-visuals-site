@@ -123,8 +123,13 @@ export async function buildTheOneThing(): Promise<ExecutiveMission> {
   };
 }
 
-export async function buildTodaysMissions(): Promise<ExecutiveMission[]> {
-  const [one, recs] = await Promise.all([buildTheOneThing(), getGuardedRecommendations(4)]);
+export async function buildTodaysMissions(
+  oneThing?: ExecutiveMission
+): Promise<ExecutiveMission[]> {
+  const [one, recs] = await Promise.all([
+    oneThing ? Promise.resolve(oneThing) : buildTheOneThing(),
+    getGuardedRecommendations(4),
+  ]);
   const rest = recs.slice(1).map(missionFromRec);
   return [one, ...rest];
 }

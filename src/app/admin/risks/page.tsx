@@ -95,7 +95,7 @@ export default function RisksPage() {
                   confidence: risk.confidence,
                   costOfIgnore: risk.costOfIgnore,
                   expectedOutcome: risk.expectedOutcome,
-                  evidenceCount: risk.evidence.length,
+                  evidenceCount: (risk.evidence ?? []).length,
                   reasoning: risk.reasoning,
                   prediction: risk.prediction,
                   severity: risk.severity,

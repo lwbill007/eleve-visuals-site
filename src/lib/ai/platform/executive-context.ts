@@ -231,7 +231,7 @@ function toNextAction(
     id: r.id,
     title: r.title,
     why: r.whyNow || r.detail,
-    evidence: r.evidence.slice(0, 6),
+    evidence: (r.evidence ?? []).slice(0, 6),
     estimatedRevenue: r.estimatedRevenue,
     confidence: Math.round(adjustedConfidence * 100) / 100,
     timeMinutes: r.timeToCompleteMinutes,
@@ -418,12 +418,15 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
 
   const risks: RiskSignal[] = [];
   if (staleInquiries > 0) {
-    const potentialImpact = Math.round(
-      (num(m["attention.followUpValue"]?.value) || 1500) * Math.min(staleInquiries, 5)
-    );
+    const followUpValue = num(m["attention.followUpValue"]?.value);
+    const potentialImpact =
+      followUpValue > 0 ? Math.round(followUpValue * Math.min(staleInquiries, 5)) : 0;
     const evidence = [
       `Truth metric attention.staleInquiries = ${staleInquiries}`,
       "Source: Submission table (verified count)",
+      ...(followUpValue > 0
+        ? [`Follow-up value basis $${followUpValue.toLocaleString()} (Estimated)`]
+        : ["Dollar impact Unknown — no follow-up value basis"]),
     ];
     risks.push({
       id: "risk-stale-inquiries",

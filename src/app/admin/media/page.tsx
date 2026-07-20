@@ -5,7 +5,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminField, AdminInput } from "@/components/admin/AdminForm";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
-import { WorkspaceChrome, WorkspaceToolbar } from "@/components/admin/os/WorkspaceFrame";
+import { WorkspaceChrome, WorkspaceToolbar, WorkspaceError, WorkspaceEmpty } from "@/components/admin/os/WorkspaceFrame";
 import { adminFetch } from "@/lib/admin-fetch";
 import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import { osEyebrow } from "@/lib/ai/platform/os-systems";
@@ -31,6 +31,7 @@ function formatUploadProgress(progress: { percent: number; loaded: number; total
 
 export default function AdminMediaPage() {
   const [items, setItems] = useState<MediaAsset[]>([]);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [messageIsError, setMessageIsError] = useState(false);
@@ -43,9 +44,18 @@ export default function AdminMediaPage() {
   const abortRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
-    const qs = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : "";
-    const res = await adminFetch(`/api/admin/media${qs}`);
-    if (res.ok) setItems(await res.json());
+    try {
+      const qs = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : "";
+      const res = await adminFetch(`/api/admin/media${qs}`);
+      if (!res.ok) {
+        setLoadError(`Could not load media (${res.status}).`);
+        return;
+      }
+      setLoadError("");
+      setItems(await res.json());
+    } catch {
+      setLoadError("Could not load media.");
+    }
   }, [search]);
 
   useEffect(() => {
@@ -372,9 +382,18 @@ export default function AdminMediaPage() {
         ))}
       </div>
       {items.length === 0 && (
-        <p className="py-16 text-center text-fog">
-          {search ? "No media matches your search." : "No media yet. Upload images or videos from any admin editor."}
-        </p>
+        loadError ? (
+          <WorkspaceError message={loadError} onRetry={() => void load()} />
+        ) : (
+          <WorkspaceEmpty
+            title={search ? "No media matches" : "No media yet"}
+            detail={
+              search
+                ? "Try a different search."
+                : "Upload images or videos from any admin editor."
+            }
+          />
+        )
       )}
       </WorkspaceChrome>
     </AdminShell>

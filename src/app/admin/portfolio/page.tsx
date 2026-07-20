@@ -23,7 +23,7 @@ import { PortfolioAssistantPanel } from "@/components/admin/ai/PortfolioAssistan
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
-import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
+import { WorkspaceChrome, WorkspaceEmpty, WorkspaceError } from "@/components/admin/os/WorkspaceFrame";
 import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
@@ -64,6 +64,7 @@ const emptyItem = (): Partial<PortfolioItemDTO> => ({
 export default function AdminPortfolioPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("projects");
   const [items, setItems] = useState<PortfolioItemDTO[]>([]);
+  const [loadError, setLoadError] = useState("");
   const [pageContent, setPageContent] = useState<PortfolioPageContent>(DEFAULT_PORTFOLIO_PAGE);
   const [categories, setCategories] = useState<string[]>([...PORTFOLIO_CATEGORIES]);
   const [editing, setEditing] = useState<Partial<PortfolioItemDTO> | null>(null);
@@ -74,16 +75,25 @@ export default function AdminPortfolioPage() {
   useSetAIPage("portfolio", editing?.id ? { projectId: editing.id, title: editing.title } : undefined);
 
   async function load() {
-    const [portfolioRes, contentRes] = await Promise.all([
-      adminFetch("/api/admin/portfolio"),
-      adminFetch("/api/admin/content?key=portfolioPage"),
-    ]);
-    if (portfolioRes.ok) setItems(await portfolioRes.json());
-    if (contentRes.ok) {
-      const data = await contentRes.json();
-      const page = { ...DEFAULT_PORTFOLIO_PAGE, ...(data.value as PortfolioPageContent) };
-      setPageContent(page);
-      setCategories(page.categories?.length ? page.categories : [...PORTFOLIO_CATEGORIES]);
+    try {
+      const [portfolioRes, contentRes] = await Promise.all([
+        adminFetch("/api/admin/portfolio"),
+        adminFetch("/api/admin/content?key=portfolioPage"),
+      ]);
+      if (!portfolioRes.ok) {
+        setLoadError(`Could not load portfolio (${portfolioRes.status}).`);
+      } else {
+        setLoadError("");
+        setItems(await portfolioRes.json());
+      }
+      if (contentRes.ok) {
+        const data = await contentRes.json();
+        const page = { ...DEFAULT_PORTFOLIO_PAGE, ...(data.value as PortfolioPageContent) };
+        setPageContent(page);
+        setCategories(page.categories?.length ? page.categories : [...PORTFOLIO_CATEGORIES]);
+      }
+    } catch {
+      setLoadError("Could not load portfolio.");
     }
   }
 
@@ -432,6 +442,21 @@ export default function AdminPortfolioPage() {
               Add Project
             </button>
           </div>
+
+          {loadError && (
+            <div className="mb-6">
+              <WorkspaceError message={loadError} onRetry={() => void load()} />
+            </div>
+          )}
+
+          {!loadError && items.length === 0 && !editing && (
+            <div className="mb-6">
+              <WorkspaceEmpty
+                title="No portfolio projects yet"
+                detail="Add a project to publish work. Scores and traffic attribution stay Unknown until Analytics links them."
+              />
+            </div>
+          )}
 
           {editing && (
             <div className="mb-10 border border-stone/30 p-4 sm:p-6">

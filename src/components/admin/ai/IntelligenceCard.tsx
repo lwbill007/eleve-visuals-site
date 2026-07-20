@@ -41,7 +41,8 @@ export interface IntelligenceCardModel {
 export function IntelligenceCard({ model, onDone }: { model: IntelligenceCardModel; onDone?: () => void }) {
   const [open, setOpen] = useState(false);
   const coi = model.costOfIgnore;
-  const evidenceCount = model.evidenceCount ?? model.evidence.length;
+  const evidence = model.evidence ?? [];
+  const evidenceCount = model.evidenceCount ?? evidence.length;
   const isRisk = model.accent === "risk";
 
   return (
@@ -145,8 +146,8 @@ export function IntelligenceCard({ model, onDone }: { model: IntelligenceCardMod
           <div>
             <p className="text-[0.5rem] tracking-[0.12em] text-muted uppercase">Evidence</p>
             <ul className="mt-1 space-y-1 text-fog">
-              {model.evidence.length > 0 ? (
-                model.evidence.map((e) => <li key={e}>• {e}</li>)
+              {evidence.length > 0 ? (
+                evidence.map((e) => <li key={e}>• {e}</li>)
               ) : (
                 <li>• No structured evidence attached</li>
               )}

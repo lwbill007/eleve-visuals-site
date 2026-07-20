@@ -56,7 +56,7 @@ export interface MeasuredMetric {
   id: string;
   label: string;
   value: string;
-  truthKind: "Measured Data" | "Unknown (More Data Required)";
+  truthKind: ReportTruthKind;
   note?: string;
 }
 

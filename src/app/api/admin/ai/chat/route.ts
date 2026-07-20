@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { streamAIChat } from "@/lib/ai/service";
 import type { AIMessage } from "@/lib/ai/types";
 
@@ -8,6 +9,9 @@ export async function POST(request: Request) {
   } catch {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(request, "admin-ai:chat");
+  if (blocked) return blocked;
 
   const body = await request.json();
   const message = String(body.message || "").trim();

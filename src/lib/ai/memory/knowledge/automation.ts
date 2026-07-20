@@ -79,15 +79,6 @@ export async function shouldRunScheduledRefresh(
 }
 
 export function getAutomationOptions(settings: IntelligenceAutomationSettings) {
-  const eventTriggers: RefreshTrigger[] = [
-    "deployment",
-    "portfolio_upload",
-    "session_publish",
-    "marketing_campaign",
-    "crm_update",
-    "booking_received",
-  ];
-
   return [
     { id: "manual" as RefreshTrigger, label: "Manual only", available: true, enabled: true },
     {

@@ -169,8 +169,8 @@ export default function LeaksPage() {
                       {stage.potentialCause && (
                         <p className="mt-2 text-xs text-amber-200/90">{stage.potentialCause}</p>
                       )}
-                      {stage.evidence[0] && (
-                        <p className="mt-2 text-[0.7rem] text-fog">{stage.evidence[0]}</p>
+                      {(stage.evidence ?? [])[0] && (
+                        <p className="mt-2 text-[0.7rem] text-fog">{(stage.evidence ?? [])[0]}</p>
                       )}
                       {stage.historicalOutcome && (
                         <p className="mt-1 text-[0.65rem] text-muted">
@@ -234,21 +234,21 @@ export default function LeaksPage() {
                       {leak.formula && (
                         <p className="mt-1 text-[0.6rem] text-muted">Formula: {leak.formula}</p>
                       )}
-                      {leak.evidence.length > 0 && (
+                      {(leak.evidence ?? []).length > 0 && (
                         <ul className="mt-3 space-y-1 text-[0.7rem] text-muted">
-                          {leak.evidence.slice(0, 4).map((e) => (
+                          {(leak.evidence ?? []).slice(0, 4).map((e) => (
                             <li key={e}>• {e}</li>
                           ))}
                         </ul>
                       )}
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {leak.actions[0] && (
+                        {(leak.actions ?? [])[0] && (
                           <ExecuteButton
                             target={{
                               id: leak.id,
                               title: leak.title,
-                              href: leak.actions[0].href,
-                              actionLabel: leak.actions[0].label,
+                              href: (leak.actions ?? [])[0].href,
+                              actionLabel: (leak.actions ?? [])[0].label,
                             }}
                             className={cn("text-[0.65rem]")}
                           />

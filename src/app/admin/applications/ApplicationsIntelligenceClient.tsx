@@ -8,6 +8,7 @@ import { useAdminToast } from "@/components/admin/AdminToast";
 import {
   WorkspaceChrome,
   WorkspaceEmpty,
+  WorkspaceError,
   WorkspaceLoading,
 } from "@/components/admin/os/WorkspaceFrame";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -134,6 +135,7 @@ export default function ApplicationsIntelligenceClient() {
   const [ranked, setRanked] = useState<SessionApplicationRank[]>([]);
   const [volumes, setVolumes] = useState<SessionVolumeDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listLoadError, setListLoadError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [volume, setVolume] = useState(searchParams.get("volumeId") || "");
@@ -162,7 +164,13 @@ export default function ApplicationsIntelligenceClient() {
       adminFetch(`/api/admin/submissions?type=session${volume ? `&volumeId=${encodeURIComponent(volume)}` : ""}`),
       adminFetch(`/api/admin/ai/sessions/rank${suffix}`),
     ]);
-    if (itemsResponse.ok) setItems((await itemsResponse.json()) as ApplicationRow[]);
+    if (itemsResponse.ok) {
+      setListLoadError("");
+      setItems((await itemsResponse.json()) as ApplicationRow[]);
+    } else {
+      setListLoadError(`Could not load applications (${itemsResponse.status}).`);
+      setItems([]);
+    }
     if (rankResponse.ok) {
       const payload = (await rankResponse.json()) as {
         ranked?: SessionApplicationRank[];
@@ -440,6 +448,10 @@ export default function ApplicationsIntelligenceClient() {
 
           {loading ? (
             <div className="mt-8"><WorkspaceLoading rows={9} /></div>
+          ) : listLoadError ? (
+            <div className="mt-8">
+              <WorkspaceError message={listLoadError} onRetry={() => void load()} />
+            </div>
           ) : ranked.length === 0 && rankMeta.applicationCount === 0 && items.length === 0 ? (
             <div className="mt-8">
               <WorkspaceEmpty title="No applications to analyze" detail="Applications will be ranked as soon as a candidate submits evidence." />

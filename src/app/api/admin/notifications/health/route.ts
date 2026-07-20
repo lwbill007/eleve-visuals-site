@@ -36,49 +36,60 @@ export async function GET() {
     });
   }
 
-  // Email
+  // Email — misconfigured credentials are warn (not outage); DB alone can be error
   const email = getEmailProvider();
+  const emailConfigured = email.isConfigured();
+  let emailDetail = "Disabled";
+  if (settings.emailEnabled) {
+    if (emailConfigured) {
+      emailDetail = `Ready (${email.name})`;
+    } else {
+      const missing = [
+        !process.env.RESEND_API_KEY ? "RESEND_API_KEY" : null,
+        !(process.env.EMAIL_FROM || process.env.SITE_EMAIL) ? "EMAIL_FROM" : null,
+      ].filter(Boolean);
+      emailDetail = `Not configured — missing ${missing.join(" + ") || "credentials"}`;
+    }
+  }
   components.push({
     key: "email",
     label: "Email",
-    status: !settings.emailEnabled ? "idle" : email.isConfigured() ? "ok" : "error",
-    detail: !settings.emailEnabled
-      ? "Disabled"
-      : email.isConfigured()
-        ? `Ready (${email.name})`
-        : "Missing API key",
+    status: !settings.emailEnabled ? "idle" : emailConfigured ? "ok" : "warn",
+    detail: emailDetail,
   });
 
   // SMS
   const sms = getSmsProvider();
+  const smsConfigured = sms.isConfigured();
   components.push({
     key: "sms",
     label: "SMS",
-    status: !settings.smsEnabled ? "idle" : sms.isConfigured() ? "ok" : "error",
+    status: !settings.smsEnabled ? "idle" : smsConfigured ? "ok" : "warn",
     detail: !settings.smsEnabled
       ? "Disabled"
-      : sms.isConfigured()
+      : smsConfigured
         ? `Ready (${sms.name})`
-        : "Missing credentials",
+        : "Not configured — missing credentials",
   });
 
   // Push
   const push = getPushProvider();
+  const pushConfigured = push.isConfigured();
   const pushDevices = await prisma.pushSubscription.count();
   components.push({
     key: "push",
     label: "Push",
     status: !settings.pushEnabled
       ? "idle"
-      : !push.isConfigured()
-        ? "error"
+      : !pushConfigured
+        ? "warn"
         : pushDevices === 0
           ? "warn"
           : "ok",
     detail: !settings.pushEnabled
       ? "Disabled"
-      : !push.isConfigured()
-        ? "Missing VAPID keys"
+      : !pushConfigured
+        ? "Not configured — missing VAPID keys"
         : `${pushDevices} device(s)`,
   });
 

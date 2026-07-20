@@ -30,7 +30,7 @@ function finalizeGuarded(
 function salesRecoveryRec(metrics: Awaited<ReturnType<typeof getOperatorMetrics>>): GuardedRecommendation {
   const stale = metrics.attention.abandonedInquiries;
   const followUp = metrics.attention.followUpClients;
-  const value = metrics.attention.followUpValue || 1500;
+  const value = metrics.attention.followUpValue > 0 ? metrics.attention.followUpValue : 0;
 
   return finalizeGuarded(
     {
@@ -46,7 +46,9 @@ function salesRecoveryRec(metrics: Awaited<ReturnType<typeof getOperatorMetrics>
       priority: "critical",
       whyNow: `Revenue MTD: $${metrics.revenue.thisMonth.toLocaleString()} · ${stale} stale inquiries · guardrail: sales before SEO`,
       evidence: [
-        `Pipeline follow-up value: ~$${value.toLocaleString()}`,
+        value > 0
+          ? `Pipeline follow-up value: ~$${value.toLocaleString()} (Estimated)`
+          : "Dollar impact Unknown — no follow-up value basis",
         `${followUp} clients need follow-up`,
         "Production readiness guardrail: revenue=0 + pending inquiries",
       ],

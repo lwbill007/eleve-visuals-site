@@ -8,7 +8,7 @@ import { AskAIButton } from "./AskAIPanel";
 import { useSetAIPage } from "./AIContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
-import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
+import { WorkspaceChrome, WorkspaceEmpty, WorkspaceError } from "@/components/admin/os/WorkspaceFrame";
 import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import { ExecutiveReportV2View } from "./ExecutiveReportV2View";
@@ -27,28 +27,27 @@ export function BIReportsClient() {
   useSetAIPage("reports");
   const [loading, setLoading] = useState<AIReportType | null>(null);
   const [report, setReport] = useState<AIReportResult | null>(null);
+  const [error, setError] = useState("");
   const [showNarrative, setShowNarrative] = useState(false);
 
   async function generate(type: AIReportType) {
     setLoading(type);
     setReport(null);
+    setError("");
     setShowNarrative(false);
-    const res = await adminFetch("/api/admin/ai/reports", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type }),
-    });
-    const data = res.ok
-      ? ((await res.json()) as AIReportResult)
-      : {
-          type,
-          generatedAt: new Date().toISOString(),
-          content: "Report generation failed.",
-          provider: "rules",
-          data: {},
-        };
-    setReport(data);
-    setLoading(null);
+    try {
+      const res = await adminFetch("/api/admin/ai/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setReport((await res.json()) as AIReportResult);
+    } catch {
+      setError("Report generation failed. Retry, or open Analytics / Financial Center for measured sources.");
+    } finally {
+      setLoading(null);
+    }
   }
 
   const reportCapabilities: OsCapability[] = useMemo(() => {
@@ -158,6 +157,21 @@ export function BIReportsClient() {
           </button>
         ))}
       </div>
+
+      {error && (
+        <div className="mt-6">
+          <WorkspaceError message={error} onRetry={() => setError("")} />
+        </div>
+      )}
+
+      {!report && !loading && !error && (
+        <div className="mt-6">
+          <WorkspaceEmpty
+            title="No report generated yet"
+            detail="Choose a period above. Structured layers are labeled; money claims must cross-check Financial Center."
+          />
+        </div>
+      )}
 
       {report?.reportV2 && (
         <div className="mt-8">

@@ -1,6 +1,6 @@
 import {
   getAdminCRMContacts,
-  getAdminDashboardOS,
+  getAdminDashboardOSCached,
   getAdminPipeline,
 } from "@/lib/admin-os-server";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
@@ -18,6 +18,7 @@ import type {
 } from "../types";
 import { layerForInsightCategory } from "../memory/sync";
 import { writeMemory } from "../memory/store";
+import { getCached, setCache, withInflight } from "../cache";
 
 function startOfDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -125,6 +126,17 @@ function finalizeInsight(
 }
 
 export async function getOperatorMetrics() {
+  return withInflight("operator-metrics", async () => {
+    const cacheKey = "operator-metrics-v1";
+    const cached = await getCached<Awaited<ReturnType<typeof computeOperatorMetrics>>>(cacheKey);
+    if (cached) return cached;
+    const metrics = await computeOperatorMetrics();
+    await setCache(cacheKey, metrics, 60_000).catch(() => {});
+    return metrics;
+  });
+}
+
+async function computeOperatorMetrics() {
   const now = new Date();
   const todayStart = startOfDay(now);
   const monthStart = startOfMonth(now);
@@ -132,7 +144,7 @@ export async function getOperatorMetrics() {
 
   const [dashboard, pipeline, analytics30, analytics7, analyticsPrev7, crm, payments] =
     await Promise.all([
-      getAdminDashboardOS(),
+      getAdminDashboardOSCached(),
       getAdminPipeline(),
       getAnalyticsSummary(30),
       getAnalyticsSummary(7),
@@ -214,7 +226,7 @@ export async function getOperatorMetrics() {
     return days > 60 && ["completed", "repeat", "vip", "interested"].includes(c.status);
   });
 
-  const inactiveValue = inactiveLeads.reduce((s, c) => s + Math.max(c.revenue, 1200), 0);
+  const inactiveValue = inactiveLeads.reduce((s, c) => s + Math.max(c.revenue, 0), 0);
 
   const visitorsThisWeek = analytics7.totals.pageviews;
   const visitorsLastWeek = Math.max(
@@ -289,7 +301,7 @@ export async function getProactiveBusinessInsights(
 ): Promise<BusinessInsight[]> {
   const [metrics, dashboard, analytics30, analytics7, analytics14] = await Promise.all([
     metricsOverride ? Promise.resolve(metricsOverride) : getOperatorMetrics(),
-    getAdminDashboardOS(),
+    getAdminDashboardOSCached(),
     getAnalyticsSummary(30),
     getAnalyticsSummary(7),
     getAnalyticsSummary(14),
@@ -551,7 +563,7 @@ export async function getMarketingRecommendations(): Promise<MarketingRecommenda
   const [metrics, analytics, dashboard] = await Promise.all([
     getOperatorMetrics(),
     getAnalyticsSummary(30),
-    getAdminDashboardOS(),
+    getAdminDashboardOSCached(),
   ]);
 
   const topPage = analytics.topPages[0]?.path ?? "/portfolio";
@@ -966,7 +978,7 @@ export async function getSessionsOperatorIntel(): Promise<SessionsOperatorIntel>
 }
 
 export async function getSelfImprovementRecommendations(): Promise<SelfImprovementItem[]> {
-  const [metrics, dashboard] = await Promise.all([getOperatorMetrics(), getAdminDashboardOS()]);
+  const [metrics, dashboard] = await Promise.all([getOperatorMetrics(), getAdminDashboardOSCached()]);
 
   const items: SelfImprovementItem[] = [
     {

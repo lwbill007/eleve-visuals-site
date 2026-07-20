@@ -11,6 +11,7 @@ import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCap
 import {
   WorkspaceChrome,
   WorkspaceLoading,
+  WorkspaceError,
   WorkspaceButton,
 } from "@/components/admin/os/WorkspaceFrame";
 import { METRIC_OWNERS, type MissingMetric } from "@/lib/ai/platform/metric-owners";
@@ -38,13 +39,38 @@ function profileMissing(
 
 export function CRMProfileClient({ email }: { email: string }) {
   const [intel, setIntel] = useState<CRMContactIntelligence | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [aiOutput, setAiOutput] = useState("");
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoadError("");
+    setIntel(null);
     adminFetch(`/api/admin/ai/crm/${encodeURIComponent(email)}`)
-      .then((r) => r.json())
-      .then(setIntel);
+      .then(async (r) => {
+        const body = (await r.json().catch(() => null)) as CRMContactIntelligence | { error?: string } | null;
+        if (cancelled) return;
+        if (!r.ok || !body || !("contact" in body) || !body.contact) {
+          setIntel(null);
+          setLoadError(
+            body && "error" in body && body.error
+              ? String(body.error)
+              : `Could not load CRM profile (${r.status}).`
+          );
+          return;
+        }
+        setIntel(body);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIntel(null);
+          setLoadError("Could not load CRM profile.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [email]);
 
   useSetAIPage("crm_profile", intel ? { contact: intel.contact, ltv: intel.predictedLTV } : undefined, intel?.contact.name);
@@ -75,7 +101,11 @@ export function CRMProfileClient({ email }: { email: string }) {
           { label: "Email", href: "/admin/email", desc: "Send" },
         ]}
       >
-        <WorkspaceLoading rows={4} />
+        {loadError ? (
+          <WorkspaceError message={loadError} onRetry={() => window.location.reload()} />
+        ) : (
+          <WorkspaceLoading rows={4} />
+        )}
       </WorkspaceChrome>
     );
   }
@@ -188,8 +218,9 @@ export function CRMProfileClient({ email }: { email: string }) {
             <p className="mt-1 font-display text-2xl text-cream">${intel.predictedLTV.toLocaleString()}</p>
           </AdminPanel>
           <AdminPanel className="!p-4">
-            <p className="text-[0.6rem] uppercase text-muted">Booking Probability</p>
+            <p className="text-[0.6rem] uppercase text-muted">Booking Probability (Estimated)</p>
             <p className="mt-1 font-display text-2xl text-accent">{intel.bookingProbability}%</p>
+            <p className="mt-1 text-[0.55rem] text-muted">Status heuristic — not a measured close rate</p>
           </AdminPanel>
           <AdminPanel className="!p-4">
             <p className="text-[0.6rem] uppercase text-muted">Last Active</p>
@@ -200,8 +231,12 @@ export function CRMProfileClient({ email }: { email: string }) {
             <p className="mt-1 font-display text-lg text-cream">{intel.recommendedContactDate}</p>
           </AdminPanel>
           <AdminPanel className="!p-4">
-            <p className="text-[0.6rem] uppercase text-muted">Revenue Generated</p>
-            <p className="mt-1 font-display text-2xl text-cream">${intel.revenueGenerated.toLocaleString()}</p>
+            <p className="text-[0.6rem] uppercase text-muted">
+              Revenue Generated {hasRevenue ? "(Estimated)" : "(Unknown)"}
+            </p>
+            <p className="mt-1 font-display text-2xl text-cream">
+              {hasRevenue ? `$${intel.revenueGenerated.toLocaleString()}` : "—"}
+            </p>
           </AdminPanel>
           <AdminPanel className="!p-4">
             <p className="text-[0.6rem] uppercase text-muted">Last Conversation</p>

@@ -1,6 +1,5 @@
 import { getCached, setCache } from "../cache";
 import { getExecutiveIntelligence } from "../intelligence/executive-intelligence";
-import { getExecutiveForecasts } from "../intelligence/forecasting";
 import { getAIDailyBriefing } from "../intelligence/daily-briefing";
 import { getOperatorMetrics } from "../intelligence/business-operator";
 import { buildCEOBrief } from "./roles/ceo";
@@ -15,10 +14,8 @@ import { getSelfImprovementLessons } from "./self-improvement";
 import { strengthenKnowledgeGraph, getKnowledgeGraphStats } from "./graph-builder";
 import { syncBusinessMemory } from "../memory/sync";
 import { synthesizeExecutiveBriefing } from "./synthesizer";
-import { getAllExecutiveOpportunities } from "../intelligence/website-opportunities";
 import { getEmbeddingStats } from "../memory/embeddings";
 import { computeNorthStarMetrics } from "./north-star";
-import { detectRevenueLeaks } from "./revenue-leaks";
 import { generateWeeklyExecutiveReport } from "../intelligence/weekly-executive-report";
 import { getIntelligenceSuite } from "../intelligence/intelligence-suite";
 import { buildExecutiveOperatingSystem } from "./operating-system";
@@ -48,14 +45,10 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
     briefing,
     roles,
     decisionContext,
-    predictions,
     selfImprovement,
     graphStats,
-    metrics,
-    allOpportunities,
     embeddingStats,
     northStar,
-    revenueLeaks,
     weeklyReport,
     intelligenceSuite,
     operatingSystem,
@@ -72,18 +65,20 @@ export async function getExecutiveOS(force = false): Promise<ExecutiveOS> {
       buildOperationsBrief(),
     ]),
     buildDecisionEngineContext(),
-    getExecutiveForecasts(),
     getSelfImprovementLessons(10),
     force ? strengthenKnowledgeGraph() : getKnowledgeGraphStats(),
-    getOperatorMetrics(),
-    getAllExecutiveOpportunities(),
     getEmbeddingStats(),
     computeNorthStarMetrics(),
-    detectRevenueLeaks(),
     generateWeeklyExecutiveReport(),
     getIntelligenceSuite(),
     buildExecutiveOperatingSystem(),
   ]);
+
+  // Reuse intelligence branches — avoid duplicate opportunities/forecasts/leaks/metrics fan-out
+  const allOpportunities = intelligence.opportunities;
+  const predictions = intelligence.forecasts;
+  const revenueLeaks = intelligence.revenueLeaks ?? [];
+  const metrics = await getOperatorMetrics();
 
   const synthesis = synthesizeExecutiveBriefing({
     roles,

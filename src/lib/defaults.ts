@@ -264,7 +264,7 @@ export const DEFAULT_CONTACT_PAGE: ContactPageContent = {
 };
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
-  emailEnabled: true,
+  emailEnabled: false,
   smsEnabled: false,
   pushEnabled: false,
   pushSound: true,

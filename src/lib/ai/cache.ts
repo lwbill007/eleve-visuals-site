@@ -29,3 +29,16 @@ export async function invalidateCache(prefix: string): Promise<void> {
   });
   await Promise.all(rows.map((r) => prisma.aICache.delete({ where: { key: r.key } })));
 }
+
+/** Collapse concurrent identical work within a single process (cold OS fan-out). */
+const inflight = new Map<string, Promise<unknown>>();
+
+export function withInflight<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const hit = inflight.get(key);
+  if (hit) return hit as Promise<T>;
+  const p = fn().finally(() => {
+    inflight.delete(key);
+  });
+  inflight.set(key, p);
+  return p;
+}

@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import type { KnowledgeFinding, MemoryDiffAction, PlatformIssue } from "./types";
-import type { MemoryRecord } from "../types";
 import { getMemory, writeMemory, updateMemoryFlags } from "../store";
 import { getWorkspaceId } from "../workspace";
 

@@ -21,6 +21,7 @@ export async function buildLiveBusinessHealth(
 ): Promise<LiveBusinessHealth> {
   const metrics = metricsOverride ?? (await getOperatorMetrics());
   const scores = computeExecutiveScores(metrics);
+  const revenueVerified = Boolean(metrics.revenue.verified);
 
   const byKey = (k: string) => scores.find((s) => s.key === k)?.value ?? null;
   const components: LiveHealthComponent[] = [
@@ -30,10 +31,17 @@ export async function buildLiveBusinessHealth(
       score: byKey("revenue"),
       explain:
         metrics.revenue.thisMonth > 0
-          ? `MTD $${metrics.revenue.thisMonth.toLocaleString()} (${metrics.revenue.monthChange >= 0 ? "+" : ""}${metrics.revenue.monthChange}%)`
+          ? revenueVerified
+            ? `MTD $${metrics.revenue.thisMonth.toLocaleString()} settled (${metrics.revenue.monthChange >= 0 ? "+" : ""}${metrics.revenue.monthChange}%) · Payments Verified`
+            : `MTD $${metrics.revenue.thisMonth.toLocaleString()} pipeline estimate (${metrics.revenue.monthChange >= 0 ? "+" : ""}${metrics.revenue.monthChange}%) · Not settled cash`
           : "Not enough revenue signal MTD",
       trend: metrics.revenue.monthChange > 0 ? "up" : metrics.revenue.monthChange < 0 ? "down" : "unknown",
-      truthKind: metrics.revenue.thisMonth > 0 ? "Measured Data" : "Unknown (More Data Required)",
+      truthKind:
+        metrics.revenue.thisMonth > 0 && revenueVerified
+          ? "Measured Data"
+          : metrics.revenue.thisMonth > 0
+            ? "AI Analysis"
+            : "Unknown (More Data Required)",
       priority: "high",
     },
     {
@@ -78,8 +86,8 @@ export async function buildLiveBusinessHealth(
     {
       id: "technology",
       label: "Technology",
-      score: 55,
-      explain: "Lighthouse/CWV connectors not wired — score capped; do not invent performance",
+      score: null,
+      explain: "Lighthouse/CWV connectors not wired — score Unknown; do not invent performance",
       trend: "unknown",
       truthKind: "Unknown (More Data Required)",
       priority: "medium",
@@ -87,10 +95,13 @@ export async function buildLiveBusinessHealth(
     {
       id: "knowledge",
       label: "Knowledge",
-      score: metrics.traffic.visitors30 > 0 && metrics.month.bookings >= 0 ? 78 : 45,
-      explain: "Coverage of analytics + booking signals for executive reasoning",
+      score: null,
+      explain:
+        metrics.traffic.visitors30 > 0
+          ? "Analytics present; knowledge coverage score Unknown until verification rollup"
+          : "Insufficient analytics + booking coverage for a knowledge score",
       trend: "flat",
-      truthKind: "AI Analysis",
+      truthKind: "Unknown (More Data Required)",
       priority: "medium",
     },
   ];
@@ -137,8 +148,12 @@ export async function buildIntelligenceGraph(): Promise<IntelligenceGraph> {
       metric: analytics.topPages.find((p) => p.path.includes("portfolio"))
         ? `${analytics.topPages.find((p) => p.path.includes("portfolio"))!.views} views`
         : "Not enough data",
-      truthKind: "Measured Data" as const,
-      status: "ok" as const,
+      truthKind: analytics.topPages.find((p) => p.path.includes("portfolio"))
+        ? ("Measured Data" as const)
+        : ("Unknown (More Data Required)" as const),
+      status: analytics.topPages.find((p) => p.path.includes("portfolio"))
+        ? ("ok" as const)
+        : ("unknown" as const),
     },
     {
       id: "booking",
@@ -146,8 +161,12 @@ export async function buildIntelligenceGraph(): Promise<IntelligenceGraph> {
       metric: analytics.topPages.find((p) => p.path.includes("book"))
         ? `${analytics.topPages.find((p) => p.path.includes("book"))!.views} views`
         : "Not in top pages",
-      truthKind: "Measured Data" as const,
-      status: "watch" as const,
+      truthKind: analytics.topPages.find((p) => p.path.includes("book"))
+        ? ("Measured Data" as const)
+        : ("Unknown (More Data Required)" as const),
+      status: analytics.topPages.find((p) => p.path.includes("book"))
+        ? ("watch" as const)
+        : ("unknown" as const),
     },
     {
       id: "inquiry",
@@ -175,9 +194,14 @@ export async function buildIntelligenceGraph(): Promise<IntelligenceGraph> {
       label: "Revenue",
       metric:
         metrics.revenue.thisMonth > 0
-          ? `$${metrics.revenue.thisMonth.toLocaleString()} MTD`
+          ? `$${metrics.revenue.thisMonth.toLocaleString()} MTD${metrics.revenue.verified ? " (Verified)" : " (Estimated)"}`
           : "Not enough data",
-      truthKind: metrics.revenue.thisMonth > 0 ? ("Measured Data" as const) : ("Unknown (More Data Required)" as const),
+      truthKind:
+        metrics.revenue.thisMonth > 0 && metrics.revenue.verified
+          ? ("Measured Data" as const)
+          : metrics.revenue.thisMonth > 0
+            ? ("AI Analysis" as const)
+            : ("Unknown (More Data Required)" as const),
       status: "ok" as const,
     },
   ];

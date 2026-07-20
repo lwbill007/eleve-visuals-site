@@ -60,6 +60,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { guardMutatingAdminAi } = await import("@/lib/admin-request-guard");
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:memory-write");
+  if (blocked) return blocked;
+
   const body = (await req.json()) as Partial<MemoryWriteInput>;
   if (!body.layer || !body.category || !body.key || !body.value) {
     return NextResponse.json({ error: "layer, category, key, and value are required" }, { status: 400 });

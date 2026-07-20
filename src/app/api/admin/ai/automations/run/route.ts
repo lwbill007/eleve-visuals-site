@@ -22,6 +22,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { guardMutatingAdminAi } = await import("@/lib/admin-request-guard");
+  const blocked = await guardMutatingAdminAi(request, "admin-ai:automations");
+  if (blocked) return blocked;
+
   const body = (await request.json().catch(() => ({}))) as { id?: string };
   if (body.id) {
     const result = await runSystemAutomation(body.id);

@@ -151,7 +151,6 @@ function guardedToOpportunity(r: GuardedRecommendation): ExecutiveOpportunity {
 export async function buildExecutiveOperatingSystem(): Promise<ExecutiveOperatingSystem> {
   const [
     theOneThing,
-    todaysMissions,
     healthDomains,
     intelligence,
     metrics,
@@ -166,7 +165,6 @@ export async function buildExecutiveOperatingSystem(): Promise<ExecutiveOperatin
     crm,
   ] = await Promise.all([
     buildTheOneThing(),
-    buildTodaysMissions(),
     buildExplainableHealthDomains(),
     getExecutiveIntelligence(),
     getOperatorMetrics(),
@@ -180,6 +178,8 @@ export async function buildExecutiveOperatingSystem(): Promise<ExecutiveOperatin
     getExecutiveForecasts(),
     getAdminCRMContacts(),
   ]);
+
+  const todaysMissions = await buildTodaysMissions(theOneThing);
 
   const institutionalMemory = buildInstitutionalMemory(memorySnap, learnings);
   const topClient = [...crm].sort((a, b) => b.revenue - a.revenue)[0];

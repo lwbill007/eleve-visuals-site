@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { generateAIContent } from "@/lib/ai/service";
 import type { AIGenerateTask } from "@/lib/ai/types";
 
@@ -13,6 +14,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(request, "admin-ai:generate");
+  if (blocked) return blocked;
 
   let body: { task?: string; prompt?: string; context?: unknown };
   try {

@@ -6,9 +6,9 @@ import { PortfolioFeaturedProject } from "@/components/portfolio/PortfolioFeatur
 import { PortfolioStats } from "@/components/portfolio/PortfolioStats";
 import { PortfolioWorkGallery } from "@/components/portfolio/PortfolioWorkGallery";
 import { getPageCopy, getPortfolioItemById, getPortfolioItems, getPortfolioPageContent } from "@/lib/content";
-import { getPortfolioCategories, getPortfolioFeaturedProject } from "@/lib/portfolio";
+import { PORTFOLIO_CATEGORIES } from "@/lib/types";
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await getPortfolioPageContent();
@@ -31,13 +31,22 @@ export default async function PortfolioPage({
     if (legacy) redirect(`/portfolio/${legacy.slug}`);
   }
 
-  const [items, pageContent, featured, categories, pageCopy] = await Promise.all([
+  // Single items query — derive featured + categories (avoid extra Prisma round-trips)
+  const [items, pageContent, pageCopy] = await Promise.all([
     getPortfolioItems(),
     getPortfolioPageContent(),
-    getPortfolioFeaturedProject(),
-    getPortfolioCategories(),
     getPageCopy(),
   ]);
+
+  const featured =
+    items.find((i) => i.portfolioFeatured) ?? items.find((i) => i.featured) ?? null;
+  const categories = Array.from(
+    new Set([
+      ...pageContent.categories,
+      ...PORTFOLIO_CATEGORIES,
+      ...items.map((i) => i.category).filter(Boolean),
+    ])
+  );
 
   return (
     <>

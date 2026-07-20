@@ -12,18 +12,13 @@ import { getWebsiteHeatIntelligence } from "./website-heat";
 import {
   buildEvidenceBundle,
   scoreConfidenceFromEvidence,
-  type ConfidenceBreakdown,
-  type EvidenceBundle,
   type EvidenceItem,
-  type EvidenceSourceType,
 } from "../evidence/schema";
 import type {
-  WebsiteCategoryId,
   WebsiteCategoryScore,
   WebsiteDataSource,
   WebsiteIntelligenceEngine,
   WebsiteRecommendation,
-  WebsiteTruthKind,
 } from "./website-engine-types";
 
 export type {

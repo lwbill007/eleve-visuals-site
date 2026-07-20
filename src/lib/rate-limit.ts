@@ -10,6 +10,15 @@ const LIMITS: Record<string, number> = {
   "submit:session-upload": 40,
   "auth:login": 10,
   "analytics:pageview": 120,
+  // High-cost / mutating admin AI (per IP / hour)
+  "admin-ai:generate": 60,
+  "admin-ai:chat": 90,
+  "admin-ai:execute": 40,
+  "admin-ai:reports": 30,
+  "admin-ai:automations": 20,
+  "admin-ai:memory-write": 60,
+  "admin-ai:embeddings": 10,
+  "admin-ai:cognitive": 40,
 };
 
 export function getClientIp(request: Request): string {

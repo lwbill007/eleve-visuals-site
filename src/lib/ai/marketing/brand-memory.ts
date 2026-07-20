@@ -17,7 +17,7 @@ import type { BrandInstitutionalMemory } from "./types";
 const BRAND_KEY = "institutional";
 
 export async function buildBrandInstitutionalMemory(): Promise<BrandInstitutionalMemory> {
-  const [site, hero, about, services, portfolio, sessions, nav, testimonials, sponsors, volumes] =
+  const [site, hero, about, services, portfolio, , nav, , sponsors, volumes] =
     await Promise.all([
       getSiteConfig().catch(() => null),
       getHeroContent().catch(() => null),

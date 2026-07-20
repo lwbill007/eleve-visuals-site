@@ -1,8 +1,4 @@
-/**
- * Build Executive Intelligence Platform v3 from live ÉLEVÉ OS data.
- * Never invents ROI / conversion lifts / dollar recovery as facts.
- */
-
+import { getCached, setCache, withInflight } from "../cache";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
 import { getOperatorMetrics } from "../intelligence/business-operator";
 import { getAllExecutiveOpportunities } from "../intelligence/website-opportunities";
@@ -47,7 +43,8 @@ function metric(
   id: string,
   label: string,
   value: string | null | undefined,
-  note?: string
+  note?: string,
+  truthKind: ReportTruthKind = "Measured Data"
 ): MeasuredMetric {
   if (value == null || value === "" || value === "NaN") {
     return {
@@ -58,7 +55,7 @@ function metric(
       note,
     };
   }
-  return { id, label, value, truthKind: "Measured Data", note };
+  return { id, label, value, truthKind, note };
 }
 
 function mapReportTruthKind(kind: string): ReportTruthKind {
@@ -99,6 +96,19 @@ export async function buildExecutiveReportV2(
 }
 
 export async function buildExecutiveReportV3(
+  reportType: string = "daily_ceo"
+): Promise<ExecutiveReportV3> {
+  const cacheKey = `executive-report-v3:${reportType}`;
+  return withInflight(cacheKey, async () => {
+    const cached = await getCached<ExecutiveReportV3>(cacheKey);
+    if (cached) return cached;
+    const report = await computeExecutiveReportV3(reportType);
+    await setCache(cacheKey, report, 5 * 60_000).catch(() => {});
+    return report;
+  });
+}
+
+async function computeExecutiveReportV3(
   reportType: string = "daily_ceo"
 ): Promise<ExecutiveReportV3> {
   const [
@@ -263,7 +273,12 @@ export async function buildExecutiveReportV3(
             : "unknown",
       confidence: metrics.revenue.thisMonth > 0 ? 70 : 30,
       priority: "high",
-      truthKind: metrics.revenue.thisMonth > 0 ? "Measured Data" : "Unknown (More Data Required)",
+      truthKind:
+        metrics.revenue.thisMonth > 0 && metrics.revenue.verified
+          ? "Measured Data"
+          : metrics.revenue.thisMonth > 0
+            ? "AI Analysis"
+            : "Unknown (More Data Required)",
     },
     {
       id: "marketing",
@@ -399,9 +414,21 @@ export async function buildExecutiveReportV3(
             : "unknown",
       confidence: metrics.revenue.thisMonth > 0 ? 60 : 30,
       priority: "medium",
-      truthKind: metrics.revenue.thisMonth > 0 ? "Measured Data" : "Unknown (More Data Required)",
+      truthKind:
+        metrics.revenue.thisMonth > 0 && metrics.revenue.verified
+          ? "Measured Data"
+          : metrics.revenue.thisMonth > 0
+            ? "AI Analysis"
+            : "Unknown (More Data Required)",
     },
   ];
+
+  const revenueTruth: ReportTruthKind =
+    metrics.revenue.thisMonth > 0 && metrics.revenue.verified
+      ? "Measured Data"
+      : metrics.revenue.thisMonth > 0
+        ? "AI Analysis"
+        : "Unknown (More Data Required)";
 
   const measuredSituation: MeasuredMetric[] = [
     metric("visitors", "Website Visitors (30d)", hasAnalytics ? String(analytics.totals.uniqueSessions) : null),
@@ -416,7 +443,10 @@ export async function buildExecutiveReportV3(
       "revenue_mtd",
       "Revenue MTD",
       metrics.revenue.thisMonth > 0 ? `$${metrics.revenue.thisMonth.toLocaleString()}` : null,
-      "May include pipeline estimates depending on operator metrics source"
+      metrics.revenue.verified
+        ? "Settled payments (Payments Verified)"
+        : "Pipeline estimate — not settled cash",
+      revenueTruth
     ),
     metric("stale", "Stale Inquiries", String(metrics.attention.abandonedInquiries)),
     metric("inactive_clients", "Inactive Clients (60d+)", String(metrics.attention.followUpClients)),

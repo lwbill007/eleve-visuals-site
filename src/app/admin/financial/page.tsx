@@ -345,7 +345,16 @@ export default function FinancialCenterPage() {
               </WorkspaceButton>
             </AdminPanel>
 
-            <AdminPanel title="Settled ledger" subtitle={`${filtered.length} shown · Payments Verified`}>
+            <AdminPanel
+              title="Settled ledger"
+              subtitle={
+                filtered.length > 0
+                  ? `${filtered.length} shown · Payments Verified`
+                  : summary?.hasPayments
+                    ? "No rows match filters"
+                    : "No settled payments yet · Unknown"
+              }
+            >
               <WorkspaceToolbar
                 search={q}
                 onSearch={setQ}

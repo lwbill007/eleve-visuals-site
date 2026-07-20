@@ -146,7 +146,7 @@ export default function OpportunitiesPage() {
                     actualRevenue: r.actualRevenue,
                     decisionStatus: r.decisionStatus,
                     learningStatus: r.learningStatus,
-                    evidenceCount: r.evidence.length,
+                    evidenceCount: (r.evidence ?? []).length,
                     reasoning: r.reasoning,
                     prediction: r.prediction,
                     priority: r.priority,

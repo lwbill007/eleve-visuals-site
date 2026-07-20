@@ -21,7 +21,7 @@ import {
   StringListEditor,
 } from "@/components/admin/AdminForm";
 import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
-import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
+import { WorkspaceChrome, WorkspaceError } from "@/components/admin/os/WorkspaceFrame";
 import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import {
@@ -109,6 +109,7 @@ function emptyVolume(): Partial<SessionVolumeDTO> {
 export default function AdminSessionsPage() {
   const [view, setView] = useState<"volumes" | "application">("volumes");
   const [items, setItems] = useState<SessionVolumeDTO[]>([]);
+  const [loadError, setLoadError] = useState("");
   const [applicationCopy, setApplicationCopy] = useState<SessionsApplicationContent>(DEFAULT_SESSIONS_APPLICATION);
   const [appSaving, setAppSaving] = useState(false);
   const [editing, setEditing] = useState<Partial<SessionVolumeDTO> | null>(null);
@@ -117,8 +118,17 @@ export default function AdminSessionsPage() {
   const uploadsActive = useUploadsActive();
 
   async function load() {
-    const res = await adminFetch("/api/admin/session-volumes");
-    if (res.ok) setItems(await res.json());
+    try {
+      const res = await adminFetch("/api/admin/session-volumes");
+      if (!res.ok) {
+        setLoadError(`Could not load volumes (${res.status}).`);
+        return;
+      }
+      setLoadError("");
+      setItems(await res.json());
+    } catch {
+      setLoadError("Could not load volumes.");
+    }
   }
 
   useEffect(() => {
@@ -311,6 +321,11 @@ export default function AdminSessionsPage() {
         subtitle="Apps may be live. Revenue, profit, and traffic are never invented on this page."
         capabilities={volumeCapabilities}
       />
+      {loadError && (
+        <div className="mb-6">
+          <WorkspaceError message={loadError} onRetry={() => void load()} />
+        </div>
+      )}
       <div className="mb-6 flex gap-2">
         {(["volumes", "application"] as const).map((mode) => (
           <button

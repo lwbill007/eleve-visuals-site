@@ -33,11 +33,12 @@ export async function GET(request: Request) {
   const { invalidateIntelligenceCaches } = await import("@/lib/ai/cognitive/cache");
   const { runExecutiveQA } = await import("@/lib/ai/truth/executive-qa");
   const { runAllSystemAutomations } = await import("@/lib/ai/intelligence/system-automations");
-  const [_, qaReport, automationResults] = await Promise.all([
+  const [dnaAndCache, qaReport, automationResults] = await Promise.all([
     Promise.all([buildBusinessDNA(), invalidateIntelligenceCaches()]),
     runExecutiveQA().catch(() => null),
     runAllSystemAutomations().catch(() => []),
   ]);
+  void dnaAndCache;
 
   if (schedule === "weekly") {
     const { generateWeeklyExecutiveReport } = await import("@/lib/ai/intelligence/weekly-executive-report");

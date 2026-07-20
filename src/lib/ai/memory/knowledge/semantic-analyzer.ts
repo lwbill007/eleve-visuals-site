@@ -2,7 +2,6 @@ import type { DiscoveredRoute } from "./route-discovery";
 import type { KnowledgeFinding, KnowledgeRelation, PlatformIssue } from "./types";
 import type { MemoryLayer } from "../types";
 import {
-  getAboutContent,
   getBookingOptions,
   getContactPage,
   getHeroContent,
@@ -73,7 +72,7 @@ export async function analyzePlatformRoutes(
   const [
     site,
     hero,
-    homepage,
+    ,
     nav,
     portfolioPage,
     portfolioItems,

@@ -97,7 +97,7 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
                   {fact.label}
                 </p>
                 <p className="mt-1 font-display text-2xl text-cream">{fact.value}</p>
-                <p className="mt-1 text-[0.62rem] text-fog">{fact.evidence[0]}</p>
+                <p className="mt-1 text-[0.62rem] text-fog">{fact.evidence?.[0]}</p>
               </div>
             ))}
           </div>
@@ -120,7 +120,7 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
               <div key={item.statement}>
                 <p className="text-sm leading-relaxed text-cream">{item.statement}</p>
                 <ul className="mt-2 space-y-0.5">
-                  {item.evidence.map((e) => (
+                  {(item.evidence ?? []).map((e) => (
                     <li key={e} className="text-[0.65rem] text-muted">
                       {e}
                     </li>
@@ -133,7 +133,7 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
 
         <Section step="04" title="Evidence">
           <ul className="space-y-1">
-            {contract.evidence.map((e) => (
+            {(contract.evidence ?? []).map((e) => (
               <li key={e} className="text-sm text-fog">
                 • {e}
               </li>
@@ -177,7 +177,7 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
                     {r.owner} · {r.successMetric}
                   </p>
                   <ul className="mt-2 space-y-0.5">
-                    {r.evidence.slice(0, 3).map((e) => (
+                    {(r.evidence ?? []).slice(0, 3).map((e) => (
                       <li key={e} className="text-[0.65rem] text-fog">
                         Evidence · {e}
                       </li>
@@ -204,15 +204,15 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
 
         <Section step="08" title="Actions">
           <div className="flex flex-wrap gap-2">
-            {contract.actions.length === 0 ? (
+            {(contract.actions ?? []).length === 0 ? (
               <p className="text-sm text-muted">No actions available.</p>
             ) : (
-              contract.actions.map((a) => (
+              (contract.actions ?? []).map((a) => (
                 <Link
                   key={a.id}
                   href={a.href}
                   className="rounded-lg bg-cream px-3 py-2 text-[0.65rem] tracking-wider text-ink uppercase"
-                  title={a.evidence.join(" · ")}
+                  title={(a.evidence ?? []).join(" · ")}
                 >
                   {a.label}
                 </Link>
@@ -305,7 +305,7 @@ export function AIDailyBriefingPanel({ compact = false }: { compact?: boolean })
           </ul>
         </AdminPanel>
       )}
-      {briefing.recommendedActions.slice(0, 3).map((a) => (
+      {(briefing.recommendedActions ?? []).slice(0, 3).map((a) => (
         <div key={a.id} className="mt-3">
           <ExecutiveInsightCard
             severity="medium"

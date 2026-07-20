@@ -6,7 +6,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
-import { WorkspaceChrome } from "@/components/admin/os/WorkspaceFrame";
+import { WorkspaceChrome, WorkspaceEmpty, WorkspaceError, WorkspaceLoading } from "@/components/admin/os/WorkspaceFrame";
 import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import {
@@ -37,16 +37,22 @@ export function WebsiteIntelligenceClient() {
   useSetAIPage("analytics");
   const [data, setData] = useState<WebsiteIntelligenceEngine | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [sort, setSort] = useState<WebsiteRecSort>("roi");
   const [openId, setOpenId] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     setLoading(true);
+    setError("");
     try {
       const res = await adminFetch(
         `/api/admin/ai/website-intelligence${refresh ? "?refresh=1" : ""}`
       );
-      if (res.ok) setData((await res.json()) as WebsiteIntelligenceEngine);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setData((await res.json()) as WebsiteIntelligenceEngine);
+    } catch {
+      setData(null);
+      setError("Could not load website intelligence.");
     } finally {
       setLoading(false);
     }
@@ -156,9 +162,16 @@ export function WebsiteIntelligenceClient() {
       </div>
 
       {loading && !data ? (
-        <p className="text-sm text-muted">Loading website intelligence…</p>
+        <WorkspaceLoading />
+      ) : error && !data ? (
+        <WorkspaceError message={error} onRetry={() => void load(true)} />
       ) : !data ? (
-        <p className="text-sm text-red-300">Could not load website intelligence.</p>
+        <WorkspaceEmpty
+          title="No website intelligence yet"
+          detail="Refresh to run the orchestrator. Missing connectors stay Not measured."
+          actionLabel="Refresh"
+          actionHref="/admin/website"
+        />
       ) : (
         <div className="space-y-6">
           {/* Executive Summary */}
@@ -377,7 +390,7 @@ function RecommendationCard({
           <div className="grid gap-3 md:grid-cols-2">
             <Block title="Evidence">
               <ul className="space-y-1.5">
-                {rec.evidence.map((e, i) => (
+                {(rec.evidence ?? []).map((e, i) => (
                   <li key={i} className="text-cream-dim">
                     <span className={cn("text-[0.55rem] uppercase", truthTone(e.kind))}>
                       {e.kind}
@@ -419,21 +432,21 @@ function RecommendationCard({
           <div className="grid gap-3 md:grid-cols-3">
             <Block title="Expected Benefits">
               <ul className="list-disc space-y-1 pl-4 text-xs text-cream-dim">
-                {rec.expectedBenefits.map((b) => (
+                {(rec.expectedBenefits ?? []).map((b) => (
                   <li key={b}>{b}</li>
                 ))}
               </ul>
             </Block>
             <Block title="Potential Risks">
               <ul className="list-disc space-y-1 pl-4 text-xs text-cream-dim">
-                {rec.potentialRisks.map((b) => (
+                {(rec.potentialRisks ?? []).map((b) => (
                   <li key={b}>{b}</li>
                 ))}
               </ul>
             </Block>
             <Block title="Success Metrics">
               <ul className="list-disc space-y-1 pl-4 text-xs text-cream-dim">
-                {rec.successMetrics.map((b) => (
+                {(rec.successMetrics ?? []).map((b) => (
                   <li key={b}>{b}</li>
                 ))}
               </ul>
@@ -441,7 +454,7 @@ function RecommendationCard({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {rec.actions.map((a) =>
+            {(rec.actions ?? []).map((a) =>
               a.href ? (
                 <Link
                   key={a.id}

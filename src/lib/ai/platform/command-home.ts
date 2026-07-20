@@ -189,17 +189,18 @@ export async function buildCommandHome(): Promise<CommandHomePayload> {
     explain: c.explain,
   }));
 
-  // Ensure Sales domain exists even if live-health uses different keys
+  // Sales domain: only surface when we have a measured backlog signal — never invent a score.
   if (!domains.some((d) => d.id === "sales")) {
+    const stale = metrics.attention.abandonedInquiries;
     domains.splice(1, 0, {
       id: "sales",
       label: "Sales",
-      score: metrics.attention.abandonedInquiries === 0 ? 78 : 52,
+      score: null,
       href: METRIC_OWNERS.bookings.href,
       explain:
-        metrics.attention.abandonedInquiries > 0
-          ? `${metrics.attention.abandonedInquiries} stale inquiries awaiting response`
-          : "No stale inquiry backlog",
+        stale > 0
+          ? `${stale} stale inquiries awaiting response (Measured) · composite Sales score Unknown`
+          : "No stale inquiry backlog · composite Sales score Unknown until close-rate connector",
     });
   }
 

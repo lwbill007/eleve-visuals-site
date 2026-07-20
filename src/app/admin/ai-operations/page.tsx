@@ -7,8 +7,10 @@ import {
 } from "@/lib/ai/architecture";
 import { listTaskSpecs } from "@/lib/ai/tasks/registry";
 import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import { loadAdminOsAuditSummary } from "@/lib/ai/platform/os-audit-summary";
 import { MissingMetricCard } from "@/components/admin/ai/OwnedMetricCard";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,7 @@ export default async function AIOperationsPage() {
     error = cause instanceof Error ? cause.message : "AI Operations data could not be loaded.";
   }
 
+  const osAudit = await loadAdminOsAuditSummary();
   const owner = METRIC_OWNERS.ai_operations;
   const tasks = listTaskSpecs();
   const trustGaps = [
@@ -102,6 +105,57 @@ export default async function AIOperationsPage() {
             signals, success rate, cache, and retries. Missing trust metrics stay honest at 0%.
           </p>
         </header>
+
+        <section className="mt-6 rounded-2xl border border-stone/20 bg-charcoal/15 p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-[0.58rem] tracking-[0.14em] text-muted uppercase">
+                Admin OS audit · living report
+              </p>
+              <h3 className="mt-1 font-display text-2xl text-cream">
+                {osAudit ? `Gate ${osAudit.gate}` : "Audit not generated"}
+              </h3>
+            </div>
+            <Link href="/admin/qa" className="text-xs text-accent hover:underline">
+              Open Executive QA →
+            </Link>
+          </div>
+          {osAudit ? (
+            <>
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
+                <Metric label="Pages working" value={`${osAudit.working}/${osAudit.pages}`} />
+                <Metric label="Partial" value={String(osAudit.partial)} />
+                <Metric label="Broken" value={String(osAudit.broken)} />
+                <Metric label="P0 findings" value={String(osAudit.findingsP0)} />
+                <Metric label="P1 findings" value={String(osAudit.findingsP1)} />
+                <Metric
+                  label="Auth gaps"
+                  value={String(osAudit.adminApisMissingAuth)}
+                  detail={`Live probes: ${osAudit.liveProbes}`}
+                />
+              </div>
+              {osAudit.recentFindings.length > 0 && (
+                <ul className="mt-4 space-y-1.5 text-xs text-fog">
+                  {osAudit.recentFindings.map((f) => (
+                    <li key={`${f.severity}-${f.title}`}>
+                      <span className="text-accent">[{f.severity}]</span> {f.title}
+                      {f.category ? ` · ${f.category}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-3 text-[0.55rem] text-muted">
+                Generated {new Date(osAudit.generatedAt).toLocaleString()} · run{" "}
+                <code className="text-fog">npm run audit:os</code> to refresh
+              </p>
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-fog">
+              No <code className="text-cream">docs/audits/admin-os-latest.json</code> yet. Run{" "}
+              <code className="text-cream">npm run audit:os</code>.
+            </p>
+          )}
+        </section>
 
         <section className="mt-6 rounded-2xl border border-stone/20 bg-charcoal/15 p-5">
           <p className="text-[0.58rem] tracking-[0.14em] text-muted uppercase">

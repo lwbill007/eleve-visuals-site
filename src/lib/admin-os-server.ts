@@ -359,7 +359,7 @@ export async function getAdminCRMContacts() {
             typeof data.packageId === "string" ? data.packageId : undefined,
             Array.isArray(data.addOnIds) ? (data.addOnIds as string[]) : undefined
           ) ||
-          1500;
+          0;
         existing.revenue += value;
         existing.status = existing.bookings > 1 ? "repeat" : "completed";
         if (existing.bookings > 1 && !existing.tags.includes("Repeat Client")) {

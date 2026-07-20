@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { executeRecommendation, type ExecuteKind } from "@/lib/ai/platform/execute";
 
 export async function POST(request: Request) {
@@ -8,6 +9,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(request, "admin-ai:execute");
+  if (blocked) return blocked;
 
   const body = (await request.json()) as {
     recommendationId?: string;

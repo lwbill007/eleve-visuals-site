@@ -133,7 +133,7 @@ export function buildExecutiveRecommendation(
     problem: rec.deprioritizeReason ?? rec.detail,
     title: rec.title,
     detail: rec.detail,
-    evidence: rec.evidence,
+    evidence: rec.evidence ?? [],
     reasoning: rec.whyNow,
     supportingMemories: confidenceDetail.supportingMemories.map((m) => ({
       id: m.id,
@@ -154,7 +154,7 @@ export function buildExecutiveRecommendation(
         ? "Organic lift possible in 4–12 weeks — not immediate bookings"
         : "Not a primary SEO lever",
     confidence: rec.confidence,
-    truthLabel: truthLabelFromConfidence(rec.confidence, rec.evidence),
+    truthLabel: truthLabelFromConfidence(rec.confidence, rec.evidence ?? []),
     risk: confidenceDetail.risk,
     urgency: urgencyFromPriority(rec.priority),
     timeRequiredMinutes: rec.timeToCompleteMinutes,
@@ -171,7 +171,7 @@ export function buildExecutiveRecommendation(
     category: rec.category,
     strategicScore: Math.round(rec.estimatedRevenue * rec.confidence),
     learningValue: rec.confidence < 0.7 ? "High — fills thin outcome history" : "Medium — confirms existing pattern",
-    actions: rec.actions,
+    actions: rec.actions ?? [],
     confidenceDetail,
     verificationMethod:
       "Compare success metric before/after within 14 days using owned Analytics or Bookings data",

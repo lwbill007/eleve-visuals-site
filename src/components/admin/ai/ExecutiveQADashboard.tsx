@@ -133,6 +133,13 @@ export function ExecutiveQADashboard() {
         unlockHref: "/admin/ai-operations",
       },
     },
+    {
+      id: "os-audit",
+      label: "Admin OS audit gate",
+      status: "partial",
+      summary: "Living audit from npm run audit:os — open AI Ops for P0/P1 rollup.",
+      href: "/admin/ai-operations",
+    },
   ];
 
   return (

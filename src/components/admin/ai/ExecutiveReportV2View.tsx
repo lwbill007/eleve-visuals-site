@@ -517,7 +517,7 @@ export function ExecutiveReportV2View({
               <div className="mt-3">
                 <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Evidence Engine</p>
                 <ul className="mt-2 space-y-1.5">
-                  {r.evidence.map((e, i) => (
+                  {(r.evidence ?? []).map((e, i) => (
                     <li key={`${r.id}-ev-${i}`} className="flex flex-wrap items-start gap-2 text-xs">
                       <TruthBadge kind={e.kind} />
                       <span className="text-cream-dim">{e.text}</span>
@@ -634,7 +634,7 @@ export function ExecutiveReportV2View({
               )}
 
               <div className="mt-4 flex flex-wrap gap-2">
-                {r.actions.map((a) =>
+                {(r.actions ?? []).map((a) =>
                   a.href ? (
                     <Link
                       key={a.id}

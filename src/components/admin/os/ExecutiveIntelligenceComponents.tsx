@@ -61,7 +61,7 @@ export function ExecutiveScoreGrid({ scores }: { scores: ExecutiveScore[] }) {
                   <span className="text-accent">Why:</span> {score.why}
                 </p>
                 <ul className="space-y-1 text-[0.65rem] text-muted">
-                  {score.evidence.map((e) => (
+                  {(score.evidence ?? []).map((e) => (
                     <li key={e}>• {e}</li>
                   ))}
                 </ul>
@@ -144,7 +144,7 @@ export function RiskCard({ risk }: { risk: ExecutiveRisk }) {
         <p className="mt-2 text-xs text-amber-300">Potential impact: {formatCurrency(risk.potentialImpact)}</p>
       )}
       <ul className="mt-2 space-y-0.5 text-[0.65rem] text-muted">
-        {risk.evidence.map((e) => (
+        {(risk.evidence ?? []).map((e) => (
           <li key={e}>• {e}</li>
         ))}
       </ul>
