@@ -134,11 +134,17 @@ export async function syncFinancialMemory() {
       category: "risk",
       key: `risk-${period}`,
       title: "Financial risk flags",
-      summary: `$${(metrics.attention.followUpValue + metrics.attention.abandonedInquiries * 1200).toLocaleString()} potentially lost without follow-up`,
+      summary:
+        metrics.attention.followUpValue > 0
+          ? `~$${metrics.attention.followUpValue.toLocaleString()} inactive-client value + ${metrics.attention.abandonedInquiries} stale inquiries (Measured; $ recovery Unknown without ASP)`
+          : `${metrics.attention.abandonedInquiries} stale inquiries / inactive follow-ups (Measured; dollar impact Unknown)`,
       value: {
         inactiveClientValue: metrics.attention.followUpValue,
         staleInquiries: metrics.attention.abandonedInquiries,
-        recommendedAction: "Recover stale inquiries within 48 hours",
+        recommendedAction:
+          metrics.attention.abandonedInquiries > 0
+            ? "Recover stale inquiries within 48 hours"
+            : "Re-engage inactive CRM contacts",
       },
       confidence: 0.85,
       importance: 88,

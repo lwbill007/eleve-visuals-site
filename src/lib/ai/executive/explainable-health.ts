@@ -79,7 +79,8 @@ export async function buildExplainableHealthDomains(): Promise<ExplainableHealth
     if (d.id === "sales" && metrics.attention.abandonedInquiries > 0) {
       actions.push({
         title: `Recover ${metrics.attention.abandonedInquiries} stale inquiries`,
-        revenueGain: metrics.attention.abandonedInquiries * 1200,
+        // Dollar recovery Unknown without measured ASP — do not invent $1200/inquiry.
+        revenueGain: metrics.attention.followUpValue > 0 ? metrics.attention.followUpValue : 0,
         minutes: 25,
         href: "/admin/submissions?type=booking",
         why: "Fastest path to revenue without new acquisition spend",
@@ -88,7 +89,7 @@ export async function buildExplainableHealthDomains(): Promise<ExplainableHealth
     if (d.id === "marketing" && metrics.traffic.trafficChange < -15) {
       actions.push({
         title: "Publish portfolio content on Instagram",
-        revenueGain: Math.round(metrics.traffic.visitors30 * 0.02 * 1500),
+        revenueGain: 0,
         minutes: 40,
         href: "/admin/marketing",
         why: "Traffic decline — re-activate top referral channel",

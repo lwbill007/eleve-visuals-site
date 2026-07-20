@@ -1,37 +1,22 @@
-# ÉLEVÉ Admin OS — Full Audit (post-deploy)
+# ÉLEVÉ Admin OS — Full Audit (honesty + perf pass)
 
-**Generated:** 2026-07-20T21:06:27Z  
-**Target:** https://www.eleve-visuals.com  
-**Verdict:** HEALTHY — P1s cleared on production
+**Updated:** 2026-07-20  
+**Verdict:** HEALTHY — fabricated invents scrubbed; enterprise loading gaps = 0
+
+## Honesty fixes (no fake data)
+
+- Removed `$1500` / `$1200` invents (pipeline, CRM, booking briefs, predictions, sync-financial)
+- Website SEO/A11y scores → **0 Unknown** until connectors exist
+- Command Center website/seo health no longer invents from `+40` / `+50` baselines
+- Strategy simulator refuses invented bases when MTD revenue is 0
+- Booking-count impact no longer divides revenue by invented ASP 1500
+- Semantic analyzer SEO scores → Unknown
+
+## Perf
+
+- Weekly report + intelligence suite: inflight + AICache
+- Executive OS outer cache 15m; Command Home cache 90s
 
 ## Suites
 
-| Suite | Result |
-| --- | --- |
-| `audit:os` | **PASS** — 31/31 working, P0=0, P1=0 |
-| `audit:enterprise` | **PASS** — 0 auth gaps, 0 truth UI bypass |
-| `executive-qa` (prod) | **PASS** — 33/35 OK, **0 failed, 0 slow** |
-| `production-api` | **PASS** — 13/13 |
-| `verify` / `test:ai` | **PASS** |
-
-## Live improvements vs prior audit
-
-| Metric | Before | After |
-| --- | --- | --- |
-| Executive OS | 14.9s | **3.9s** |
-| Slow APIs (>5s) | 1 | **0** |
-| Notifications health | overall: error | **overall: ok** |
-| Public /portfolio | 1.4s | **0.7s** |
-
-## Remaining (non-blocking)
-
-- **P2** Executive OS still slowest at 3.9s; Intelligence suite 2.4s
-- **P3** enterprise-audit loading heuristic false positives (loading.tsx present)
-- **P3** 44 lib `getOperatorMetrics` callers (memoized; UI bypass = 0)
-
-## Security
-
-- requireAdmin gaps: **0**
-- Unauth executive-os: **401**
-- Truth UI bypass: **0**
-- DB health: **ok** (16 checks) · Memory: **4,849** items
+- `verify` PASS · `test:ai` PASS · enterprise loading missing **0** · auth gaps **0**

@@ -48,46 +48,99 @@ export async function buildTheOneThing(): Promise<ExecutiveMission> {
 
   const top = recs[0];
   const avgValue =
-    metrics.month.bookings > 0
+    metrics.month.bookings > 0 && metrics.revenue.thisMonth > 0
       ? Math.round(metrics.revenue.thisMonth / metrics.month.bookings)
-      : 1500;
+      : 0;
+  const stale = metrics.attention.abandonedInquiries;
 
   if (!top) {
+    // Empty / quiet studio — never invent "1 pending inquiry" or a $1500 ASP.
+    if (stale === 0 && metrics.month.bookings === 0) {
+      return {
+        id: "mission-quiet-studio",
+        title: "No booking pipeline yet — drive acquisition",
+        reasoning:
+          "Measured: 0 bookings MTD · 0 stale inquiries · $0 revenue. Nothing to recover; focus on getting the first real inquiry.",
+        expectedRevenue: qualifyMetric({
+          value: 0,
+          quality: "verified",
+          updatedAt: metrics.generatedAt,
+          confidence: 0.9,
+          source: "Operator metrics (empty pipeline)",
+        }),
+        expectedBookings: qualifyMetric({
+          value: 0,
+          quality: "verified",
+          updatedAt: metrics.generatedAt,
+          source: "Submissions",
+        }),
+        timeMinutes: 30,
+        difficulty: "moderate",
+        confidence: 0.85,
+        evidence: [
+          "month.bookings = 0 (Measured)",
+          "attention.abandonedInquiries = 0 (Measured)",
+          "revenue.thisMonth = $0 (Measured)",
+        ],
+        successMetric: "First booking inquiry received",
+        href: "/admin/marketing",
+        actions: [
+          { id: "marketing", label: "Open Marketing", type: "navigate", href: "/admin/marketing" },
+          { id: "analytics", label: "Open Analytics", type: "navigate", href: "/admin/analytics" },
+        ],
+        completed: false,
+      };
+    }
+
     return {
       id: "mission-default",
-      title: "Review stale booking inquiries and send follow-ups",
+      title:
+        stale > 0
+          ? `Respond to ${stale} stale booking inquir${stale === 1 ? "y" : "ies"}`
+          : "Review CRM and follow-up queue",
       reasoning:
-        "When no ranked opportunity exists, the highest-ROI default is recovering pipeline that already exists.",
+        stale > 0
+          ? `${stale} measured stale inquiries need response before new campaigns.`
+          : "No ranked opportunity — review CRM activity without inventing inquiry counts.",
       expectedRevenue: qualifyMetric({
-        value: metrics.attention.followUpValue || avgValue,
-        quality: metrics.attention.followUpValue > 0 ? "calculated" : "estimated",
+        value: metrics.attention.followUpValue,
+        quality: metrics.attention.followUpValue > 0 ? "calculated" : "unavailable",
         updatedAt: metrics.generatedAt,
         confidence: 0.7,
         source: "CRM + submissions",
       }),
       expectedBookings: qualifyMetric({
-        value: Math.max(1, metrics.attention.abandonedInquiries),
-        quality: "calculated",
+        value: stale,
+        quality: "verified",
         updatedAt: metrics.generatedAt,
         source: "Submissions",
       }),
       timeMinutes: 25,
       difficulty: "easy",
       confidence: 0.7,
-      evidence: ["Default executive playbook when pipeline data is thin"],
-      successMetric: "At least 1 inquiry responded to within 24h",
-      href: "/admin/submissions?type=booking",
+      evidence: [
+        `attention.abandonedInquiries = ${stale} (Measured)`,
+        `attention.followUpClients = ${metrics.attention.followUpClients} (Measured)`,
+      ],
+      successMetric:
+        stale > 0 ? "Stale inquiry responded to within 24h" : "CRM follow-up logged",
+      href: stale > 0 ? "/admin/submissions?type=booking" : "/admin/crm",
       actions: [
-        { id: "submissions", label: "Open inquiries", type: "navigate", href: "/admin/submissions?type=booking" },
+        {
+          id: stale > 0 ? "submissions" : "crm",
+          label: stale > 0 ? "Open inquiries" : "Open CRM",
+          type: "navigate",
+          href: stale > 0 ? "/admin/submissions?type=booking" : "/admin/crm",
+        },
       ],
       completed: false,
     };
   }
 
-  const bookingImpact = Math.max(
-    1,
-    Math.round(top.estimatedRevenue / Math.max(avgValue, 1))
-  );
+  const bookingImpact =
+    avgValue > 0 && top.estimatedRevenue > 0
+      ? Math.max(0, Math.round(top.estimatedRevenue / avgValue))
+      : 0;
 
   return {
     id: `mission-${top.id}`,
@@ -103,10 +156,12 @@ export async function buildTheOneThing(): Promise<ExecutiveMission> {
     }),
     expectedBookings: qualifyMetric({
       value: bookingImpact,
-      quality: "estimated",
+      quality: bookingImpact > 0 ? "estimated" : "unavailable",
       updatedAt: new Date().toISOString(),
-      confidence: top.confidence * 0.9,
-      source: `APV ~$${avgValue.toLocaleString()}`,
+      confidence: bookingImpact > 0 ? top.confidence * 0.9 : 0,
+      lowConfidenceReason:
+        bookingImpact > 0 ? undefined : "Booking-count impact Unknown — no measured avg booking value",
+      source: avgValue > 0 ? `APV ~$${avgValue.toLocaleString()}` : "Not computed from invented ASP",
     }),
     timeMinutes: top.timeToCompleteMinutes,
     difficulty: top.difficulty,
