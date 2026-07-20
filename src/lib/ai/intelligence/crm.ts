@@ -72,10 +72,13 @@ export async function getCRMContactIntelligence(email: string): Promise<CRMConta
       };
     });
 
-  const avgRevenuePerBooking = contact.bookings > 0 ? contact.revenue / contact.bookings : 1500;
-  const predictedLTV = Math.round(
-    avgRevenuePerBooking * (contact.status === "vip" ? 3.2 : contact.status === "repeat" ? 2.4 : 1.6)
-  );
+  const avgRevenuePerBooking = contact.bookings > 0 && contact.revenue > 0 ? contact.revenue / contact.bookings : 0;
+  const predictedLTV =
+    avgRevenuePerBooking > 0
+      ? Math.round(
+          avgRevenuePerBooking * (contact.status === "vip" ? 3.2 : contact.status === "repeat" ? 2.4 : 1.6)
+        )
+      : 0;
 
   let bookingProbability = 0.15;
   if (contact.status === "interested") bookingProbability = 0.45;

@@ -61,6 +61,8 @@ function estimateInquiryRevenue(
   avgBookingValue: number,
   uplift = 1
 ): number {
+  // Never invent ASP or inquiry $ from pageviews alone.
+  if (views <= 0 || conversionRate <= 0 || avgBookingValue <= 0 || uplift <= 0) return 0;
   const inquiries = views * (conversionRate / 100) * uplift;
   return Math.round(inquiries * avgBookingValue);
 }
@@ -127,7 +129,7 @@ function finalizeInsight(
 
 export async function getOperatorMetrics() {
   return withInflight("operator-metrics", async () => {
-    const cacheKey = "operator-metrics-v1";
+    const cacheKey = "operator-metrics-v2";
     const cached = await getCached<Awaited<ReturnType<typeof computeOperatorMetrics>>>(cacheKey);
     if (cached) return cached;
     const metrics = await computeOperatorMetrics();
@@ -307,10 +309,11 @@ export async function getProactiveBusinessInsights(
     getAnalyticsSummary(14),
   ]);
 
+  // Measured ASP only — never invent $1500 when the studio has $0 bookings/revenue.
   const avgBookingValue =
-    metrics.month.bookings > 0
+    metrics.month.bookings > 0 && metrics.revenue.thisMonth > 0
       ? Math.round(metrics.revenue.thisMonth / metrics.month.bookings)
-      : 1500;
+      : 0;
 
   const insights: Array<
     Omit<BusinessInsight, "why" | "revenueImpact" | "timeSavedMinutes" | "priority"> &
@@ -345,12 +348,8 @@ export async function getProactiveBusinessInsights(
     const portfolioViews14 = viewsInPeriod(analytics14.topPages, portfolioPage.path);
     const portfolioViewsPrev7 = Math.max(0, portfolioViews14 - portfolioViews7);
     const portfolioChange = weekOverWeekPct(portfolioViews7, portfolioViewsPrev7);
-    const revenueImpact = estimateInquiryRevenue(
-      portfolioPage.views,
-      metrics.traffic.conversionRate,
-      avgBookingValue,
-      0.15
-    );
+    // Traffic signal only — never multiply portfolio pageviews × site conversion × ASP.
+    // That invents attributed inquiries (e.g. "13 inquiries" / "$2,860") from vanity traffic.
 
     if (portfolioChange >= 15 || portfolioPage.views >= 80) {
       const changeLabel =
@@ -359,15 +358,19 @@ export async function getProactiveBusinessInsights(
           : portfolioChange > 0
             ? `up ${portfolioChange}% week-over-week`
             : "shifted";
+      const sampleNote =
+        portfolioViewsPrev7 < 10 || portfolioViews7 < 10
+          ? " Small sample — treat WoW % as directional, not a forecast."
+          : "";
       insights.push({
         id: "portfolio-traffic",
         category: "marketing",
-        severity: portfolioChange >= 30 && revenueImpact >= 500 ? "high" : "medium",
+        severity: portfolioChange >= 50 && portfolioViews7 >= 40 ? "medium" : "low",
         title: `Portfolio page ${changeLabel}`,
-        detail: `"${portfolioPage.path}" drove ${portfolioPage.views} views (30d). Feature this work on homepage, Instagram, and in your next newsletter to convert interest into inquiries.`,
-        metric: `~$${revenueImpact.toLocaleString()} addressable`,
-        revenueImpact,
-        why: `${portfolioViews7} views this week vs ${portfolioViewsPrev7} prior week. Estimated ${Math.round(portfolioPage.views * (metrics.traffic.conversionRate / 100))} inquiries at current conversion.`,
+        detail: `"${portfolioPage.path}" drove ${portfolioPage.views} views (30d, Measured). Feature this work on homepage, Instagram, and newsletter — inquiry/$ impact stays Unknown without attributed conversions.`,
+        metric: `${portfolioViews7} vs ${portfolioViewsPrev7} views WoW (Measured)`,
+        revenueImpact: 0,
+        why: `${portfolioViews7} views this week vs ${portfolioViewsPrev7} prior week (Measured). Inquiry count and dollar impact Unknown — no measured portfolio→booking attribution.${sampleNote}`,
         actions: [
           action("ig-draft", "Publish Instagram Draft", "instagram_draft", "/admin/marketing?focus=instagram_caption", {
             task: "instagram_caption",
@@ -383,20 +386,27 @@ export async function getProactiveBusinessInsights(
   }
 
   if (metrics.traffic.instagramReferrals > 0 && metrics.traffic.instagramChange >= 25) {
+    const igRevenue = estimateInquiryRevenue(
+      metrics.traffic.instagramReferrals,
+      metrics.traffic.conversionRate,
+      avgBookingValue,
+      0.1
+    );
     insights.push({
       id: "instagram-referrals",
       category: "marketing",
       severity: "medium",
       title: "Instagram referrals surged",
-      detail: `${metrics.traffic.instagramReferrals} visits from Instagram (30d, +${metrics.traffic.instagramChange}% week-over-week). Double down with Reels and session BTS content while momentum is high.`,
-      metric: `~$${estimateInquiryRevenue(metrics.traffic.instagramReferrals, metrics.traffic.conversionRate, avgBookingValue, 0.1).toLocaleString()} est.`,
-      revenueImpact: estimateInquiryRevenue(
-        metrics.traffic.instagramReferrals,
-        metrics.traffic.conversionRate,
-        avgBookingValue,
-        0.1
-      ),
-      why: "Week-over-week Instagram referral growth — capitalize before momentum fades.",
+      detail: `${metrics.traffic.instagramReferrals} visits from Instagram (30d, +${metrics.traffic.instagramChange}% week-over-week, Measured). Double down with Reels and session BTS content while momentum is high.`,
+      metric:
+        igRevenue > 0
+          ? `~$${igRevenue.toLocaleString()} est. (measured ASP)`
+          : `${metrics.traffic.instagramReferrals} IG visits (Measured)`,
+      revenueImpact: igRevenue,
+      why:
+        igRevenue > 0
+          ? "Week-over-week Instagram referral growth with measured ASP — capitalize before momentum fades."
+          : "Week-over-week Instagram referral growth (Measured). Dollar impact Unknown — no measured ASP.",
       actions: [
         action("reels", "Create Reel Script", "instagram_draft", "/admin/marketing?focus=tiktok_caption", {
           task: "tiktok_caption",

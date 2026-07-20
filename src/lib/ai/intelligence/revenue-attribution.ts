@@ -43,9 +43,9 @@ export async function getRevenueAttributionFunnel(days = 30): Promise<RevenueAtt
   ]);
 
   const avgValue =
-    metrics.month.bookings > 0
+    metrics.month.bookings > 0 && metrics.revenue.thisMonth > 0
       ? Math.round(metrics.revenue.thisMonth / metrics.month.bookings)
-      : 1500;
+      : 0;
 
   const visitors = analytics.totals.uniqueSessions || analytics.totals.pageviews;
   const portfolioViews = events.filter(

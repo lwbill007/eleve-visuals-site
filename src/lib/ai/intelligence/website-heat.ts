@@ -15,9 +15,9 @@ export async function getWebsiteHeatIntelligence(days = 30): Promise<WebsiteHeat
   ]);
 
   const avgValue =
-    metrics.month.bookings > 0
+    metrics.month.bookings > 0 && metrics.revenue.thisMonth > 0
       ? metrics.revenue.thisMonth / metrics.month.bookings
-      : 1500;
+      : 0;
 
   const conversionsByPath = new Map<string, number>();
   for (const e of events.filter((ev) => ev.type === "conversion")) {
@@ -62,7 +62,7 @@ export async function getWebsiteHeatIntelligence(days = 30): Promise<WebsiteHeat
     .map((s) => ({
       path: s.path,
       issue: `${s.views} views, ${s.conversionRate}% conversion — CTA or trust gap`,
-      estimatedLoss: Math.round(s.views * 0.02 * avgValue),
+      estimatedLoss: avgValue > 0 ? Math.round(s.views * 0.02 * avgValue) : 0,
     }))
     .slice(0, 5);
 

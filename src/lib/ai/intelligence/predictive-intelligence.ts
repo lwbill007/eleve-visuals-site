@@ -6,25 +6,34 @@ export async function getPredictiveInsights(): Promise<PredictiveInsight[]> {
   const [metrics, forecasts] = await Promise.all([getOperatorMetrics(), getExecutiveForecasts()]);
 
   const avgValue =
-    metrics.month.bookings > 0
+    metrics.month.bookings > 0 && metrics.revenue.thisMonth > 0
       ? Math.round(metrics.revenue.thisMonth / metrics.month.bookings)
-      : 1500;
+      : 0;
 
   const insights: PredictiveInsight[] = [];
 
   if (metrics.traffic.trafficChange <= -15) {
     const bookingDrop = Math.round(Math.abs(metrics.traffic.trafficChange) * 0.4);
-    const lostBookings = Math.max(1, Math.round((metrics.month.bookings * bookingDrop) / 100));
+    const lostBookings =
+      metrics.month.bookings > 0
+        ? Math.max(0, Math.round((metrics.month.bookings * bookingDrop) / 100))
+        : 0;
     insights.push({
       id: "traffic-decline",
       metric: "Bookings",
       trend: `Traffic down ${Math.abs(metrics.traffic.trafficChange)}% week-over-week`,
-      prediction: `If this trend continues, bookings may decrease ~${bookingDrop}% over the next 30 days (~${lostBookings} fewer inquiries).`,
+      prediction:
+        lostBookings > 0
+          ? `If this trend continues, bookings may decrease ~${bookingDrop}% over the next 30 days (~${lostBookings} fewer inquiries).`
+          : `Traffic is down ${Math.abs(metrics.traffic.trafficChange)}% WoW (Measured). Booking impact Unknown — no MTD booking base.`,
       projectedChange: -bookingDrop,
-      confidence: 0.72,
+      confidence: metrics.month.bookings > 0 ? 0.72 : 0.4,
       recoveryAction: "Publish 3 portfolio Reels + feature top converter on homepage this week",
-      recoveryImpact: `Projected to recover ~${Math.min(lostBookings, 3)} bookings`,
-      estimatedRevenue: Math.min(lostBookings, 3) * avgValue,
+      recoveryImpact:
+        avgValue > 0 && lostBookings > 0
+          ? `Projected to recover ~${Math.min(lostBookings, 3)} bookings`
+          : "Dollar recovery Unknown — no measured ASP",
+      estimatedRevenue: avgValue > 0 ? Math.min(lostBookings, 3) * avgValue : 0,
     });
   }
 
@@ -37,8 +46,12 @@ export async function getPredictiveInsights(): Promise<PredictiveInsight[]> {
       projectedChange: -metrics.attention.abandonedInquiries,
       confidence: 0.85,
       recoveryAction: "Send personalized 24h + 72h follow-up sequence today",
-      recoveryImpact: `15–30% recovery rate = ~$${Math.round(metrics.attention.abandonedInquiries * 0.2 * avgValue).toLocaleString()}`,
-      estimatedRevenue: Math.round(metrics.attention.abandonedInquiries * 0.2 * avgValue),
+      recoveryImpact:
+        avgValue > 0
+          ? `15–30% recovery rate = ~$${Math.round(metrics.attention.abandonedInquiries * 0.2 * avgValue).toLocaleString()} (Estimated from measured ASP)`
+          : "Dollar recovery Unknown — no measured ASP",
+      estimatedRevenue:
+        avgValue > 0 ? Math.round(metrics.attention.abandonedInquiries * 0.2 * avgValue) : 0,
     });
   }
 
@@ -46,13 +59,13 @@ export async function getPredictiveInsights(): Promise<PredictiveInsight[]> {
     insights.push({
       id: "conversion-soft",
       metric: "Conversion rate",
-      trend: `Site converting at ${metrics.traffic.conversionRate}% (benchmark 2.5–4%)`,
-      prediction: "Current friction may cost 1–2 bookings per month if unaddressed.",
+      trend: `Site converting at ${metrics.traffic.conversionRate}% (Measured)`,
+      prediction: "Current friction may suppress inquiry volume if unaddressed. Dollar impact Unknown without measured ASP.",
       projectedChange: -15,
-      confidence: 0.68,
+      confidence: 0.55,
       recoveryAction: "A/B test booking form length + strengthen CTA on top landing page",
-      recoveryImpact: "+0.5–1% conversion = ~$1.5–3k/mo",
-      estimatedRevenue: 2000,
+      recoveryImpact: "Conversion lift Unknown in $ until ASP is measured",
+      estimatedRevenue: 0,
     });
   }
 

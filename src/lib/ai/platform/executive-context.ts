@@ -17,7 +17,7 @@ import { buildCostOfIgnore, type CostOfIgnore } from "./cost-of-ignore";
 import { getLearningOutcomes } from "../memory/learning";
 
 /** Bump whenever nextAction honesty rules change — AICache survives deploys. */
-const CACHE_KEY = "executive-context-v10-no-fake-inq";
+const CACHE_KEY = "executive-context-v11-no-fake-traffic-dollars";
 const CACHE_TTL_MS = 60_000;
 
 export type HealthLabel = "strong" | "steady" | "watch" | "critical" | "unknown";

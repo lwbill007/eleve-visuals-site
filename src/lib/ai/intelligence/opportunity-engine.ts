@@ -8,7 +8,17 @@ function effortFromSeverity(severity: string): ExecutiveOpportunity["effort"] {
   return "medium";
 }
 
-function urgencyFromSeverity(severity: string, revenue: number): ExecutiveOpportunity["urgency"] {
+function urgencyFromSeverity(
+  severity: string,
+  revenue: number,
+  category: string
+): ExecutiveOpportunity["urgency"] {
+  // Never promote vanity traffic / marketing signals to critical via invented $.
+  if (category === "marketing" || category === "seo" || category === "content") {
+    if (severity === "high") return "high";
+    if (severity === "medium") return "medium";
+    return "low";
+  }
   if (severity === "high" && revenue >= 2000) return "critical";
   if (severity === "high") return "high";
   if (severity === "medium") return "medium";
@@ -33,9 +43,19 @@ function insightToOpportunity(insight: BusinessInsight): ExecutiveOpportunity {
             ? "sessions"
             : insight.category,
     expectedRevenue,
-    confidence: insight.severity === "high" ? 0.82 : insight.severity === "medium" ? 0.7 : 0.6,
+    confidence: insight.severity === "high" ? 0.82 : insight.severity === "medium" ? 0.7 : 0.55,
     effort: effortFromSeverity(insight.severity),
-    urgency: urgencyFromSeverity(insight.severity, expectedRevenue),
+    urgency: urgencyFromSeverity(
+      insight.severity,
+      expectedRevenue,
+      insight.category === "crm"
+        ? "sales"
+        : insight.category === "operations"
+          ? "operations"
+          : insight.category === "sessions"
+            ? "sessions"
+            : insight.category
+    ),
     impact: insight.metric ?? "Measurable pipeline impact",
     evidence: [insight.detail, insight.why, insight.metric ? `Metric: ${insight.metric}` : ""].filter(Boolean),
     actions: insight.actions,
