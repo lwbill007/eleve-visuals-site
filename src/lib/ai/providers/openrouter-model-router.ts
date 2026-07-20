@@ -1,5 +1,6 @@
 import { getCached, setCache } from "../cache";
-import { getAIConfig } from "../config";
+import { getAIConfig, type AIRoutingPolicy } from "../config";
+import { getTaskSpec, inferRoutingTask } from "../tasks/registry";
 import type { AICompletionRequest, AIRoutingTask } from "../types";
 
 const MODEL_CACHE_KEY = "openrouter:model-catalog:v1";
@@ -37,12 +38,15 @@ export interface RoutedOpenRouterModel {
   tools: boolean;
   score: number;
   source: "discovery" | "configured";
+  estimatedCostScore: number;
 }
 
 interface RuntimeHealth {
   successes: number;
   failures: number;
   latencyTotalMs: number;
+  jsonSuccesses: number;
+  jsonAttempts: number;
   lastSuccessAt?: number;
   lastFailureAt?: number;
 }
@@ -59,6 +63,15 @@ function isFree(model: OpenRouterModelRecord): boolean {
   return isZeroPrice(model.pricing?.prompt) && isZeroPrice(model.pricing?.completion);
 }
 
+function estimatedCostScore(model: OpenRouterModelRecord): number {
+  // Higher = cheaper. Free models max out; paid models scale by inverse price.
+  if (isFree(model)) return 100;
+  const prompt = Number(model.pricing?.prompt ?? 1);
+  const completion = Number(model.pricing?.completion ?? 1);
+  const blended = Math.max(prompt + completion, 1e-9);
+  return Math.max(0, Math.min(99, 20 / blended));
+}
+
 function hasParameter(model: OpenRouterModelRecord, parameter: string): boolean {
   return model.supported_parameters?.includes(parameter) ?? false;
 }
@@ -67,47 +80,33 @@ function supportsVision(model: OpenRouterModelRecord): boolean {
   return model.architecture?.input_modalities?.includes("image") ?? false;
 }
 
-function taskFor(request: AICompletionRequest): AIRoutingTask {
-  if (request.task) return request.task;
-  if (request.messages.some((message) => message.images?.length)) return "vision_analysis";
-  if (request.responseFormat === "json") return "json_extraction";
-  if (request.tools?.length) return "business_analysis";
-  if ((request.maxTokens ?? 0) >= 4_000) return "long_form_reasoning";
-  return "general";
+export function resolveRoutingTask(request: AICompletionRequest): AIRoutingTask {
+  return inferRoutingTask({
+    task: request.task,
+    hasImages: request.messages.some((message) => message.images?.length),
+    wantsJson: request.responseFormat === "json",
+    hasTools: Boolean(request.tools?.length),
+    maxTokens: request.maxTokens,
+  });
 }
 
-function namePriority(id: string, task: AIRoutingTask): number {
+function preferredBoost(id: string, preferred: string[]): number {
   const value = id.toLowerCase();
   let score = 0;
-
-  // User-requested free reasoning priorities, evaluated only after live
-  // discovery proves that the model is currently free and available.
-  if (/deepseek.*(v3|chat)/.test(value)) score += 100;
-  if (/qwen.*3/.test(value)) score += 96;
-  if (/llama-3\.3-70b/.test(value)) score += 92;
-  if (/qwen.*2\.5.*72b/.test(value)) score += 88;
-  if (/deepseek.*r1/.test(value)) score += 85;
-  if (/mistral.*small.*3\.1/.test(value)) score += 82;
-  if (/gemma-(3|4)/.test(value)) score += 78;
-
-  // Strong dynamically discovered alternatives. Size/context affect ordering,
-  // but do not override required capabilities.
-  if (/nemotron.*ultra|550b/.test(value)) score += 90;
-  else if (/nemotron.*super|120b/.test(value)) score += 84;
-  else if (/405b/.test(value)) score += 80;
-
-  if (task === "json_extraction" || task === "applicant_ranking") {
-    if (/qwen|gemma|gpt-oss|nemotron/.test(value)) score += 8;
+  for (const token of preferred) {
+    if (value.includes(token.toLowerCase())) score += 12;
   }
-  if (task === "vision_analysis" || task === "portfolio_review" || task === "applicant_ranking") {
-    if (/gemma|gemini|nemotron.*(vl|omni)/.test(value)) score += 15;
-  }
-  if (task === "long_form_reasoning" || task === "financial_analysis") {
-    if (/deepseek|qwen|nemotron|llama/.test(value)) score += 8;
-  }
-  if (task === "content_generation" || task === "creative_feedback") {
-    if (/gemma|llama|mistral/.test(value)) score += 6;
-  }
+  // Legacy soft priorities for known strong free families.
+  if (/deepseek.*(v3|chat)/.test(value)) score += 40;
+  if (/qwen.*3/.test(value)) score += 36;
+  if (/llama-3\.3-70b/.test(value)) score += 32;
+  if (/qwen.*2\.5.*72b/.test(value)) score += 28;
+  if (/deepseek.*r1/.test(value)) score += 25;
+  if (/mistral.*small.*3\.1/.test(value)) score += 22;
+  if (/gemma-(3|4)/.test(value)) score += 18;
+  if (/nemotron.*ultra|550b/.test(value)) score += 30;
+  else if (/nemotron.*super|120b/.test(value)) score += 24;
+  else if (/405b/.test(value)) score += 20;
   return score;
 }
 
@@ -119,28 +118,96 @@ function healthAdjustment(modelId: string): number {
   const averageLatency = health.successes
     ? health.latencyTotalMs / health.successes
     : 30_000;
-  return successRate * 20 - (1 - successRate) * 35 - Math.min(12, averageLatency / 2_500);
+  const jsonRate = health.jsonAttempts ? health.jsonSuccesses / health.jsonAttempts : 0.5;
+  return (
+    successRate * 20 -
+    (1 - successRate) * 35 -
+    Math.min(12, averageLatency / 2_500) +
+    (jsonRate - 0.5) * 10
+  );
 }
 
-function scoreModel(model: OpenRouterModelRecord, request: AICompletionRequest): number {
-  const task = taskFor(request);
-  const contextLength = model.top_provider?.context_length ?? model.context_length ?? 0;
-  let score = namePriority(model.id, task);
-  score += Math.min(20, Math.log2(Math.max(contextLength, 1)) - 14);
-  if (hasParameter(model, "structured_outputs")) score += request.responseFormat === "json" ? 32 : 6;
-  else if (hasParameter(model, "response_format")) score += request.responseFormat === "json" ? 18 : 3;
-  if (hasParameter(model, "tools")) score += request.tools?.length ? 18 : 2;
-  if (supportsVision(model)) {
-    score += request.messages.some((message) => message.images?.length) ? 35 : 1;
+function policyWeights(policy: AIRoutingPolicy): {
+  free: number;
+  latency: number;
+  structured: number;
+  vision: number;
+  cost: number;
+  reliability: number;
+} {
+  switch (policy) {
+    case "highest_accuracy":
+      return { free: 4, latency: 2, structured: 40, vision: 38, cost: 4, reliability: 28 };
+    case "lowest_latency":
+      return { free: 8, latency: 36, structured: 12, vision: 20, cost: 8, reliability: 18 };
+    case "balanced":
+      return { free: 18, latency: 12, structured: 24, vision: 28, cost: 12, reliability: 22 };
+    case "prefer_free":
+    default:
+      return { free: 40, latency: 8, structured: 20, vision: 30, cost: 20, reliability: 16 };
   }
-  score += healthAdjustment(model.id);
+}
+
+function scoreModel(
+  model: OpenRouterModelRecord,
+  request: AICompletionRequest,
+  policy: AIRoutingPolicy
+): number {
+  const task = resolveRoutingTask(request);
+  const spec = getTaskSpec(task);
+  const weights = policyWeights(policy);
+  const contextLength = model.top_provider?.context_length ?? model.context_length ?? 0;
+  const free = isFree(model);
+  const costScore = estimatedCostScore(model);
+  const health = healthAdjustment(model.id);
+
+  let score = preferredBoost(model.id, spec.preferredModels);
+  score += Math.min(20, Math.log2(Math.max(contextLength, 1)) - 14);
+  if (contextLength >= spec.minContext) score += 10;
+  else score -= 18;
+
+  if (hasParameter(model, "structured_outputs")) {
+    score += (request.responseFormat === "json" || spec.structuredOutputRequired
+      ? weights.structured
+      : 6);
+  } else if (hasParameter(model, "response_format")) {
+    score += request.responseFormat === "json" || spec.structuredOutputRequired
+      ? weights.structured * 0.6
+      : 3;
+  }
+
+  if (hasParameter(model, "tools")) score += request.tools?.length ? 18 : 2;
+
+  if (supportsVision(model)) {
+    const needsVision =
+      request.messages.some((message) => message.images?.length) || spec.visionRequired;
+    score += needsVision ? weights.vision : 1;
+  } else if (
+    spec.visionRequired ||
+    request.messages.some((message) => message.images?.length)
+  ) {
+    score -= 40;
+  }
+
+  if (free) score += weights.free;
+  score += (costScore / 100) * weights.cost;
+  score += health * (weights.reliability / 20);
+
+  // Latency proxy from runtime health — lower average latency earns policy.latency.
+  const runtime = runtimeHealth.get(model.id);
+  if (runtime?.successes) {
+    const avg = runtime.latencyTotalMs / runtime.successes;
+    score += Math.max(0, weights.latency - avg / 1_500);
+  }
+
   return score;
 }
 
 function toRouted(
   model: OpenRouterModelRecord,
   request: AICompletionRequest,
-  source: RoutedOpenRouterModel["source"]
+  source: RoutedOpenRouterModel["source"],
+  policy: AIRoutingPolicy
 ): RoutedOpenRouterModel {
   return {
     id: model.id,
@@ -151,8 +218,9 @@ function toRouted(
     jsonMode: hasParameter(model, "response_format"),
     structuredOutputs: hasParameter(model, "structured_outputs"),
     tools: hasParameter(model, "tools"),
-    score: scoreModel(model, request),
+    score: scoreModel(model, request, policy),
     source,
+    estimatedCostScore: estimatedCostScore(model),
   };
 }
 
@@ -192,32 +260,45 @@ async function fetchCatalog(): Promise<OpenRouterModelRecord[]> {
 }
 
 /**
- * Returns the strongest live free models compatible with the request, followed
- * by the existing configured chain for backward compatibility and outage
- * fallback. No configured provider or model is removed.
+ * Router only: model selection for a request.
+ * Evaluation, prompts, and scoring live in evaluation/engine.ts.
  */
 export async function routeOpenRouterModels(
   request: AICompletionRequest
 ): Promise<RoutedOpenRouterModel[]> {
   const catalog = await fetchCatalog();
-  const hasImages = request.messages.some((message) => message.images?.length);
+  const task = resolveRoutingTask(request);
+  const spec = getTaskSpec(task);
+  const config = getAIConfig();
+  const policy = config.routingPolicy || spec.defaultPolicy;
+  const hasImages =
+    request.messages.some((message) => message.images?.length) || spec.visionRequired;
   const needsTools = Boolean(request.tools?.length);
 
   const free = catalog
     .filter(isFree)
     .filter((model) => !needsTools || hasParameter(model, "tools"))
-    .sort((a, b) => scoreModel(b, request) - scoreModel(a, request));
+    .filter((model) => {
+      const ctx = model.top_provider?.context_length ?? model.context_length ?? 0;
+      return ctx === 0 || ctx >= Math.min(spec.minContext, 8_192);
+    })
+    .sort((a, b) => scoreModel(b, request, policy) - scoreModel(a, request, policy));
 
-  const compatibleVision = hasImages ? free.filter(supportsVision) : free;
-  const textFallbacks = hasImages ? free.filter((model) => !supportsVision(model)) : [];
+  // Prefer Free / Balanced still discover free first; Highest Accuracy may keep paid configured chain early.
+  const dynamicPool =
+    policy === "highest_accuracy"
+      ? [...catalog].sort((a, b) => scoreModel(b, request, policy) - scoreModel(a, request, policy))
+      : free;
+
+  const compatibleVision = hasImages ? dynamicPool.filter(supportsVision) : dynamicPool;
+  const textFallbacks = hasImages ? dynamicPool.filter((model) => !supportsVision(model)) : [];
   const dynamic = [...compatibleVision, ...textFallbacks]
     .slice(0, MAX_DYNAMIC_MODELS)
-    .map((model) => toRouted(model, request, "discovery"));
+    .map((model) => toRouted(model, request, "discovery", policy));
 
-  const config = getAIConfig().openrouter;
   const configuredIds = [
-    ...(hasImages ? [config.visionModel] : []),
-    ...config.modelChain,
+    ...(hasImages ? [config.openrouter.visionModel] : []),
+    ...config.openrouter.modelChain,
     "openrouter/free",
   ];
   const byId = new Map(catalog.map((model) => [model.id, model]));
@@ -228,28 +309,41 @@ export async function routeOpenRouterModels(
         name: id,
         context_length: 0,
         supported_parameters: [],
-        architecture: { input_modalities: hasImages && id === config.visionModel ? ["image"] : ["text"] },
+        architecture: {
+          input_modalities:
+            hasImages && id === config.openrouter.visionModel ? ["image"] : ["text"],
+        },
       },
       request,
-      "configured"
+      "configured",
+      policy
     )
   );
 
+  const ordered =
+    policy === "highest_accuracy"
+      ? [...configured, ...dynamic]
+      : policy === "lowest_latency"
+        ? [...dynamic, ...configured].sort((a, b) => b.score - a.score)
+        : [...dynamic, ...configured];
+
   const unique = new Map<string, RoutedOpenRouterModel>();
-  for (const model of [...dynamic, ...configured]) {
+  for (const model of ordered) {
     if (!unique.has(model.id)) unique.set(model.id, model);
   }
-  return [...unique.values()];
+  return [...unique.values()].sort((a, b) => b.score - a.score);
 }
 
 export function recordOpenRouterModelResult(
   modelId: string,
-  result: { ok: boolean; latencyMs: number }
+  result: { ok: boolean; latencyMs: number; jsonValid?: boolean }
 ): void {
   const health = runtimeHealth.get(modelId) ?? {
     successes: 0,
     failures: 0,
     latencyTotalMs: 0,
+    jsonSuccesses: 0,
+    jsonAttempts: 0,
   };
   if (result.ok) {
     health.successes += 1;
@@ -259,13 +353,26 @@ export function recordOpenRouterModelResult(
     health.failures += 1;
     health.lastFailureAt = Date.now();
   }
+  if (result.jsonValid !== undefined) {
+    health.jsonAttempts += 1;
+    if (result.jsonValid) health.jsonSuccesses += 1;
+  }
   runtimeHealth.set(modelId, health);
 }
 
+export function getModelReliabilityScore(modelId: string): number {
+  const health = runtimeHealth.get(modelId);
+  if (!health) return 0.5;
+  const total = health.successes + health.failures;
+  if (!total) return 0.5;
+  return health.successes / total;
+}
+
 export async function getOpenRouterRoutingSnapshot(): Promise<{
+  policy: AIRoutingPolicy;
   taskRoutes: Record<string, RoutedOpenRouterModel[]>;
   discoveredFreeModels: number;
-  runtimeHealth: Record<string, RuntimeHealth & { averageLatencyMs: number }>;
+  runtimeHealth: Record<string, RuntimeHealth & { averageLatencyMs: number; jsonSuccessRate: number }>;
 }> {
   const tasks: AIRoutingTask[] = [
     "applicant_ranking",
@@ -280,20 +387,24 @@ export async function getOpenRouterRoutingSnapshot(): Promise<{
   const taskRoutes: Record<string, RoutedOpenRouterModel[]> = {};
   for (const task of tasks) {
     const previewNeedsVision = task === "vision_analysis" || task === "applicant_ranking";
-    taskRoutes[task] = (await routeOpenRouterModels({
-      task,
-      messages: [
-        {
-          role: "user",
-          content: "health-check routing preview",
-          images: previewNeedsVision ? ["https://example.com/preview.jpg"] : undefined,
-        },
-      ],
-      responseFormat: task === "json_extraction" || task === "applicant_ranking" ? "json" : undefined,
-    })).slice(0, 6);
+    taskRoutes[task] = (
+      await routeOpenRouterModels({
+        task,
+        messages: [
+          {
+            role: "user",
+            content: "health-check routing preview",
+            images: previewNeedsVision ? ["https://example.com/preview.jpg"] : undefined,
+          },
+        ],
+        responseFormat:
+          task === "json_extraction" || task === "applicant_ranking" ? "json" : undefined,
+      })
+    ).slice(0, 6);
   }
   const catalog = await fetchCatalog();
   return {
+    policy: getAIConfig().routingPolicy,
     taskRoutes,
     discoveredFreeModels: catalog.filter(isFree).length,
     runtimeHealth: Object.fromEntries(
@@ -303,6 +414,9 @@ export async function getOpenRouterRoutingSnapshot(): Promise<{
           ...health,
           averageLatencyMs: health.successes
             ? Math.round(health.latencyTotalMs / health.successes)
+            : 0,
+          jsonSuccessRate: health.jsonAttempts
+            ? Math.round((health.jsonSuccesses / health.jsonAttempts) * 1000) / 10
             : 0,
         },
       ])

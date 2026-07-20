@@ -1,5 +1,11 @@
 import { AdminShell } from "@/components/admin/AdminShell";
 import { getAIHealthSnapshot } from "@/lib/ai/health";
+import {
+  AI_ARCHITECTURE_MAP,
+  AI_DEFINITION_OF_DONE,
+  AI_OS_PRINCIPLES,
+} from "@/lib/ai/architecture";
+import { listTaskSpecs } from "@/lib/ai/tasks/registry";
 import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import { MissingMetricCard } from "@/components/admin/ai/OwnedMetricCard";
 import { cn } from "@/lib/utils";
@@ -43,6 +49,7 @@ export default async function AIOperationsPage() {
   }
 
   const owner = METRIC_OWNERS.ai_operations;
+  const tasks = listTaskSpecs();
   const trustGaps = [
     {
       label: "Hallucination rate",
@@ -96,6 +103,32 @@ export default async function AIOperationsPage() {
           </p>
         </header>
 
+        <section className="mt-6 rounded-2xl border border-stone/20 bg-charcoal/15 p-5">
+          <p className="text-[0.58rem] tracking-[0.14em] text-muted uppercase">
+            Non-negotiable principles
+          </p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {AI_OS_PRINCIPLES.map((principle) => (
+              <div key={principle.id} className="rounded-xl border border-stone/15 bg-ink/30 p-3">
+                <p className="text-sm text-cream">{principle.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-fog">{principle.rule}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-[0.55rem] tracking-[0.12em] text-muted uppercase">
+            Architecture map
+          </p>
+          <p className="mt-1 text-xs text-fog">{AI_ARCHITECTURE_MAP.join(" → ")}</p>
+          <p className="mt-3 text-[0.55rem] tracking-[0.12em] text-muted uppercase">
+            Definition of Done ({AI_DEFINITION_OF_DONE.length})
+          </p>
+          <ul className="mt-1 grid gap-1 text-[0.7rem] text-fog md:grid-cols-2">
+            {AI_DEFINITION_OF_DONE.map((item) => (
+              <li key={item}>• {item}</li>
+            ))}
+          </ul>
+        </section>
+
         {!health ? (
           <div className="mt-8 rounded-xl border border-red-400/30 bg-red-400/5 p-5 text-sm text-red-200">
             {error}
@@ -115,6 +148,36 @@ export default async function AIOperationsPage() {
                 detail="Evaluation cache"
               />
               <Metric label="Free models" value={String(health.routing.discoveredFreeModels)} />
+            </section>
+
+            <section className="mt-6 rounded-2xl border border-stone/20 bg-charcoal/15 p-5">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-[0.58rem] tracking-[0.14em] text-muted uppercase">
+                    Task registry · centralized routing
+                  </p>
+                  <h3 className="mt-1 font-display text-2xl text-cream">
+                    Policy · {health.routing.policy ?? "prefer_free"}
+                  </h3>
+                </div>
+                <p className="text-xs text-muted">{tasks.length} registered tasks</p>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="rounded-xl border border-stone/15 bg-ink/30 px-3 py-2"
+                  >
+                    <p className="text-xs text-cream">{task.label}</p>
+                    <p className="mt-1 text-[0.6rem] text-muted">
+                      {task.structuredOutputRequired ? "JSON · " : ""}
+                      {task.visionRequired ? "Vision · " : ""}
+                      {task.defaultPolicy.replaceAll("_", " ")} · TTL{" "}
+                      {Math.round(task.cacheTtlMs / 60_000)}m
+                    </p>
+                  </div>
+                ))}
+              </div>
             </section>
 
             <section className="mt-8">

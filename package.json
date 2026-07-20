@@ -17,6 +17,7 @@
     "verify:audit": "tsx scripts/stabilization-audit.ts",
     "audit:enterprise": "tsx scripts/enterprise-audit.ts",
     "verify": "tsc --noEmit && next lint && tsx scripts/verify-truth-layer.ts",
+    "test:ai": "tsx scripts/ai-regression-smoke.ts",
     "db:audit:production": "tsx scripts/production-api-audit.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

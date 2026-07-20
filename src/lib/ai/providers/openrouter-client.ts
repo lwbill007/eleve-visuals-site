@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { getAIConfig } from "../config";
 import { logAIAction, logAIRequest } from "../log";
+import { getTaskSpec } from "../tasks/registry";
 import type { AICompletionRequest, AICompletionResult, AIStreamChunk, AIToolCall } from "../types";
 import {
   recordOpenRouterModelResult,
+  resolveRoutingTask,
   routeOpenRouterModels,
 } from "./openrouter-model-router";
 
@@ -143,25 +145,47 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
   }
 
   const config = getAIConfig();
-  const hasImages = request.messages.some((message) => message.images?.length);
-  const models = await routeOpenRouterModels(request);
+  const task = resolveRoutingTask(request);
+  const taskSpec = getTaskSpec(task);
+  const maxRetries = Math.max(config.openrouter.maxRetries, taskSpec.maxRetries);
+  const hasImages =
+    request.messages.some((message) => message.images?.length) || taskSpec.visionRequired;
+  const models = await routeOpenRouterModels({ ...request, task });
   const requestId = randomUUID();
   let lastError = "";
   let totalAttempts = 0;
+  let modelIndex = 0;
 
   modelLoop: for (const model of models) {
+    const usedFallback = modelIndex > 0;
     let useStructuredOutput = Boolean(
-      request.responseSchema && request.responseFormat === "json" && model.structuredOutputs
+      request.responseSchema &&
+        request.responseFormat === "json" &&
+        model.structuredOutputs
     );
     let useJsonMode = Boolean(
       request.responseFormat === "json" && (model.jsonMode || model.source === "configured")
     );
 
-    for (let attempt = 0; attempt <= config.openrouter.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       if (totalAttempts >= config.openrouter.maxAttempts) break modelLoop;
       if (attempt > 0) await sleep(config.openrouter.retryDelayMs * attempt);
       totalAttempts += 1;
       const startedAt = Date.now();
+      const baseTelemetry = {
+        requestId,
+        task,
+        provider: "openrouter" as const,
+        model: model.id,
+        attempt: totalAttempts,
+        retryCount: Math.max(0, totalAttempts - 1),
+        jsonRequested: request.responseFormat === "json" || taskSpec.structuredOutputRequired,
+        vision: hasImages && model.vision,
+        fallbackUsed: usedFallback,
+        routingPolicy: config.routingPolicy,
+        cacheHit: false,
+        cacheMiss: true,
+      };
 
       try {
         await throttle();
@@ -202,16 +226,10 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
           );
           recordOpenRouterModelResult(model.id, { ok: false, latencyMs });
           await logAIRequest({
-            requestId,
-            task: request.task ?? "general",
-            provider: "openrouter",
-            model: model.id,
+            ...baseTelemetry,
             outcome: shouldRetryStatus(res.status) ? "retry" : "failure",
             latencyMs,
-            attempt: totalAttempts,
             status: res.status,
-            jsonRequested: request.responseFormat === "json",
-            vision: hasImages && model.vision,
             error: lastError.slice(0, 500),
           });
           // Daily free-model quota exhausted — stop cascading through every model.
@@ -267,16 +285,10 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
           lastError = `Completion ended with finish_reason=${nativeFinishReason}`;
           recordOpenRouterModelResult(model.id, { ok: false, latencyMs });
           await logAIRequest({
-            requestId,
-            task: request.task ?? "general",
-            provider: "openrouter",
-            model: model.id,
+            ...baseTelemetry,
             outcome: "retry",
             latencyMs,
-            attempt: totalAttempts,
             finishReason: nativeFinishReason,
-            jsonRequested: request.responseFormat === "json",
-            vision: hasImages && model.vision,
             promptTokens: usage?.prompt_tokens,
             completionTokens: usage?.completion_tokens,
             error: lastError,
@@ -285,12 +297,25 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
         }
 
         let responseValid = true;
-        if (request.validateResponse && !toolCalls?.length) {
+        let parseSuccess: boolean | undefined;
+        if (request.responseFormat === "json" && !toolCalls?.length) {
+          try {
+            JSON.parse(content);
+            parseSuccess = true;
+          } catch {
+            parseSuccess = false;
+            responseValid = false;
+            lastError = "Structured JSON parse failed";
+          }
+        }
+        if (responseValid && request.validateResponse && !toolCalls?.length) {
           try {
             responseValid = request.validateResponse(content);
             if (!responseValid) lastError = "Response validator rejected the completion";
+            if (request.responseFormat === "json") parseSuccess = responseValid;
           } catch (error) {
             responseValid = false;
+            parseSuccess = false;
             lastError = error instanceof Error ? error.message : String(error);
           }
         }
@@ -298,19 +323,18 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
           console.error(
             `[openrouter] request=${requestId} model=${model.id} semantic validation failed: ${lastError}`
           );
-          recordOpenRouterModelResult(model.id, { ok: false, latencyMs });
+          recordOpenRouterModelResult(model.id, {
+            ok: false,
+            latencyMs,
+            jsonValid: parseSuccess,
+          });
           await logAIRequest({
-            requestId,
-            task: request.task ?? "general",
-            provider: "openrouter",
-            model: model.id,
+            ...baseTelemetry,
             outcome: "retry",
             latencyMs,
-            attempt: totalAttempts,
             finishReason: nativeFinishReason,
-            jsonRequested: request.responseFormat === "json",
+            parseSuccess: false,
             jsonValid: false,
-            vision: hasImages && model.vision,
             promptTokens: usage?.prompt_tokens,
             completionTokens: usage?.completion_tokens,
             error: lastError.slice(0, 500),
@@ -323,20 +347,19 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
           model.id,
           `finish=${nativeFinishReason} chars=${content.length} structured=${useStructuredOutput} jsonMode=${useJsonMode}`
         );
-        recordOpenRouterModelResult(model.id, { ok: true, latencyMs });
+        recordOpenRouterModelResult(model.id, {
+          ok: true,
+          latencyMs,
+          jsonValid: parseSuccess,
+        });
         await logAIRequest({
-          requestId,
-          task: request.task ?? "general",
-          provider: "openrouter",
-          model: model.id,
+          ...baseTelemetry,
           outcome: "success",
           latencyMs,
-          attempt: totalAttempts,
           status: res.status,
           finishReason: nativeFinishReason,
-          jsonRequested: request.responseFormat === "json",
-          jsonValid: request.responseFormat === "json" ? true : undefined,
-          vision: hasImages && model.vision,
+          parseSuccess,
+          jsonValid: parseSuccess,
           promptTokens: usage?.prompt_tokens,
           completionTokens: usage?.completion_tokens,
         });
@@ -361,19 +384,14 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
         );
         recordOpenRouterModelResult(model.id, { ok: false, latencyMs });
         await logAIRequest({
-          requestId,
-          task: request.task ?? "general",
-          provider: "openrouter",
-          model: model.id,
-          outcome: attempt < config.openrouter.maxRetries ? "retry" : "failure",
+          ...baseTelemetry,
+          outcome: attempt < maxRetries ? "retry" : "failure",
           latencyMs,
-          attempt: totalAttempts,
-          jsonRequested: request.responseFormat === "json",
-          vision: hasImages && model.vision,
           error: lastError.slice(0, 500),
         });
       }
     }
+    modelIndex += 1;
   }
 
   await logAIAction("openrouter_error", "all_models", lastError.slice(0, 200));

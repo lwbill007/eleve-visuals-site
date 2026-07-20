@@ -1,11 +1,30 @@
 import type { AIProviderId } from "./types";
 
+export type AIRoutingPolicy =
+  | "prefer_free"
+  | "balanced"
+  | "highest_accuracy"
+  | "lowest_latency";
+
 const DEFAULT_MODEL_CHAIN = [
   "qwen/qwen3-32b",
   "deepseek/deepseek-chat-v3-0324",
   "meta-llama/llama-3.3-70b-instruct",
   "mistralai/mistral-small-3.1-24b-instruct",
 ] as const;
+
+function parseRoutingPolicy(raw: string | undefined): AIRoutingPolicy {
+  const value = (raw || "prefer_free").trim().toLowerCase();
+  if (
+    value === "prefer_free" ||
+    value === "balanced" ||
+    value === "highest_accuracy" ||
+    value === "lowest_latency"
+  ) {
+    return value;
+  }
+  return "prefer_free";
+}
 
 export function getAIConfig() {
   const provider = (process.env.AI_PROVIDER || "openrouter") as AIProviderId;
@@ -19,6 +38,7 @@ export function getAIConfig() {
 
   return {
     provider,
+    routingPolicy: parseRoutingPolicy(process.env.AI_ROUTING_POLICY),
     openrouter: {
       apiKey: process.env.OPENROUTER_API_KEY || "",
       model: primaryModel,
