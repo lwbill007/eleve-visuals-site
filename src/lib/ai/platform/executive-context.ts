@@ -9,14 +9,15 @@ import { resolveMetrics, type ResolvedMetrics } from "./truth-resolver";
 import { getConnectorHealth } from "./connectors";
 import { getVerificationStats } from "../memory/verification";
 import { getGuardedRecommendations } from "../truth/recommendation-guardrails";
-import { getCached, setCache } from "../cache";
+import { getCached, setCache, invalidateCache } from "../cache";
 import { buildConfidencePanel } from "./confidence-panel";
 import { detectRevenueLeaks, totalLeakExposure } from "../executive/revenue-leaks";
 import { getPaymentRevenueSummary } from "@/lib/payments";
 import { buildCostOfIgnore, type CostOfIgnore } from "./cost-of-ignore";
 import { getLearningOutcomes } from "../memory/learning";
 
-const CACHE_KEY = "executive-context-v9";
+/** Bump whenever nextAction honesty rules change — AICache survives deploys. */
+const CACHE_KEY = "executive-context-v10-no-fake-inq";
 const CACHE_TTL_MS = 60_000;
 
 export type HealthLabel = "strong" | "steady" | "watch" | "critical" | "unknown";
@@ -255,7 +256,9 @@ function toNextAction(
 }
 
 export async function getExecutiveContext(force = false): Promise<ExecutiveContext> {
-  if (!force) {
+  if (force) {
+    await invalidateCache("executive-context");
+  } else {
     const cached = await getCached<ExecutiveContext>(CACHE_KEY);
     if (cached) return cached;
   }
@@ -358,7 +361,16 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
       : pipeline > 0
         ? 40
         : 25;
-  const salesScore = staleInquiries === 0 ? 80 : staleInquiries <= 2 ? 55 : 30;
+  const salesScore =
+    bookingsMtd === 0 && staleInquiries === 0
+      ? revenueMtd > 0
+        ? 45
+        : 20
+      : staleInquiries === 0
+        ? 80
+        : staleInquiries <= 2
+          ? 55
+          : 30;
   const growthScore = traffic30 > 0 ? Math.min(80, 40 + Math.min(40, conversion * 8)) : 30;
   const dataScore = trustScore;
   const financeScore = payments.hasPayments
@@ -397,7 +409,18 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
     note,
   });
 
-  const recommendations = guarded.filter((r) => !r.deprioritized).map((r) => toNextAction(r, learningByRef));
+  const recommendations = guarded
+    .filter((r) => !r.deprioritized)
+    .filter((r) => {
+      // Defense: never surface invented inquiry missions when measured queue is empty.
+      if (staleInquiries > 0) return true;
+      const t = r.title.toLowerCase();
+      return !(
+        (/pending booking|stale booking|abandoned booking/.test(t) && /inquir/.test(t)) ||
+        (/respond to \d+/.test(t) && /inquir/.test(t))
+      );
+    })
+    .map((r) => toNextAction(r, learningByRef));
   const nextAction = recommendations[0] ?? null;
 
   const leakExposure = totalLeakExposure(leakList);
@@ -566,10 +589,12 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
   const headline =
     nextAction?.title ??
     (staleInquiries > 0
-      ? `${staleInquiries} pending inquir${staleInquiries === 1 ? "y" : "ies"} need follow-up — sales recovery is the priority.`
-      : revenueMtd > 0
-        ? `Revenue tracking${revenueVerified ? " (verified)" : " (estimated from pipeline)"} · ${bookingsMtd} bookings MTD.`
-        : `No settled revenue yet MTD · $${pipeline.toLocaleString()} open pipeline.`);
+      ? `${staleInquiries} stale inquir${staleInquiries === 1 ? "y" : "ies"} need follow-up — sales recovery is the priority.`
+      : bookingsMtd === 0 && revenueMtd === 0
+        ? "No booking pipeline yet — drive acquisition for the first real inquiry."
+        : revenueMtd > 0
+          ? `Revenue tracking${revenueVerified ? " (verified)" : " (estimated from pipeline)"} · ${bookingsMtd} bookings MTD.`
+          : `No settled revenue yet MTD · $${pipeline.toLocaleString()} open pipeline.`);
 
   const context: ExecutiveContext = {
     generatedAt: new Date().toISOString(),

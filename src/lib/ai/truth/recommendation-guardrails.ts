@@ -206,6 +206,7 @@ export async function getGuardedRecommendations(limit = 12): Promise<GuardedReco
   }
 
   return recs
+    .filter((r) => isHonestInquiryRecommendation(r, stale))
     .sort((a, b) => {
       if (a.deprioritized && !b.deprioritized) return 1;
       if (!a.deprioritized && b.deprioritized) return -1;
@@ -216,4 +217,16 @@ export async function getGuardedRecommendations(limit = 12): Promise<GuardedReco
       );
     })
     .slice(0, limit);
+}
+
+/** Drop titles that invent booking-inquiry work when the measured queue is empty. */
+function isHonestInquiryRecommendation(rec: PrioritizedRecommendation, stale: number): boolean {
+  const title = rec.title.toLowerCase();
+  const claimsInquiryWork =
+    /pending booking|stale booking inquir|abandoned booking inquir|respond to \d+/.test(title) &&
+    /inquir/.test(title);
+  if (claimsInquiryWork && stale <= 0) return false;
+  // Contradictory copy: "Respond to N…" while why admits 0 stale
+  if (/respond to \d+/.test(title) && /0 stale inquir/.test(rec.whyNow.toLowerCase())) return false;
+  return true;
 }
