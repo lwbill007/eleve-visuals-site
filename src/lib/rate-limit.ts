@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { Prisma } from "@prisma/client";
 
 const WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
@@ -41,22 +42,45 @@ export async function checkRateLimit(
   const limit = LIMITS[route] ?? 10;
   const since = new Date(Date.now() - WINDOW_MS);
 
-  const [count] = await Promise.all([
-    prisma.rateLimitEntry.count({
+  void prisma.rateLimitEntry.deleteMany({ where: { createdAt: { lt: since } } }).catch(() => {});
+
+  if (!consume) {
+    const count = await prisma.rateLimitEntry.count({
       where: { ip, route, createdAt: { gte: since } },
-    }),
-    prisma.rateLimitEntry.deleteMany({ where: { createdAt: { lt: since } } }),
-  ]);
-
-  if (count >= limit) {
-    return { ok: false, retryAfterSec: Math.ceil(WINDOW_MS / 1000) };
+    });
+    return count >= limit
+      ? { ok: false, retryAfterSec: Math.ceil(WINDOW_MS / 1000) }
+      : { ok: true };
   }
 
-  if (consume) {
-    await prisma.rateLimitEntry.create({ data: { ip, route } });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const count = await tx.rateLimitEntry.count({
+            where: { ip, route, createdAt: { gte: since } },
+          });
+          if (count >= limit) {
+            return { ok: false as const, retryAfterSec: Math.ceil(WINDOW_MS / 1000) };
+          }
+          await tx.rateLimitEntry.create({ data: { ip, route } });
+          return { ok: true as const };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (error) {
+      if (
+        attempt < 2 &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034"
+      ) {
+        continue;
+      }
+      throw error;
+    }
   }
 
-  return { ok: true };
+  return { ok: false, retryAfterSec: 1 };
 }
 
 /** Record a successful attempt against the route quota. */

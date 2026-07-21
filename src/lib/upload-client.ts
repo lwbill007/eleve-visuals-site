@@ -31,6 +31,7 @@ export type UploadProgressCallback = (progress: {
 export type UploadFileOptions = {
   onProgress?: UploadProgressCallback;
   signal?: AbortSignal;
+  fields?: Record<string, string>;
 };
 
 function normalizeUploadOptions(
@@ -307,6 +308,9 @@ async function uploadViaServerRoute(
   const formData = new FormData();
   formData.append("file", file);
   formData.append("_hp", "");
+  for (const [key, value] of Object.entries(options.fields ?? {})) {
+    formData.append(key, value);
+  }
 
   const fetcher = endpoint.startsWith("/api/admin") ? adminFetch : fetch;
   const res = await fetcher(endpoint, { method: "POST", body: formData, signal });
@@ -344,6 +348,9 @@ function uploadViaServerRouteXhr(
     const formData = new FormData();
     formData.append("file", file);
     formData.append("_hp", "");
+    for (const [key, value] of Object.entries(options.fields ?? {})) {
+      formData.append(key, value);
+    }
 
     const onAbort = () => {
       xhr.abort();

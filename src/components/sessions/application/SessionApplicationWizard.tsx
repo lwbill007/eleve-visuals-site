@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import type { SessionApplicationData, SessionApplicationSettings, SessionVolumeDTO } from "@/lib/types";
@@ -37,6 +37,7 @@ const stepMotion = {
   animate: { opacity: 1, x: 0 },
   exit: { opacity: 0, x: -24 },
 };
+const APPLICATION_DRAFT_TTL_MS = 2 * 60 * 60 * 1000;
 
 function isValidOptionalUrl(value: string): boolean {
   if (!value.trim()) return true;
@@ -47,10 +48,12 @@ export function SessionApplicationWizard({
   volume,
   settings,
   applicationContent,
+  uploadToken,
 }: {
   volume: SessionVolumeDTO;
   settings: SessionApplicationSettings;
   applicationContent: SessionsApplicationContent;
+  uploadToken: string;
 }) {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<SessionApplicationData>(() =>
@@ -62,17 +65,28 @@ export function SessionApplicationWizard({
   const [submitted, setSubmitted] = useState(false);
   const [applicationId, setApplicationId] = useState<string>();
   const [autosaved, setAutosaved] = useState(false);
+  const [formError, setFormError] = useState("");
   const spam = useFormSpam();
   const storageKey = applicationStorageKey(volume.slug);
+  const idempotencyKeyRef = useRef("");
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(storageKey);
+      localStorage.removeItem(storageKey);
+      const raw = sessionStorage.getItem(storageKey);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<SessionApplicationData> & { step?: number };
+      const parsed = JSON.parse(raw) as {
+        savedAt?: number;
+        data?: Partial<SessionApplicationData>;
+        step?: number;
+      };
+      if (!parsed.savedAt || Date.now() - parsed.savedAt > APPLICATION_DRAFT_TTL_MS) {
+        sessionStorage.removeItem(storageKey);
+        return;
+      }
       setData((prev) => ({
         ...prev,
-        ...parsed,
+        ...(parsed.data ?? {}),
         sessionVolumeId: volume.id,
         sessionVolumeSlug: volume.slug,
         sessionVolumeTitle: volume.title,
@@ -86,10 +100,23 @@ export function SessionApplicationWizard({
   }, [storageKey, volume.id, volume.slug, volume.title]);
 
   useEffect(() => {
+    const key = `${storageKey}:idempotency`;
+    try {
+      idempotencyKeyRef.current = sessionStorage.getItem(key) || crypto.randomUUID();
+      sessionStorage.setItem(key, idempotencyKeyRef.current);
+    } catch {
+      idempotencyKeyRef.current = crypto.randomUUID();
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
     if (submitted) return;
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem(storageKey, JSON.stringify({ ...data, step }));
+        sessionStorage.setItem(
+          storageKey,
+          JSON.stringify({ savedAt: Date.now(), data, step })
+        );
         setAutosaved(true);
       } catch {
         /* ignore */
@@ -110,6 +137,7 @@ export function SessionApplicationWizard({
   ) => {
     setData((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
+    setFormError("");
   }, []);
 
   const toggleRole = (role: string) => {
@@ -234,7 +262,9 @@ export function SessionApplicationWizard({
 
     try {
       for (const file of uploads) {
-        const url = await uploadImageFile(file, "/api/submit/session/upload");
+        const url = await uploadImageFile(file, "/api/submit/session/upload", {
+          fields: { uploadToken, volumeId: volume.id },
+        });
         added.push(url);
       }
       if (added.length > 0) {
@@ -272,43 +302,60 @@ export function SessionApplicationWizard({
     }
     if (!spam.canSubmit()) return;
     setLoading(true);
-
-    const res = await fetch("/api/submit/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, ...spam.spamPayload() }),
-    });
-
-    setLoading(false);
-    if (!res.ok) {
-      const payload = await res.json().catch(() => ({}));
-      setErrors(
-        mapApiErrorsToForm<SessionApplicationData>(payload, "fullName", res.status === 429)
-      );
-      return;
-    }
-
-    const payload = await res.json().catch(() => ({}));
-    const id =
-      typeof payload.applicationId === "string"
-        ? payload.applicationId
-        : typeof payload.inquiryId === "string"
-          ? payload.inquiryId
-          : undefined;
-    if (!id) {
-      setErrors({ fullName: "Submission could not be completed. Please try again." });
-      return;
-    }
-
-    trackConversion("session");
-    setApplicationId(id);
-    setSubmitted(true);
     try {
-      localStorage.removeItem(storageKey);
+      setFormError("");
+      const res = await fetch("/api/submit/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          uploadToken,
+          idempotencyKey: idempotencyKeyRef.current || crypto.randomUUID(),
+          ...spam.spamPayload(),
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const mapped = mapApiErrorsToForm<SessionApplicationData>(
+          payload,
+          "fullName",
+          res.status === 429
+        );
+        setErrors(mapped);
+        setFormError(
+          typeof payload.error === "string"
+            ? payload.error
+            : "Application could not be submitted. Please try again."
+        );
+        return;
+      }
+
+      const id =
+        typeof payload.applicationId === "string"
+          ? payload.applicationId
+          : typeof payload.inquiryId === "string"
+            ? payload.inquiryId
+            : undefined;
+      if (!id) {
+        setFormError("Submission could not be completed. Please try again.");
+        return;
+      }
+
+      trackConversion("session");
+      setApplicationId(id);
+      setSubmitted(true);
+      try {
+        sessionStorage.removeItem(storageKey);
+        sessionStorage.removeItem(`${storageKey}:idempotency`);
+      } catch {
+        /* ignore */
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
-      /* ignore */
+      setFormError("Network error. Check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (submitted && applicationId) {
@@ -536,6 +583,12 @@ export function SessionApplicationWizard({
           )}
         </motion.div>
       </AnimatePresence>
+
+      {formError && (
+        <p className="mt-6 text-sm text-red-300" role="alert" aria-live="assertive">
+          {formError}
+        </p>
+      )}
 
       <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-stone/30 pt-8">
         {step > 1 ? (

@@ -298,36 +298,6 @@ export function normalizeBookingPayload(
     next.addOnIds = [];
   }
 
-  // Inquiry-first defaults for fields removed from the short form
-  if (!next.location || (typeof next.location === "string" && !next.location.trim())) {
-    next.location = "To be discussed";
-  }
-  if (!next.sessionSetting || (typeof next.sessionSetting === "string" && !String(next.sessionSetting).trim())) {
-    next.sessionSetting =
-      matchOption("On Location", options.sessionSettings) ||
-      options.sessionSettings[0] ||
-      "On Location";
-  }
-  if (!next.duration || (typeof next.duration === "string" && !String(next.duration).trim())) {
-    next.duration =
-      matchOption("Unsure", options.durations) || options.durations[0] || "Unsure";
-  }
-  if (!next.preferredDate || (typeof next.preferredDate === "string" && !String(next.preferredDate).trim())) {
-    const d = new Date();
-    d.setDate(d.getDate() + 14);
-    next.preferredDate = d.toISOString().slice(0, 10);
-  }
-  if (!next.referralSource || (typeof next.referralSource === "string" && !String(next.referralSource).trim())) {
-    next.referralSource =
-      matchOption("Other", options.referralSources) ||
-      matchOption("Instagram", options.referralSources) ||
-      options.referralSources[0] ||
-      "Other";
-  }
-
-  const visionFallback =
-    "Inquiry submitted via smart booking — creative vision to be refined in consultation.";
-
   if (
     typeof next.feelingPrompt === "string" &&
     next.feelingPrompt.trim().length >= 10 &&
@@ -335,15 +305,9 @@ export function normalizeBookingPayload(
   ) {
     next.projectVision = next.feelingPrompt;
   }
-  if (typeof next.feelingPrompt !== "string" || !String(next.feelingPrompt).trim()) {
-    next.feelingPrompt = visionFallback;
-  }
-  if (typeof next.projectVision !== "string" || next.projectVision.trim().length < 10) {
-    next.projectVision =
-      (typeof next.feelingPrompt === "string" && next.feelingPrompt.trim()) || visionFallback;
-  }
   if (
     typeof next.feelingPrompt === "string" &&
+    next.feelingPrompt.trim() &&
     (!next.purpose || (typeof next.purpose === "string" && !next.purpose.trim()))
   ) {
     next.purpose = next.feelingPrompt;
@@ -354,15 +318,6 @@ export function normalizeBookingPayload(
     (!next.goals || (typeof next.goals === "string" && !next.goals.trim()))
   ) {
     next.goals = next.inspirationPrompt;
-  }
-
-  // Fallback deliverable if package mapping emptied the list
-  if (
-    Array.isArray(next.deliverables) &&
-    next.deliverables.length === 0 &&
-    options.deliverables[0]
-  ) {
-    next.deliverables = [options.deliverables[0]];
   }
 
   next.welcomeAccepted = true;

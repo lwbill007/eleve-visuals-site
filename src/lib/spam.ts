@@ -32,24 +32,46 @@ export function checkFormTiming(body: Record<string, unknown>): SpamCheckResult 
   return { isSpam: false };
 }
 
-export async function verifyTurnstile(token: string | undefined): Promise<SpamCheckResult> {
+export async function verifyTurnstile(
+  token: string | undefined,
+  request?: Request
+): Promise<SpamCheckResult> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  if (!secret || !siteKey) return { isSpam: false };
+  if (!secret || !siteKey) {
+    if (process.env.NODE_ENV === "production" && process.env.REQUIRE_TURNSTILE === "true") {
+      return { isSpam: true, message: "Security check is not configured." };
+    }
+    return { isSpam: false };
+  }
 
   if (!token) {
     return { isSpam: true, message: "Please complete the security check." };
   }
 
   try {
+    const remoteIp = request
+      ? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        undefined
+      : undefined;
     const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ secret, response: token }),
+      body: new URLSearchParams({
+        secret,
+        response: token,
+        ...(remoteIp ? { remoteip: remoteIp } : {}),
+      }),
     });
 
-    const data = (await res.json()) as { success?: boolean };
-    if (!data.success) {
+    const data = (await res.json()) as { success?: boolean; hostname?: string; action?: string };
+    const expectedHost = request ? new URL(request.url).hostname : undefined;
+    if (
+      !data.success ||
+      data.action !== "public-form" ||
+      (expectedHost && data.hostname !== expectedHost)
+    ) {
       return { isSpam: true, message: "Security check failed. Please try again." };
     }
   } catch {
@@ -59,7 +81,10 @@ export async function verifyTurnstile(token: string | undefined): Promise<SpamCh
   return { isSpam: false };
 }
 
-export async function runSpamChecks(body: Record<string, unknown>): Promise<SpamCheckResult> {
+export async function runSpamChecks(
+  body: Record<string, unknown>,
+  request?: Request
+): Promise<SpamCheckResult> {
   const honeypot = checkHoneypot(body);
   if (honeypot.isSpam) return honeypot;
 
@@ -67,7 +92,8 @@ export async function runSpamChecks(body: Record<string, unknown>): Promise<Spam
   if (timing.isSpam) return timing;
 
   const turnstile = await verifyTurnstile(
-    typeof body.turnstileToken === "string" ? body.turnstileToken : undefined
+    typeof body.turnstileToken === "string" ? body.turnstileToken : undefined,
+    request
   );
   if (turnstile.isSpam) return turnstile;
 

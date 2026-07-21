@@ -5,8 +5,14 @@ import { isApplicationsOpen } from "@/lib/session-volume";
 import { validateSessionApplicationGate, getSessionVolumeForApplication } from "@/lib/session-application-server";
 import { SessionApplicationHero } from "@/components/sessions/application/SessionApplicationHero";
 import { SessionApplicationWizard } from "@/components/sessions/application/SessionApplicationWizard";
+import { createSessionUploadToken } from "@/lib/session-upload-token";
+import type { Metadata } from "next";
 
 export const revalidate = 60;
+export const metadata: Metadata = {
+  title: "Session Application",
+  robots: { index: false, follow: true },
+};
 
 export default async function SessionApplyPage({
   params,
@@ -26,6 +32,7 @@ export default async function SessionApplyPage({
   }
 
   const applicationContent = await getSessionsApplicationContent();
+  const uploadToken = await createSessionUploadToken(volume.id);
 
   return (
     <>
@@ -36,6 +43,7 @@ export default async function SessionApplyPage({
             volume={volume}
             settings={volume.applicationSettings}
             applicationContent={applicationContent}
+            uploadToken={uploadToken}
           />
         </div>
       </section>

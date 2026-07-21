@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { recordConversion } from "@/lib/analytics-server";
 import { getBookingOptions, getNotificationSettings, getSiteConfig } from "@/lib/content";
 import { formatInquiryId } from "@/lib/booking";
 import { bookingConfirmationEmail, sendEmail } from "@/lib/email";
 import { notifyNewSubmission } from "@/lib/notifications";
-import { checkRateLimit, consumeRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { runSpamChecks, stripSpamFields } from "@/lib/spam";
 import { createBookingSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rateLimit = await checkRateLimit(ip, "submit:booking", { consume: false });
+  const rateLimit = await checkRateLimit(ip, "submit:booking");
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: "Too many submissions. Please try again later." },
@@ -26,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const spam = await runSpamChecks(body);
+  const spam = await runSpamChecks(body, request);
   if (spam.isSpam) {
     if (spam.silent) return NextResponse.json({ ok: true });
     return NextResponse.json({ error: spam.message ?? "Submission rejected" }, { status: 400 });
@@ -34,6 +36,11 @@ export async function POST(request: Request) {
 
   const bookingOptions = await getBookingOptions();
   const cleaned = stripSpamFields(body);
+  const idempotencyKey =
+    typeof cleaned.idempotencyKey === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(cleaned.idempotencyKey)
+      ? cleaned.idempotencyKey
+      : null;
   const { normalizeBookingPayload } = await import("@/lib/booking");
   const normalized = normalizeBookingPayload(cleaned, bookingOptions);
   const parsed = createBookingSchema(bookingOptions).safeParse(normalized);
@@ -79,6 +86,7 @@ export async function POST(request: Request) {
     const submission = await prisma.submission.create({
       data: {
         type: "booking",
+        idempotencyKey,
         data: JSON.stringify(submissionData),
         status: "lead",
         ipAddress: ip,
@@ -87,69 +95,74 @@ export async function POST(request: Request) {
       },
     });
     inquiryId = submission.id;
-    await consumeRateLimit(ip, "submit:booking");
-  } catch {
+  } catch (error) {
+    if (
+      idempotencyKey &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const existing = await prisma.submission.findUnique({
+        where: { idempotencyKey },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json({ ok: true, inquiryId: existing.id, deduplicated: true });
+      }
+    }
     return NextResponse.json({ error: "Submission failed" }, { status: 500 });
   }
 
-  try {
-    const referer = request.headers.get("referer") ?? undefined;
-    const sessionId = typeof body._sessionId === "string" ? body._sessionId : undefined;
-    const path = referer ? new URL(referer).pathname : "/book";
-    await recordConversion("booking", path, referer ?? null, sessionId);
-  } catch (error) {
-    console.error("Conversion tracking failed:", error);
-  }
-
-  try {
-    await notifyNewSubmission({
-      formType: "booking",
-      submissionId: inquiryId,
-      data: submissionData as Record<string, unknown>,
-    });
-  } catch (error) {
-    console.error("Booking notification failed:", error);
-  }
-
-  try {
-    const [siteConfig, notificationSettings] = await Promise.all([
-      getSiteConfig(),
-      getNotificationSettings(),
-    ]);
-
-    if (notificationSettings.sendApplicantConfirmation) {
-      const displayId = formatInquiryId(inquiryId);
-      const confirmMail = bookingConfirmationEmail({
-        name: parsed.data.fullName,
-        inquiryId: displayId,
-      });
-      await sendEmail({
-        to: parsed.data.email,
-        subject: confirmMail.subject,
-        html: confirmMail.html,
-        replyTo: siteConfig.email,
-      });
+  const referer = request.headers.get("referer") ?? undefined;
+  const sessionId = typeof body._sessionId === "string" ? body._sessionId : undefined;
+  const path = referer ? new URL(referer).pathname : "/book";
+  after(async () => {
+    const tasks: Promise<unknown>[] = [
+      recordConversion("booking", path, referer ?? null, sessionId),
+      notifyNewSubmission({
+        formType: "booking",
+        submissionId: inquiryId,
+        data: submissionData as Record<string, unknown>,
+      }),
+      (async () => {
+        const [siteConfig, notificationSettings] = await Promise.all([
+          getSiteConfig(),
+          getNotificationSettings(),
+        ]);
+        if (!notificationSettings.sendApplicantConfirmation) return;
+        const confirmMail = bookingConfirmationEmail({
+          name: parsed.data.fullName,
+          inquiryId: formatInquiryId(inquiryId),
+        });
+        await sendEmail({
+          to: parsed.data.email,
+          subject: confirmMail.subject,
+          html: confirmMail.html,
+          replyTo: siteConfig.email,
+        });
+      })(),
+      (async () => {
+        const { emitBusinessEvent } = await import("@/lib/ai/platform/business-events");
+        await emitBusinessEvent({
+          type: "booking_created",
+          entityId: inquiryId,
+          entityType: "submission",
+          payload: { type: "booking" },
+          source: "booking_form",
+        });
+      })(),
+    ];
+    const results = await Promise.allSettled(tasks);
+    for (const result of results) {
+      if (result.status === "rejected") console.error("Booking follow-up failed:", result.reason);
     }
-  } catch (error) {
-    console.error("Booking confirmation email failed:", error);
-  }
-
-  const { emitBusinessEvent } = await import("@/lib/ai/platform/business-events");
-  await emitBusinessEvent({
-    type: "booking_created",
-    entityId: inquiryId,
-    entityType: "submission",
-    payload: { type: "booking" },
-    source: "booking_form",
+    const [{ triggerIntelligenceRefreshBackground }, { generateBookingProductionIntelBackground }] =
+      await Promise.all([
+        import("@/lib/ai/memory/knowledge/trigger"),
+        import("@/lib/ai/intelligence/booking-production-brief"),
+      ]);
+    triggerIntelligenceRefreshBackground("booking_received");
+    generateBookingProductionIntelBackground(inquiryId, submissionData);
   });
-
-  const { triggerIntelligenceRefreshBackground } = await import("@/lib/ai/memory/knowledge/trigger");
-  triggerIntelligenceRefreshBackground("booking_received");
-
-  const { generateBookingProductionIntelBackground } = await import(
-    "@/lib/ai/intelligence/booking-production-brief"
-  );
-  generateBookingProductionIntelBackground(inquiryId, submissionData);
 
   return NextResponse.json({ ok: true, inquiryId });
 }

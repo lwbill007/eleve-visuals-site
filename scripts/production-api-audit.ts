@@ -7,7 +7,7 @@
  * Env: PRODUCTION_URL (default https://www.eleve-visuals.com), ADMIN_PASSWORD
  */
 const BASE = process.env.PRODUCTION_URL ?? "https://www.eleve-visuals.com";
-const PASSWORD = process.env.ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? "billyboy";
+const PASSWORD = process.env.ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD;
 
 interface Probe {
   path: string;
@@ -32,6 +32,9 @@ const PROBES: Probe[] = [
 ];
 
 async function login(): Promise<string> {
+  if (!PASSWORD) {
+    throw new Error("ADMIN_PASSWORD or E2E_ADMIN_PASSWORD is required");
+  }
   const res = await fetch(`${BASE}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -85,6 +85,7 @@ model SiteContent {
 
 model Submission {
   id               String   @id @default(cuid())
+  idempotencyKey   String?  @unique
   type             String
   data             String
   status           String   @default("new")
@@ -182,13 +183,20 @@ model ActivityLog {
 }
 
 model MediaAsset {
-  id        String   @id @default(cuid())
-  url       String   @unique
-  filename  String   @default("")
-  alt       String   @default("")
-  createdAt DateTime @default(now())
+  id              String    @id @default(cuid())
+  url             String    @unique
+  filename        String    @default("")
+  alt             String    @default("")
+  purpose         String    @default("")
+  uploadTokenHash String    @default("")
+  submissionId    String?
+  claimedAt       DateTime?
+  createdAt       DateTime  @default(now())
 
   @@index([createdAt])
+  @@index([purpose, claimedAt, createdAt])
+  @@index([uploadTokenHash])
+  @@index([submissionId])
 }
 
 model NotificationLog {

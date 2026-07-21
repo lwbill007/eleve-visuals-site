@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { BookingOptions, PageCopy } from "@/lib/types";
@@ -68,6 +68,8 @@ const FIELD_STEP: Partial<Record<keyof BookingFormData, number>> = {
 };
 
 const ease = [0.16, 1, 0.3, 1] as const;
+const BOOKING_DRAFT_TTL_MS = 2 * 60 * 60 * 1000;
+const BOOKING_IDEMPOTENCY_KEY = "eleve-booking-idempotency-v1";
 
 export function BookingForm({
   bookingOptions,
@@ -90,6 +92,7 @@ export function BookingForm({
   const [autosaved, setAutosaved] = useState(false);
   const spam = useFormSpam();
   const [minDate, setMinDate] = useState("");
+  const idempotencyKeyRef = useRef("");
 
   const selectedPackage = useMemo(() => getPackageById(data.packageId), [data.packageId]);
   const selectedService = useMemo(
@@ -103,10 +106,18 @@ export function BookingForm({
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(BOOKING_AUTOSAVE_KEY);
+      const raw = sessionStorage.getItem(BOOKING_AUTOSAVE_KEY);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<BookingFormData> & { step?: number };
-      setData((prev) => ({ ...prev, ...parsed }));
+      const parsed = JSON.parse(raw) as {
+        savedAt?: number;
+        data?: Partial<BookingFormData>;
+        step?: number;
+      };
+      if (!parsed.savedAt || Date.now() - parsed.savedAt > BOOKING_DRAFT_TTL_MS) {
+        sessionStorage.removeItem(BOOKING_AUTOSAVE_KEY);
+        return;
+      }
+      setData((prev) => ({ ...prev, ...(parsed.data ?? {}) }));
       if (parsed.step && parsed.step >= 1 && parsed.step <= BOOKING_STEPS.length) {
         setStep(parsed.step);
       }
@@ -117,13 +128,26 @@ export function BookingForm({
   }, []);
 
   useEffect(() => {
+    try {
+      idempotencyKeyRef.current =
+        sessionStorage.getItem(BOOKING_IDEMPOTENCY_KEY) || crypto.randomUUID();
+      sessionStorage.setItem(BOOKING_IDEMPOTENCY_KEY, idempotencyKeyRef.current);
+    } catch {
+      idempotencyKeyRef.current = crypto.randomUUID();
+    }
+  }, []);
+
+  useEffect(() => {
     const hasContent = Object.values(data).some((v) =>
       Array.isArray(v) ? v.length > 0 : typeof v === "boolean" ? v : typeof v === "string" && v.trim()
     );
     if (!hasContent || submitted) return;
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem(BOOKING_AUTOSAVE_KEY, JSON.stringify({ ...data, step }));
+        sessionStorage.setItem(
+          BOOKING_AUTOSAVE_KEY,
+          JSON.stringify({ savedAt: Date.now(), data, step })
+        );
         setAutosaved(true);
       } catch {
         /* storage full */
@@ -263,6 +287,7 @@ export function BookingForm({
 
       const payload = {
         ...normalizeBookingPayload(composed as unknown as Record<string, unknown>, bookingOptions),
+        idempotencyKey: idempotencyKeyRef.current || crypto.randomUUID(),
         ...spam.spamPayload(),
       };
 
@@ -296,7 +321,8 @@ export function BookingForm({
       }
 
       try {
-        localStorage.removeItem(BOOKING_AUTOSAVE_KEY);
+        sessionStorage.removeItem(BOOKING_AUTOSAVE_KEY);
+        sessionStorage.removeItem(BOOKING_IDEMPOTENCY_KEY);
       } catch {
         /* ignore */
       }

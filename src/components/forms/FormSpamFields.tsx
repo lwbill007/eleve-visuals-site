@@ -13,6 +13,7 @@ declare global {
           "expired-callback"?: () => void;
           "error-callback"?: () => void;
           theme?: "light" | "dark" | "auto";
+          action?: string;
         }
       ) => string;
       remove: (widgetId: string) => void;
@@ -59,6 +60,7 @@ export function TurnstileWidget({ onVerify, onExpire }: TurnstileWidgetProps) {
       callback: onVerify,
       "expired-callback": onExpire,
       theme: "dark",
+      action: "public-form",
     });
 
     return () => {

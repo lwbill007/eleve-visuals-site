@@ -8,17 +8,6 @@ const phone = z
   .trim()
   .refine((v) => v.replace(/\D/g, "").length >= 10, "Invalid phone number");
 
-const dateString = z
-  .string()
-  .trim()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date")
-  .refine((value) => {
-    const date = new Date(`${value}T12:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return !Number.isNaN(date.getTime()) && date >= today;
-  }, "Date must be today or in the future");
-
 const optionalDateString = z
   .string()
   .trim()
@@ -52,6 +41,19 @@ function enumFromOptions(values: string[], label: string) {
   return z.enum(values as [string, ...string[]], {
     errorMap: () => ({ message: `Select a valid ${label}` }),
   });
+}
+
+function optionalEnumFromOptions(values: string[], label: string) {
+  return z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (value) => !value || values.length === 0 || values.includes(value),
+      `Select a valid ${label}`
+    );
 }
 
 const optionalInstagram = z
@@ -96,29 +98,29 @@ export function createBookingSchema(options: BookingOptions) {
       .min(1, "Select what we're creating")
       .refine((v) => categoryIds.some((c) => c.toLowerCase() === v.toLowerCase()), "Invalid category"),
     serviceTypes: z.array(z.string()).max(20).optional().default([]),
-    preferredDate: dateString,
+    preferredDate: optionalDateString,
     flexibleDate: optionalDateString,
-    location: z.string().trim().min(1).max(200),
-    sessionSetting: enumFromOptions(options.sessionSettings, "session setting"),
-    duration: enumFromOptions(options.durations, "duration"),
-    feelingPrompt: z.string().trim().min(10).max(2000),
+    location: z.string().trim().max(200).optional().or(z.literal("")),
+    sessionSetting: optionalEnumFromOptions(options.sessionSettings, "session setting"),
+    duration: optionalEnumFromOptions(options.durations, "duration"),
+    feelingPrompt: z.string().trim().max(2000).optional().or(z.literal("")),
     inspirationPrompt: z.string().trim().max(2000).optional().or(z.literal("")),
     purpose: z.string().trim().max(2000).optional().or(z.literal("")),
     goals: z.string().trim().max(2000).optional().or(z.literal("")),
     audience: z.string().trim().max(1000).optional().or(z.literal("")),
     creativeDirection: z.string().trim().max(2000).optional().or(z.literal("")),
-    projectVision: z.string().trim().min(10).max(5000),
+    projectVision: z.string().trim().max(5000).optional().or(z.literal("")),
     pinterestLink: optionalUrl,
     moodBoardUrl: optionalUrl,
     inspirationInstagram: optionalInstagram,
     driveLink: optionalUrl,
     deliverables: z
       .array(enumFromOptions(options.deliverables, "deliverable"))
-      .min(1, "Select at least one deliverable")
-      .max(20),
+      .max(20)
+      .default([]),
     budgetRange: enumFromOptions(options.budgetRanges, "budget range"),
     projectTimeline: z.string().trim().max(500).optional().or(z.literal("")),
-    referralSource: enumFromOptions(options.referralSources, "referral source"),
+    referralSource: optionalEnumFromOptions(options.referralSources, "referral source"),
     termsAccepted: z.literal(true, {
       errorMap: () => ({ message: "You must agree to the booking terms" }),
     }),

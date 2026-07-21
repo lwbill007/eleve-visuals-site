@@ -1,19 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { checkRateLimit, consumeRateLimit, getClientIp } from "@/lib/rate-limit";
-import { inferMimeType } from "@/lib/image-url";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { detectImageMime } from "@/lib/image-url";
 import {
   putPublicBlob,
   sanitizeUploadFilename,
   saveLocalUpload,
 } from "@/lib/upload-server";
 import { SESSION_PORTFOLIO_MAX_BYTES } from "@/lib/upload-constants";
+import {
+  hashSessionUploadToken,
+  verifySessionUploadToken,
+} from "@/lib/session-upload-token";
+import {
+  getSessionVolumeForApplication,
+  validateSessionApplicationGate,
+} from "@/lib/session-application-server";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rateLimit = await checkRateLimit(ip, "submit:session-upload", { consume: false });
+  const rateLimit = await checkRateLimit(ip, "submit:session-upload");
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: "Too many uploads. Please try again later." },
@@ -24,6 +32,8 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const honeypot = (formData.get("_hp") ?? formData.get("website")) as string | null;
+  const uploadToken = formData.get("uploadToken");
+  const volumeId = formData.get("volumeId");
 
   if (honeypot?.trim()) {
     return NextResponse.json({ ok: true, url: "" });
@@ -33,31 +43,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  const mimeType = inferMimeType(file);
+  if (
+    typeof uploadToken !== "string" ||
+    typeof volumeId !== "string" ||
+    !(await verifySessionUploadToken(uploadToken, volumeId))
+  ) {
+    return NextResponse.json({ error: "Upload authorization expired" }, { status: 401 });
+  }
 
-  console.log("[session-upload] received", {
-    name: file.name,
-    type: mimeType,
-    reportedType: file.type,
-    size: file.size,
-  });
-
-  if (!ALLOWED_TYPES.includes(mimeType)) {
-    return NextResponse.json(
-      { error: "Only JPEG, PNG, and WebP images are allowed" },
-      { status: 400 }
-    );
+  const volume = await getSessionVolumeForApplication(volumeId);
+  if (!volume || !(await validateSessionApplicationGate(volume)).ok) {
+    return NextResponse.json({ error: "Applications are not open" }, { status: 403 });
   }
 
   if (file.size > SESSION_PORTFOLIO_MAX_BYTES) {
     return NextResponse.json({ error: "Image must be under 5MB" }, { status: 400 });
   }
 
-  const filename = sanitizeUploadFilename(file.name, mimeType);
   const buffer = Buffer.from(await file.arrayBuffer());
+  const mimeType = detectImageMime(buffer);
+  if (!mimeType || !ALLOWED_TYPES.includes(mimeType)) {
+    return NextResponse.json(
+      { error: "Only valid JPEG, PNG, and WebP images are allowed" },
+      { status: 400 }
+    );
+  }
+  const filename = sanitizeUploadFilename(file.name, mimeType);
+  const uploadTokenHash = hashSessionUploadToken(uploadToken);
 
   try {
-    const blobUrl = await putPublicBlob(`applications/${filename}`, buffer, mimeType);
+    const blobUrl = await putPublicBlob(
+      `applications/${volumeId}/${filename}`,
+      buffer,
+      mimeType
+    );
 
     if (blobUrl) {
       try {
@@ -66,13 +85,14 @@ export async function POST(request: Request) {
             url: blobUrl,
             filename: file.name,
             alt: "Session application portfolio",
+            purpose: "session-application",
+            uploadTokenHash,
           },
         });
       } catch {
         /* optional index */
       }
       console.log("[session-upload] success", { url: blobUrl });
-      await consumeRateLimit(ip, "submit:session-upload");
       return NextResponse.json({ url: blobUrl });
     }
 
@@ -85,7 +105,6 @@ export async function POST(request: Request) {
 
     const localUrl = await saveLocalUpload("applications", filename, buffer);
     console.log("[session-upload] local success", { url: localUrl });
-    await consumeRateLimit(ip, "submit:session-upload");
     return NextResponse.json({ url: localUrl });
   } catch (error) {
     console.error("Upload error:", error);

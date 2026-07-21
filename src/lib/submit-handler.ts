@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
+import { Prisma } from "@prisma/client";
 import type { z } from "zod";
 import { prisma } from "./db";
 import { recordConversion, type ConversionType } from "./analytics-server";
-import { checkRateLimit, consumeRateLimit, getClientIp } from "./rate-limit";
+import { checkRateLimit, getClientIp } from "./rate-limit";
 import { runSpamChecks, stripSpamFields } from "./spam";
 import {
   extractContact,
@@ -32,7 +34,7 @@ export async function handleFormSubmit<T extends z.ZodType>({
 }: SubmitOptions<T>) {
   const ip = getClientIp(request);
 
-  const rateLimit = await checkRateLimit(ip, route, { consume: false });
+  const rateLimit = await checkRateLimit(ip, route);
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: "Too many submissions. Please try again later." },
@@ -47,13 +49,18 @@ export async function handleFormSubmit<T extends z.ZodType>({
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const spam = await runSpamChecks(body);
+  const spam = await runSpamChecks(body, request);
   if (spam.isSpam) {
     if (spam.silent) return NextResponse.json({ ok: true });
     return NextResponse.json({ error: spam.message ?? "Submission rejected" }, { status: 400 });
   }
 
   const cleaned = stripSpamFields(body);
+  const idempotencyKey =
+    typeof cleaned.idempotencyKey === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(cleaned.idempotencyKey)
+      ? cleaned.idempotencyKey
+      : null;
   const parsed = schema.safeParse(cleaned);
   if (!parsed.success) {
     return NextResponse.json(
@@ -71,6 +78,7 @@ export async function handleFormSubmit<T extends z.ZodType>({
     const submission = await prisma.submission.create({
       data: {
         type: conversionType,
+        idempotencyKey,
         data: JSON.stringify(parsed.data),
         status: "new",
         ipAddress: ip,
@@ -79,43 +87,58 @@ export async function handleFormSubmit<T extends z.ZodType>({
       },
     });
     inquiryId = submission.id;
-    await consumeRateLimit(ip, route);
-  } catch {
-    return NextResponse.json({ error: "Submission failed" }, { status: 500 });
-  }
-
-  try {
-    const referer = request.headers.get("referer") ?? undefined;
-    const sessionId =
-      typeof body._sessionId === "string" ? body._sessionId : undefined;
-    const path =
-      analyticsPath ??
-      (referer ? new URL(referer).pathname : `/${conversionType}`);
-
-    await recordConversion(conversionType, path, referer ?? null, sessionId);
   } catch (error) {
-    console.error("Conversion tracking failed:", error);
+    if (
+      idempotencyKey &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const existing = await prisma.submission.findUnique({
+        where: { idempotencyKey },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json({ ok: true, inquiryId: existing.id, deduplicated: true });
+      }
+    }
+    return NextResponse.json({ error: "Submission failed" }, { status: 500 });
   }
 
   const formType = notifyFormType ?? (conversionType as NotificationFormType);
   const submissionData = parsed.data as Record<string, unknown>;
-  try {
-    await notifyNewSubmission({
-      formType,
-      submissionId: inquiryId,
-      data: submissionData,
-    });
-    if (confirmVisitor) {
-      const contact = extractContact(submissionData);
-      await sendVisitorConfirmation({
+  const referer = request.headers.get("referer") ?? undefined;
+  const sessionId =
+    typeof body._sessionId === "string" ? body._sessionId : undefined;
+  const path =
+    analyticsPath ??
+    (referer ? new URL(referer).pathname : `/${conversionType}`);
+  after(async () => {
+    const results = await Promise.allSettled([
+      recordConversion(conversionType, path, referer ?? null, sessionId),
+      notifyNewSubmission({
         formType,
-        to: contact.email,
-        name: contact.name,
-      });
+        submissionId: inquiryId,
+        data: submissionData,
+      }),
+      ...(confirmVisitor
+        ? [
+            (async () => {
+              const contact = extractContact(submissionData);
+              await sendVisitorConfirmation({
+                formType,
+                to: contact.email,
+                name: contact.name,
+              });
+            })(),
+          ]
+        : []),
+    ]);
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error("Submission follow-up failed:", result.reason);
+      }
     }
-  } catch (error) {
-    console.error("Notification dispatch failed:", error);
-  }
+  });
 
   return NextResponse.json({ ok: true, inquiryId });
 }

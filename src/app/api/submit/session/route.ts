@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { recordConversion } from "@/lib/analytics-server";
-import { checkRateLimit, consumeRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { runSpamChecks, stripSpamFields } from "@/lib/spam";
 import { createSessionApplicationSchema } from "@/lib/session-application-validation";
 import {
   getSessionVolumeForApplication,
-  hasDuplicateApplication,
   validateSessionApplicationGate,
   maybeAutoCloseVolume,
 } from "@/lib/session-application-server";
@@ -15,10 +16,14 @@ import { sendEmail, applicantConfirmationEmail } from "@/lib/email";
 import { notifyNewSubmission } from "@/lib/notifications";
 import { getSiteConfig } from "@/lib/content";
 import { formatApplicationId } from "@/lib/session-application";
+import {
+  hashSessionUploadToken,
+  verifySessionUploadToken,
+} from "@/lib/session-upload-token";
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rateLimit = await checkRateLimit(ip, "submit:session", { consume: false });
+  const rateLimit = await checkRateLimit(ip, "submit:session");
   if (!rateLimit.ok) {
     return NextResponse.json(
       { error: "Too many submissions. Please try again later." },
@@ -33,13 +38,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const spam = await runSpamChecks(body);
+  const spam = await runSpamChecks(body, request);
   if (spam.isSpam) {
     if (spam.silent) return NextResponse.json({ ok: true });
     return NextResponse.json({ error: spam.message ?? "Submission rejected" }, { status: 400 });
   }
 
   const cleaned = stripSpamFields(body);
+  const idempotencyKey =
+    typeof cleaned.idempotencyKey === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(cleaned.idempotencyKey)
+      ? cleaned.idempotencyKey
+      : null;
+  const uploadToken = typeof cleaned.uploadToken === "string" ? cleaned.uploadToken : "";
   const volumeId = typeof cleaned.sessionVolumeId === "string" ? cleaned.sessionVolumeId : "";
   if (!volumeId) {
     return NextResponse.json({ error: "Session volume is required" }, { status: 400 });
@@ -71,11 +82,11 @@ export async function POST(request: Request) {
   }
 
   const email = parsed.data.email.trim().toLowerCase();
-  if (await hasDuplicateApplication(volumeId, email)) {
-    return NextResponse.json(
-      { error: "An application with this email already exists for this session." },
-      { status: 409 }
-    );
+  if (
+    parsed.data.portfolioImages.length > 0 &&
+    !(await verifySessionUploadToken(uploadToken, volumeId))
+  ) {
+    return NextResponse.json({ error: "Portfolio upload authorization expired" }, { status: 401 });
   }
 
   const legacy = toLegacyApplicationFields(parsed.data);
@@ -89,90 +100,137 @@ export async function POST(request: Request) {
   const initialStatus = gate.waitlist ? "waitlisted" : "pending_review";
 
   let applicationId: string;
+  let deduplicated = false;
   try {
-    const submission = await prisma.submission.create({
-      data: {
-        type: "session",
-        data: JSON.stringify(payload),
-        status: initialStatus,
-        sessionVolumeId: volumeId,
-        ipAddress: ip,
-        userAgent: (request.headers.get("user-agent") ?? "").slice(0, 1000),
-        contactEmail: email,
+    const result = await prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw(
+          Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`${volumeId}:${email}`}))`
+        );
+        const existing = await tx.submission.findFirst({
+          where: {
+            OR: [
+              ...(idempotencyKey ? [{ idempotencyKey }] : []),
+              { type: "session", sessionVolumeId: volumeId, contactEmail: email },
+            ],
+          },
+          select: { id: true },
+        });
+        if (existing) return { id: existing.id, deduplicated: true };
+
+        const submission = await tx.submission.create({
+          data: {
+            type: "session",
+            idempotencyKey,
+            data: JSON.stringify(payload),
+            status: initialStatus,
+            sessionVolumeId: volumeId,
+            ipAddress: ip,
+            userAgent: (request.headers.get("user-agent") ?? "").slice(0, 1000),
+            contactEmail: email,
+          },
+        });
+        if (uploadToken && parsed.data.portfolioImages.length > 0) {
+          await tx.mediaAsset.updateMany({
+            where: {
+              url: { in: parsed.data.portfolioImages },
+              uploadTokenHash: hashSessionUploadToken(uploadToken),
+              purpose: "session-application",
+              claimedAt: null,
+            },
+            data: {
+              claimedAt: new Date(),
+              submissionId: submission.id,
+            },
+          });
+        }
+        return { id: submission.id, deduplicated: false };
       },
-    });
-    applicationId = submission.id;
-    await consumeRateLimit(ip, "submit:session");
-  } catch {
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+    applicationId = result.id;
+    deduplicated = result.deduplicated;
+  } catch (error) {
+    if (
+      idempotencyKey &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const existing = await prisma.submission.findUnique({
+        where: { idempotencyKey },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json({
+          ok: true,
+          inquiryId: existing.id,
+          applicationId: existing.id,
+          deduplicated: true,
+        });
+      }
+    }
     return NextResponse.json({ error: "Submission failed" }, { status: 500 });
   }
 
-  try {
-    const { emitBusinessEvent } = await import("@/lib/ai/platform/business-events");
-    await emitBusinessEvent({
-      type: "application_received",
-      entityId: applicationId,
-      entityType: "submission",
-      payload: { volumeId, volumeSlug: volume.slug, email },
-      source: "session_form",
-    });
-  } catch {
-    /* non-blocking */
-  }
-
-  try {
+  if (!deduplicated) {
     const referer = request.headers.get("referer") ?? undefined;
     const path = referer ? new URL(referer).pathname : `/sessions/${volume.slug}/apply`;
-    await recordConversion("session", path, referer ?? null);
-  } catch (error) {
-    console.error("Conversion tracking failed:", error);
-  }
-
-  try {
-    await notifyNewSubmission({
-      formType: "session",
-      submissionId: applicationId,
-      data: {
-        ...parsed.data,
-        sessionVolumeTitle: volume.title,
-      } as Record<string, unknown>,
+    after(async () => {
+      const results = await Promise.allSettled([
+        recordConversion("session", path, referer ?? null),
+        notifyNewSubmission({
+          formType: "session",
+          submissionId: applicationId,
+          data: {
+            ...parsed.data,
+            sessionVolumeTitle: volume.title,
+          } as Record<string, unknown>,
+        }),
+        (async () => {
+          const { emitBusinessEvent } = await import("@/lib/ai/platform/business-events");
+          await emitBusinessEvent({
+            type: "application_received",
+            entityId: applicationId,
+            entityType: "submission",
+            payload: { volumeId, volumeSlug: volume.slug, email },
+            source: "session_form",
+          });
+        })(),
+        (async () => {
+          if (!settings.notifyApplicantOnSubmission) return;
+          const siteConfig = await getSiteConfig();
+          const message = gate.waitlist
+            ? settings.emailTemplates.waitlist
+            : settings.customConfirmationMessage ||
+              settings.emailTemplates.submissionConfirmation;
+          const mail = applicantConfirmationEmail({
+            name: parsed.data.fullName,
+            volumeTitle: volume.title,
+            applicationId: formatApplicationId(applicationId),
+            message,
+          });
+          await sendEmail({
+            to: parsed.data.email,
+            subject: mail.subject,
+            html: mail.html,
+            replyTo: siteConfig.email,
+          });
+        })(),
+        maybeAutoCloseVolume(volumeId, settings, volume.applicationDeadline),
+      ]);
+      for (const result of results) {
+        if (result.status === "rejected") {
+          console.error("Application follow-up failed:", result.reason);
+        }
+      }
     });
-  } catch (error) {
-    console.error("Application notification failed:", error);
   }
-
-  try {
-    const siteConfig = await getSiteConfig();
-    const displayId = formatApplicationId(applicationId);
-
-    if (settings.notifyApplicantOnSubmission) {
-      const message = gate.waitlist
-        ? settings.emailTemplates.waitlist
-        : settings.customConfirmationMessage ||
-          settings.emailTemplates.submissionConfirmation;
-      const mail = applicantConfirmationEmail({
-        name: parsed.data.fullName,
-        volumeTitle: volume.title,
-        applicationId: displayId,
-        message,
-      });
-      await sendEmail({
-        to: parsed.data.email,
-        subject: mail.subject,
-        html: mail.html,
-        replyTo: siteConfig.email,
-      });
-    }
-  } catch (error) {
-    console.error("Application notification failed:", error);
-  }
-
-  await maybeAutoCloseVolume(volumeId, settings, volume.applicationDeadline);
 
   return NextResponse.json({
     ok: true,
     inquiryId: applicationId,
     applicationId,
     waitlist: gate.waitlist ?? false,
+    deduplicated,
   });
 }

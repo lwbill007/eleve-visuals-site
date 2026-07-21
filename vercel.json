@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/intelligence-refresh?schedule=weekly",
       "schedule": "0 7 * * 0"
+    },
+    {
+      "path": "/api/cron/application-upload-cleanup",
+      "schedule": "30 7 * * *"
     }
   ]
 }
