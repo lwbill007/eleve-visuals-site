@@ -21,14 +21,6 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rateLimit = await checkRateLimit(ip, "submit:session-upload");
-  if (!rateLimit.ok) {
-    return NextResponse.json(
-      { error: "Too many uploads. Please try again later." },
-      { status: 429 }
-    );
-  }
-
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const honeypot = (formData.get("_hp") ?? formData.get("website")) as string | null;
@@ -49,6 +41,14 @@ export async function POST(request: Request) {
     !(await verifySessionUploadToken(uploadToken, volumeId))
   ) {
     return NextResponse.json({ error: "Upload authorization expired" }, { status: 401 });
+  }
+
+  const rateLimit = await checkRateLimit(ip, "submit:session-upload");
+  if (!rateLimit.ok) {
+    return NextResponse.json(
+      { error: "Too many uploads. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSec) } }
+    );
   }
 
   const volume = await getSessionVolumeForApplication(volumeId);

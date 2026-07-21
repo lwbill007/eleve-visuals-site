@@ -1,8 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-const authSecret = process.env.AUTH_SECRET;
-const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD;
+const baseURL =
+  process.env.PLAYWRIGHT_BASE_URL ??
+  `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? "3100"}`;
+const webServerPort = new URL(baseURL).port || "3000";
+const webServerCommand =
+  process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ??
+  `npm run dev -- --hostname 127.0.0.1 --port ${webServerPort}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -38,16 +42,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
+    command: webServerCommand,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
-    env: {
-      DATABASE_URL: process.env.DATABASE_URL ?? "",
-      DIRECT_URL: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? "",
-      AUTH_SECRET:
-        authSecret ?? "",
-      ADMIN_PASSWORD: adminPassword ?? "",
-    },
   },
 });
