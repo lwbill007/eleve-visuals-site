@@ -34,7 +34,8 @@ DATABASE_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
 ### Neon / Vercel Postgres
 
 1. Create a Postgres database in [Neon](https://neon.tech) or Vercel Storage.
-2. Set `DATABASE_URL` to your PostgreSQL connection string (use the **direct** URL if using Neon’s pooler).
+2. Set `DATABASE_URL` to Neon's **pooled** connection string and `DIRECT_URL`
+   to the direct connection string used by Prisma migrations.
 3. Deploy — `npm run build` runs `prisma migrate deploy` automatically.
 
 **Production builds never seed the database.** Run `npm run db:seed` manually only for fresh dev/staging setups.

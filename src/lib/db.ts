@@ -19,7 +19,33 @@ function resolveDatabaseUrl(): string {
     );
   }
 
-  return url;
+  const parsed = new URL(url);
+
+  // Vercel functions must use Neon's pooled endpoint. A direct Neon endpoint
+  // can time out while an idle compute wakes and can exhaust connections when
+  // several serverless instances start together. DIRECT_URL remains the
+  // direct connection used by Prisma migrations.
+  if (
+    process.env.NODE_ENV === "production" &&
+    parsed.hostname.endsWith(".neon.tech") &&
+    !parsed.hostname.includes("-pooler.")
+  ) {
+    const [endpoint, ...rest] = parsed.hostname.split(".");
+    parsed.hostname = `${endpoint}-pooler.${rest.join(".")}`;
+  }
+
+  if (parsed.hostname.endsWith(".neon.tech")) {
+    if (!parsed.searchParams.has("sslmode")) parsed.searchParams.set("sslmode", "require");
+    if (!parsed.searchParams.has("connect_timeout")) {
+      parsed.searchParams.set("connect_timeout", "15");
+    }
+    if (!parsed.searchParams.has("pool_timeout")) parsed.searchParams.set("pool_timeout", "15");
+    if (!parsed.searchParams.has("connection_limit")) {
+      parsed.searchParams.set("connection_limit", "5");
+    }
+  }
+
+  return parsed.toString();
 }
 
 export const prisma =
