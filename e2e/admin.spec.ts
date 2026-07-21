@@ -35,11 +35,10 @@ test.describe("Admin CMS", () => {
   test("edit homepage hero headline", async ({ page }) => {
     const headline = `E2E Hero ${Date.now()}`;
 
-    await page.goto("/admin/content");
-    await page.getByRole("button", { name: "Homepage Hero" }).click();
+    await page.goto("/admin/homepage");
     await adminField(page, "Headline").fill(headline);
-    await page.getByRole("button", { name: "Save Changes" }).click();
-    await expect(page.getByText(/saved/i)).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: /save/i }).last().click();
+    await expect(page.getByText("Homepage saved.")).toBeVisible({ timeout: 10_000 });
 
     await page.goto("/");
     await expect(page.getByText(headline)).toBeVisible();

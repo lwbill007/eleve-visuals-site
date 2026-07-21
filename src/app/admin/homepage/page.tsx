@@ -283,6 +283,13 @@ export default function AdminHomepagePage() {
                 onChange={(url) => setHero({ ...hero, image: url })}
               />
             </div>
+            <AdminField label="Background Image Alt Text">
+              <AdminInput
+                value={hero.imageAlt}
+                onChange={(event) => setHero({ ...hero, imageAlt: event.target.value })}
+                placeholder="Describe the photograph"
+              />
+            </AdminField>
             <AdminField label="Background Video URL (optional)">
               <AdminInput
                 value={hero.videoUrl || ""}

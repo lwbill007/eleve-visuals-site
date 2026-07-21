@@ -14,14 +14,15 @@ export function HomeTestimonials({
   copy: HomepageSectionCopy;
 }) {
   const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    if (items.length <= 1) return;
+    if (items.length <= 1 || paused) return;
     const timer = setInterval(() => {
       setActive((prev) => (prev + 1) % items.length);
     }, 7000);
     return () => clearInterval(timer);
-  }, [items.length]);
+  }, [items.length, paused]);
 
   if (items.length === 0) return null;
 
@@ -30,22 +31,17 @@ export function HomeTestimonials({
   return (
     <section className="section-padding border-b border-stone/30 bg-ink">
       <div className="container-wide">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-12 text-center md:mb-16"
-        >
+        <div className="mb-12 text-center md:mb-16">
           {copy.eyebrow && <p className="label-caps mb-4 text-accent">{copy.eyebrow}</p>}
           <h2 className="headline-lg mx-auto max-w-2xl">{copy.headline}</h2>
           {copy.subheadline && (
             <p className="body-lg mx-auto mt-4 max-w-xl text-fog">{copy.subheadline}</p>
           )}
-        </motion.div>
+        </div>
 
         <div className="mx-auto max-w-4xl">
           <div className="relative min-h-[220px] border border-stone/30 bg-charcoal/30 p-10 md:p-14">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               <motion.blockquote
                 key={current.id}
                 initial={{ opacity: 0, y: 16 }}
@@ -81,23 +77,33 @@ export function HomeTestimonials({
           </div>
 
           {items.length > 1 && (
-            <div className="mt-8 flex justify-center gap-2">
-              {items.map((item, i) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActive(i)}
-                  className="group flex h-11 items-center px-1"
-                  aria-label={`View testimonial ${i + 1}`}
-                >
-                  <span
-                    className={cn(
-                      "block h-1 transition-all duration-300",
-                      i === active ? "w-10 bg-accent" : "w-4 bg-stone group-hover:bg-muted"
-                    )}
-                  />
-                </button>
-              ))}
+            <div className="mt-8 flex flex-col items-center gap-3">
+              <div className="flex justify-center gap-2">
+                {items.map((item, i) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActive(i)}
+                    className="group flex h-11 items-center px-1"
+                    aria-label={`View testimonial ${i + 1}`}
+                    aria-pressed={i === active}
+                  >
+                    <span
+                      className={cn(
+                        "block h-1 transition-all duration-300",
+                        i === active ? "w-10 bg-accent" : "w-4 bg-stone group-hover:bg-muted"
+                      )}
+                    />
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaused((current) => !current)}
+                className="min-h-11 px-3 text-[0.62rem] tracking-[0.18em] text-muted uppercase hover:text-cream"
+              >
+                {paused ? "Resume testimonials" : "Pause testimonials"}
+              </button>
             </div>
           )}
         </div>

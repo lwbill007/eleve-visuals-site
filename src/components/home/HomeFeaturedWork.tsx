@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import type { HomepageSectionCopy, PortfolioItemDTO } from "@/lib/types";
 import { resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
@@ -29,6 +28,7 @@ export function HomeFeaturedWork({
   }, [items, active]);
 
   const filterOptions = ["All", ...filters];
+  const showFilters = items.length > 1 && filterOptions.length > 1;
 
   if (items.length === 0) {
     return (
@@ -54,35 +54,41 @@ export function HomeFeaturedWork({
   return (
     <section className="section-padding border-b border-stone/30">
       <div className="container-wide">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="mb-12 max-w-3xl md:mb-16"
-        >
-          {copy.eyebrow && <p className="label-caps mb-4 text-accent">{copy.eyebrow}</p>}
-          <h2 className="headline-lg text-balance">{copy.headline}</h2>
-          {copy.subheadline && <p className="body-lg mt-5 text-fog">{copy.subheadline}</p>}
-        </motion.div>
+        <div className="mb-12 grid gap-6 border-t border-stone/50 pt-6 md:mb-16 md:grid-cols-12 md:items-end">
+          <div className="md:col-span-8">
+            {copy.eyebrow ? <p className="label-caps mb-4 text-accent">{copy.eyebrow}</p> : null}
+            <h2 className="font-display text-[clamp(2.8rem,5vw,5.75rem)] leading-[0.94] tracking-[-0.035em] text-balance">
+              {copy.headline}
+            </h2>
+          </div>
+          <div className="md:col-span-4 md:pb-2">
+            {copy.subheadline ? (
+              <p className="text-sm leading-relaxed text-fog md:text-base">{copy.subheadline}</p>
+            ) : null}
+            <p className="label-caps mt-4 text-[0.55rem] text-muted">
+              {items.length} featured {items.length === 1 ? "story" : "stories"}
+            </p>
+          </div>
+        </div>
 
-        <div className="mb-10 flex flex-wrap gap-2">
+        {showFilters ? <div className="mb-10 flex flex-wrap gap-2">
           {filterOptions.map((cat) => (
             <button
               key={cat}
               type="button"
               onClick={() => setActive(cat)}
+              aria-pressed={active === cat}
               className={cn(
-                "inline-flex min-h-10 items-center rounded-full px-4 py-2 text-xs tracking-[0.12em] uppercase transition-all duration-300",
+                "inline-flex min-h-11 items-center px-4 py-2 text-xs tracking-[0.12em] uppercase transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
                 active === cat
                   ? "bg-cream text-ink"
-                  : "border border-stone/40 text-fog hover:border-fog hover:text-cream"
+                  : "border border-stone/50 text-fog hover:border-cream/40 hover:text-cream"
               )}
             >
               {cat}
             </button>
           ))}
-        </div>
+        </div> : null}
 
         {filtered.length === 0 ? (
           <p className="py-16 text-center text-fog">No projects in this collection yet.</p>
@@ -91,14 +97,17 @@ export function HomeFeaturedWork({
             {filtered.map((item, index) => {
               const cover = resolvePortfolioCoverImage(item.image, item.gallery);
               const isHero = index === 0;
+              const isSingle = filtered.length === 1;
               return (
-                <motion.div
+                <div
                   key={item.id}
-                  initial={{ opacity: 0, y: 32 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-60px" }}
-                  transition={{ duration: 0.85, delay: index * 0.06 }}
-                  className={cn(isHero ? "md:col-span-7 md:row-span-2" : "md:col-span-5")}
+                  className={cn(
+                    isSingle
+                      ? "md:col-span-12"
+                      : isHero
+                        ? "md:col-span-7 md:row-span-2"
+                        : "md:col-span-5"
+                  )}
                 >
                   <Link
                     href={`/portfolio/${item.slug}`}
@@ -111,7 +120,11 @@ export function HomeFeaturedWork({
                     }
                     className={cn(
                       "group relative block overflow-hidden bg-charcoal",
-                      isHero ? "min-h-[420px] md:min-h-[640px]" : "min-h-[320px] md:min-h-[380px]"
+                      isSingle
+                        ? "aspect-[4/5] sm:aspect-[16/10] md:max-h-[760px]"
+                        : isHero
+                          ? "min-h-[420px] md:min-h-[640px]"
+                          : "min-h-[320px] md:min-h-[380px]"
                     )}
                   >
                     {cover ? (
@@ -120,7 +133,7 @@ export function HomeFeaturedWork({
                         alt={item.imageAlt || item.title}
                         fill
                         loading="lazy"
-                        className="object-cover transition-transform duration-[1.2s] group-hover:scale-[1.05]"
+                        className="object-cover transition-transform duration-[1.2s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.035]"
                         style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
                         sizes="(max-width: 768px) 100vw, 50vw"
                       />
@@ -128,9 +141,6 @@ export function HomeFeaturedWork({
                       <div className="absolute inset-0 bg-gradient-to-br from-charcoal to-ink" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-ink/95 via-ink/30 to-transparent transition-opacity duration-500 group-hover:from-ink" />
-                    <div className="absolute inset-0 translate-y-2 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
-                      <div className="absolute inset-0 bg-accent/5" />
-                    </div>
                     <div className="absolute right-0 bottom-0 left-0 p-6 md:p-8">
                       <p className="label-caps text-[0.55rem] text-fog">{item.category}</p>
                       <h3 className="mt-2 font-display text-2xl md:text-3xl">{item.title}</h3>
@@ -139,12 +149,12 @@ export function HomeFeaturedWork({
                           {item.description}
                         </p>
                       )}
-                      <span className="label-caps mt-4 inline-block text-accent opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+                      <span className="label-caps mt-4 inline-block text-accent opacity-100 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-1 md:opacity-0 md:group-hover:opacity-100">
                         View case study →
                       </span>
                     </div>
                   </Link>
-                </motion.div>
+                </div>
               );
             })}
           </div>

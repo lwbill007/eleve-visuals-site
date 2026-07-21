@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import type { HomepageSectionCopy, SessionVolumeDTO } from "@/lib/types";
 import { isApplicationsOpen, resolveSessionPosterImage } from "@/lib/session-volume";
 import { SessionStatusBadge } from "@/components/sessions/SessionStatusBadge";
@@ -24,24 +23,21 @@ export function HomeSessionsPreview({
   return (
     <section className="section-padding border-b border-stone/30">
       <div className="container-wide">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-12 max-w-2xl"
-        >
-          {copy.eyebrow && <p className="label-caps mb-4 text-accent">{copy.eyebrow}</p>}
-          <h2 className="headline-lg">{copy.headline}</h2>
-          {copy.subheadline && <p className="body-lg mt-4 text-fog">{copy.subheadline}</p>}
-        </motion.div>
+        <div className="mb-12 grid gap-6 border-t border-stone/50 pt-6 md:grid-cols-12 md:items-end md:mb-16">
+          <div className="md:col-span-8">
+            {copy.eyebrow ? <p className="label-caps mb-4 text-accent">{copy.eyebrow}</p> : null}
+            <h2 className="font-display text-[clamp(2.8rem,5vw,5.75rem)] leading-[0.94] tracking-[-0.035em]">
+              {copy.headline}
+            </h2>
+          </div>
+          {copy.subheadline ? (
+            <p className="text-sm leading-relaxed text-fog md:col-span-4 md:pb-2 md:text-base">
+              {copy.subheadline}
+            </p>
+          ) : null}
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 32 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.9 }}
-          className="grid items-center gap-10 lg:grid-cols-12 lg:gap-14"
-        >
+        <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-16">
           <Link
             href={`/sessions/${volume.slug}`}
             onClick={() =>
@@ -51,14 +47,14 @@ export function HomeSessionsPreview({
                 label: `featured_session_${volume.slug}`,
               })
             }
-            className="group relative aspect-[2/3] overflow-hidden bg-charcoal lg:col-span-5"
+            className="group relative aspect-[3/4] overflow-hidden bg-charcoal lg:col-span-5 lg:max-h-[700px]"
           >
             {poster ? (
               <Image
                 src={poster}
                 alt={volume.posterImageAlt || volume.title}
                 fill
-                className="object-cover transition-transform duration-[1.2s] group-hover:scale-[1.03]"
+                className="object-cover transition-transform duration-[1.2s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.025]"
                 sizes="(max-width: 1024px) 100vw, 40vw"
               />
             ) : (
@@ -67,7 +63,7 @@ export function HomeSessionsPreview({
             <div className="absolute inset-0 bg-ink/20 transition-colors group-hover:bg-ink/35" />
           </Link>
 
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-7 lg:pl-4">
             <div className="flex flex-wrap items-center gap-3">
               <SessionStatusBadge status={volume.status} />
               <span className="text-xs tracking-[0.2em] text-muted uppercase">
@@ -77,7 +73,9 @@ export function HomeSessionsPreview({
                 <span className="text-xs tracking-wide text-fog">{volume.theme}</span>
               )}
             </div>
-            <h3 className="headline-lg mt-5">{volume.title}</h3>
+            <h3 className="mt-6 max-w-2xl font-display text-[clamp(3rem,5.5vw,6rem)] leading-[0.9] tracking-[-0.04em]">
+              {volume.title}
+            </h3>
             {volume.subtitle && (
               <p className="mt-3 font-display text-xl text-accent md:text-2xl">{volume.subtitle}</p>
             )}
@@ -122,7 +120,7 @@ export function HomeSessionsPreview({
               Explore all sessions →
             </Link>
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

@@ -34,7 +34,7 @@ export function HomeAnnouncementBanner({ banner }: { banner: HomepageBanner | nu
         {banner.href ? (
           <Link
             href={banner.href}
-            className="hover:text-accent focus-visible:outline-none"
+            className="hover:text-accent"
             onClick={() =>
               trackEngagement({
                 event: "cta_click",

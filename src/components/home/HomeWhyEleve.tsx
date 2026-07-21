@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import type { BrandStory, HomepageSectionCopy, HomepageWhyPillar } from "@/lib/types";
 
 export function HomeWhyEleve({
@@ -15,38 +14,39 @@ export function HomeWhyEleve({
   return (
     <section className="section-padding border-b border-stone/30 bg-ink-soft">
       <div className="container-wide">
-        <div className="grid gap-14 lg:grid-cols-12 lg:gap-16">
-          <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="lg:col-span-5"
-          >
+        <div className="grid gap-14 border-t border-stone/50 pt-6 lg:grid-cols-12 lg:gap-20">
+          <div className="lg:col-span-7">
             <p className="label-caps mb-4 text-accent">{copy.eyebrow || brandStory.eyebrow}</p>
-            <h2 className="headline-lg text-balance">{copy.headline || brandStory.headline}</h2>
-            {copy.subheadline && <p className="body-lg mt-5 text-fog">{copy.subheadline}</p>}
-            <div className="mt-8 space-y-5">
+            <h2 className="max-w-3xl font-display text-[clamp(2.8rem,5vw,5.75rem)] leading-[0.94] tracking-[-0.035em] text-balance">
+              {copy.headline || brandStory.headline}
+            </h2>
+            {copy.subheadline ? (
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-cream-dim">
+                {copy.subheadline}
+              </p>
+            ) : null}
+            <div className="mt-8 max-w-2xl space-y-5">
               {brandStory.body.map((p, i) => (
                 <p key={i} className="text-sm leading-relaxed text-fog md:text-base">
                   {p}
                 </p>
               ))}
             </div>
-          </motion.div>
+          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-7">
-            {pillars.map((pillar, index) => (
-              <motion.div
+          <div className="lg:col-span-5 lg:pt-12">
+            {pillars.map((pillar) => (
+              <div
                 key={pillar.title}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-30px" }}
-                transition={{ duration: 0.75, delay: index * 0.06 }}
-                className="border border-stone/30 bg-ink/40 p-6 backdrop-blur-sm"
+                className="group border-b border-stone/50 py-6 first:border-t"
               >
-                <p className="font-display text-xl text-cream">{pillar.title}</p>
-                <p className="mt-3 text-sm leading-relaxed text-fog">{pillar.description}</p>
-              </motion.div>
+                <p className="font-display text-2xl text-cream transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:text-accent">
+                  {pillar.title}
+                </p>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-fog">
+                  {pillar.description}
+                </p>
+              </div>
             ))}
           </div>
         </div>

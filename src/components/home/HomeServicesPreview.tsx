@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import type { HomepageSectionCopy, ServiceDTO } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { trackEngagement } from "@/lib/analytics-client";
@@ -23,27 +22,18 @@ export function HomeServicesPreview({
   return (
     <section className="section-padding border-b border-stone/30 bg-ink-soft">
       <div className="container-wide">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-12 max-w-3xl md:mb-16"
-        >
+        <div className="mb-12 max-w-3xl md:mb-16">
           {copy.eyebrow && <p className="label-caps mb-4 text-accent">{copy.eyebrow}</p>}
           <h2 className="headline-lg">{copy.headline}</h2>
           {copy.subheadline && <p className="body-lg mt-5 text-fog">{copy.subheadline}</p>}
-        </motion.div>
+        </div>
 
         <div className="grid gap-5 lg:grid-cols-3">
-          {services.slice(0, 3).map((service, index) => {
+          {services.slice(0, 3).map((service) => {
             const image = serviceImage(service);
             return (
-              <motion.article
+              <article
                 key={service.id}
-                initial={{ opacity: 0, y: 28 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ duration: 0.8, delay: index * 0.1 }}
                 className="group relative overflow-hidden bg-charcoal"
               >
                 <Link
@@ -82,7 +72,7 @@ export function HomeServicesPreview({
                     </span>
                   </div>
                 </Link>
-              </motion.article>
+              </article>
             );
           })}
         </div>

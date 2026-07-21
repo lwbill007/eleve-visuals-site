@@ -61,28 +61,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 function orderedSections(sections: { id: string; enabled: boolean }[]) {
-  const preferred = [
-    "testimonials",
-    "stats",
-    "featured-work",
-    "sessions",
-    "services",
-    "brand-story",
-    "process",
-    "cta",
-  ];
-  const enabled = sections.filter((s) => s.enabled);
-  const byId = new Map(enabled.map((s) => [s.id, s]));
-  const ordered: typeof enabled = [];
-  for (const id of preferred) {
-    const s = byId.get(id);
-    if (s) {
-      ordered.push(s);
-      byId.delete(id);
-    }
-  }
-  for (const s of byId.values()) ordered.push(s);
-  return ordered;
+  return sections.filter((section) => section.enabled);
 }
 
 export default async function HomePage() {
