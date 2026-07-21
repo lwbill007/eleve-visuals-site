@@ -10,6 +10,10 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { getSiteConfig, getNavigationConfig, getHomepageContent } from "@/lib/content";
 import { buildOrganizationSchema, buildWebsiteSchema } from "@/lib/seo/structured-data";
 
+// Public content is database-backed. Resolve it at request time so a temporary
+// database outage cannot make the entire Vercel deployment fail at prerender.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata() {
   const siteConfig = await getSiteConfig();
   const titleDefault =
