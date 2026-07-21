@@ -11,7 +11,7 @@ export function SessionCountdown({ deadline }: { deadline: string }) {
       const now = Date.now();
       const diff = end - now;
       if (diff <= 0) {
-        setRemaining("Applications closing soon");
+        setRemaining("Application deadline has passed");
         return;
       }
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));

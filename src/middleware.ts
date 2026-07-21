@@ -14,6 +14,20 @@ async function verifyAdminToken(token: string) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get("host")?.split(":")[0]?.toLowerCase();
+  const canonicalHost = process.env.CANONICAL_HOST || "www.eleve-visuals.com";
+  const productionAliases = new Set([
+    "elevevisuals.com",
+    "www.elevevisuals.com",
+    "eleve-visuals.com",
+    "www.eleve-visuals.com",
+  ]);
+  if (host && productionAliases.has(host) && host !== canonicalHost) {
+    const url = request.nextUrl.clone();
+    url.protocol = "https";
+    url.host = canonicalHost;
+    return NextResponse.redirect(url, 308);
+  }
   const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
 
   if (pathname.startsWith("/api/admin")) {
@@ -79,5 +93,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: ["/((?!_next/static|_next/image|icon.svg|favicon.ico).*)"],
 };

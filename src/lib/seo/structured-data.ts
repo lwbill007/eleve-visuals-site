@@ -18,13 +18,19 @@ function absoluteUrl(base: string, pathOrUrl: string | null | undefined): string
   return `${root}${pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`}`;
 }
 
+function canonicalUrl(): string {
+  return (
+    process.env.CANONICAL_SITE_URL?.replace(/\/$/, "") ||
+    "https://www.eleve-visuals.com"
+  );
+}
+
 export function buildOrganizationSchema(site: SiteConfig) {
-  const url = site.url?.replace(/\/$/, "") || "https://elevevisuals.com";
-  const locationLabel = site.location || "Northern California";
+  const url = canonicalUrl();
 
   return {
     "@context": "https://schema.org",
-    "@type": ["PhotographyBusiness", "ProfessionalService", "LocalBusiness"],
+    "@type": "PhotographyBusiness",
     "@id": `${url}/#organization`,
     name: site.name,
     url,
@@ -32,21 +38,9 @@ export function buildOrganizationSchema(site: SiteConfig) {
     email: site.email,
     telephone: site.phone || undefined,
     image: absoluteUrl(url, site.ogImage),
-    logo: absoluteUrl(url, site.ogImage),
+    logo: `${url}/icon.svg`,
     sameAs: [site.instagramUrl, site.tiktokUrl].filter(Boolean),
-    areaServed: site.serviceArea || locationLabel,
-    priceRange: "$$–$$$$",
-    openingHours: site.businessHours || undefined,
-    address: {
-      "@type": "PostalAddress",
-      addressLocality: locationLabel.includes(",")
-        ? locationLabel.split(",")[0].trim()
-        : locationLabel,
-      addressRegion: locationLabel.includes(",")
-        ? locationLabel.split(",").slice(1).join(",").trim()
-        : "CA",
-      addressCountry: "US",
-    },
+    areaServed: site.serviceArea || site.location || undefined,
     founder: site.creator
       ? {
           "@type": "Person",
@@ -57,7 +51,7 @@ export function buildOrganizationSchema(site: SiteConfig) {
 }
 
 export function buildWebsiteSchema(site: SiteConfig) {
-  const url = site.url?.replace(/\/$/, "") || "https://elevevisuals.com";
+  const url = canonicalUrl();
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -65,11 +59,6 @@ export function buildWebsiteSchema(site: SiteConfig) {
     name: site.name,
     url,
     publisher: { "@id": `${url}/#organization` },
-    potentialAction: {
-      "@type": "ReserveAction",
-      target: `${url}/book`,
-      name: "Book Your Experience",
-    },
   };
 }
 
@@ -77,7 +66,7 @@ export function buildBreadcrumbSchema(
   site: SiteConfig,
   crumbs: { name: string; path: string }[]
 ) {
-  const url = site.url?.replace(/\/$/, "") || "https://elevevisuals.com";
+  const url = canonicalUrl();
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -108,7 +97,7 @@ export function buildFaqSchema(faqs: FaqItem[]) {
 
 export function buildReviewSchemas(site: SiteConfig, testimonials: TestimonialDTO[]) {
   if (!testimonials.length) return null;
-  const url = site.url?.replace(/\/$/, "") || "https://elevevisuals.com";
+  const url = canonicalUrl();
   return testimonials.slice(0, 8).map((t) => ({
     "@context": "https://schema.org",
     "@type": "Review",
@@ -126,7 +115,7 @@ export function buildReviewSchemas(site: SiteConfig, testimonials: TestimonialDT
 }
 
 export function buildCreativeWorkSchema(site: SiteConfig, project: PortfolioItemDTO) {
-  const url = site.url?.replace(/\/$/, "") || "https://elevevisuals.com";
+  const url = canonicalUrl();
   const pageUrl = `${url}/portfolio/${project.slug}`;
   const images = [project.heroImage || project.image, ...(project.gallery || [])]
     .filter(Boolean)
@@ -151,7 +140,7 @@ export function buildCreativeWorkSchema(site: SiteConfig, project: PortfolioItem
 }
 
 export function buildImageObjectSchemas(site: SiteConfig, project: PortfolioItemDTO) {
-  const url = site.url?.replace(/\/$/, "") || "https://elevevisuals.com";
+  const url = canonicalUrl();
   const sources = [project.heroImage || project.image, ...(project.gallery || [])].filter(
     Boolean
   ) as string[];
@@ -166,7 +155,7 @@ export function buildImageObjectSchemas(site: SiteConfig, project: PortfolioItem
 }
 
 export function buildSessionVolumeSchema(site: SiteConfig, volume: SessionVolumeDTO) {
-  const url = site.url?.replace(/\/$/, "") || "https://elevevisuals.com";
+  const url = canonicalUrl();
   const pageUrl = `${url}/sessions/${volume.slug}`;
   const image =
     absoluteUrl(url, volume.posterImage) ||

@@ -9,13 +9,31 @@ import { BrandThemeStyles } from "@/components/admin/BrandThemeStyles";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getSiteConfig, getNavigationConfig, getHomepageContent } from "@/lib/content";
 import { buildOrganizationSchema, buildWebsiteSchema } from "@/lib/seo/structured-data";
+import { unstable_cache } from "next/cache";
+import {
+  DEFAULT_HOMEPAGE,
+  DEFAULT_NAVIGATION,
+  DEFAULT_SITE_CONFIG,
+} from "@/lib/defaults";
 
-// Public content is database-backed. Resolve it at request time so a temporary
-// database outage cannot make the entire Vercel deployment fail at prerender.
-export const dynamic = "force-dynamic";
+const getCachedSiteConfig = unstable_cache(
+  async () => getSiteConfig().catch(() => DEFAULT_SITE_CONFIG),
+  ["public-site-config-v1"],
+  { revalidate: 300, tags: ["site-config"] }
+);
+const getCachedNavigation = unstable_cache(
+  async () => getNavigationConfig().catch(() => DEFAULT_NAVIGATION),
+  ["public-navigation-v1"],
+  { revalidate: 300, tags: ["navigation"] }
+);
+const getCachedHomepage = unstable_cache(
+  async () => getHomepageContent().catch(() => DEFAULT_HOMEPAGE),
+  ["public-homepage-v1"],
+  { revalidate: 300, tags: ["homepage"] }
+);
 
 export async function generateMetadata() {
-  const siteConfig = await getSiteConfig();
+  const siteConfig = await getCachedSiteConfig();
   const titleDefault =
     siteConfig.seoTitle || `${siteConfig.name} — Cinematic Visual Storytelling`;
   return {
@@ -25,7 +43,7 @@ export async function generateMetadata() {
     },
     description: siteConfig.seoDescription || siteConfig.description,
     metadataBase: new URL(
-      siteConfig.url || process.env.NEXT_PUBLIC_SITE_URL || "https://elevevisuals.com"
+      process.env.CANONICAL_SITE_URL || "https://www.eleve-visuals.com"
     ),
     keywords: [
       "photography",
@@ -60,9 +78,9 @@ export async function generateMetadata() {
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const [siteConfig, navigation, homepage] = await Promise.all([
-    getSiteConfig(),
-    getNavigationConfig(),
-    getHomepageContent().catch(() => null),
+    getCachedSiteConfig(),
+    getCachedNavigation(),
+    getCachedHomepage(),
   ]);
 
   return (

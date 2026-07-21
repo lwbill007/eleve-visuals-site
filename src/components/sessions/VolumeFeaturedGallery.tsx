@@ -64,7 +64,6 @@ export function VolumeFeaturedGallery({
                   src={item.src}
                   alt={item.alt || ""}
                   sizes={i === 0 ? "(max-width: 768px) 100vw, 40vw" : "(max-width: 768px) 50vw, 20vw"}
-                  priority={i < 2}
                   onClick={() => setLightboxIndex(i)}
                 />
               </motion.div>

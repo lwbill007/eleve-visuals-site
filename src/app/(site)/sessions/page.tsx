@@ -4,7 +4,10 @@ import {
   getFeaturedSessionVolume,
   getHeroPosterFromVolumes,
 } from "@/lib/session-volumes";
-import { countAcceptedApplications, isSessionApplyOpen } from "@/lib/session-application-server";
+import {
+  countAcceptedApplicationsByVolume,
+  isSessionApplyOpen,
+} from "@/lib/session-application-server";
 import { getFeaturedAlumni } from "@/lib/cast-server";
 import { toVideoEmbed } from "@/lib/video-embed";
 import { CREATIVE_DISCIPLINES } from "@/lib/sessions-experience";
@@ -45,6 +48,7 @@ export default async function SessionsPage() {
   ]);
 
   const { poster, alt } = getHeroPosterFromVolumes(volumes);
+  const acceptedByVolume = await countAcceptedApplicationsByVolume(volumes.map((v) => v.id));
 
   let featuredCanApply = false;
   let spotsRemaining: number | null = null;
@@ -52,15 +56,14 @@ export default async function SessionsPage() {
     featuredCanApply = isSessionApplyOpen(featured);
     const maxCapacity = featured.applicationSettings.maxCapacity;
     if (maxCapacity != null) {
-      const accepted = await countAcceptedApplications(featured.id);
+      const accepted = acceptedByVolume.get(featured.id) ?? 0;
       spotsRemaining = Math.max(0, maxCapacity - accepted);
     }
   }
 
   // Real, honest social proof derived from published data.
-  const acceptedCounts = await Promise.all(volumes.map((v) => countAcceptedApplications(v.id)));
-  const creativesCast = acceptedCounts.reduce((sum, n) => sum + n, 0);
-  const imagesDelivered = volumes.reduce(
+  const creativesCast = [...acceptedByVolume.values()].reduce((sum, n) => sum + n, 0);
+  const publishedImages = volumes.reduce(
     (sum, v) => sum + v.gallery.length + v.btsGallery.length,
     0
   );
@@ -68,7 +71,7 @@ export default async function SessionsPage() {
   const stats: ProofStat[] = [
     { value: `${volumes.length}`, label: "Volumes" },
     ...(creativesCast > 0 ? [{ value: `${creativesCast}`, label: "Creatives Cast" }] : []),
-    ...(imagesDelivered > 0 ? [{ value: `${imagesDelivered}`, label: "Images Delivered" }] : []),
+    ...(publishedImages > 0 ? [{ value: `${publishedImages}`, label: "Published Images" }] : []),
     { value: `${CREATIVE_DISCIPLINES.length}`, label: "Creative Disciplines" },
   ];
 

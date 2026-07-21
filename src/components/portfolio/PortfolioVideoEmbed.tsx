@@ -16,6 +16,7 @@ export function PortfolioVideoEmbed({ url }: { url: string }) {
         <iframe
           src={embed}
           title="Project video"
+          loading="lazy"
           className="absolute inset-0 h-full w-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen

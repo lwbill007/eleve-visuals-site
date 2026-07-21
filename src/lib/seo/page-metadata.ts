@@ -5,6 +5,7 @@
 import type { Metadata } from "next";
 import type { SiteConfig } from "@/lib/types";
 import { getSiteConfig } from "@/lib/content";
+import { DEFAULT_SITE_CONFIG } from "@/lib/defaults";
 
 export async function buildPageMetadata(input: {
   title: string;
@@ -13,7 +14,7 @@ export async function buildPageMetadata(input: {
   image?: string | null;
   absoluteTitle?: boolean;
 }): Promise<Metadata> {
-  const site = await getSiteConfig();
+  const site = await getSiteConfig().catch(() => DEFAULT_SITE_CONFIG);
   const image = input.image || site.ogImage || null;
   const title = input.absoluteTitle
     ? { absolute: input.title }

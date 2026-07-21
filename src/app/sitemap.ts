@@ -1,25 +1,21 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
-import { getSiteConfig } from "@/lib/content";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const site = await getSiteConfig().catch(() => null);
   const base =
-    site?.url?.replace(/\/$/, "") ??
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
-    "https://elevevisuals.com";
-  const now = new Date();
+    process.env.CANONICAL_SITE_URL?.replace(/\/$/, "") ??
+    "https://www.eleve-visuals.com";
 
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: base, lastModified: now, changeFrequency: "weekly", priority: 1 },
-    { url: `${base}/portfolio`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-    { url: `${base}/services`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
-    { url: `${base}/sessions`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-    { url: `${base}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
-    { url: `${base}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${base}/book`, lastModified: now, changeFrequency: "monthly", priority: 0.95 },
-    { url: `${base}/alumni`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
-    { url: `${base}/booking-terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: base, changeFrequency: "weekly", priority: 1 },
+    { url: `${base}/portfolio`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${base}/services`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${base}/sessions`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${base}/about`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/contact`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${base}/book`, changeFrequency: "monthly", priority: 0.95 },
+    { url: `${base}/alumni`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${base}/booking-terms`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   try {
@@ -29,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         select: { slug: true, updatedAt: true },
       }),
       prisma.sessionVolume.findMany({
-        where: { status: { not: "draft" } },
+        where: { published: true, status: { not: "draft" } },
         select: { slug: true, updatedAt: true },
       }),
       prisma.castMember.findMany({

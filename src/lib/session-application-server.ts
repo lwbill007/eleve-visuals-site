@@ -23,6 +23,26 @@ export async function countAcceptedApplications(volumeId: string): Promise<numbe
   });
 }
 
+export async function countAcceptedApplicationsByVolume(
+  volumeIds: string[]
+): Promise<Map<string, number>> {
+  if (volumeIds.length === 0) return new Map();
+  const counts = await prisma.submission.groupBy({
+    by: ["sessionVolumeId"],
+    where: {
+      type: "session",
+      sessionVolumeId: { in: volumeIds },
+      status: { in: ["accepted", "confirmed"] },
+    },
+    _count: { _all: true },
+  });
+  return new Map(
+    counts.flatMap((row) =>
+      row.sessionVolumeId ? [[row.sessionVolumeId, row._count._all] as const] : []
+    )
+  );
+}
+
 export async function countSessionApplications(volumeId: string): Promise<number> {
   return prisma.submission.count({
     where: { type: "session", sessionVolumeId: volumeId },

@@ -22,11 +22,7 @@ import { HomeProcessTimeline } from "@/components/home/HomeProcessTimeline";
 import { HomeTestimonials } from "@/components/home/HomeTestimonials";
 import { HomeFinalCta } from "@/components/home/HomeFinalCta";
 import { JsonLd } from "@/components/seo/JsonLd";
-import {
-  buildOrganizationSchema,
-  buildReviewSchemas,
-  buildWebsiteSchema,
-} from "@/lib/seo/structured-data";
+import { buildReviewSchemas } from "@/lib/seo/structured-data";
 import { siteResponseTime } from "@/lib/seo/page-metadata";
 
 export const revalidate = 60;
@@ -172,15 +168,13 @@ export default async function HomePage() {
     cta: <HomeFinalCta key="cta" copy={homepage.copy.cta} />,
   };
 
-  const org = buildOrganizationSchema(site);
-  const website = buildWebsiteSchema(site);
   const reviews = buildReviewSchemas(site, testimonials);
 
   const responseTime = siteResponseTime(site);
 
   return (
     <>
-      <JsonLd data={[org, website, ...(reviews ?? [])]} />
+      {reviews ? <JsonLd data={reviews} /> : null}
       <HomeAnnouncementBanner banner={homepage.banner} />
       <HomeHero hero={hero} experimentId={homepage.experiment?.id} />
       <HomeTrustBar
