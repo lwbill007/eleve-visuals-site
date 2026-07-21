@@ -36,7 +36,9 @@ DATABASE_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
 1. Create a Postgres database in [Neon](https://neon.tech) or Vercel Storage.
 2. Set `DATABASE_URL` to Neon's **pooled** connection string and `DIRECT_URL`
    to the direct connection string used by Prisma migrations.
-3. Deploy — `npm run build` runs `prisma migrate deploy` automatically.
+3. Run `npm run db:migrate:deploy` as an explicit release/CI step, then deploy.
+   Web builds do not run migrations, so a sleeping or unavailable direct
+   endpoint cannot block an otherwise healthy application deployment.
 
 **Production builds never seed the database.** Run `npm run db:seed` manually only for fresh dev/staging setups.
 
