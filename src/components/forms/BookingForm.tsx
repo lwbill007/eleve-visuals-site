@@ -110,17 +110,24 @@ export function BookingForm({
       if (!raw) return;
       const parsed = JSON.parse(raw) as {
         savedAt?: number;
-        data?: Partial<BookingFormData>;
-        step?: number;
+        data?: Pick<
+          BookingFormData,
+          | "inquiryServiceId"
+          | "packageId"
+          | "projectCategory"
+          | "serviceTypes"
+          | "deliverables"
+          | "budgetRange"
+          | "preferredDate"
+          | "flexibleDate"
+        >;
       };
       if (!parsed.savedAt || Date.now() - parsed.savedAt > BOOKING_DRAFT_TTL_MS) {
         sessionStorage.removeItem(BOOKING_AUTOSAVE_KEY);
         return;
       }
       setData((prev) => ({ ...prev, ...(parsed.data ?? {}) }));
-      if (parsed.step && parsed.step >= 1 && parsed.step <= BOOKING_STEPS.length) {
-        setStep(parsed.step);
-      }
+      setStep(parsed.data?.budgetRange ? 3 : parsed.data?.inquiryServiceId ? 2 : 1);
       setDraftRestored(true);
     } catch {
       /* ignore */
@@ -144,9 +151,19 @@ export function BookingForm({
     if (!hasContent || submitted) return;
     const timer = setTimeout(() => {
       try {
+        const safeData = {
+          inquiryServiceId: data.inquiryServiceId,
+          packageId: data.packageId,
+          projectCategory: data.projectCategory,
+          serviceTypes: data.serviceTypes,
+          deliverables: data.deliverables,
+          budgetRange: data.budgetRange,
+          preferredDate: data.preferredDate,
+          flexibleDate: data.flexibleDate,
+        };
         sessionStorage.setItem(
           BOOKING_AUTOSAVE_KEY,
-          JSON.stringify({ savedAt: Date.now(), data, step })
+          JSON.stringify({ savedAt: Date.now(), data: safeData })
         );
         setAutosaved(true);
       } catch {
@@ -154,7 +171,7 @@ export function BookingForm({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [data, step, submitted]);
+  }, [data, submitted]);
 
   useEffect(() => {
     if (!autosaved) return;

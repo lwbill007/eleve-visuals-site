@@ -18,45 +18,63 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/booking-terms`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
-  try {
-    const [portfolio, volumes, cast] = await Promise.all([
+  const [portfolioResult, volumeResult, castResult] = await Promise.allSettled([
       prisma.portfolioItem.findMany({
         where: { published: true, archived: false },
         select: { slug: true, updatedAt: true },
       }),
       prisma.sessionVolume.findMany({
-        where: { published: true, status: { not: "draft" } },
+        where: { published: true, archived: false, status: { not: "draft" } },
         select: { slug: true, updatedAt: true },
       }),
       prisma.castMember.findMany({
-        where: { enableProfile: true, slug: { not: "" } },
+        where: {
+          enableProfile: true,
+          slug: { not: "" },
+          status: { in: ["confirmed", "alumni"] },
+          volume: {
+            published: true,
+            archived: false,
+            status: { not: "draft" },
+          },
+        },
         select: { slug: true, updatedAt: true },
       }),
-    ]);
+  ]);
 
-    return [
-      ...staticRoutes,
-      ...portfolio.map((p) => ({
+  const portfolio = portfolioResult.status === "fulfilled" ? portfolioResult.value : [];
+  const volumes = volumeResult.status === "fulfilled" ? volumeResult.value : [];
+  const castRows = castResult.status === "fulfilled" ? castResult.value : [];
+  for (const result of [portfolioResult, volumeResult, castResult]) {
+    if (result.status === "rejected") {
+      console.error("[sitemap] Dynamic source unavailable:", result.reason);
+    }
+  }
+  const cast = new Map<string, Date>();
+  for (const row of castRows) {
+    const existing = cast.get(row.slug);
+    if (!existing || row.updatedAt > existing) cast.set(row.slug, row.updatedAt);
+  }
+
+  return [
+    ...staticRoutes,
+    ...portfolio.map((p) => ({
         url: `${base}/portfolio/${p.slug}`,
         lastModified: p.updatedAt,
         changeFrequency: "monthly" as const,
         priority: 0.8,
       })),
-      ...volumes.map((v) => ({
+    ...volumes.map((v) => ({
         url: `${base}/sessions/${v.slug}`,
         lastModified: v.updatedAt,
         changeFrequency: "weekly" as const,
         priority: 0.85,
       })),
-      ...cast.map((c) => ({
-        url: `${base}/sessions/cast/${c.slug}`,
-        lastModified: c.updatedAt,
+    ...[...cast.entries()].map(([slug, updatedAt]) => ({
+        url: `${base}/sessions/cast/${slug}`,
+        lastModified: updatedAt,
         changeFrequency: "monthly" as const,
         priority: 0.5,
       })),
-    ];
-  } catch (error) {
-    console.error("[sitemap] Falling back to static routes:", error);
-    return staticRoutes;
-  }
+  ];
 }

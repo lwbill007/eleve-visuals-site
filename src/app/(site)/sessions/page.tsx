@@ -72,7 +72,7 @@ export default async function SessionsPage() {
     { value: `${volumes.length}`, label: "Volumes" },
     ...(creativesCast > 0 ? [{ value: `${creativesCast}`, label: "Creatives Cast" }] : []),
     ...(publishedImages > 0 ? [{ value: `${publishedImages}`, label: "Published Images" }] : []),
-    { value: `${CREATIVE_DISCIPLINES.length}`, label: "Creative Disciplines" },
+    { value: `${CREATIVE_DISCIPLINES.length}`, label: "Roles Welcomed" },
   ];
 
   // Aggregate frames across the archive for the cinematic gallery.

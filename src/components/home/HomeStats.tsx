@@ -8,7 +8,7 @@ function StatItem({ stat, index }: { stat: HomepageStat; index: number }) {
   const { ref, inView } = useInViewOnce<HTMLDivElement>();
   const display = useCountUp(stat.value, inView && !!stat.value);
 
-  if (!stat.enabled || !stat.label) return null;
+  if (!stat.enabled || !stat.label || !stat.value?.trim()) return null;
 
   return (
     <motion.div
@@ -20,7 +20,7 @@ function StatItem({ stat, index }: { stat: HomepageStat; index: number }) {
       className="border border-stone/30 bg-ink-soft/50 p-8 text-center backdrop-blur-sm md:text-left"
     >
       <p className="font-display text-4xl text-cream md:text-5xl">
-        {stat.value ? display : "—"}
+        {display}
       </p>
       <p className="label-caps mt-3 text-[0.55rem] text-muted">{stat.label}</p>
     </motion.div>
@@ -28,7 +28,7 @@ function StatItem({ stat, index }: { stat: HomepageStat; index: number }) {
 }
 
 export function HomeStats({ enabled, items }: { enabled: boolean; items: HomepageStat[] }) {
-  const visible = items.filter((s) => s.enabled && s.label);
+  const visible = items.filter((s) => s.enabled && s.label && s.value?.trim());
   if (!enabled || visible.length === 0) return null;
 
   return (

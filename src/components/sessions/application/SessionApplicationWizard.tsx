@@ -77,8 +77,17 @@ export function SessionApplicationWizard({
       if (!raw) return;
       const parsed = JSON.parse(raw) as {
         savedAt?: number;
-        data?: Partial<SessionApplicationData>;
-        step?: number;
+        data?: Pick<
+          SessionApplicationData,
+          | "roles"
+          | "availabilityConfirm"
+          | "transportationConfirm"
+          | "creativeDirectionConfirm"
+          | "agreementCurated"
+          | "agreementNoGuarantee"
+          | "agreementGuidelines"
+          | "agreementAccurate"
+        >;
       };
       if (!parsed.savedAt || Date.now() - parsed.savedAt > APPLICATION_DRAFT_TTL_MS) {
         sessionStorage.removeItem(storageKey);
@@ -91,9 +100,7 @@ export function SessionApplicationWizard({
         sessionVolumeSlug: volume.slug,
         sessionVolumeTitle: volume.title,
       }));
-      if (parsed.step && parsed.step >= 1 && parsed.step <= APPLICATION_STEPS.length) {
-        setStep(parsed.step);
-      }
+      setStep(parsed.data?.roles?.length ? 2 : 1);
     } catch {
       /* ignore */
     }
@@ -113,9 +120,19 @@ export function SessionApplicationWizard({
     if (submitted) return;
     const timer = setTimeout(() => {
       try {
+        const safeData = {
+          roles: data.roles,
+          availabilityConfirm: data.availabilityConfirm,
+          transportationConfirm: data.transportationConfirm,
+          creativeDirectionConfirm: data.creativeDirectionConfirm,
+          agreementCurated: data.agreementCurated,
+          agreementNoGuarantee: data.agreementNoGuarantee,
+          agreementGuidelines: data.agreementGuidelines,
+          agreementAccurate: data.agreementAccurate,
+        };
         sessionStorage.setItem(
           storageKey,
-          JSON.stringify({ savedAt: Date.now(), data, step })
+          JSON.stringify({ savedAt: Date.now(), data: safeData })
         );
         setAutosaved(true);
       } catch {
@@ -123,7 +140,7 @@ export function SessionApplicationWizard({
       }
     }, 600);
     return () => clearTimeout(timer);
-  }, [data, step, submitted, storageKey]);
+  }, [data, submitted, storageKey]);
 
   useEffect(() => {
     if (!autosaved) return;
