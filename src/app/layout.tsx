@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Cormorant_Garamond, Outfit } from "next/font/google";
 import { AnalyticsTracker } from "@/components/analytics/AnalyticsTracker";
 import { PlausibleAnalytics } from "@/components/analytics/PlausibleAnalytics";
+import { ReducedMotionMedia } from "@/components/accessibility/ReducedMotionMedia";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -20,7 +21,17 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(
+    process.env.CANONICAL_SITE_URL ||
+      (process.env.NODE_ENV === "production"
+        ? "https://www.eleve-visuals.com"
+        : "http://localhost:3000")
+  ),
+  applicationName: "ÉLEVÉ Visuals",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -32,6 +43,7 @@ export default function RootLayout({
     <html lang="en" className={`${cormorant.variable} ${outfit.variable}`}>
       <body className="min-h-screen antialiased">
         <PlausibleAnalytics />
+        <ReducedMotionMedia />
         <Suspense fallback={null}>
           <AnalyticsTracker />
         </Suspense>

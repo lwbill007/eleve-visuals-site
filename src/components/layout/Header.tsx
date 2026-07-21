@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SiteConfig, NavLink } from "@/lib/types";
 import { NAVIGATION } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -14,10 +14,12 @@ interface HeaderProps {
   navLinks?: NavLink[];
 }
 
-export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) {
+export function Header({ navLinks = [...NAVIGATION] }: HeaderProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -36,6 +38,34 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!menuOpen || !menuRef.current) return;
+    const menu = menuRef.current;
+    const focusable = Array.from(
+      menu.querySelectorAll<HTMLElement>("a[href], button:not([disabled])")
+    );
+    focusable[0]?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        requestAnimationFrame(() => menuButtonRef.current?.focus());
+        return;
+      }
+      if (event.key !== "Tab" || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
+
   return (
     <>
       <header
@@ -51,7 +81,7 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
           <Link
             href="/"
             className="font-display text-xl tracking-wide text-cream md:text-2xl"
-            aria-label={`${siteConfig.name} home`}
+            aria-label="ÉLEVÉVISUALS home"
           >
             ÉLEVÉ
             <span className="ml-1 text-xs font-body tracking-[0.3em] text-fog uppercase">
@@ -87,6 +117,7 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
           </nav>
 
           <button
+            ref={menuButtonRef}
             type="button"
             className="relative z-50 -mr-2 flex h-11 w-11 flex-col items-center justify-center gap-1.5 lg:hidden"
             onClick={() => setMenuOpen(!menuOpen)}
@@ -110,15 +141,16 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
         </div>
       </header>
 
-      <div
-        id="mobile-nav"
-        className={cn(
-          "fixed inset-0 z-40 flex flex-col justify-center bg-ink transition-opacity duration-500 lg:hidden",
-          menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        )}
-        aria-hidden={!menuOpen}
-      >
-        <nav className="flex flex-col items-center gap-8" aria-label="Mobile">
+      {menuOpen && (
+        <div
+          ref={menuRef}
+          id="mobile-nav"
+          className="fixed inset-0 z-40 flex flex-col justify-center bg-ink lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Site navigation"
+        >
+          <nav className="flex flex-col items-center gap-8" aria-label="Mobile">
           {navLinks.map((item) => (
             <Link
               key={item.href}
@@ -141,8 +173,9 @@ export function Header({ siteConfig, navLinks = [...NAVIGATION] }: HeaderProps) 
           >
             Book Your Experience
           </Button>
-        </nav>
-      </div>
+          </nav>
+        </div>
+      )}
     </>
   );
 }

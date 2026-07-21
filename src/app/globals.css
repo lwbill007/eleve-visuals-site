@@ -5,8 +5,8 @@
   --color-ink-soft: #111111;
   --color-charcoal: #1a1a1a;
   --color-stone: #2a2a2a;
-  --color-muted: #6b6862;
-  --color-fog: #9a9690;
+  --color-muted: #8b8780;
+  --color-fog: #aaa59d;
   --color-cream: #f5f3ef;
   --color-cream-dim: #e8e4dc;
   --color-accent: #b8a88a;
@@ -44,6 +44,14 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+    }
+  }
+
+  @media (pointer: coarse) {
+    button,
+    a[role="button"] {
+      min-height: 44px;
+      min-width: 44px;
     }
   }
 

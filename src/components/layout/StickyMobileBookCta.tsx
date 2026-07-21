@@ -12,7 +12,12 @@ export function StickyMobileBookCta() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (pathname === "/book" || pathname.startsWith("/book")) {
+    if (
+      pathname === "/book" ||
+      pathname.startsWith("/book") ||
+      pathname === "/sessions" ||
+      pathname.startsWith("/sessions/")
+    ) {
       setVisible(false);
       return;
     }
@@ -29,7 +34,12 @@ export function StickyMobileBookCta() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
 
-  if (pathname === "/book" || pathname.startsWith("/admin")) return null;
+  if (
+    pathname === "/book" ||
+    pathname.startsWith("/admin") ||
+    pathname === "/sessions" ||
+    pathname.startsWith("/sessions/")
+  ) return null;
 
   return (
     <div

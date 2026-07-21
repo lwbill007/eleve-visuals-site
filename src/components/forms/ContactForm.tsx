@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FormField,
   TextInput,
@@ -31,12 +31,19 @@ export function ContactForm({ responseTime }: { responseTime?: string }) {
   const [errors, setErrors] = useState<FormErrors<ContactFormData>>({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState("");
+  const idempotencyKeyRef = useRef("");
   const spam = useFormSpam();
   const reply = responseTime?.trim() || "within 24–48 hours on business days";
+
+  useEffect(() => {
+    idempotencyKeyRef.current = crypto.randomUUID();
+  }, []);
 
   const update = (key: keyof ContactFormData, value: string) => {
     setData((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+    setFormError("");
   };
 
   const validate = (): boolean => {
@@ -60,23 +67,36 @@ export function ContactForm({ responseTime }: { responseTime?: string }) {
     e.preventDefault();
     if (!validate() || !spam.canSubmit()) return;
     setLoading(true);
-
-    const res = await fetch("/api/submit/contact", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, ...spam.spamPayload() }),
-    });
-
-    setLoading(false);
-    if (!res.ok) {
+    setFormError("");
+    try {
+      const res = await fetch("/api/submit/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          idempotencyKey: idempotencyKeyRef.current || crypto.randomUUID(),
+          ...spam.spamPayload(),
+        }),
+      });
       const payload = await res.json().catch(() => ({}));
-      setErrors(
-        mapApiErrorsToForm<ContactFormData>(payload, "name", res.status === 429)
-      );
-      return;
+      if (!res.ok) {
+        setErrors(
+          mapApiErrorsToForm<ContactFormData>(payload, "name", res.status === 429)
+        );
+        setFormError(
+          typeof payload.error === "string"
+            ? payload.error
+            : "Your message could not be sent. Please try again."
+        );
+        return;
+      }
+      trackConversion("contact");
+      setSubmitted(true);
+    } catch {
+      setFormError("Network error. Check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-    trackConversion("contact");
-    setSubmitted(true);
   };
 
   if (submitted) {
@@ -136,6 +156,11 @@ export function ContactForm({ responseTime }: { responseTime?: string }) {
         onTurnstileVerify={spam.setTurnstileToken}
         onTurnstileExpire={() => spam.setTurnstileToken("")}
       />
+      {formError && (
+        <p className="text-sm text-red-300" role="alert" aria-live="assertive">
+          {formError}
+        </p>
+      )}
       <SubmitButton loading={loading} disabled={!spam.canSubmit()}>
         Send Message
       </SubmitButton>

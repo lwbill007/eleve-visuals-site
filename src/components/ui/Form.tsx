@@ -1,6 +1,18 @@
 "use client";
 
+import { createContext, useContext } from "react";
 import { cn } from "@/lib/utils";
+
+type FormFieldContextValue = {
+  id: string;
+  name: string;
+  describedBy?: string;
+  errorId?: string;
+  invalid: boolean;
+  required: boolean;
+};
+
+const FormFieldContext = createContext<FormFieldContextValue | null>(null);
 
 interface FormFieldProps {
   label: string;
@@ -23,13 +35,25 @@ export function FormField({
 }: FormFieldProps) {
   const errorId = `${name}-error`;
   const hintId = `${name}-hint`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
   return (
     <div className={cn("space-y-2", className)}>
       <label htmlFor={name} className="block text-sm text-cream-dim">
         {label}
         {required && <span className="ml-1 text-accent">*</span>}
       </label>
-      {children}
+      <FormFieldContext.Provider
+        value={{
+          id: name,
+          name,
+          describedBy,
+          errorId: error ? errorId : undefined,
+          invalid: Boolean(error),
+          required: Boolean(required),
+        }}
+      >
+        {children}
+      </FormFieldContext.Provider>
       {hint && !error && (
         <p id={hintId} className="text-xs text-muted">
           {hint}
@@ -49,10 +73,20 @@ interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function TextInput({ error, className, ...props }: TextInputProps) {
+  const field = useContext(FormFieldContext);
+  const describedBy = [props["aria-describedby"], field?.describedBy]
+    .filter(Boolean)
+    .join(" ") || undefined;
   return (
     <input
-      className={cn(error && "error", className)}
       {...props}
+      className={cn(error && "error", className)}
+      id={props.id ?? field?.id}
+      name={props.name ?? field?.name}
+      aria-describedby={describedBy}
+      aria-errormessage={props["aria-errormessage"] ?? field?.errorId}
+      aria-invalid={props["aria-invalid"] ?? error ?? field?.invalid}
+      aria-required={props["aria-required"] ?? field?.required}
     />
   );
 }
@@ -62,10 +96,20 @@ interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 }
 
 export function TextArea({ error, className, ...props }: TextAreaProps) {
+  const field = useContext(FormFieldContext);
+  const describedBy = [props["aria-describedby"], field?.describedBy]
+    .filter(Boolean)
+    .join(" ") || undefined;
   return (
     <textarea
-      className={cn("min-h-[120px] resize-y", error && "error", className)}
       {...props}
+      className={cn("min-h-[120px] resize-y", error && "error", className)}
+      id={props.id ?? field?.id}
+      name={props.name ?? field?.name}
+      aria-describedby={describedBy}
+      aria-errormessage={props["aria-errormessage"] ?? field?.errorId}
+      aria-invalid={props["aria-invalid"] ?? error ?? field?.invalid}
+      aria-required={props["aria-required"] ?? field?.required}
     />
   );
 }
@@ -83,11 +127,21 @@ export function SelectInput({
   className,
   ...props
 }: SelectInputProps) {
+  const field = useContext(FormFieldContext);
+  const describedBy = [props["aria-describedby"], field?.describedBy]
+    .filter(Boolean)
+    .join(" ") || undefined;
   return (
     <select
-      className={cn(error && "error", className)}
-      defaultValue=""
       {...props}
+      className={cn(error && "error", className)}
+      id={props.id ?? field?.id}
+      name={props.name ?? field?.name}
+      aria-describedby={describedBy}
+      aria-errormessage={props["aria-errormessage"] ?? field?.errorId}
+      aria-invalid={props["aria-invalid"] ?? error ?? field?.invalid}
+      aria-required={props["aria-required"] ?? field?.required}
+      defaultValue=""
     >
       {placeholder && (
         <option value="" disabled>
