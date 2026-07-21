@@ -30,40 +30,25 @@ test.describe("Public forms", () => {
     await page.goto("/book");
     await waitForSpamTiming(page);
 
-    // Welcome
-    await page.getByRole("button", { name: "Begin" }).click();
-
-    // Experience — Signature (popular portrait)
-    await page.getByRole("button", { name: /ÉLEVÉ Signature/i }).first().click();
+    // Service
+    await page.getByRole("radio", { name: /Portrait/i }).click();
     await page.getByRole("button", { name: "Continue" }).click();
 
-    // Customize — skip add-ons
+    // Budget & timing
+    await page.getByRole("radiogroup", { name: "Budget" }).getByRole("radio").first().click();
+    await page.locator("#preferredDate").fill(futureDate());
     await page.getByRole("button", { name: "Continue" }).click();
 
-    // Vision
+    // Optional vision
     await page.locator("#feelingPrompt").fill(
       "Confident, elevated, and intentional — work that feels premium."
     );
-    await page.locator("#inspirationPrompt").fill("Brand storytelling for a product launch.");
     await page.getByRole("button", { name: "Continue" }).click();
 
-    // Details
-    await page.locator("#preferredDate").fill(futureDate());
-    await page.locator("#location").fill("Sacramento, CA");
-    await page.getByRole("button", { name: "Outdoor", exact: true }).click();
-    await page.getByRole("button", { name: "1 Hour", exact: true }).click();
-    await page.getByRole("button", { name: "$300–500", exact: true }).click();
-    await page.getByRole("button", { name: "Edited Photography", exact: true }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
-
-    // About you
+    // Contact
     await page.locator("#fullName").fill("E2E Booking User");
     await page.locator("#email").fill("e2e-booking@example.com");
     await page.locator("#phone").fill("5551234567");
-    await page.getByRole("button", { name: "Google", exact: true }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
-
-    // Review
     await page.getByRole("checkbox", { name: /booking terms/i }).check();
     await page.getByRole("button", { name: /Submit inquiry/i }).click();
 

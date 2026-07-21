@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const authSecret = process.env.AUTH_SECRET;
+const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -18,7 +20,16 @@ export default defineConfig({
   projects: [
     { name: "setup", testMatch: /global-setup\.ts/ },
     {
-      name: "chromium",
+      name: "public-chromium",
+      testMatch: [/forms\.spec\.ts/, /manual-smoke\.spec\.ts/, /public-reliability\.spec\.ts/],
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: { cookies: [], origins: [] },
+      },
+    },
+    {
+      name: "admin-chromium",
+      testMatch: [/admin.*\.spec\.ts/, /auth\.spec\.ts/],
       use: {
         ...devices["Desktop Chrome"],
         storageState: "playwright/.auth/admin.json",
@@ -35,11 +46,8 @@ export default defineConfig({
       DATABASE_URL: process.env.DATABASE_URL ?? "",
       DIRECT_URL: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? "",
       AUTH_SECRET:
-        process.env.AUTH_SECRET ?? "e2e-test-auth-secret-minimum-32-characters",
-      ADMIN_PASSWORD:
-        process.env.E2E_ADMIN_PASSWORD ??
-        process.env.ADMIN_PASSWORD ??
-        "e2e-admin-password-123",
+        authSecret ?? "",
+      ADMIN_PASSWORD: adminPassword ?? "",
     },
   },
 });

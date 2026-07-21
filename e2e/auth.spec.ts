@@ -6,8 +6,10 @@ test.describe("Admin authentication", () => {
   test("login and logout", async ({ page }) => {
     const password =
       process.env.E2E_ADMIN_PASSWORD ??
-      process.env.ADMIN_PASSWORD ??
-      "e2e-admin-password-123";
+      process.env.ADMIN_PASSWORD;
+    if (!password) {
+      throw new Error("E2E_ADMIN_PASSWORD or ADMIN_PASSWORD is required");
+    }
 
     await page.goto("/admin/login");
     await page.getByLabel("Admin Password").fill(password);
