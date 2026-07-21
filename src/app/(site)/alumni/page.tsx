@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AlumniPage() {
-  const alumni = await getAlumniDirectory();
+  const alumni = await getAlumniDirectory().catch(() => []);
 
   return (
     <>

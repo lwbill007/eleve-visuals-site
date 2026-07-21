@@ -3,61 +3,80 @@ import { mapSessionVolume, isPublicSessionVolume, resolveSessionPosterImage } fr
 import { resolveFeaturedVideoUrl } from "./volume-videos-server";
 import type { SessionVolumeDTO } from "./types";
 
+async function sessionFallback<T>(fallback: T, query: () => Promise<T>): Promise<T> {
+  try {
+    return await query();
+  } catch (error) {
+    console.error("[sessions] Database unavailable:", error);
+    return fallback;
+  }
+}
+
 export async function enrichSessionVolume(volume: SessionVolumeDTO): Promise<SessionVolumeDTO> {
   const featuredVideoUrl = await resolveFeaturedVideoUrl(volume);
   return { ...volume, featuredVideoUrl };
 }
 
 export async function getAllSessionVolumes(admin = false): Promise<SessionVolumeDTO[]> {
-  const items = await prisma.sessionVolume.findMany({
-    where: admin ? undefined : { published: true, status: { not: "draft" } },
-    orderBy: [{ volumeNumber: "desc" }, { sortOrder: "asc" }],
+  return sessionFallback([], async () => {
+    const items = await prisma.sessionVolume.findMany({
+      where: admin ? undefined : { published: true, status: { not: "draft" } },
+      orderBy: [{ volumeNumber: "desc" }, { sortOrder: "asc" }],
+    });
+    return items.map(mapSessionVolume).filter((v) => admin || isPublicSessionVolume(v));
   });
-  return items.map(mapSessionVolume).filter((v) => admin || isPublicSessionVolume(v));
 }
 
 export async function getSessionVolumeBySlug(slug: string): Promise<SessionVolumeDTO | null> {
-  const item = await prisma.sessionVolume.findUnique({ where: { slug } });
-  if (!item) return null;
-  const volume = mapSessionVolume(item);
-  if (!isPublicSessionVolume(volume)) return null;
-  return enrichSessionVolume(volume);
+  return sessionFallback(null, async () => {
+    const item = await prisma.sessionVolume.findUnique({ where: { slug } });
+    if (!item) return null;
+    const volume = mapSessionVolume(item);
+    if (!isPublicSessionVolume(volume)) return null;
+    return enrichSessionVolume(volume);
+  });
 }
 
 export async function getSessionVolumeById(id: string): Promise<SessionVolumeDTO | null> {
-  const item = await prisma.sessionVolume.findUnique({ where: { id } });
-  if (!item) return null;
-  const volume = mapSessionVolume(item);
-  if (!isPublicSessionVolume(volume)) return null;
-  return volume;
+  return sessionFallback(null, async () => {
+    const item = await prisma.sessionVolume.findUnique({ where: { id } });
+    if (!item) return null;
+    const volume = mapSessionVolume(item);
+    if (!isPublicSessionVolume(volume)) return null;
+    return volume;
+  });
 }
 
 export async function getFeaturedSessionVolume(): Promise<SessionVolumeDTO | null> {
-  const featured = await prisma.sessionVolume.findFirst({
+  return sessionFallback(null, async () => {
+    const featured = await prisma.sessionVolume.findFirst({
     where: { published: true, featured: true, status: { not: "draft" } },
     orderBy: { volumeNumber: "desc" },
   });
-  if (featured) return mapSessionVolume(featured);
+    if (featured) return mapSessionVolume(featured);
 
-  const open = await prisma.sessionVolume.findFirst({
+    const open = await prisma.sessionVolume.findFirst({
     where: { published: true, status: "applications_open" },
     orderBy: { volumeNumber: "desc" },
   });
-  if (open) return mapSessionVolume(open);
+    if (open) return mapSessionVolume(open);
 
-  const latest = await prisma.sessionVolume.findFirst({
+    const latest = await prisma.sessionVolume.findFirst({
     where: { published: true, status: { not: "draft" } },
     orderBy: { volumeNumber: "desc" },
   });
-  return latest ? mapSessionVolume(latest) : null;
+    return latest ? mapSessionVolume(latest) : null;
+  });
 }
 
 export async function getOpenSessionVolume(): Promise<SessionVolumeDTO | null> {
-  const item = await prisma.sessionVolume.findFirst({
-    where: { published: true, status: "applications_open", showApplyButton: true },
-    orderBy: { volumeNumber: "desc" },
+  return sessionFallback(null, async () => {
+    const item = await prisma.sessionVolume.findFirst({
+      where: { published: true, status: "applications_open", showApplyButton: true },
+      orderBy: { volumeNumber: "desc" },
+    });
+    return item ? mapSessionVolume(item) : null;
   });
-  return item ? mapSessionVolume(item) : null;
 }
 
 export function getHeroPosterFromVolumes(volumes: SessionVolumeDTO[]): {

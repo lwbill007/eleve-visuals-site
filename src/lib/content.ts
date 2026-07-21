@@ -66,6 +66,19 @@ async function setJsonContent<T>(key: string, value: T) {
   });
 }
 
+async function withDbFallback<T>(
+  label: string,
+  fallback: T,
+  query: () => Promise<T>
+): Promise<T> {
+  try {
+    return await query();
+  } catch (error) {
+    console.error(`[content] Database fallback for ${label}:`, error);
+    return fallback;
+  }
+}
+
 function mapPortfolioItem(item: {
   id: string;
   slug: string;
@@ -381,33 +394,41 @@ export async function getPortfolioPageContent(): Promise<PortfolioPageContent> {
 }
 
 export async function getPortfolioItems(publishedOnly = true): Promise<PortfolioItemDTO[]> {
-  const items = await prisma.portfolioItem.findMany({
-    where: publishedOnly ? { published: true, archived: false } : undefined,
-    orderBy: [{ featured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+  return withDbFallback("portfolio items", [], async () => {
+    const items = await prisma.portfolioItem.findMany({
+      where: publishedOnly ? { published: true, archived: false } : undefined,
+      orderBy: [{ featured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+    });
+    return items.map(mapPortfolioItem);
   });
-  return items.map(mapPortfolioItem);
 }
 
 export async function getFeaturedPortfolio(): Promise<PortfolioItemDTO[]> {
-  const items = await prisma.portfolioItem.findMany({
-    where: { published: true, featured: true, archived: false },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-    take: 8,
+  return withDbFallback("featured portfolio", [], async () => {
+    const items = await prisma.portfolioItem.findMany({
+      where: { published: true, featured: true, archived: false },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      take: 8,
+    });
+    return items.map(mapPortfolioItem);
   });
-  return items.map(mapPortfolioItem);
 }
 
 export async function getPortfolioItemById(id: string): Promise<PortfolioItemDTO | null> {
-  const item = await prisma.portfolioItem.findUnique({ where: { id } });
-  return item ? mapPortfolioItem(item) : null;
+  return withDbFallback("portfolio item", null, async () => {
+    const item = await prisma.portfolioItem.findUnique({ where: { id } });
+    return item ? mapPortfolioItem(item) : null;
+  });
 }
 
 export async function getServices(publishedOnly = true): Promise<ServiceDTO[]> {
-  const items = await prisma.service.findMany({
-    where: publishedOnly ? { published: true, archived: false } : undefined,
-    orderBy: { sortOrder: "asc" },
+  return withDbFallback("services", [], async () => {
+    const items = await prisma.service.findMany({
+      where: publishedOnly ? { published: true, archived: false } : undefined,
+      orderBy: { sortOrder: "asc" },
+    });
+    return items.map(mapService);
   });
-  return items.map(mapService);
 }
 
 export async function getHomeServices(): Promise<HomeServiceCard[]> {
@@ -420,19 +441,23 @@ export async function getHomeServices(): Promise<HomeServiceCard[]> {
 }
 
 export async function getTestimonials(publishedOnly = true): Promise<TestimonialDTO[]> {
-  const items = await prisma.testimonial.findMany({
-    where: publishedOnly ? { published: true } : undefined,
-    orderBy: [{ featured: "desc" }, { sortOrder: "asc" }],
+  return withDbFallback("testimonials", [], async () => {
+    const items = await prisma.testimonial.findMany({
+      where: publishedOnly ? { published: true } : undefined,
+      orderBy: [{ featured: "desc" }, { sortOrder: "asc" }],
+    });
+    return items.map(mapTestimonial);
   });
-  return items.map(mapTestimonial);
 }
 
 export async function getFeaturedTestimonials(): Promise<TestimonialDTO[]> {
-  const items = await prisma.testimonial.findMany({
-    where: { published: true, featured: true },
-    orderBy: { sortOrder: "asc" },
+  return withDbFallback("featured testimonials", [], async () => {
+    const items = await prisma.testimonial.findMany({
+      where: { published: true, featured: true },
+      orderBy: { sortOrder: "asc" },
+    });
+    return items.map(mapTestimonial);
   });
-  return items.map(mapTestimonial);
 }
 
 // Admin setters

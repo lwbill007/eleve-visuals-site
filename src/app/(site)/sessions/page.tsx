@@ -44,7 +44,7 @@ export default async function SessionsPage() {
     getAllSessionVolumes(),
     getFeaturedSessionVolume(),
     getPageCopy(),
-    getFeaturedAlumni(),
+    getFeaturedAlumni().catch(() => []),
   ]);
 
   const { poster, alt } = getHeroPosterFromVolumes(volumes);
