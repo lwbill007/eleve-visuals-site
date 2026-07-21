@@ -2,6 +2,7 @@ import { getCached, setCache } from "../cache";
 import { getAIConfig, type AIRoutingPolicy } from "../config";
 import { getTaskSpec, inferRoutingTask } from "../tasks/registry";
 import type { AICompletionRequest, AIRoutingTask } from "../types";
+import { supportsTextCompletion } from "./model-capabilities";
 
 const MODEL_CACHE_KEY = "openrouter:model-catalog:v1";
 const MODEL_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -275,7 +276,8 @@ export async function routeOpenRouterModels(
     request.messages.some((message) => message.images?.length) || spec.visionRequired;
   const needsTools = Boolean(request.tools?.length);
 
-  const free = catalog
+  const completionCatalog = catalog.filter(supportsTextCompletion);
+  const free = completionCatalog
     .filter(isFree)
     .filter((model) => !needsTools || hasParameter(model, "tools"))
     .filter((model) => {
@@ -287,7 +289,7 @@ export async function routeOpenRouterModels(
   // Prefer Free / Balanced still discover free first; Highest Accuracy may keep paid configured chain early.
   const dynamicPool =
     policy === "highest_accuracy"
-      ? [...catalog].sort((a, b) => scoreModel(b, request, policy) - scoreModel(a, request, policy))
+      ? [...completionCatalog].sort((a, b) => scoreModel(b, request, policy) - scoreModel(a, request, policy))
       : free;
 
   const compatibleVision = hasImages ? dynamicPool.filter(supportsVision) : dynamicPool;
@@ -301,10 +303,15 @@ export async function routeOpenRouterModels(
     ...config.openrouter.modelChain,
     "openrouter/free",
   ];
-  const byId = new Map(catalog.map((model) => [model.id, model]));
-  const configured = configuredIds.map((id) =>
+  const discoveredById = new Map(catalog.map((model) => [model.id, model]));
+  const configured = configuredIds
+    .filter((id) => {
+      const discovered = discoveredById.get(id);
+      return !discovered || supportsTextCompletion(discovered);
+    })
+    .map((id) =>
     toRouted(
-      byId.get(id) ?? {
+      discoveredById.get(id) ?? {
         id,
         name: id,
         context_length: 0,
@@ -318,7 +325,7 @@ export async function routeOpenRouterModels(
       "configured",
       policy
     )
-  );
+    );
 
   const ordered =
     policy === "highest_accuracy"

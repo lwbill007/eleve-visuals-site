@@ -155,8 +155,13 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
   let lastError = "";
   let totalAttempts = 0;
   let modelIndex = 0;
+  let freeQuotaExhausted = false;
 
   modelLoop: for (const model of models) {
+    if (freeQuotaExhausted && model.free) {
+      modelIndex += 1;
+      continue;
+    }
     const usedFallback = modelIndex > 0;
     let useStructuredOutput = Boolean(
       request.responseSchema &&
@@ -232,12 +237,14 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
             status: res.status,
             error: lastError.slice(0, 500),
           });
-          // Daily free-model quota exhausted — stop cascading through every model.
+          // A shared free-model quota applies across models. Skip the remaining
+          // free chain, but still allow any configured paid fallback to run.
           if (
             res.status === 429 &&
             /free-models-per-day|free-models-per-min/i.test(lastError)
           ) {
-            break modelLoop;
+            freeQuotaExhausted = true;
+            break;
           }
           if (res.status >= 400 && res.status < 500 && res.status !== 429) {
             if (useStructuredOutput) {

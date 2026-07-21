@@ -780,7 +780,7 @@ export interface SessionApplicationRank {
   strengths: string[];
   weakness: string;
   badges: string[];
-  riskLevel: "low" | "medium" | "high";
+  riskLevel: "low" | "medium" | "high" | "unknown";
   /** Verified revenue only — never estimated. basis "insufficient" means no historical data exists. */
   expectedValue: {
     basis: "verified" | "insufficient";

@@ -12,6 +12,10 @@ import {
   collectExternalApplicantEvidence,
   type ExternalApplicantEvidence,
 } from "./applicant-evidence";
+import {
+  publicApplicationEvaluationFailure,
+  type ApplicationEvaluationFailureKind,
+} from "./application-evaluation-errors";
 import { resolveApplicantImageInputs } from "@/lib/session-private-media";
 
 type RankedCategory = SessionApplicationRank["categories"][number];
@@ -141,6 +145,7 @@ interface EvaluatedApplicant {
   pairwiseLosses: number;
   /** Populated when the AI evaluation for this applicant failed. */
   evaluationError?: string;
+  evaluationFailureKind?: ApplicationEvaluationFailureKind;
 }
 
 function parseData(raw: string): Record<string, unknown> {
@@ -594,7 +599,7 @@ async function evaluateApplicant(
 
 function failedEvaluation(submission: SubmissionRecord, error: unknown): EvaluatedApplicant {
   const data = parseData(submission.data);
-  const message = error instanceof Error ? error.message : String(error);
+  const failure = publicApplicationEvaluationFailure(error);
   const portfolioProvided = Boolean(
     stringValue(data, "portfolioLink") ||
       stringValue(data, "portfolioWebsite") ||
@@ -612,10 +617,10 @@ function failedEvaluation(submission: SubmissionRecord, error: unknown): Evaluat
     socialProvided: Boolean(stringValue(data, "instagram")),
     ai: {
       categories: [],
-      strengths: ["Not evaluated — the AI run failed for this application."],
-      weaknesses: [`Evaluation failed: ${message}`],
+      strengths: ["Not evaluated — no AI score was assigned."],
+      weaknesses: [failure.message],
       recommendedProjects: ["Re-run the AI evaluation for this applicant."],
-      riskSignals: ["AI evaluation failed"],
+      riskSignals: ["Applicant risk was not assessed because AI evaluation was unavailable."],
     },
     provider: "evaluation-failed",
     evidenceFingerprint: createHash("sha256")
@@ -627,7 +632,8 @@ function failedEvaluation(submission: SubmissionRecord, error: unknown): Evaluat
     assessedWeight: 0,
     pairwiseWins: 0,
     pairwiseLosses: 0,
-    evaluationError: message,
+    evaluationError: failure.message,
+    evaluationFailureKind: failure.kind,
   };
 }
 
@@ -669,6 +675,7 @@ async function evaluateApplicantSafely(submission: SubmissionRecord): Promise<Ev
       console.error(
         `[ai-rank] Evaluation attempt ${attempt}/2 failed | application=${submission.id} | error=${message}\n${stack}`
       );
+      if (publicApplicationEvaluationFailure(error).kind === "capacity") break;
     }
   }
   return failedEvaluation(submission, lastError);
@@ -838,7 +845,8 @@ function buildFailedResult(
   cohortSize: number,
   evaluatedAt: string
 ): SessionApplicationRank {
-  const reason = `Ranked ${index + 1} of ${cohortSize}: the AI evaluation failed for this application (${applicant.evaluationError}). It is listed unranked at the bottom; re-run Re-Rank to retry.`;
+  const deferred = applicant.evaluationFailureKind === "capacity";
+  const reason = `Listed ${index + 1} of ${cohortSize}: ${applicant.evaluationError} It remains unranked at the bottom; re-run Re-Rank to retry.`;
   return {
     id: applicant.submission.id,
     name: applicant.name,
@@ -857,8 +865,8 @@ function buildFailedResult(
     summary: reason,
     strengths: applicant.ai.strengths,
     weakness: applicant.ai.weaknesses.join(" · "),
-    badges: ["Evaluation Failed"],
-    riskLevel: "high",
+    badges: [deferred ? "Evaluation Deferred" : "Evaluation Failed"],
+    riskLevel: "unknown",
     expectedValue: {
       basis: "insufficient",
       amount: 0,
@@ -1054,6 +1062,25 @@ export interface SavedRankingState {
   unevaluatedCount: number;
 }
 
+function sanitizeStoredEvaluation(
+  stored: SessionApplicationRank
+): SessionApplicationRank {
+  if (!stored.evaluationError) return stored;
+  const failure = publicApplicationEvaluationFailure(stored.evaluationError);
+  const deferred = failure.kind === "capacity";
+  return {
+    ...stored,
+    score: 0,
+    confidence: 0,
+    evaluationError: failure.message,
+    summary: `${failure.message} The application remains unscored at the bottom of the list.`,
+    strengths: ["Not evaluated — no AI score was assigned."],
+    weakness: failure.message,
+    badges: [deferred ? "Evaluation Deferred" : "Evaluation Failed"],
+    riskLevel: "unknown",
+  };
+}
+
 /**
  * Returns whatever valid persisted evaluations exist. Never triggers AI work,
  * so the page load is fast and an unevaluated cohort is reported honestly
@@ -1079,7 +1106,9 @@ export async function getSavedRankingState(volumeId?: string): Promise<SavedRank
       continue;
     }
     try {
-      const stored = JSON.parse(row.aiEvaluation) as SessionApplicationRank;
+      const stored = sanitizeStoredEvaluation(
+        JSON.parse(row.aiEvaluation) as SessionApplicationRank
+      );
       ranked.push({
         ...stored,
         status: normalizeApplicationStatus(application.status),

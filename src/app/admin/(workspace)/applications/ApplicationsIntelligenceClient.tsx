@@ -312,10 +312,15 @@ export default function ApplicationsIntelligenceClient() {
     });
   }, [advanced, available, minimumConfidence, minimumScore, ranked, risk, role, search, statusFilter, tier, verifiedPortfolio]);
 
+  const evaluatedRanked = useMemo(
+    () => ranked.filter((item) => !item.evaluationError),
+    [ranked]
+  );
+
   const overview = useMemo(() => {
     const now = Date.now();
-    const current = ranked.filter((item) => now - new Date(item.createdAt).getTime() <= 30 * 86400000);
-    const previous = ranked.filter((item) => {
+    const current = evaluatedRanked.filter((item) => now - new Date(item.createdAt).getTime() <= 30 * 86400000);
+    const previous = evaluatedRanked.filter((item) => {
       const age = now - new Date(item.createdAt).getTime();
       return age > 30 * 86400000 && age <= 60 * 86400000;
     });
@@ -326,16 +331,16 @@ export default function ApplicationsIntelligenceClient() {
       professionalism: average(cohort.map((item) => categoryRate(item, "professionalPresence"))),
     });
     return { current, previous, currentValues: values(current), previousValues: values(previous) };
-  }, [ranked]);
+  }, [evaluatedRanked]);
 
   const insights = useMemo(() => {
-    if (!ranked.length) return [];
-    const strongPortfolio = ranked.filter((item) => categoryRate(item, "portfolioQuality") >= 80).length;
-    const premium = ranked.filter((item) => categoryRate(item, "brandAlignment") >= 85 && item.confidence >= 65).length;
-    const longTerm = ranked.filter(
+    if (!evaluatedRanked.length) return [];
+    const strongPortfolio = evaluatedRanked.filter((item) => categoryRate(item, "portfolioQuality") >= 80).length;
+    const premium = evaluatedRanked.filter((item) => categoryRate(item, "brandAlignment") >= 85 && item.confidence >= 65).length;
+    const longTerm = evaluatedRanked.filter(
       (item) => (item.predictions.find((prediction) => prediction.key === "repeatBookings")?.probability ?? 0) >= 70
     ).length;
-    const highRisk = ranked.filter((item) => item.riskLevel === "high").length;
+    const highRisk = evaluatedRanked.filter((item) => item.riskLevel === "high").length;
     const scoreDelta = delta(overview.currentValues.score, overview.previousValues.score);
     return [
       {
@@ -359,7 +364,7 @@ export default function ApplicationsIntelligenceClient() {
         detail: "Risk flags low evidence coverage or concerns identified during AI evaluation.",
       },
     ];
-  }, [overview, ranked]);
+  }, [evaluatedRanked, overview]);
 
   async function updateStatus(id: string, status: ApplicationStatus) {
     const sendsEmail = ["shortlisted", "interview", "accepted", "waitlisted", "declined"].includes(status);
@@ -547,12 +552,12 @@ export default function ApplicationsIntelligenceClient() {
               )}
               <section className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-5 xl:grid-cols-10" aria-label="Executive overview">
                 <MetricCard label="Applications" value={String(ranked.length)} change={delta(overview.current.length, overview.previous.length)} />
-                <MetricCard label="Avg score" value={average(ranked.map((item) => item.score)).toFixed(1)} change={delta(overview.currentValues.score, overview.previousValues.score)} />
-                <MetricCard label="Elite+" value={String(ranked.filter((item) => item.score >= 94).length)} detail="94 or above" />
+                <MetricCard label="Avg score" value={evaluatedRanked.length ? average(evaluatedRanked.map((item) => item.score)).toFixed(1) : "—"} change={delta(overview.currentValues.score, overview.previousValues.score)} />
+                <MetricCard label="Elite+" value={String(evaluatedRanked.filter((item) => item.score >= 94).length)} detail="94 or above" />
                 <MetricCard label="New" value={String(ranked.filter((item) => item.status === "pending_review").length)} detail="Awaiting review" />
-                <MetricCard label="High risk" value={String(ranked.filter((item) => item.riskLevel === "high").length)} detail="Evidence gap" />
-                <MetricCard label="Interviews" value={String(ranked.filter((item) => item.recommendation === "Invite to Interview").length)} detail="AI recommended" />
-                <MetricCard label="Confidence" value={`${Math.round(average(ranked.map((item) => item.confidence)))}%`} change={delta(overview.currentValues.confidence, overview.previousValues.confidence)} />
+                <MetricCard label="High risk" value={String(evaluatedRanked.filter((item) => item.riskLevel === "high").length)} detail="Evaluated only" />
+                <MetricCard label="Interviews" value={String(evaluatedRanked.filter((item) => item.recommendation === "Invite to Interview").length)} detail="AI recommended" />
+                <MetricCard label="Confidence" value={evaluatedRanked.length ? `${Math.round(average(evaluatedRanked.map((item) => item.confidence)))}%` : "—"} change={delta(overview.currentValues.confidence, overview.previousValues.confidence)} />
                 <MetricCard
                   label="Verified revenue"
                   value={
@@ -661,12 +666,15 @@ export default function ApplicationsIntelligenceClient() {
                   const item = itemById.get(candidate.id);
                   const images = asImages(item?.data.portfolioImages);
                   const photo = images[0];
+                  const evaluationDeferred = candidate.badges.includes("Evaluation Deferred");
                   return (
                     <article key={candidate.id} className="group overflow-hidden rounded-2xl border border-stone/20 bg-charcoal/15 transition-all hover:border-accent/30 hover:bg-charcoal/25">
                       <div className="flex flex-col gap-4 p-4 sm:p-5 xl:flex-row xl:items-center">
                         <div className="flex min-w-0 items-center gap-3 xl:w-[28%]">
                           <button type="button" onClick={() => toggleSelected(candidate.id)} className={cn("grid h-6 w-6 shrink-0 place-items-center rounded border text-xs", selected.has(candidate.id) ? "border-accent bg-accent text-ink" : "border-stone/40 text-transparent")} aria-label={`Select ${candidate.name} for comparison`}>✓</button>
-                          <span className="w-6 shrink-0 text-center font-display text-lg text-muted">#{index + 1}</span>
+                          <span className="w-6 shrink-0 text-center font-display text-lg text-muted">
+                            {candidate.evaluationError ? "—" : `#${index + 1}`}
+                          </span>
                           <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-lg bg-stone/40">
                             {photo ? <Image src={photo} alt="" fill sizes="56px" className="object-cover" /> : <div className="grid h-full place-items-center font-display text-xl text-muted">{candidate.name.charAt(0)}</div>}
                           </div>
@@ -681,7 +689,16 @@ export default function ApplicationsIntelligenceClient() {
                         </div>
 
                         <div className="flex items-center gap-4 xl:w-[16%]">
-                          <ScoreRing score={candidate.score} />
+                          {candidate.evaluationError ? (
+                            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full border border-stone/30 bg-ink text-center">
+                              <div>
+                                <p className="font-display text-2xl leading-none text-cream">—</p>
+                                <p className="mt-1 text-[0.48rem] tracking-widest text-muted uppercase">Unscored</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <ScoreRing score={candidate.score} />
+                          )}
                           <div>
                             <p className="text-[0.55rem] tracking-wider text-muted uppercase">Confidence</p>
                             <p className="mt-1 text-lg text-cream">{candidate.confidence}%</p>
@@ -707,6 +724,8 @@ export default function ApplicationsIntelligenceClient() {
                                   "rounded-full border px-2 py-1 text-[0.56rem]",
                                   badge === "Evaluation Failed"
                                     ? "border-red-400/40 bg-red-400/10 text-red-300"
+                                    : badge === "Evaluation Deferred"
+                                      ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
                                     : "border-stone/30 text-fog"
                                 )}
                               >
@@ -716,13 +735,15 @@ export default function ApplicationsIntelligenceClient() {
                           </div>
                           <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-fog">{candidate.summary}</p>
                           {candidate.evaluationError && (
-                            <p className="mt-1 line-clamp-2 text-[0.62rem] leading-snug text-red-300">
+                            <p className={cn("mt-1 line-clamp-2 text-[0.62rem] leading-snug", evaluationDeferred ? "text-amber-200" : "text-red-300")}>
                               {candidate.evaluationError}
                             </p>
                           )}
                           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.62rem]">
                             <span className="text-emerald-300">↑ {candidate.strengths.slice(0, 3).join(" · ")}</span>
-                            <span className={candidate.riskLevel === "high" ? "text-red-300" : candidate.riskLevel === "medium" ? "text-amber-300" : "text-muted"}>Risk · {candidate.riskLevel}</span>
+                            <span className={candidate.riskLevel === "high" ? "text-red-300" : candidate.riskLevel === "medium" ? "text-amber-300" : "text-muted"}>
+                              {candidate.riskLevel === "unknown" ? "Applicant risk · Not assessed" : `Risk · ${candidate.riskLevel}`}
+                            </span>
                           </div>
                         </div>
 
