@@ -8,6 +8,9 @@ import type { GalleryItem } from "./types";
 
 export type LightboxItem = GalleryItem;
 
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), a[href], iframe, video[controls], [tabindex]:not([tabindex="-1"])';
+
 export function MediaLightbox({
   items,
   index,
@@ -26,6 +29,8 @@ export function MediaLightbox({
 
   const [zoomed, setZoomed] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
 
   const go = useCallback(
     (delta: number) => {
@@ -43,14 +48,48 @@ export function MediaLightbox({
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight") go(1);
       if (e.key === "ArrowLeft") go(-1);
+      if (e.key === "Tab") {
+        const focusable = Array.from(
+          dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? []
+        );
+        if (focusable.length === 0) {
+          e.preventDefault();
+          dialogRef.current?.focus();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     }
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose, go]);
+
+  useEffect(() => {
+    if (!open) return;
+    previousFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => {
+      const firstFocusable =
+        dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+      (firstFocusable ?? dialogRef.current)?.focus();
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+      previousFocus.current?.focus();
+      previousFocus.current = null;
+    };
+  }, [open]);
 
   useEffect(() => {
     setZoomed(false);
@@ -89,10 +128,12 @@ export function MediaLightbox({
     <AnimatePresence>
       {open && item && (
         <motion.div
-          initial={{ opacity: 0 }}
+          ref={dialogRef}
+          tabIndex={-1}
+          initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.28 }}
+          exit={reduce ? { opacity: 1 } : { opacity: 0 }}
+          transition={{ duration: reduce ? 0 : 0.28 }}
           className="fixed inset-0 z-[100] flex flex-col bg-ink/96 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
@@ -210,8 +251,9 @@ export function MediaLightbox({
                 <video
                   src={item.src}
                   controls
-                  autoPlay
+                  autoPlay={!reduce}
                   playsInline
+                  preload="metadata"
                   className="max-h-[calc(100dvh-7rem)] w-full max-w-5xl bg-charcoal object-contain"
                 />
               )}

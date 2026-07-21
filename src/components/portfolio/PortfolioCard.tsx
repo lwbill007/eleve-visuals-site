@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import type { PortfolioItemDTO } from "@/lib/types";
 import { aspectRatioClass, resolvePortfolioCoverImage } from "@/lib/portfolio-utils";
 import { cn } from "@/lib/utils";
@@ -19,12 +18,14 @@ export function PortfolioCard({
   const cover = resolvePortfolioCoverImage(item.image, item.gallery);
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 28 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.75, delay: (index % 6) * 0.06 }}
-      className={cn(wideSpan && "lg:col-span-2")}
+    <article
+      className={cn(
+        wideSpan
+          ? "md:col-span-12"
+          : index % 2 === 0
+            ? "md:col-span-7"
+            : "md:col-span-5"
+      )}
     >
       <Link
         href={`/portfolio/${item.slug}`}
@@ -37,9 +38,8 @@ export function PortfolioCard({
               alt={item.imageAlt || item.title}
               fill
               loading="lazy"
-              className="object-cover transition-transform duration-[1.1s] group-hover:scale-[1.05]"
-              style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
-              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover transition-transform duration-[1.1s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
+              sizes="(max-width: 768px) 100vw, 58vw"
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-charcoal to-ink" />
@@ -56,13 +56,13 @@ export function PortfolioCard({
                 {item.client && <span className="break-words">{item.client}</span>}
                 {item.year && <span>{item.year}</span>}
               </div>
-              <span className="hidden shrink-0 text-[0.65rem] tracking-[0.15em] text-accent uppercase opacity-0 transition-opacity duration-500 group-hover:opacity-100 md:inline-block">
+              <span className="shrink-0 text-[0.65rem] tracking-[0.15em] text-accent uppercase transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-1">
                 View Case Study →
               </span>
             </div>
           </div>
         </div>
       </Link>
-    </motion.article>
+    </article>
   );
 }

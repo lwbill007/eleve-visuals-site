@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { CTABanner } from "@/components/ui/Section";
 import { PortfolioHero } from "@/components/portfolio/PortfolioHero";
 import { PortfolioFeaturedProject } from "@/components/portfolio/PortfolioFeaturedProject";
 import { PortfolioStats } from "@/components/portfolio/PortfolioStats";
 import { PortfolioWorkGallery } from "@/components/portfolio/PortfolioWorkGallery";
+import { PortfolioClosingCta } from "@/components/portfolio/PortfolioClosingCta";
 import { getPageCopy, getPortfolioItemById, getPortfolioItems, getPortfolioPageContent } from "@/lib/content";
 import { PORTFOLIO_CATEGORIES } from "@/lib/types";
 
@@ -40,6 +40,9 @@ export default async function PortfolioPage({
 
   const featured =
     items.find((i) => i.portfolioFeatured) ?? items.find((i) => i.featured) ?? null;
+  const archiveItems = featured
+    ? items.filter((item) => item.slug !== featured.slug)
+    : items;
   const categories = Array.from(
     new Set([
       ...pageContent.categories,
@@ -53,13 +56,14 @@ export default async function PortfolioPage({
       <PortfolioHero content={pageContent.hero} />
       <PortfolioStats stats={pageContent.stats} />
       {featured && <PortfolioFeaturedProject project={featured} />}
-      <PortfolioWorkGallery
-        items={items}
-        categories={categories}
-        featuredSlug={featured?.slug}
-        emptyState={pageContent.emptyState}
-      />
-      <CTABanner
+      {archiveItems.length > 0 || !featured ? (
+        <PortfolioWorkGallery
+          items={archiveItems}
+          categories={categories}
+          emptyState={pageContent.emptyState}
+        />
+      ) : null}
+      <PortfolioClosingCta
         headline={pageCopy.portfolioCta.headline}
         subheadline={pageCopy.portfolioCta.subheadline}
         primaryLabel={pageCopy.portfolioCta.primaryLabel}

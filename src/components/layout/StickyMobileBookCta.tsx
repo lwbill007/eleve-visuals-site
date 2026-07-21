@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { trackEngagement } from "@/lib/analytics-client";
-import { cn } from "@/lib/utils";
 
 /** Mobile sticky Book CTA — hidden on /book and when near footer / hero. */
 export function StickyMobileBookCta() {
@@ -16,7 +15,9 @@ export function StickyMobileBookCta() {
       pathname === "/book" ||
       pathname.startsWith("/book") ||
       pathname === "/sessions" ||
-      pathname.startsWith("/sessions/")
+      pathname.startsWith("/sessions/") ||
+      pathname === "/portfolio" ||
+      pathname.startsWith("/portfolio/")
     ) {
       setVisible(false);
       return;
@@ -38,15 +39,15 @@ export function StickyMobileBookCta() {
     pathname === "/book" ||
     pathname.startsWith("/admin") ||
     pathname === "/sessions" ||
-    pathname.startsWith("/sessions/")
+    pathname.startsWith("/sessions/") ||
+    pathname === "/portfolio" ||
+    pathname.startsWith("/portfolio/") ||
+    !visible
   ) return null;
 
   return (
     <div
-      className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-stone/30 bg-ink/95 p-3 backdrop-blur-md transition-transform duration-300 md:hidden",
-        visible ? "translate-y-0" : "translate-y-full"
-      )}
+      className="fixed inset-x-0 bottom-0 z-40 translate-y-0 border-t border-stone/30 bg-ink/95 p-3 backdrop-blur-md transition-transform duration-300 md:hidden"
     >
       <Link
         href="/book"

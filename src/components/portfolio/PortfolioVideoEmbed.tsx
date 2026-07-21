@@ -27,7 +27,13 @@ export function PortfolioVideoEmbed({ url }: { url: string }) {
 
   return (
     <div className="relative aspect-video overflow-hidden bg-charcoal">
-      <video src={url} controls playsInline className="h-full w-full object-cover" />
+      <video
+        src={url}
+        controls
+        playsInline
+        preload="metadata"
+        className="h-full w-full object-cover"
+      />
     </div>
   );
 }

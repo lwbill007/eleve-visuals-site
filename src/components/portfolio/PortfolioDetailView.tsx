@@ -85,21 +85,6 @@ export function PortfolioDetailView({
                 </p>
               ))}
             </div>
-            {project.creativeProcess ? (
-              <div className="mt-10">
-                <h2 className="label-caps mb-4 text-fog">Creative direction</h2>
-                <div className="space-y-4">
-                  {project.creativeProcess
-                    .split("\n")
-                    .filter(Boolean)
-                    .map((p, i) => (
-                      <p key={i} className="text-sm leading-relaxed text-fog md:text-base">
-                        {p}
-                      </p>
-                    ))}
-                </div>
-              </div>
-            ) : null}
           </div>
           <div className="lg:col-span-5">
             {project.deliverables.length > 0 && (
