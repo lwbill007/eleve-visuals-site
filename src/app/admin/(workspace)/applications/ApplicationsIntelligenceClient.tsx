@@ -734,13 +734,15 @@ export default function ApplicationsIntelligenceClient() {
                             ))}
                           </div>
                           <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-fog">{candidate.summary}</p>
-                          {candidate.evaluationError && (
+                          {candidate.evaluationError && !candidate.summary.includes(candidate.evaluationError) && (
                             <p className={cn("mt-1 line-clamp-2 text-[0.62rem] leading-snug", evaluationDeferred ? "text-amber-200" : "text-red-300")}>
                               {candidate.evaluationError}
                             </p>
                           )}
                           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.62rem]">
-                            <span className="text-emerald-300">↑ {candidate.strengths.slice(0, 3).join(" · ")}</span>
+                            {candidate.strengths.length > 0 ? (
+                              <span className="text-emerald-300">↑ {candidate.strengths.slice(0, 3).join(" · ")}</span>
+                            ) : null}
                             <span className={candidate.riskLevel === "high" ? "text-red-300" : candidate.riskLevel === "medium" ? "text-amber-300" : "text-muted"}>
                               {candidate.riskLevel === "unknown" ? "Applicant risk · Not assessed" : `Risk · ${candidate.riskLevel}`}
                             </span>

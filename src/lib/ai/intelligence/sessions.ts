@@ -841,12 +841,10 @@ async function verifiedRevenueByEmail(
 
 function buildFailedResult(
   applicant: EvaluatedApplicant,
-  index: number,
-  cohortSize: number,
   evaluatedAt: string
 ): SessionApplicationRank {
   const deferred = applicant.evaluationFailureKind === "capacity";
-  const reason = `Listed ${index + 1} of ${cohortSize}: ${applicant.evaluationError} It remains unranked at the bottom; re-run Re-Rank to retry.`;
+  const reason = applicant.evaluationError ?? "AI evaluation was unavailable.";
   return {
     id: applicant.submission.id,
     name: applicant.name,
@@ -863,7 +861,7 @@ function buildFailedResult(
     tier: "Needs Review",
     recommendation: "Review",
     summary: reason,
-    strengths: applicant.ai.strengths,
+    strengths: [],
     weakness: applicant.ai.weaknesses.join(" · "),
     badges: [deferred ? "Evaluation Deferred" : "Evaluation Failed"],
     riskLevel: "unknown",
@@ -914,7 +912,7 @@ function buildRankedResults(
   return cohort.map((applicant, index) => {
     if (applicant.evaluationError) {
       scores.push(0);
-      return buildFailedResult(applicant, index, cohort.length, evaluatedAt);
+      return buildFailedResult(applicant, evaluatedAt);
     }
     let score = finalScore(applicant, index);
     const above = index > 0 && !cohort[index - 1].evaluationError ? cohort[index - 1] : null;
@@ -1073,8 +1071,8 @@ function sanitizeStoredEvaluation(
     score: 0,
     confidence: 0,
     evaluationError: failure.message,
-    summary: `${failure.message} The application remains unscored at the bottom of the list.`,
-    strengths: ["Not evaluated — no AI score was assigned."],
+    summary: failure.message,
+    strengths: [],
     weakness: failure.message,
     badges: [deferred ? "Evaluation Deferred" : "Evaluation Failed"],
     riskLevel: "unknown",
