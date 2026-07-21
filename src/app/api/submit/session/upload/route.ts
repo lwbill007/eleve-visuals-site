@@ -8,6 +8,7 @@ import {
 } from "@/lib/upload-server";
 import {
   applicantMediaUrl,
+  isSessionUploadStorageConfigured,
   putPrivateApplicantBlob,
 } from "@/lib/session-private-media";
 import { SESSION_PORTFOLIO_MAX_BYTES } from "@/lib/upload-constants";
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
   const uploadTokenHash = hashSessionUploadToken(uploadToken);
 
   try {
-    if (process.env.SESSION_UPLOAD_BLOB_STORE_ID) {
+    if (isSessionUploadStorageConfigured()) {
       const blobUrl = await putPrivateApplicantBlob(
         `applications/${volumeId}/${filename}`,
         buffer,

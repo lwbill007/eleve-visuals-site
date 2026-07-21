@@ -3,14 +3,15 @@ import { del } from "@vercel/blob";
 import { prisma } from "@/lib/db";
 import {
   applicantMediaUrl,
-  getSessionUploadStoreId,
+  getSessionUploadBlobOptions,
+  isSessionUploadStorageConfigured,
   putPrivateApplicantBlob,
 } from "@/lib/session-private-media";
 
 const MAX_MIGRATION_BYTES = 5 * 1024 * 1024;
 
 async function migrateLegacyApplicantMedia(origin: string) {
-  if (!process.env.SESSION_UPLOAD_BLOB_STORE_ID) return { scanned: 0, migrated: 0, failed: 0 };
+  if (!isSessionUploadStorageConfigured()) return { scanned: 0, migrated: 0, failed: 0 };
 
   const assets = await prisma.mediaAsset.findMany({
     where: {
@@ -89,7 +90,7 @@ async function migrateLegacyApplicantMedia(origin: string) {
       failed += 1;
       console.error("[application-upload-migration] failed", asset.id, error);
       if (privateUrl) {
-        await del(privateUrl, { storeId: getSessionUploadStoreId() }).catch(() => {});
+        await del(privateUrl, getSessionUploadBlobOptions()).catch(() => {});
       }
     }
   }
@@ -126,10 +127,9 @@ export async function GET(request: Request) {
   for (const asset of orphans) {
     try {
       if (asset.url.startsWith("https://")) {
-        const privateStoreId = process.env.SESSION_UPLOAD_BLOB_STORE_ID;
-        if (privateStoreId) {
+        if (isSessionUploadStorageConfigured()) {
           try {
-            await del(asset.url, { storeId: privateStoreId });
+            await del(asset.url, getSessionUploadBlobOptions());
           } catch {
             await del(asset.url);
           }

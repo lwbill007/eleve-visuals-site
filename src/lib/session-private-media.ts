@@ -2,12 +2,19 @@ import "server-only";
 import { get, put } from "@vercel/blob";
 import { prisma } from "@/lib/db";
 
-export function getSessionUploadStoreId(): string {
+export function getSessionUploadBlobOptions(): { token: string } | { storeId: string } {
+  const token = process.env.SESSION_UPLOAD_READ_WRITE_TOKEN?.trim();
+  if (token) return { token };
   const storeId = process.env.SESSION_UPLOAD_BLOB_STORE_ID?.trim();
-  if (!storeId) {
-    throw new Error("SESSION_UPLOAD_BLOB_STORE_ID is not configured");
-  }
-  return storeId;
+  if (storeId) return { storeId };
+  throw new Error("Private session upload storage is not configured");
+}
+
+export function isSessionUploadStorageConfigured(): boolean {
+  return Boolean(
+    process.env.SESSION_UPLOAD_READ_WRITE_TOKEN ||
+      process.env.SESSION_UPLOAD_BLOB_STORE_ID
+  );
 }
 
 export async function putPrivateApplicantBlob(
@@ -18,7 +25,7 @@ export async function putPrivateApplicantBlob(
   const blob = await put(pathname.replace(/^\/+/, ""), buffer, {
     access: "private",
     contentType,
-    storeId: getSessionUploadStoreId(),
+    ...getSessionUploadBlobOptions(),
   });
   return blob.url;
 }
@@ -26,7 +33,7 @@ export async function putPrivateApplicantBlob(
 export async function getPrivateApplicantBlob(url: string) {
   return get(url, {
     access: "private",
-    storeId: getSessionUploadStoreId(),
+    ...getSessionUploadBlobOptions(),
   });
 }
 
