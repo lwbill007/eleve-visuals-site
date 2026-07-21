@@ -12,6 +12,7 @@ import {
   collectExternalApplicantEvidence,
   type ExternalApplicantEvidence,
 } from "./applicant-evidence";
+import { resolveApplicantImageInputs } from "@/lib/session-private-media";
 
 type RankedCategory = SessionApplicationRank["categories"][number];
 type CategoryKey = RankedCategory["key"];
@@ -430,12 +431,14 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
       social: { source: socialUrl, fetched: false, pageText: "", error: "Fetch failed" },
     };
   }
-  const images = [
-    ...new Set([
-      ...stringArray(data, "portfolioImages"),
-      ...external.portfolio.imageUrls,
-    ]),
-  ].slice(0, 8);
+  const images = await resolveApplicantImageInputs(
+    [
+      ...new Set([
+        ...stringArray(data, "portfolioImages"),
+        ...external.portfolio.imageUrls,
+      ]),
+    ].slice(0, 8)
+  );
   const evidence = evaluationEvidence(data);
   const userPrompt = JSON.stringify({
     applicantId: submission.id,

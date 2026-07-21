@@ -21,17 +21,24 @@ export async function verifySessionUploadToken(
   token: string,
   expectedVolumeId: string
 ): Promise<boolean> {
+  const volumeId = await getSessionUploadTokenVolumeId(token);
+  return volumeId === expectedVolumeId;
+}
+
+export async function getSessionUploadTokenVolumeId(
+  token: string
+): Promise<string | null> {
   try {
     const { payload } = await jwtVerify(token, getJwtSecretKey(), {
       issuer: ISSUER,
       audience: AUDIENCE,
     });
-    return (
-      payload.volumeId === expectedVolumeId &&
-      payload.purpose === "session-portfolio"
-    );
+    return payload.purpose === "session-portfolio" &&
+      typeof payload.volumeId === "string"
+      ? payload.volumeId
+      : null;
   } catch {
-    return false;
+    return null;
   }
 }
 

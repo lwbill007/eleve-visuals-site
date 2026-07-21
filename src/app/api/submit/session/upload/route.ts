@@ -3,10 +3,13 @@ import { prisma } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { detectImageMime } from "@/lib/image-url";
 import {
-  putPublicBlob,
   sanitizeUploadFilename,
   saveLocalUpload,
 } from "@/lib/upload-server";
+import {
+  applicantMediaUrl,
+  putPrivateApplicantBlob,
+} from "@/lib/session-private-media";
 import { SESSION_PORTFOLIO_MAX_BYTES } from "@/lib/upload-constants";
 import {
   hashSessionUploadToken,
@@ -72,28 +75,24 @@ export async function POST(request: Request) {
   const uploadTokenHash = hashSessionUploadToken(uploadToken);
 
   try {
-    const blobUrl = await putPublicBlob(
-      `applications/${volumeId}/${filename}`,
-      buffer,
-      mimeType
-    );
-
-    if (blobUrl) {
-      try {
-        await prisma.mediaAsset.create({
-          data: {
-            url: blobUrl,
-            filename: file.name,
-            alt: "Session application portfolio",
-            purpose: "session-application",
-            uploadTokenHash,
-          },
-        });
-      } catch {
-        /* optional index */
-      }
-      console.log("[session-upload] success", { url: blobUrl });
-      return NextResponse.json({ url: blobUrl });
+    if (process.env.SESSION_UPLOAD_BLOB_STORE_ID) {
+      const blobUrl = await putPrivateApplicantBlob(
+        `applications/${volumeId}/${filename}`,
+        buffer,
+        mimeType
+      );
+      const asset = await prisma.mediaAsset.create({
+        data: {
+          url: blobUrl,
+          filename: file.name,
+          alt: "Session application portfolio",
+          purpose: "session-application",
+          uploadTokenHash,
+        },
+      });
+      const previewUrl = applicantMediaUrl(new URL(request.url).origin, asset.id, uploadToken);
+      console.log("[session-upload] private success", { assetId: asset.id });
+      return NextResponse.json({ url: previewUrl });
     }
 
     if (process.env.VERCEL) {

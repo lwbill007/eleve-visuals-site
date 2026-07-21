@@ -20,6 +20,10 @@ import {
   hashSessionUploadToken,
   verifySessionUploadToken,
 } from "@/lib/session-upload-token";
+import {
+  applicantMediaId,
+  applicantMediaUrl,
+} from "@/lib/session-private-media";
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
@@ -89,9 +93,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Portfolio upload authorization expired" }, { status: 401 });
   }
 
+  const mediaIds = parsed.data.portfolioImages
+    .map(applicantMediaId)
+    .filter((id): id is string => Boolean(id));
+  if (mediaIds.length !== parsed.data.portfolioImages.length) {
+    return NextResponse.json({ error: "Invalid portfolio upload reference" }, { status: 400 });
+  }
+  if (mediaIds.length > 0) {
+    const ownedAssetCount = await prisma.mediaAsset.count({
+      where: {
+        id: { in: mediaIds },
+        purpose: "session-application",
+        uploadTokenHash: hashSessionUploadToken(uploadToken),
+      },
+    });
+    if (ownedAssetCount !== mediaIds.length) {
+      return NextResponse.json({ error: "Portfolio upload authorization failed" }, { status: 401 });
+    }
+  }
+
+  const cleanPortfolioImages = mediaIds.map((id) =>
+    applicantMediaUrl(new URL(request.url).origin, id)
+  );
   const legacy = toLegacyApplicationFields(parsed.data);
   const payload = {
     ...parsed.data,
+    portfolioImages: cleanPortfolioImages,
     ...legacy,
     sessionVolumeSlug: volume.slug,
     sessionVolumeTitle: volume.title,
@@ -130,10 +157,10 @@ export async function POST(request: Request) {
             contactEmail: email,
           },
         });
-        if (uploadToken && parsed.data.portfolioImages.length > 0) {
-          await tx.mediaAsset.updateMany({
+        if (uploadToken && mediaIds.length > 0) {
+          const claimed = await tx.mediaAsset.updateMany({
             where: {
-              url: { in: parsed.data.portfolioImages },
+              id: { in: mediaIds },
               uploadTokenHash: hashSessionUploadToken(uploadToken),
               purpose: "session-application",
               claimedAt: null,
@@ -143,6 +170,9 @@ export async function POST(request: Request) {
               submissionId: submission.id,
             },
           });
+          if (claimed.count !== mediaIds.length) {
+            throw new Error("UPLOAD_CLAIM_FAILED");
+          }
         }
         return { id: submission.id, deduplicated: false };
       },
@@ -151,6 +181,12 @@ export async function POST(request: Request) {
     applicationId = result.id;
     deduplicated = result.deduplicated;
   } catch (error) {
+    if (error instanceof Error && error.message === "UPLOAD_CLAIM_FAILED") {
+      return NextResponse.json(
+        { error: "Portfolio uploads were already claimed or expired" },
+        { status: 409 }
+      );
+    }
     if (
       idempotencyKey &&
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -182,7 +218,7 @@ export async function POST(request: Request) {
           formType: "session",
           submissionId: applicationId,
           data: {
-            ...parsed.data,
+            ...payload,
             sessionVolumeTitle: volume.title,
           } as Record<string, unknown>,
         }),
