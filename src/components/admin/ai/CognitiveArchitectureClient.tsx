@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
+import { AdminOverlay } from "@/components/admin/os/AdminOverlay";
 import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceChrome,
@@ -16,13 +17,19 @@ import { MemoryGraphVisual } from "@/components/admin/ai/MemoryGraphVisual";
 import type { CognitiveArchitecture, KnowledgeObject, StrategySimulation } from "@/lib/ai/cognitive/types";
 import type { MemoryExplanation } from "@/lib/ai/memory/knowledge/types";
 import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import {
+  describeEvidenceWeight,
+  describeSimulationBasis,
+  keepStaleOnFailure,
+  selectBatchVerificationPreview,
+} from "@/lib/admin-intelligence-ui";
 import { cn } from "@/lib/utils";
 
 const BRAIN_CHROME = {
   eyebrow: "Brain · What have we learned?",
   title: "Business Brain",
   description:
-    "Rules, decisions, patterns, and confidence from verified business memory — never invented lessons. You verify what the AI proposes.",
+    "A task-focused view of configured rules, observed evidence, human verification, heuristic simulations, and refresh automation.",
 } as const;
 
 function CognitiveSection({
@@ -31,14 +38,17 @@ function CognitiveSection({
   subtitle,
   children,
   defaultOpen = true,
+  visible = true,
 }: {
   step: number;
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  visible?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  if (!visible) return null;
   return (
     <section className="relative border-l-2 border-accent/20 pl-6 pb-10 ml-3">
       <div className="absolute -left-[9px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[0.5rem] font-bold text-ink">
@@ -84,7 +94,7 @@ function ObjectCard({ obj, onSelect }: { obj: KnowledgeObject; onSelect?: () => 
       </div>
       <p className="mt-1 text-fog line-clamp-2">{obj.summary || obj.businessImpact}</p>
       <p className="mt-2 text-muted">
-        {obj.verified ? "Verified" : "Unverified"} · {Math.round(obj.confidence * 100)}% conf · {obj.relationshipCount} links
+        {obj.verified ? "Verified" : "Unverified"} · weight {Math.round(obj.confidence * 100)}% · {obj.relationshipCount} links
       </p>
     </button>
   );
@@ -103,42 +113,76 @@ export function CognitiveArchitectureClient() {
   const [verifyStats, setVerifyStats] = useState<{ verifiedPct: number; pending: number; targetPct: number } | null>(null);
   const [verifyQueue, setVerifyQueue] = useState<{ id: string; title: string }[]>([]);
   const [verifying, setVerifying] = useState(false);
+  const [activeView, setActiveView] = useState<
+    "overview" | "evidence" | "verification" | "simulation" | "automation"
+  >("overview");
+  const [panelErrors, setPanelErrors] = useState<{
+    architecture?: string;
+    verification?: string;
+    simulation?: string;
+    objectDetail?: string;
+  }>({});
+  const [batchPreviewOpen, setBatchPreviewOpen] = useState(false);
 
-  useSetAIPage(
-    "memory",
-    arch
-      ? {
+  const aiContextData = useMemo(
+    () =>
+      arch
+        ? {
           executiveSummary: arch.executiveBriefing.executiveSummary,
           biggestOpportunity: arch.executiveBriefing.biggestOpportunity,
           unknownsCount: arch.unknowns.length,
           knowledgeHealth: arch.knowledgeHealth.find((h) => h.id === "understanding")?.score,
           graphNodes: arch.graph.totalNodes,
         }
-      : undefined,
-    "Business Brain"
+        : undefined,
+    [arch]
   );
-
-  const [error, setError] = useState("");
+  useSetAIPage("memory", aiContextData, "Business Brain");
 
   const load = useCallback(async (force = false) => {
     setLoading(true);
-    setError("");
-    try {
-      const res = await adminFetch(`/api/admin/ai/cognitive${force ? "?refresh=1" : ""}`);
-      if (!res.ok) throw new Error("Failed to load cognitive architecture.");
-      setArch(await res.json());
-      const vRes = await adminFetch("/api/admin/ai/memory/verify");
-      if (vRes.ok) {
-        const v = await vRes.json();
-        setVerifyStats(v.stats);
-        setVerifyQueue(v.queue ?? []);
+    setPanelErrors((current) => ({ ...current, architecture: undefined, verification: undefined }));
+
+    const [architectureResult, verificationResult] = await Promise.allSettled([
+      adminFetch(`/api/admin/ai/cognitive${force ? "?refresh=1" : ""}`),
+      adminFetch("/api/admin/ai/memory/verify"),
+    ]);
+
+    if (architectureResult.status === "fulfilled" && architectureResult.value.ok) {
+      try {
+        const nextArchitecture = (await architectureResult.value.json()) as CognitiveArchitecture;
+        setArch((current) => keepStaleOnFailure(current, nextArchitecture));
+      } catch {
+        setPanelErrors((current) => ({
+          ...current,
+          architecture: "Business Brain returned invalid data. Showing the last successful snapshot.",
+        }));
       }
-    } catch {
-      setError("Failed to load cognitive architecture.");
-      if (!force) setArch(null);
-    } finally {
-      setLoading(false);
+    } else {
+      setPanelErrors((current) => ({
+        ...current,
+        architecture: "Business Brain could not refresh. Showing the last successful snapshot.",
+      }));
     }
+
+    if (verificationResult.status === "fulfilled" && verificationResult.value.ok) {
+      try {
+        const verification = await verificationResult.value.json();
+        setVerifyStats(verification.stats);
+        setVerifyQueue(verification.queue ?? []);
+      } catch {
+        setPanelErrors((current) => ({
+          ...current,
+          verification: "Verification returned invalid data. Existing queue data is preserved.",
+        }));
+      }
+    } else {
+      setPanelErrors((current) => ({
+        ...current,
+        verification: "Verification could not refresh. Existing queue data is preserved.",
+      }));
+    }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -148,8 +192,17 @@ export function CognitiveArchitectureClient() {
   async function loadObjectDetail(obj: KnowledgeObject) {
     setSelectedObject(obj);
     setExplanation(null);
-    const res = await adminFetch(`/api/admin/ai/memory/${obj.memoryId}/explain`);
-    if (res.ok) setExplanation(await res.json());
+    setPanelErrors((current) => ({ ...current, objectDetail: undefined }));
+    try {
+      const res = await adminFetch(`/api/admin/ai/memory/${obj.memoryId}/explain`);
+      if (!res.ok) throw new Error("Explanation unavailable");
+      setExplanation(await res.json());
+    } catch {
+      setPanelErrors((current) => ({
+        ...current,
+        objectDetail: "The explanation is unavailable; the selected memory remains visible.",
+      }));
+    }
   }
 
   async function toggleObjectFlag(field: "verified" | "pinned", value: boolean) {
@@ -181,7 +234,7 @@ export function CognitiveArchitectureClient() {
   }
 
   async function batchVerifyQueue() {
-    const ids = verifyQueue.slice(0, 20).map((q) => q.id);
+    const ids = selectBatchVerificationPreview(verifyQueue).map((q) => q.id);
     if (!ids.length) return;
     setVerifying(true);
     try {
@@ -194,6 +247,7 @@ export function CognitiveArchitectureClient() {
       if (data.stats) setVerifyStats(data.stats);
       await load(true);
       setMessage(`Batch verified ${data.count} memories`);
+      setBatchPreviewOpen(false);
     } finally {
       setVerifying(false);
     }
@@ -221,13 +275,26 @@ export function CognitiveArchitectureClient() {
 
   async function runSimulation(scenarioId: string) {
     setSimulating(true);
+    setPanelErrors((current) => ({ ...current, simulation: undefined }));
     try {
       const res = await adminFetch("/api/admin/ai/cognitive/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scenarioId }),
       });
-      if (res.ok) setSimulation(await res.json());
+      if (res.ok) {
+        setSimulation(await res.json());
+      } else {
+        setPanelErrors((current) => ({
+          ...current,
+          simulation: "Simulation failed. The previous scenario remains visible.",
+        }));
+      }
+    } catch {
+      setPanelErrors((current) => ({
+        ...current,
+        simulation: "Simulation failed. The previous scenario remains visible.",
+      }));
     } finally {
       setSimulating(false);
     }
@@ -251,7 +318,10 @@ export function CognitiveArchitectureClient() {
   if (!arch) {
     return (
       <WorkspaceChrome {...BRAIN_CHROME} related={related}>
-        <WorkspaceError message={error || "Failed to load cognitive architecture."} onRetry={() => void load()} />
+        <WorkspaceError
+          message={panelErrors.architecture || "Failed to load cognitive architecture."}
+          onRetry={() => void load()}
+        />
       </WorkspaceChrome>
     );
   }
@@ -306,9 +376,6 @@ export function CognitiveArchitectureClient() {
     },
   ];
 
-  let step = 0;
-  const next = () => ++step;
-
   const filteredObjects =
     objectFilter === "all"
       ? arch.knowledgeObjects
@@ -334,14 +401,48 @@ export function CognitiveArchitectureClient() {
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-cream">{message}</p>
       )}
 
-      <OsCapabilityGrid
-        title="What the brain can answer"
-        subtitle="Live capabilities only. Unknowns stay MissingMetric — never invented confidence."
-        capabilities={capabilities}
-        className="mb-8"
-      />
+      {panelErrors.architecture && arch ? (
+        <WorkspaceError message={panelErrors.architecture} onRetry={() => void load()} />
+      ) : null}
 
-      {verifyStats && (
+      <nav className="mb-8 flex flex-wrap gap-2" aria-label="Business Brain views">
+        {[
+          ["overview", "Overview"],
+          ["evidence", "Evidence"],
+          ["verification", `Verification${verifyStats ? ` (${verifyStats.pending})` : ""}`],
+          ["simulation", "Simulation"],
+          ["automation", "Automation"],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActiveView(id as typeof activeView)}
+            className={cn(
+              "rounded-lg border px-3 py-2 text-xs uppercase transition-colors",
+              activeView === id
+                ? "border-accent/50 bg-accent/10 text-accent"
+                : "border-stone/25 text-fog hover:border-accent/30"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {activeView === "overview" ? (
+        <OsCapabilityGrid
+          title="Current operating picture"
+          subtitle="Observed capabilities and explicit gaps. Scores below identify their basis."
+          capabilities={capabilities}
+          className="mb-8"
+        />
+      ) : null}
+
+      {activeView === "verification" && panelErrors.verification ? (
+        <WorkspaceError message={panelErrors.verification} onRetry={() => void load()} />
+      ) : null}
+
+      {activeView === "verification" && verifyStats ? (
         <AdminPanel title="Verification Queue" subtitle={`Target ${verifyStats.targetPct}% verified · currently ${verifyStats.verifiedPct}%`} className="mb-8">
           <div className="flex flex-wrap gap-2 mb-3">
             <button
@@ -355,7 +456,7 @@ export function CognitiveArchitectureClient() {
             <button
               type="button"
               disabled={verifying || verifyQueue.length === 0}
-              onClick={() => void batchVerifyQueue()}
+              onClick={() => setBatchPreviewOpen(true)}
               className="rounded-lg border border-accent/30 px-3 py-1.5 text-xs text-accent uppercase hover:bg-accent/10 disabled:opacity-50"
             >
               Batch verify top 20 pending
@@ -367,9 +468,9 @@ export function CognitiveArchitectureClient() {
             </p>
           )}
         </AdminPanel>
-      )}
+      ) : null}
 
-      <div className="mb-8 flex flex-wrap gap-2">
+      {activeView === "overview" ? <div className="mb-8 flex flex-wrap gap-2">
         {arch.systems.map((s) => (
           <span
             key={s.id}
@@ -381,13 +482,13 @@ export function CognitiveArchitectureClient() {
             )}
             title={s.contribution}
           >
-            {s.label}
+            {s.label} · {s.status === "active" ? "configured" : s.status}
           </span>
         ))}
-      </div>
+      </div> : null}
 
       <div className="max-w-4xl">
-        <CognitiveSection step={next()} title="Executive Briefing" subtitle="Auto-generated from last intelligence refresh">
+        <CognitiveSection visible={activeView === "overview"} step={1} title="Executive Briefing" subtitle="Latest generated synthesis; estimates remain estimates">
           <div className="rounded-xl border border-accent/20 bg-accent/5 p-5">
             <p className="text-sm text-cream">{arch.executiveBriefing.executiveSummary}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 text-xs">
@@ -422,7 +523,7 @@ export function CognitiveArchitectureClient() {
           </div>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Business DNA" subtitle="Permanent understanding — every recommendation references this first">
+        <CognitiveSection visible={activeView === "overview"} step={2} title="Business DNA" subtitle="Configured operating doctrine plus connected brand memory">
           <div className="space-y-3 text-sm">
             <p className="text-cream">{arch.businessDna.mission}</p>
             <p className="text-fog">{arch.businessDna.vision}</p>
@@ -441,15 +542,15 @@ export function CognitiveArchitectureClient() {
               </AdminPanel>
             </div>
             <p className="text-xs text-muted">
-              {arch.businessDna.decisionPrinciples.length} decision principles · {arch.businessDna.northStarMetrics.length} north star metrics · {Math.round(arch.businessDna.confidence * 100)}% confidence
+              {arch.businessDna.decisionPrinciples.length} decision principles · {arch.businessDna.northStarMetrics.length} north star metrics · configured baseline weight {Math.round(arch.businessDna.confidence * 100)}% (not measured accuracy)
             </p>
           </div>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Knowledge Graph" subtitle={`${arch.graph.totalNodes} nodes · ${arch.graph.totalEdges} relationships · health ${arch.graph.health.healthScore}%`} defaultOpen={false}>
+        <CognitiveSection visible={activeView === "evidence"} step={1} title="Knowledge Graph" subtitle={`${arch.graph.totalNodes} nodes · ${arch.graph.totalEdges} relationships · relationship coverage score ${arch.graph.health.healthScore}%`} defaultOpen>
           <div className="mb-4 rounded-lg border border-stone/20 p-3 text-xs">
             <p className="text-cream">
-              Graph health: {arch.graph.health.healthScore}% · target {arch.graph.health.targetEdges}+ edges
+              Relationship coverage score: {arch.graph.health.healthScore}% · configured target {arch.graph.health.targetEdges}+ edges
             </p>
             <p className="mt-1 text-fog">{arch.graph.health.explanation}</p>
             <p className="mt-1 text-muted">
@@ -492,7 +593,7 @@ export function CognitiveArchitectureClient() {
           )}
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Executive Reasoning" subtitle="Nothing is a black box" defaultOpen={false}>
+        <CognitiveSection visible={activeView === "evidence"} step={2} title="Executive Reasoning" subtitle="Observed inputs, model inferences, and unknowns" defaultOpen={false}>
           <div className="space-y-3 text-xs">
             <div>
               <p className="text-muted uppercase">Observed</p>
@@ -508,14 +609,14 @@ export function CognitiveArchitectureClient() {
             </div>
             <p className="text-sm text-cream">{arch.reasoning.concluded}</p>
             <p className="text-accent">→ {arch.reasoning.recommended}</p>
-            <p className="text-fog">Expected: {arch.reasoning.expectedOutcome} · {Math.round(arch.reasoning.confidence * 100)}% confidence</p>
+            <p className="text-fog">Expected: {arch.reasoning.expectedOutcome} · recommendation model score {Math.round(arch.reasoning.confidence * 100)}% (not observed accuracy)</p>
             {arch.reasoning.unknowns.length > 0 && (
               <p className="text-amber-300">Unknowns: {arch.reasoning.unknowns.join(" · ")}</p>
             )}
           </div>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Learning Engine" subtitle="Recent learnings — the AI visibly evolves" defaultOpen>
+        <CognitiveSection visible={activeView === "evidence"} step={3} title="Learning Engine" subtitle="Recorded outcomes and their stored weights" defaultOpen={false}>
           <ul className="space-y-2">
             {arch.learningPatterns.length === 0 ? (
               <li className="text-xs text-fog">No learnings yet — Execute a recommendation to start the loop.</li>
@@ -524,14 +625,14 @@ export function CognitiveArchitectureClient() {
                 <li key={p.pattern} className="rounded border border-stone/15 p-3 text-xs">
                   <p className="text-cream">{p.pattern}</p>
                   <p className="mt-1 text-fog">{p.businessImpact}</p>
-                  <p className="mt-1 text-muted">{p.source} · {Math.round(p.confidence * 100)}%</p>
+                  <p className="mt-1 text-muted">{p.source} · stored model weight {Math.round(p.confidence * 100)}%</p>
                 </li>
               ))
             )}
           </ul>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Decision Journal" subtitle="Every Execute is recorded forever" defaultOpen={false}>
+        <CognitiveSection visible={activeView === "evidence"} step={4} title="Decision Journal" subtitle="Recorded actions and outcomes; missing outcomes remain unknown" defaultOpen={false}>
           <ul className="space-y-2">
             {arch.decisionJournal.length === 0 ? (
               <li className="text-xs text-fog">No decisions yet — Execute from Opportunities or Command Center.</li>
@@ -558,10 +659,10 @@ export function CognitiveArchitectureClient() {
           </ul>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Unknowns Center" subtitle="Genuine gaps only — never invented">
+        <CognitiveSection visible={activeView === "overview"} step={3} title="Unknowns Center" subtitle="Gaps returned by the current scan">
           <ul className="space-y-2">
             {arch.unknowns.length === 0 ? (
-              <li className="text-xs text-fog">No material unknowns — connectors and data look complete.</li>
+              <li className="text-xs text-fog">No material gaps were returned by this scan. This does not prove connector or data completeness.</li>
             ) : (
               arch.unknowns.map((u) => (
                 <li
@@ -597,18 +698,18 @@ export function CognitiveArchitectureClient() {
           </ul>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Knowledge Health" subtitle="Intelligence quality scores — all explainable" defaultOpen={false}>
+        <CognitiveSection visible={activeView === "evidence"} step={5} title="Knowledge Quality Indicators" subtitle="Calculated, estimated, and predicted scores are labeled by basis" defaultOpen={false}>
           <div className="space-y-3">
             {arch.knowledgeHealth.map((h) => (
               <div key={h.id}>
                 <HealthBar score={h.score} label={h.label} />
-                <p className="mt-1 text-[0.65rem] text-muted">{h.why}</p>
+                <p className="mt-1 text-[0.65rem] text-muted">{h.quality} · {h.why}</p>
               </div>
             ))}
           </div>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Memory Explorer" subtitle="Typed knowledge objects — not generic memories" defaultOpen={false}>
+        <CognitiveSection visible={activeView === "evidence"} step={6} title="Memory Explorer" subtitle="Inspect source objects and verification state" defaultOpen={false}>
           <div className="mb-3 flex flex-wrap gap-1">
             <button
               type="button"
@@ -646,6 +747,7 @@ export function CognitiveArchitectureClient() {
                   ))}
                 </div>
               )}
+              {panelErrors.objectDetail ? <p className="mt-3 text-xs text-amber-300">{panelErrors.objectDetail}</p> : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -666,21 +768,22 @@ export function CognitiveArchitectureClient() {
           )}
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Evidence Center" subtitle="Verified facts supporting decisions" defaultOpen={false}>
+        <CognitiveSection visible={activeView === "evidence"} step={7} title="Evidence Center" subtitle="Named sources and model weights; verification state varies" defaultOpen={false}>
           <ul className="space-y-2">
             {arch.evidence.map((e) => (
               <li key={e.id} className="rounded border border-stone/15 p-3 text-xs">
                 <p className="text-cream">{e.title}</p>
                 <p className="mt-1 text-fog">{e.businessImpact}</p>
                 <p className="mt-1 text-muted">
-                  {e.source} · {e.type} · {Math.round(e.confidence * 100)}% · {e.freshness}
+                  {e.source} · {e.type} · weight {Math.round(e.confidence * 100)}% · {e.freshness}
                 </p>
+                <p className="mt-1 text-[0.6rem] text-muted">{describeEvidenceWeight(e.type)}</p>
               </li>
             ))}
           </ul>
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Strategy Simulator" subtitle="Executive what-if scenarios" defaultOpen={false}>
+        <CognitiveSection visible={activeView === "simulation"} step={1} title="Strategy Simulator" subtitle="Heuristic what-if ranges; not validated forecasts">
           <div className="flex flex-wrap gap-2">
             {[
               { id: "increase_pricing_15", label: "Pricing +15%" },
@@ -701,6 +804,7 @@ export function CognitiveArchitectureClient() {
               </button>
             ))}
           </div>
+          {panelErrors.simulation ? <p className="mt-4 text-xs text-amber-300">{panelErrors.simulation}</p> : null}
           {simulation && (
             <div className="mt-4 rounded-xl border border-accent/20 p-4 text-xs">
               <p className="text-lg text-cream">{simulation.scenario}</p>
@@ -714,17 +818,21 @@ export function CognitiveArchitectureClient() {
                   <p className="text-cream">{simulation.bookings.low} – {simulation.bookings.high}</p>
                 </div>
                 <div>
-                  <p className="text-muted">Confidence</p>
+                  <p className="text-muted">Model basis</p>
                   <p className="text-cream">{Math.round(simulation.confidence * 100)}%</p>
                 </div>
               </div>
               <p className="mt-2 text-fog">{simulation.demand}</p>
               <p className="mt-1 text-amber-300">Risk: {simulation.risk}</p>
+              <p className="mt-2 text-muted">{describeSimulationBasis(simulation.confidence)}</p>
+              <ul className="mt-3 space-y-1 border-t border-stone/20 pt-3 text-muted">
+                {simulation.assumptions.map((assumption) => <li key={assumption}>• {assumption}</li>)}
+              </ul>
             </div>
           )}
         </CognitiveSection>
 
-        <CognitiveSection step={next()} title="Automation Intelligence" subtitle="When intelligence refreshes" defaultOpen={false}>
+        <CognitiveSection visible={activeView === "automation"} step={1} title="Automation Intelligence" subtitle="Configured refresh triggers and last recorded run">
           <p className="text-xs text-fog mb-2">
             Last run: {arch.automation.lastRun ? new Date(arch.automation.lastRun).toLocaleString() : "Never"}
             {arch.automation.nextScheduled ? ` · Next: ${arch.automation.nextScheduled}` : ""}
@@ -744,6 +852,51 @@ export function CognitiveArchitectureClient() {
           </div>
         </CognitiveSection>
       </div>
+      <AdminOverlay
+        open={batchPreviewOpen}
+        onClose={() => setBatchPreviewOpen(false)}
+        title="Review batch verification"
+        description="Preview the exact memories before changing their verification state."
+        className="max-w-2xl"
+        closeOnBackdrop={!verifying}
+      >
+        <div className="border-b border-stone/25 px-5 py-4">
+          <p className="text-[0.65rem] tracking-[0.14em] text-accent uppercase">Verification preview</p>
+          <h2 className="mt-1 font-display text-2xl text-cream">
+            Verify {selectBatchVerificationPreview(verifyQueue).length} pending memories?
+          </h2>
+        </div>
+        <div className="space-y-4 p-5">
+          <p className="text-sm text-fog">
+            This marks every listed memory as admin-verified. Verification is an explicit human
+            assertion; it is not produced by the model confidence score.
+          </p>
+          <ol className="max-h-72 space-y-2 overflow-y-auto">
+            {selectBatchVerificationPreview(verifyQueue).map((item, index) => (
+              <li key={item.id} className="rounded-lg border border-stone/25 px-3 py-2 text-sm text-cream">
+                <span className="mr-2 text-muted">{index + 1}.</span>
+                {item.title}
+              </li>
+            ))}
+          </ol>
+          <div className="flex flex-col-reverse gap-2 border-t border-stone/20 pt-4 sm:flex-row sm:justify-end">
+            <WorkspaceButton
+              variant="secondary"
+              onClick={() => setBatchPreviewOpen(false)}
+              disabled={verifying}
+            >
+              Cancel
+            </WorkspaceButton>
+            <WorkspaceButton
+              variant="primary"
+              onClick={() => void batchVerifyQueue()}
+              disabled={verifying || verifyQueue.length === 0}
+            >
+              {verifying ? "Verifying…" : "Confirm verification"}
+            </WorkspaceButton>
+          </div>
+        </div>
+      </AdminOverlay>
     </WorkspaceChrome>
   );
 }

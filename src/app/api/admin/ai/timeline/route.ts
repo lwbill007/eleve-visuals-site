@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     getBusinessTimeline(limit),
     getRecentBusinessEvents(limit),
     prisma.payment.findMany({
-      where: { status: "succeeded" },
+      where: { status: "succeeded", verificationStatus: "verified" },
       orderBy: { paidAt: "desc" },
       take: 15,
     }),
@@ -26,7 +26,14 @@ export async function GET(request: Request) {
       where: { category: "mission_outcome" },
       orderBy: { updatedAt: "desc" },
       take: 10,
-      select: { id: true, title: true, summary: true, updatedAt: true, confidence: true },
+      select: {
+        id: true,
+        title: true,
+        summary: true,
+        updatedAt: true,
+        confidence: true,
+        verificationStatus: true,
+      },
     }),
   ]);
 
@@ -48,7 +55,7 @@ export async function GET(request: Request) {
     detail: m.summary,
     category: "learning" as const,
     source: "Mission outcome",
-    verified: m.confidence >= 0.7,
+    verified: m.verificationStatus === "verified" || m.verificationStatus === "trusted",
   }));
 
   const businessEventRows = events.map((e) => ({

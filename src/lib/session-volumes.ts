@@ -23,7 +23,7 @@ export async function getAllSessionVolumes(admin = false): Promise<SessionVolume
       where: admin
         ? undefined
         : { published: true, archived: false, status: { not: "draft" } },
-      orderBy: [{ volumeNumber: "desc" }, { sortOrder: "asc" }],
+      orderBy: [{ sortOrder: "asc" }, { volumeNumber: "desc" }],
     });
     return items.map(mapSessionVolume).filter((v) => admin || isPublicSessionVolume(v));
   });
@@ -90,7 +90,10 @@ export function getHeroPosterFromVolumes(volumes: SessionVolumeDTO[]): {
   poster: string | null;
   alt: string;
 } {
-  const featured = volumes.find((v) => v.featured) || volumes[0];
+  const featured =
+    volumes.find((volume) => volume.featured) ||
+    volumes.find((volume) => volume.status === "applications_open") ||
+    volumes[0];
   if (!featured) return { poster: null, alt: "ÉLEVÉ Sessions" };
   return {
     poster: resolveSessionPosterImage(featured),

@@ -403,7 +403,10 @@ Do not wrap the JSON in code fences.
 Do not include any text before or after the JSON.
 Keep every string on a single line (no raw newlines inside strings).`;
 
-async function evaluateApplicant(submission: SubmissionRecord): Promise<EvaluatedApplicant> {
+async function evaluateApplicant(
+  submission: SubmissionRecord,
+  options: { includeImages?: boolean } = {}
+): Promise<EvaluatedApplicant> {
   const data = parseData(submission.data);
   const portfolioUrl =
     stringValue(data, "portfolioLink") ||
@@ -431,7 +434,7 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
       social: { source: socialUrl, fetched: false, pageText: "", error: "Fetch failed" },
     };
   }
-  const images = await resolveApplicantImageInputs(
+  const resolvedImages = await resolveApplicantImageInputs(
     [
       ...new Set([
         ...stringArray(data, "portfolioImages"),
@@ -439,6 +442,7 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
       ]),
     ].slice(0, 8)
   );
+  const images = options.includeImages === false ? [] : resolvedImages;
   const evidence = evaluationEvidence(data);
   const userPrompt = JSON.stringify({
     applicantId: submission.id,
@@ -486,7 +490,7 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
 
   if (!result?.content || result.finishReason === "error") {
     throw new Error(
-      `AI provider returned no usable completion (provider=${result?.provider ?? "none"}, model=${result?.model || "none"}, finishReason=${result?.finishReason ?? "none"}, images=${images.length})`
+      `AI provider returned no usable completion (provider=${result?.provider ?? "none"}, model=${result?.model || "none"}, finishReason=${result?.finishReason ?? "none"}, images=${images.length}, error=${result?.error || "not reported"})`
     );
   }
 
@@ -564,7 +568,8 @@ async function evaluateApplicant(submission: SubmissionRecord): Promise<Evaluate
     portfolioVisuallyReviewed,
     location: stringValue(data, "cityState") || stringValue(data, "location") || "Unknown",
     availabilityConfirmed: data.availabilityConfirm === true,
-    portfolioProvided: images.length > 0 || evidence.informationalSignals.portfolioLinkProvided,
+    portfolioProvided:
+      resolvedImages.length > 0 || evidence.informationalSignals.portfolioLinkProvided,
     socialProvided: evidence.informationalSignals.socialLinkProvided,
     ai: normalized,
     provider: `${result.provider}:${result.model}`,
@@ -650,7 +655,11 @@ async function evaluateApplicantSafely(submission: SubmissionRecord): Promise<Ev
   let lastError: unknown = new Error("Evaluation did not run");
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      const evaluated = await evaluateApplicant(submission);
+      // If vision fails, preserve an honest partial evaluation by retrying
+      // without attachments. Portfolio Quality remains explicitly unscored.
+      const evaluated = await evaluateApplicant(submission, {
+        includeImages: attempt === 1,
+      });
       await setCache(cacheKey, evaluated, APPLICANT_EVALUATION_CACHE_TTL_MS).catch(() => {});
       return evaluated;
     } catch (error) {
@@ -807,7 +816,11 @@ async function verifiedRevenueByEmail(
   const valid = [...new Set(emails.filter(Boolean))];
   if (!valid.length) return map;
   const payments = await prisma.payment.findMany({
-    where: { customerEmail: { in: valid }, status: "succeeded" },
+    where: {
+      customerEmail: { in: valid },
+      status: "succeeded",
+      verificationStatus: "verified",
+    },
     select: { customerEmail: true, amountCents: true },
   });
   for (const payment of payments) {

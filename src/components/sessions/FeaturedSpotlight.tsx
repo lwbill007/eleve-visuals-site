@@ -1,17 +1,9 @@
-"use client";
-
 import Image from "next/image";
-import { motion } from "framer-motion";
 import type { SessionVolumeDTO } from "@/lib/types";
 import { resolveSessionPosterImage } from "@/lib/session-volume";
 import { Button } from "@/components/ui/Button";
 import { SessionStatusBadge } from "./SessionStatusBadge";
 import { SessionCountdown } from "./SessionCountdown";
-
-const fade = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] as const } },
-};
 
 export function FeaturedSpotlight({
   volume,
@@ -53,13 +45,7 @@ export function FeaturedSpotlight({
         </div>
 
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fade}
-            className="lg:col-span-5"
-          >
+          <div className="lg:col-span-5">
             <div className="lg:sticky lg:top-28">
               <div className="relative aspect-[2/3] overflow-hidden bg-charcoal shadow-2xl shadow-black/50">
                 {poster ? (
@@ -91,16 +77,10 @@ export function FeaturedSpotlight({
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
-            className="lg:col-span-7"
-          >
-            <motion.div variants={fade} className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="lg:col-span-7">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
               <SessionStatusBadge status={volume.status} />
               {volume.theme && (
                 <span className="text-xs tracking-[0.18em] text-fog uppercase">{volume.theme}</span>
@@ -108,39 +88,39 @@ export function FeaturedSpotlight({
               {volume.genre && (
                 <span className="text-xs tracking-[0.18em] text-muted uppercase">{volume.genre}</span>
               )}
-            </motion.div>
+            </div>
 
-            <motion.h3 variants={fade} className="headline-lg text-balance">
+            <h3 className="headline-lg text-balance">
               {volume.title}
-            </motion.h3>
+            </h3>
             {volume.subtitle && (
-              <motion.p variants={fade} className="mt-4 font-display text-xl text-accent md:text-2xl">
+              <p className="mt-4 font-display text-xl text-accent md:text-2xl">
                 &ldquo;{volume.subtitle}&rdquo;
-              </motion.p>
+              </p>
             )}
 
             {vision.length > 0 && (
-              <motion.div variants={fade} className="mt-8">
+              <div className="mt-8">
                 <p className="label-caps mb-3 text-fog">The Vision</p>
                 <div className="space-y-4">
                   {vision.slice(0, 3).map((p, i) => (
                     <p key={i} className="body-lg">{p}</p>
                   ))}
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {volume.directorsNote && (
-              <motion.blockquote variants={fade} className="mt-8 border-l-2 border-accent/50 pl-5">
+              <blockquote className="mt-8 border-l-2 border-accent/50 pl-5">
                 <p className="text-[0.6rem] tracking-[0.18em] text-muted uppercase">Director&rsquo;s Note</p>
                 <p className="mt-2 font-display text-lg leading-relaxed text-cream-dim italic">
                   {volume.directorsNote}
                 </p>
-              </motion.blockquote>
+              </blockquote>
             )}
 
             {volume.requirements.length > 0 && (
-              <motion.div variants={fade} className="mt-8">
+              <div className="mt-8">
                 <p className="label-caps mb-3 text-fog">Who We&rsquo;re Looking For</p>
                 <ul className="grid gap-2 sm:grid-cols-2">
                   {volume.requirements.map((r) => (
@@ -150,30 +130,27 @@ export function FeaturedSpotlight({
                     </li>
                   ))}
                 </ul>
-              </motion.div>
+              </div>
             )}
 
             {details.length > 0 && (
-              <motion.dl
-                variants={fade}
-                className="mt-8 grid grid-cols-2 gap-x-5 gap-y-5 border-t border-stone/30 pt-8 sm:grid-cols-4 sm:gap-x-8"
-              >
+              <dl className="mt-8 grid grid-cols-2 gap-x-5 gap-y-5 border-t border-stone/30 pt-8 sm:grid-cols-4 sm:gap-x-8">
                 {details.map((d) => (
                   <div key={d.label} className="min-w-0">
                     <dt className="text-[0.6rem] tracking-[0.18em] text-muted uppercase">{d.label}</dt>
                     <dd className="mt-1.5 text-sm break-words text-cream">{d.value}</dd>
                   </div>
                 ))}
-              </motion.dl>
+              </dl>
             )}
 
             {volume.applicationDeadline && canApply && (
-              <motion.div variants={fade} className="mt-6">
+              <div className="mt-6">
                 <SessionCountdown deadline={volume.applicationDeadline} />
-              </motion.div>
+              </div>
             )}
 
-            <motion.div variants={fade} className="mt-10 flex flex-wrap gap-4">
+            <div className="mt-10 flex flex-wrap gap-4">
               {canApply && (
                 <Button variant="primary" href={`/sessions/${volume.slug}/apply`}>
                   Apply for This Volume
@@ -182,8 +159,8 @@ export function FeaturedSpotlight({
               <Button variant="secondary" href={`/sessions/${volume.slug}`}>
                 See the Full Brief
               </Button>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

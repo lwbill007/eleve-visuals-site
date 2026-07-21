@@ -4,6 +4,7 @@ import { buildCognitiveContextForPrompt } from "@/lib/ai/cognitive/context-promp
 import { streamAIChat } from "@/lib/ai/service";
 import { PAGE_AI_PROMPTS, type AIContextPayload } from "@/lib/ai/types";
 import { systemPromptForAssistant } from "@/lib/ai/prompts/system";
+import { routeAIWorkflow } from "@/lib/ai/prompts/workflows";
 
 export async function POST(req: Request) {
   try {
@@ -28,6 +29,14 @@ export async function POST(req: Request) {
     buildMemoryContext(message, page),
     buildCognitiveContextForPrompt(page),
   ]);
+  const workflow = routeAIWorkflow({
+    message,
+    page,
+    history: history.slice(-6).map((item) => ({
+      role: item.role,
+      content: item.content,
+    })),
+  });
 
   const systemContext = `${systemPromptForAssistant()}
 
@@ -38,7 +47,8 @@ Page context: ${JSON.stringify(context?.data ?? {})}
 Memory & cognitive intelligence (cite when relevant):
 ${memory}
 
-Respond with awareness of where the user is in the admin. Reference Business DNA. Be actionable. Quantify revenue impact when possible.`;
+Respond with awareness of where the user is in the admin. Reference Business DNA. Be actionable. Quantify revenue impact when possible.
+${workflow.prompt ? `\n${workflow.prompt}` : ""}`;
 
   const enrichedMessage = context?.data
     ? `${message}\n\n[Page data]\n${JSON.stringify(context.data).slice(0, 4000)}`
@@ -50,6 +60,14 @@ Respond with awareness of where the user is in the admin. Reference Business DNA
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              mode: workflow.mode,
+              label: workflow.label,
+            })}\n\n`
+          )
+        );
         let accumulated = "";
         for await (const chunk of streamAIChat(enrichedMessage, [
           { role: "system", content: systemContext },

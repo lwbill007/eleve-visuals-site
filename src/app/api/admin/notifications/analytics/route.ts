@@ -43,15 +43,15 @@ export async function GET() {
 
   const totalDeliveries = sentCount + failedCount;
   const successRate =
-    totalDeliveries === 0 ? 100 : Math.round((sentCount / totalDeliveries) * 100);
+    totalDeliveries === 0 ? null : Math.round((sentCount / totalDeliveries) * 100);
 
-  let avgResponseMs = 0;
+  let avgReadMs: number | null = null;
   if (respondedSubmissions.length > 0) {
     const sum = respondedSubmissions.reduce((acc, s) => {
       if (!s.readAt) return acc;
       return acc + (s.readAt.getTime() - s.createdAt.getTime());
     }, 0);
-    avgResponseMs = Math.round(sum / respondedSubmissions.length);
+    avgReadMs = Math.round(sum / respondedSubmissions.length);
   }
 
   return NextResponse.json({
@@ -67,7 +67,7 @@ export async function GET() {
       successRate,
       openFailures: failedRecent,
     },
-    avgResponseMs,
-    respondedCount: respondedSubmissions.length,
+    avgReadMs,
+    readCount: respondedSubmissions.length,
   });
 }

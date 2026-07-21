@@ -1,10 +1,21 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import {
+  Suspense,
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ADMIN_NAV } from "@/config/admin-nav";
+import {
+  osAIContext,
+  resolveOsPage,
+} from "@/lib/ai/platform/os-systems";
 import { AdminCommandPalette, useCommandPalette } from "@/components/admin/os/AdminCommandPalette";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { AINotificationsBell } from "@/components/admin/ai/AINotificationsBell";
@@ -12,25 +23,7 @@ import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { ExecutiveContextProvider } from "@/components/admin/ai/ExecutiveContextProvider";
 import { COOBar } from "@/components/admin/ai/COOBar";
 
-function isActive(pathname: string, href: string, search: string) {
-  const [pathPart, queryPart] = href.split("?");
-  if (pathPart === "/admin") return pathname === "/admin";
-
-  const pathMatch = pathname === pathPart || pathname.startsWith(`${pathPart}/`);
-  if (!pathMatch) return false;
-
-  if (!queryPart) {
-    // Prefer exact path items over query-specific siblings (e.g. Inbox vs Bookings)
-    return true;
-  }
-
-  const required = new URLSearchParams(queryPart);
-  const current = new URLSearchParams(search);
-  for (const [key, value] of required.entries()) {
-    if (current.get(key) !== value) return false;
-  }
-  return true;
-}
+const ADMIN_RECENT_KEY = "eleve-admin-recent:v1";
 
 export function AdminShell({
   children,
@@ -39,19 +32,42 @@ export function AdminShell({
   children: React.ReactNode;
   title?: string;
 }) {
+  const shellMounted = useContext(AdminShellMountedContext);
+  if (shellMounted) return <>{children}</>;
+
   return (
-    <Suspense fallback={<AdminShellFallback title={title}>{children}</AdminShellFallback>}>
-      <AdminShellInner title={title}>{children}</AdminShellInner>
-    </Suspense>
+    <AdminShellMountedContext.Provider value>
+      <Suspense fallback={<AdminShellFallback title={title} />}>
+        <AdminShellInner title={title}>{children}</AdminShellInner>
+      </Suspense>
+    </AdminShellMountedContext.Provider>
   );
 }
 
-function AdminShellFallback({ children, title }: { children: React.ReactNode; title?: string }) {
+const AdminShellMountedContext = createContext(false);
+
+function AdminShellFallback({ title }: { title?: string }) {
   return (
-    <div className="min-h-screen bg-ink">
-      <div className="p-8">
-        {title && <h1 className="font-display text-2xl text-cream">{title}</h1>}
-        <div className="mt-6">{children}</div>
+    <div className="min-h-screen bg-ink lg:flex" aria-busy="true">
+      <aside className="hidden w-64 shrink-0 border-r border-stone/20 bg-charcoal/95 p-5 lg:block">
+        <p className="font-display text-xl tracking-wide text-cream">ÉLEVÉ OS</p>
+        <div className="mt-8 space-y-3">
+          {Array.from({ length: 9 }).map((_, index) => (
+            <div key={index} className="h-9 animate-pulse rounded-lg bg-ink/60" />
+          ))}
+        </div>
+      </aside>
+      <div className="min-w-0 flex-1">
+        <header className="border-b border-stone/20 px-4 py-4 sm:px-6 lg:px-8">
+          <h1 className="font-display text-xl text-cream sm:text-2xl">{title ?? "ÉLEVÉ OS"}</h1>
+        </header>
+        <div className="space-y-4 p-4 sm:p-6 lg:p-8">
+          <div className="h-24 animate-pulse rounded-xl bg-charcoal/25" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="h-40 animate-pulse rounded-xl bg-charcoal/25" />
+            <div className="h-40 animate-pulse rounded-xl bg-charcoal/25" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -66,21 +82,103 @@ function AdminShellInner({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const search = searchParams.toString();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
+  const [desktopNav, setDesktopNav] = useState(false);
+  const [openSystems, setOpenSystems] = useState<Set<string>>(
+    () => new Set(["Command", "Work"])
+  );
+  const [recentWorkspaces, setRecentWorkspaces] = useState<{ label: string; href: string }[]>([]);
+  const navRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
+  const resolvedPage = resolveOsPage(pathname, search);
+  const resolvedTitle = title ?? resolvedPage?.label ?? "Home";
 
-  useSetAIPage(resolvePageContext(pathname, searchParams.toString()));
+  useSetAIPage(osAIContext(resolvedPage, pathname));
 
   useEffect(() => {
     setNavOpen(false);
-  }, [pathname]);
+    const activeSection = ADMIN_NAV.find((section) =>
+      section.items.some((item) => item.href === resolvedPage?.href)
+    );
+    if (activeSection) {
+      setOpenSystems((current) => {
+        if (current.has(activeSection.label)) return current;
+        const next = new Set(current);
+        next.add(activeSection.label);
+        return next;
+      });
+    }
+  }, [pathname, resolvedPage?.href, search]);
+
+  useEffect(() => {
+    const href = `${pathname}${search ? `?${search}` : ""}`;
+    const current = { label: resolvedPage?.label ?? "Home", href };
+    setRecentWorkspaces((previous) => {
+      let seeded = previous;
+      if (seeded.length === 0) {
+        try {
+          const stored = window.sessionStorage.getItem(ADMIN_RECENT_KEY);
+          seeded = stored ? (JSON.parse(stored) as { label: string; href: string }[]) : [];
+        } catch {
+          seeded = [];
+        }
+      }
+      const next = [current, ...seeded.filter((item) => item.href !== href)].slice(0, 4);
+      try {
+        window.sessionStorage.setItem(ADMIN_RECENT_KEY, JSON.stringify(next));
+      } catch {
+        // Navigation remains functional when storage is unavailable.
+      }
+      return next;
+    });
+  }, [pathname, resolvedPage?.label, search]);
+
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const update = () => {
+      setDesktopNav(query.matches);
+      if (query.matches) setNavOpen(false);
+    };
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     if (navOpen) {
+      const menuButton = menuButtonRef.current;
       document.body.style.overflow = "hidden";
+      const focusable = Array.from(
+        navRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+      focusable[0]?.focus();
+
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          setNavOpen(false);
+          return;
+        }
+        if (event.key !== "Tab" || focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      };
+      document.addEventListener("keydown", onKeyDown);
       return () => {
         document.body.style.overflow = "";
+        document.removeEventListener("keydown", onKeyDown);
+        menuButton?.focus();
       };
     }
   }, [navOpen]);
@@ -93,7 +191,7 @@ function AdminShellInner({
 
   return (
     <ExecutiveContextProvider>
-      <div className="min-h-screen bg-ink lg:flex">
+      <div data-admin-shell-root className="min-h-screen bg-ink lg:flex">
       <AdminCommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       {navOpen && (
@@ -106,6 +204,10 @@ function AdminShellInner({
       )}
 
       <aside
+        id="admin-sidebar"
+        ref={navRef}
+        inert={!navOpen && !desktopNav}
+        aria-hidden={!navOpen && !desktopNav}
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-stone/20 bg-charcoal/95 backdrop-blur-xl transition-transform duration-300 ease-out lg:static lg:z-auto lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0",
           navOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
@@ -118,26 +220,39 @@ function AdminShellInner({
           </Link>
         </div>
 
-        <nav className="flex-1 space-y-5 overflow-y-auto px-2 py-4">
-          {ADMIN_NAV.map((section) => (
+        <nav aria-label="Admin" className="flex-1 space-y-5 overflow-y-auto px-2 py-4">
+          {ADMIN_NAV.map((section) => {
+            const expanded = openSystems.has(section.label);
+            const sectionId = `admin-nav-${section.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+            return (
             <div key={section.label}>
-              <p className="mb-1.5 px-3 text-[0.55rem] tracking-[0.22em] text-muted uppercase">{section.label}</p>
-              <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                aria-expanded={expanded}
+                aria-controls={sectionId}
+                onClick={() =>
+                  setOpenSystems((current) => {
+                    const next = new Set(current);
+                    if (next.has(section.label)) next.delete(section.label);
+                    else next.add(section.label);
+                    return next;
+                  })
+                }
+                className="flex min-h-10 w-full items-center justify-between px-3 text-[0.65rem] tracking-[0.16em] text-muted uppercase hover:text-cream"
+              >
+                {section.label}
+                <span aria-hidden>{expanded ? "−" : "+"}</span>
+              </button>
+              {expanded ? (
+              <div id={sectionId} className="flex flex-col gap-0.5">
                 {section.items.map((item) => {
-                  const search = searchParams.toString();
-                  const active = isActive(pathname, item.href, search);
-                  // When both Inbox and Bookings match path, only highlight the more specific query item
-                  const siblings = section.items.filter((s) => s.href.split("?")[0] === item.href.split("?")[0]);
-                  const moreSpecificActive = siblings.some(
-                    (s) => s.href.includes("?") && isActive(pathname, s.href, search) && s.href !== item.href
-                  );
-                  const highlight = active && !(item.href === "/admin/submissions" && moreSpecificActive);
+                  const highlight = item.href === resolvedPage?.href;
                   return (
                     <Link
                       key={item.href + item.label}
                       href={item.href}
                       className={cn(
-                        "rounded-lg px-3 py-2 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+                        "flex min-h-11 items-center rounded-lg px-3 py-2 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
                         highlight
                           ? "bg-ink text-cream shadow-inner"
                           : "text-fog hover:bg-ink/50 hover:text-cream"
@@ -149,8 +264,26 @@ function AdminShellInner({
                   );
                 })}
               </div>
+              ) : null}
             </div>
-          ))}
+            );
+          })}
+          {recentWorkspaces.length > 1 ? (
+            <div className="border-t border-stone/20 pt-4">
+              <p className="px-3 text-[0.65rem] tracking-[0.16em] text-muted uppercase">Recent</p>
+              <div className="mt-2 flex flex-col gap-0.5">
+                {recentWorkspaces.slice(1).map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex min-h-11 items-center rounded-lg px-3 py-2 text-sm text-fog transition-colors hover:bg-stone/20 hover:text-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </nav>
 
         <div className="border-t border-stone/15 p-4">
@@ -166,16 +299,21 @@ function AdminShellInner({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-stone/20 bg-ink/90 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
           <button
+            ref={menuButtonRef}
             type="button"
             onClick={() => setNavOpen(true)}
             aria-label="Open menu"
+            aria-controls="admin-sidebar"
+            aria-expanded={navOpen}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-stone/30 text-fog lg:hidden"
           >
             ☰
           </button>
 
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-display text-xl text-cream sm:text-2xl">{title || "Home"}</h1>
+            <h1 className="truncate font-display text-xl text-cream sm:text-2xl">
+              {resolvedTitle}
+            </h1>
             <p className="mt-0.5 hidden text-[0.6rem] tracking-[0.12em] text-muted uppercase sm:block">
               ÉLEVÉ OS · ⌘K to jump
             </p>
@@ -211,32 +349,4 @@ function AdminShellInner({
     </div>
     </ExecutiveContextProvider>
   );
-}
-
-function resolvePageContext(pathname: string, search = "") {
-  const params = new URLSearchParams(search);
-  if (pathname === "/admin") return "dashboard" as const;
-  if (pathname.startsWith("/admin/briefing")) return "dashboard" as const;
-  if (pathname.startsWith("/admin/research")) return "reports" as const;
-  if (pathname.startsWith("/admin/crm/")) return "crm_profile" as const;
-  if (pathname.startsWith("/admin/crm")) return "crm" as const;
-  if (pathname.startsWith("/admin/pipeline") || pathname.startsWith("/admin/workboard")) return "pipeline" as const;
-  if (pathname.startsWith("/admin/bookings-ai")) return "bookings" as const;
-  if (pathname.startsWith("/admin/analytics")) return "analytics" as const;
-  if (pathname.startsWith("/admin/website")) return "analytics" as const;
-  if (pathname.startsWith("/admin/marketing")) return "marketing" as const;
-  if (pathname.startsWith("/admin/email")) return "email" as const;
-  if (pathname.startsWith("/admin/portfolio")) return "portfolio" as const;
-  if (pathname.startsWith("/admin/applications")) return "applications" as const;
-  if (pathname.startsWith("/admin/sessions")) return "sessions" as const;
-  if (pathname.startsWith("/admin/sponsorship")) return "sponsorship" as const;
-  if (pathname.startsWith("/admin/automations")) return "automations" as const;
-  if (pathname.startsWith("/admin/reports")) return "reports" as const;
-  if (pathname.startsWith("/admin/insights") || pathname.startsWith("/admin/leaks")) return "opportunities" as const;
-  if (pathname.startsWith("/admin/intelligence") || pathname.startsWith("/admin/memory")) return "memory" as const;
-  if (pathname.startsWith("/admin/opportunities")) return "opportunities" as const;
-  if (pathname.startsWith("/admin/risks")) return "risks" as const;
-  if (pathname.startsWith("/admin/assistant")) return "memory" as const;
-  if (pathname.startsWith("/admin/submissions") && params.get("type") === "booking") return "bookings" as const;
-  return "general" as const;
 }

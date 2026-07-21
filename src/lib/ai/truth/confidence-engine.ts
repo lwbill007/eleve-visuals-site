@@ -3,19 +3,23 @@ import type { ExecutiveConfidence } from "./types";
 
 export function buildExecutiveConfidence(rec: PrioritizedRecommendation): ExecutiveConfidence {
   const isRevenue = rec.category === "revenue" || rec.category === "sales";
+  const isExplicitlyVerified = (evidence: string) =>
+    /^\s*(verified:|\[verified\])/i.test(evidence);
+  const verifiedEvidence = rec.evidence.filter(isExplicitlyVerified);
+  // Model confidence describes certainty, not whether source evidence was checked.
   const truthStatus =
-    rec.confidence >= 0.8 && rec.evidence.some((e) => e.includes("Submission") || e.includes("CRM"))
-      ? "verified"
-      : rec.confidence >= 0.6
-        ? "estimated"
-        : "predicted";
+    verifiedEvidence.length > 0 ? "verified" : rec.evidence.length > 0 ? "estimated" : "predicted";
 
   return {
     observed: [rec.detail, rec.whyNow],
     evidence: rec.evidence,
     supportingMemories: rec.evidence
       .filter((e) => e.includes("memory") || e.includes("Memory"))
-      .map((e, i) => ({ id: `ev-${i}`, title: e, status: "verified" })),
+      .map((e, i) => ({
+        id: `ev-${i}`,
+        title: e,
+        status: isExplicitlyVerified(e) ? "verified" : "pending",
+      })),
     supportingAnalytics: rec.evidence.filter(
       (e) => !e.toLowerCase().includes("memory") && !e.toLowerCase().includes("heuristic")
     ),

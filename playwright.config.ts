@@ -40,6 +40,19 @@ export default defineConfig({
       },
       dependencies: ["setup"],
     },
+    {
+      name: "admin-mobile",
+      testMatch: /admin-system\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 393, height: 852 },
+        deviceScaleFactor: 3,
+        hasTouch: true,
+        isMobile: true,
+        storageState: "playwright/.auth/admin.json",
+      },
+      dependencies: ["setup"],
+    },
   ],
   webServer: {
     command: webServerCommand,

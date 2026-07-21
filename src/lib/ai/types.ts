@@ -63,6 +63,8 @@ export interface AICompletionResult {
   content: string;
   toolCalls?: AIToolCall[];
   finishReason: "stop" | "tool_calls" | "error";
+  /** Sanitized provider failure detail when finishReason is "error". */
+  error?: string;
   /** Provider-native finish reason, e.g. "length" when the completion was truncated. */
   nativeFinishReason?: string;
   provider: AIProviderId;

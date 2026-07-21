@@ -54,10 +54,9 @@ export async function POST(req: Request) {
   const volumeId = new URL(req.url).searchParams.get("volumeId") || undefined;
   try {
     const ranked = await rerankSessionApplications(volumeId);
-    // Summary generation is deliberately last: it cannot run until the complete
-    // cohort has been evaluated, persisted, and sorted.
-    const summary = await generateApplicationRankingSummary(volumeId);
-    return NextResponse.json({ ranked, summary });
+    // Return persisted rankings immediately. The optional executive summary is
+    // generated only by GET ?summary=1 so it cannot hold the evaluation UI open.
+    return NextResponse.json({ ranked });
   } catch (error) {
     console.error("Application re-rank failed:", error);
     return NextResponse.json(

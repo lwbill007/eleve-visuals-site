@@ -293,9 +293,13 @@ export function ExecutiveQADashboard() {
                   </p>
                 </AdminPanel>
                 <AdminPanel title="APIs">
-                  <p className="text-2xl text-cream">{report.apis.score}</p>
+                  <p className="text-2xl text-cream">
+                    {report.apis.status === "not_run" ? "Not run" : report.apis.score}
+                  </p>
                   <p className="text-xs text-fog">
-                    {report.apis.passed}/{report.apis.total} probed
+                    {report.apis.status === "not_run"
+                      ? "No base URL supplied; excluded from score"
+                      : `${report.apis.passed}/${report.apis.total} probed`}
                   </p>
                 </AdminPanel>
               </div>

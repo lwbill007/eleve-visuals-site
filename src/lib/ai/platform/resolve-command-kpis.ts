@@ -6,6 +6,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
+import { VERIFIED_SETTLED_PAYMENT_WHERE } from "@/lib/payments";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
 import { getOperatorMetrics } from "../intelligence/business-operator";
 import { buildTruthValue } from "./truth-metadata";
@@ -79,11 +80,11 @@ export async function resolveCommandKpis(
       metricsOverride ? Promise.resolve(metricsOverride) : getOperatorMetrics(),
       getAnalyticsSummary(30),
       prisma.payment.aggregate({
-        where: { status: "succeeded", paidAt: { gte: todayStart } },
+        where: { ...VERIFIED_SETTLED_PAYMENT_WHERE, paidAt: { gte: todayStart } },
         _sum: { amountCents: true },
       }),
       prisma.payment.aggregate({
-        where: { status: "succeeded", paidAt: { gte: monthStart } },
+        where: { ...VERIFIED_SETTLED_PAYMENT_WHERE, paidAt: { gte: monthStart } },
         _sum: { amountCents: true },
       }),
       prisma.submission.count({
@@ -113,7 +114,7 @@ export async function resolveCommandKpis(
             label: "verified",
             source: "Payment",
             table: "Payment",
-            calculation: "SUM(amountCents) WHERE status=succeeded AND paidAt>=today",
+            calculation: "SUM(amountCents) WHERE status=succeeded AND verificationStatus=verified AND paidAt>=today",
             evidence: [`${revenueTodayCents / 100} settled today`],
             confidence: 1,
             freshness: "realtime",
@@ -140,7 +141,7 @@ export async function resolveCommandKpis(
             label: "verified",
             source: "Payment",
             table: "Payment",
-            calculation: "SUM(amountCents) WHERE status=succeeded AND paidAt>=monthStart",
+            calculation: "SUM(amountCents) WHERE status=succeeded AND verificationStatus=verified AND paidAt>=monthStart",
             evidence: [`${revenueMtdCents / 100} settled this month`],
             confidence: 1,
             freshness: "realtime",

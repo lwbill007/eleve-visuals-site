@@ -19,6 +19,7 @@
     "audit:os": "tsx scripts/admin-os-audit.ts",
     "verify": "tsc --noEmit && next lint && tsx scripts/verify-truth-layer.ts && tsx scripts/ai-regression-smoke.ts",
     "test:ai": "tsx scripts/ai-regression-smoke.ts",
+    "test:admin-truth-security": "tsx scripts/admin-truth-security.test.ts",
     "db:audit:production": "tsx scripts/production-api-audit.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

@@ -213,9 +213,9 @@ export function CRMClient() {
     },
     {
       id: "referrals",
-      label: "Referrals",
+      label: "Lead sources",
       status: "partial",
-      summary: "Referral program page exists — not embedded as a CRM capability metric.",
+      summary: "Self-reported acquisition source attribution; verified referral conversions are not tracked.",
       href: "/admin/referrals",
     },
     {

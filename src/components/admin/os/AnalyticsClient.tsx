@@ -231,12 +231,14 @@ export function AnalyticsClient() {
               <AdminMetricCard label="Booking completions" value={(c?.bookingCompletions ?? data.conversions.booking).toLocaleString()} />
               <AdminMetricCard label="Booking start rate" value={`${c?.bookingStartRate ?? 0}%`} />
               <AdminMetricCard
-                label="Portfolio → inquiry"
-                value={`${c?.portfolioToInquiryRate ?? 0}%`}
+                label="Inquiries / portfolio views"
+                value={`${c?.inquiriesPerPortfolioViewPct ?? 0}%`}
+                hint="Aggregate ratio · not attributed journeys"
               />
               <AdminMetricCard
-                label="Session → inquiry"
-                value={`${c?.sessionToInquiryRate ?? 0}%`}
+                label="Inquiries / session views"
+                value={`${c?.inquiriesPerSessionViewPct ?? 0}%`}
+                hint="Aggregate ratio · not attributed journeys"
               />
             </div>
 

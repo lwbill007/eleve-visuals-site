@@ -171,7 +171,15 @@ function computeTrustScore(
 
 function toNextAction(
   r: Awaited<ReturnType<typeof getGuardedRecommendations>>[number],
-  learningByRef: Map<string, { outcome: string; revenueImpact?: number | null; status: "waiting" | "learned" }>
+  learningByRef: Map<
+    string,
+    {
+      outcome: string;
+      revenueImpact?: number | null;
+      status: "waiting" | "learned";
+      decisionStatus: "accepted" | "completed" | "rejected";
+    }
+  >
 ): NextAction {
   const href = r.actions[0]?.href ?? "/admin/opportunities";
   const id = r.id.toLowerCase();
@@ -248,7 +256,7 @@ function toNextAction(
       r.estimatedRevenue > 0
         ? `+$${r.estimatedRevenue.toLocaleString()} if executed within the decay window`
         : expectedOutcome,
-    decisionStatus: learn?.status === "learned" ? "completed" : learn?.status === "waiting" ? "accepted" : "pending",
+    decisionStatus: learn?.decisionStatus ?? "pending",
     learningStatus: learn?.status ?? "none",
     actualOutcome: learn?.status === "learned" ? learn.outcome : undefined,
     actualRevenue: learn?.revenueImpact ?? undefined,
@@ -298,23 +306,44 @@ export async function getExecutiveContext(force = false): Promise<ExecutiveConte
         totalCents: 0,
       };
     }),
-    getLearningOutcomes("executive", 40).catch(() => []),
+    getLearningOutcomes("opportunities", 40).catch(() => []),
   ]);
 
   const learningByRef = new Map<
     string,
-    { outcome: string; revenueImpact?: number | null; status: "waiting" | "learned" }
+    {
+      outcome: string;
+      revenueImpact?: number | null;
+      status: "waiting" | "learned";
+      decisionStatus: "accepted" | "completed" | "rejected";
+    }
   >();
   for (const o of learningOutcomes) {
+    const recordedStatus = o.metrics.learningStatus;
+    const decisionStatus: "accepted" | "completed" | "rejected" =
+      recordedStatus === "accepted" ||
+      recordedStatus === "completed" ||
+      recordedStatus === "rejected"
+        ? recordedStatus
+        : o.outcome === "negative"
+          ? "rejected"
+          : o.outcome === "neutral"
+            ? "accepted"
+            : "completed";
     const status: "waiting" | "learned" =
-      o.outcome === "neutral" ? "waiting" : "learned";
+      decisionStatus === "accepted" ? "waiting" : "learned";
     const entry = {
       outcome: o.outcome,
       revenueImpact: o.revenueImpact,
       status,
+      decisionStatus,
     };
-    if (o.actionType) learningByRef.set(o.actionType, entry);
-    if (o.actionRef) learningByRef.set(o.actionRef, entry);
+    if (o.actionType && !learningByRef.has(o.actionType)) {
+      learningByRef.set(o.actionType, entry);
+    }
+    if (o.actionRef && !learningByRef.has(o.actionRef)) {
+      learningByRef.set(o.actionRef, entry);
+    }
   }
 
   const healthy = connectorList.filter((c) => c.health === "healthy").length;

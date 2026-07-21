@@ -7,6 +7,12 @@ import { getAnalyticsSummary } from "@/lib/analytics-server";
 import { prisma } from "@/lib/db";
 import { dollarsFromCents, getPaymentRevenueSummary } from "@/lib/payments";
 import { normalizeApplicationStatus } from "@/lib/types";
+import {
+  CLOSED_WON_STORED_STATUSES,
+  OPEN_PIPELINE_STORED_STATUSES,
+  PRODUCTION_VALUE_STORED_STATUSES,
+  isOpenPipelineValueStatus,
+} from "@/lib/booking-pipeline";
 import type {
   BusinessAction,
   BusinessInsight,
@@ -175,19 +181,23 @@ async function computeOperatorMetrics() {
       where: { type: "booking", createdAt: { gte: lastMonthStart, lt: monthStart } },
     }),
     prisma.submission.count({
-      where: { type: "booking", status: "completed", updatedAt: { gte: monthStart } },
+      where: {
+        type: "booking",
+        status: { in: [...CLOSED_WON_STORED_STATUSES] },
+        updatedAt: { gte: monthStart },
+      },
     }),
     prisma.submission.count({
       where: {
         type: "booking",
-        status: { in: ["scheduled", "booked", "planning", "production", "editing"] },
+        status: { in: [...PRODUCTION_VALUE_STORED_STATUSES] },
         updatedAt: { lt: new Date(Date.now() - 14 * 86400000) },
       },
     }),
     prisma.submission.count({
       where: {
         type: "booking",
-        status: { in: ["new", "contacted", "lead", "qualified", "discovery", "proposal"] },
+        status: { in: [...OPEN_PIPELINE_STORED_STATUSES] },
         updatedAt: { lt: new Date(Date.now() - 3 * 86400000) },
       },
     }),
@@ -195,19 +205,19 @@ async function computeOperatorMetrics() {
 
   const pipelineRevenueToday = pipeline.columns
     .flatMap((c) => c.items)
-    .filter((i) => new Date(i.createdAt) >= todayStart)
+    .filter((i) => isOpenPipelineValueStatus(i.status) && new Date(i.createdAt) >= todayStart)
     .reduce((s, i) => s + i.value, 0);
 
   const pipelineRevenueThisMonth = pipeline.columns
     .flatMap((c) => c.items)
-    .filter((i) => new Date(i.createdAt) >= monthStart)
+    .filter((i) => isOpenPipelineValueStatus(i.status) && new Date(i.createdAt) >= monthStart)
     .reduce((s, i) => s + i.value, 0);
 
   const pipelineRevenueLastMonth = pipeline.columns
     .flatMap((c) => c.items)
     .filter((i) => {
       const d = new Date(i.createdAt);
-      return d >= lastMonthStart && d < monthStart;
+      return isOpenPipelineValueStatus(i.status) && d >= lastMonthStart && d < monthStart;
     })
     .reduce((s, i) => s + i.value, 0);
 

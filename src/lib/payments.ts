@@ -8,6 +8,20 @@ export interface PaymentRevenueSummary {
   totalCents: number;
   count: number;
   hasPayments: boolean;
+  pendingManualCount: number;
+  pendingManualCents: number;
+}
+
+export const VERIFIED_SETTLED_PAYMENT_WHERE = {
+  status: "succeeded",
+  verificationStatus: "verified",
+} as const;
+
+export function paymentCountsAsVerifiedRevenue(payment: {
+  status: string;
+  verificationStatus: string;
+}): boolean {
+  return payment.status === "succeeded" && payment.verificationStatus === "verified";
 }
 
 function startOfDay(d: Date) {
@@ -18,29 +32,37 @@ function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
-/** Sum succeeded payments for truth / operator metrics. */
+/** Sum source-verified, succeeded payments for truth / operator metrics. */
 export async function getPaymentRevenueSummary(now = new Date()): Promise<PaymentRevenueSummary> {
   const todayStart = startOfDay(now);
   const monthStart = startOfMonth(now);
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  const [today, thisMonth, lastMonth, total] = await Promise.all([
+  const [today, thisMonth, lastMonth, total, pendingManual] = await Promise.all([
     prisma.payment.aggregate({
-      where: { status: "succeeded", paidAt: { gte: todayStart } },
+      where: { ...VERIFIED_SETTLED_PAYMENT_WHERE, paidAt: { gte: todayStart } },
       _sum: { amountCents: true },
       _count: true,
     }),
     prisma.payment.aggregate({
-      where: { status: "succeeded", paidAt: { gte: monthStart } },
+      where: { ...VERIFIED_SETTLED_PAYMENT_WHERE, paidAt: { gte: monthStart } },
       _sum: { amountCents: true },
       _count: true,
     }),
     prisma.payment.aggregate({
-      where: { status: "succeeded", paidAt: { gte: lastMonthStart, lt: monthStart } },
+      where: {
+        ...VERIFIED_SETTLED_PAYMENT_WHERE,
+        paidAt: { gte: lastMonthStart, lt: monthStart },
+      },
       _sum: { amountCents: true },
     }),
     prisma.payment.aggregate({
-      where: { status: "succeeded" },
+      where: VERIFIED_SETTLED_PAYMENT_WHERE,
+      _sum: { amountCents: true },
+      _count: true,
+    }),
+    prisma.payment.aggregate({
+      where: { source: "manual", status: "succeeded", verificationStatus: "pending" },
       _sum: { amountCents: true },
       _count: true,
     }),
@@ -54,6 +76,8 @@ export async function getPaymentRevenueSummary(now = new Date()): Promise<Paymen
     totalCents,
     count: total._count,
     hasPayments: total._count > 0,
+    pendingManualCount: pendingManual._count,
+    pendingManualCents: pendingManual._sum.amountCents ?? 0,
   };
 }
 
@@ -108,6 +132,9 @@ export interface UpsertPaymentInput {
   description?: string;
   submissionId?: string | null;
   source?: string;
+  verificationStatus?: "pending" | "verified" | "rejected";
+  reconciledAt?: Date | null;
+  reconciledBy?: string;
   paidAt: Date;
   raw?: unknown;
 }
@@ -127,6 +154,10 @@ export async function upsertPayment(input: UpsertPaymentInput) {
       description: input.description ?? "",
       submissionId: input.submissionId ?? null,
       source: input.source ?? "stripe",
+      verificationStatus:
+        input.verificationStatus ?? (input.source === "manual" ? "pending" : "verified"),
+      reconciledAt: input.reconciledAt ?? null,
+      reconciledBy: input.reconciledBy ?? "",
       paidAt: input.paidAt,
       raw: JSON.stringify(input.raw ?? {}),
     },
@@ -137,6 +168,10 @@ export async function upsertPayment(input: UpsertPaymentInput) {
       status: input.status ?? "succeeded",
       customerEmail: input.customerEmail ?? "",
       description: input.description ?? "",
+      verificationStatus:
+        input.verificationStatus ?? (input.source === "manual" ? "pending" : "verified"),
+      reconciledAt: input.reconciledAt ?? null,
+      reconciledBy: input.reconciledBy ?? "",
       paidAt: input.paidAt,
       raw: JSON.stringify(input.raw ?? {}),
     },

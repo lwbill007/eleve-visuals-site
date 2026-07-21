@@ -5,6 +5,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AskAIButton } from "@/components/admin/ai/AskAIPanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { AdminOverlay } from "@/components/admin/os/AdminOverlay";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
 import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
@@ -41,29 +42,40 @@ export function AutomationsClient() {
   const [draft, setDraft] = useState("");
   const [building, setBuilding] = useState(false);
   const [booting, setBooting] = useState(true);
-  const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [systemError, setSystemError] = useState("");
+  const [draftError, setDraftError] = useState("");
   const [running, setRunning] = useState<string | null>(null);
+  const [runAllPreviewOpen, setRunAllPreviewOpen] = useState(false);
 
   const load = useCallback(async () => {
-    setBooting(true);
-    setError("");
-    try {
-      const [sysRes, draftRes] = await Promise.all([
-        adminFetch("/api/admin/ai/automations/run"),
-        adminFetch("/api/admin/ai/automations"),
-      ]);
-      if (!sysRes.ok) throw new Error("Failed");
-      const sys = await sysRes.json();
-      setSystem(sys.automations ?? []);
-      if (draftRes.ok) {
-        const d = await draftRes.json();
-        setDrafts(d.automations ?? []);
-      }
-    } catch {
-      setError("Could not load automations.");
-    } finally {
-      setBooting(false);
+    setRefreshing(true);
+    setSystemError("");
+    setDraftError("");
+    const [systemResult, draftResult] = await Promise.allSettled([
+      adminFetch("/api/admin/ai/automations/run").then(async (response) => ({
+        response,
+        data: response.ok ? await response.json() : null,
+      })),
+      adminFetch("/api/admin/ai/automations").then(async (response) => ({
+        response,
+        data: response.ok ? await response.json() : null,
+      })),
+    ]);
+
+    if (systemResult.status === "fulfilled" && systemResult.value.response.ok) {
+      setSystem(systemResult.value.data?.automations ?? []);
+    } else {
+      setSystemError("System jobs could not refresh. Showing the last successful result when available.");
     }
+
+    if (draftResult.status === "fulfilled" && draftResult.value.response.ok) {
+      setDrafts(draftResult.value.data?.automations ?? []);
+    } else {
+      setDraftError("Draft workflows could not refresh. Existing drafts remain visible.");
+    }
+    setBooting(false);
+    setRefreshing(false);
   }, []);
 
   useEffect(() => {
@@ -84,19 +96,23 @@ export function AutomationsClient() {
 
   async function runAll() {
     setRunning("all");
-    const res = await adminFetch("/api/admin/ai/automations/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    const data = await res.json();
-    toast(
-      res.ok
-        ? `Ran ${data.results?.length ?? 0} jobs · ${data.notificationsCreated ?? 0} alerts created.`
-        : "Run failed.",
-      res.ok ? undefined : "error"
-    );
-    setRunning(null);
+    try {
+      const res = await adminFetch("/api/admin/ai/automations/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      toast(
+        res.ok
+          ? `Ran ${data.results?.length ?? 0} jobs · ${data.notificationsCreated ?? 0} alerts created.`
+          : "Run failed.",
+        res.ok ? undefined : "error"
+      );
+      if (res.ok) setRunAllPreviewOpen(false);
+    } finally {
+      setRunning(null);
+    }
   }
 
   async function build() {
@@ -186,13 +202,13 @@ export function AutomationsClient() {
       title="Automation Center"
       description="Status, failures, cost, and dependencies for every job. System jobs create real alerts. AI drafts stay non-executable until a runner ships — never invent run health."
       onRefresh={() => void load()}
-      refreshing={booting}
+      refreshing={booting || refreshing}
       extra={
         <div className="flex flex-wrap gap-2">
           <AskAIButton />
           <WorkspaceButton
             variant="primary"
-            onClick={() => void runAll()}
+            onClick={() => setRunAllPreviewOpen(true)}
             disabled={running !== null || booting}
           >
             {running === "all" ? "Running…" : "Run all"}
@@ -206,12 +222,11 @@ export function AutomationsClient() {
         { label: "AI Operations", href: "/admin/ai-operations", desc: "Trust signals" },
       ]}
     >
-      {booting ? (
+      {booting && system.length === 0 && drafts.length === 0 ? (
         <WorkspaceLoading />
-      ) : error ? (
-        <WorkspaceError message={error} onRetry={() => void load()} />
       ) : (
         <div className="space-y-8">
+          {systemError ? <WorkspaceError message={systemError} onRetry={() => void load()} /> : null}
           <OsCapabilityGrid
             title="Automation capabilities"
             subtitle="Live jobs vs MissingMetric unlock paths for failures and cost."
@@ -252,6 +267,8 @@ export function AutomationsClient() {
               </ul>
             )}
           </AdminPanel>
+
+          {draftError ? <WorkspaceError message={draftError} onRetry={() => void load()} /> : null}
 
           <AdminPanel title="Draft a custom workflow" subtitle="AI draft only — not executed">
             <textarea
@@ -302,6 +319,51 @@ export function AutomationsClient() {
           )}
         </div>
       )}
+      <AdminOverlay
+        open={runAllPreviewOpen}
+        onClose={() => setRunAllPreviewOpen(false)}
+        title="Review all system automations"
+        description="Preview every real job and confirm before running the batch."
+        className="max-w-2xl"
+        closeOnBackdrop={running === null}
+      >
+        <div className="border-b border-stone/25 px-5 py-4">
+          <p className="text-[0.65rem] tracking-[0.14em] text-accent uppercase">Batch preview</p>
+          <h2 className="mt-1 font-display text-2xl text-cream">
+            Run {system.length} system automation{system.length === 1 ? "" : "s"}?
+          </h2>
+        </div>
+        <div className="space-y-4 p-5">
+          <p className="text-sm text-fog">
+            Each job queries current business state and may create a durable admin alert. Recent
+            duplicate alerts are suppressed by the server.
+          </p>
+          <ul className="max-h-72 space-y-3 overflow-y-auto">
+            {system.map((automation) => (
+              <li key={automation.id} className="rounded-lg border border-stone/25 p-3">
+                <p className="text-sm text-cream">{automation.name}</p>
+                <p className="mt-1 text-xs text-fog">{automation.effect}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-col-reverse gap-2 border-t border-stone/20 pt-4 sm:flex-row sm:justify-end">
+            <WorkspaceButton
+              variant="secondary"
+              onClick={() => setRunAllPreviewOpen(false)}
+              disabled={running !== null}
+            >
+              Cancel
+            </WorkspaceButton>
+            <WorkspaceButton
+              variant="primary"
+              onClick={() => void runAll()}
+              disabled={running !== null || system.length === 0}
+            >
+              {running === "all" ? "Running…" : `Confirm run ${system.length}`}
+            </WorkspaceButton>
+          </div>
+        </div>
+      </AdminOverlay>
     </WorkspaceChrome>
   );
 }

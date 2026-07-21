@@ -133,6 +133,29 @@ export const BOOKED_ACTIVE_STATUSES: ProductionStatus[] = [
 
 export const CLOSED_WON_STATUSES: ProductionStatus[] = ["delivered", "follow_up"];
 
+/** Stored values that represent sales opportunities not yet booked. */
+export const OPEN_PIPELINE_STORED_STATUSES = [
+  ...OPEN_INQUIRY_STATUSES,
+  "new",
+  "contacted",
+] as const;
+
+export const PRODUCTION_VALUE_STORED_STATUSES = [
+  ...BOOKED_ACTIVE_STATUSES,
+  "scheduled",
+] as const;
+
+export const CLOSED_WON_STORED_STATUSES = [
+  ...CLOSED_WON_STATUSES,
+  "completed",
+] as const;
+
+/** Stored values that represent booked production or completed client value. */
+export const PRODUCTION_OR_CLOSED_VALUE_STORED_STATUSES = [
+  ...PRODUCTION_VALUE_STORED_STATUSES,
+  ...CLOSED_WON_STORED_STATUSES,
+] as const;
+
 export function isOpenInquiryStatus(status: string): boolean {
   const n = normalizeInquiryStatus(status);
   return OPEN_INQUIRY_STATUSES.includes(n);
@@ -146,15 +169,16 @@ export function isClosedWonStatus(status: string): boolean {
   return CLOSED_WON_STATUSES.includes(normalizeInquiryStatus(status));
 }
 
+export function isOpenPipelineValueStatus(status: string): boolean {
+  return isOpenInquiryStatus(status);
+}
+
+export function isProductionOrClosedValueStatus(status: string): boolean {
+  return isBookedActiveStatus(status) || isClosedWonStatus(status);
+}
+
 /** Statuses that count as "pending pipeline" for workboard. */
-export const WORKBOARD_OPEN_STATUSES: string[] = [
-  "lead",
-  "qualified",
-  "discovery",
-  "proposal",
-  "new",
-  "contacted",
-];
+export const WORKBOARD_OPEN_STATUSES: readonly string[] = OPEN_PIPELINE_STORED_STATUSES;
 
 /** Public post-submit journey (client-facing roadmap). */
 export const CLIENT_TIMELINE_STAGES = [

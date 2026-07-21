@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import {
   getAllSessionVolumes,
-  getFeaturedSessionVolume,
   getHeroPosterFromVolumes,
 } from "@/lib/session-volumes";
 import {
@@ -40,15 +39,23 @@ export async function generateMetadata(): Promise<Metadata> {
 const GALLERY_LIMIT = 16;
 
 export default async function SessionsPage() {
-  const [volumes, featured, pageCopy, alumni] = await Promise.all([
-    getAllSessionVolumes(),
-    getFeaturedSessionVolume(),
+  const volumesPromise = getAllSessionVolumes();
+  const acceptedByVolumePromise = volumesPromise.then((volumes) =>
+    countAcceptedApplicationsByVolume(volumes.map((volume) => volume.id))
+  );
+  const [volumes, pageCopy, alumni, acceptedByVolume] = await Promise.all([
+    volumesPromise,
     getPageCopy(),
     getFeaturedAlumni().catch(() => []),
+    acceptedByVolumePromise,
   ]);
 
+  const featured =
+    volumes.find((volume) => volume.featured) ??
+    volumes.find((volume) => volume.status === "applications_open") ??
+    volumes[0] ??
+    null;
   const { poster, alt } = getHeroPosterFromVolumes(volumes);
-  const acceptedByVolume = await countAcceptedApplicationsByVolume(volumes.map((v) => v.id));
 
   let featuredCanApply = false;
   let spotsRemaining: number | null = null;
@@ -58,6 +65,7 @@ export default async function SessionsPage() {
     if (maxCapacity != null) {
       const accepted = acceptedByVolume.get(featured.id) ?? 0;
       spotsRemaining = Math.max(0, maxCapacity - accepted);
+      if (spotsRemaining === 0) featuredCanApply = false;
     }
   }
 
@@ -99,12 +107,12 @@ export default async function SessionsPage() {
         <FeaturedSpotlight volume={featured} canApply={featuredCanApply} spotsRemaining={spotsRemaining} />
       )}
 
+      <CinematicGallery items={gallery} />
+      <SessionsSocialProof stats={stats} />
       <ProductionTimeline />
       <WhyJoin />
-      <SessionsSocialProof stats={stats} />
       <SessionsAwards />
       <SessionsCommunity spotlights={alumni} />
-      <CinematicGallery items={gallery} />
 
       <SessionsFinalCTA
         volume={featured}

@@ -29,6 +29,12 @@ export function SessionCountdown({ deadline }: { deadline: string }) {
   if (!remaining) return null;
 
   return (
-    <p className="text-xs tracking-[0.12em] text-accent uppercase">{remaining}</p>
+    <p
+      className="text-xs tracking-[0.12em] text-accent uppercase"
+      role="status"
+      aria-live="polite"
+    >
+      {remaining}
+    </p>
   );
 }

@@ -26,7 +26,7 @@ export function WorkspaceButton({
   className?: string;
 }) {
   const styles = cn(
-    "inline-flex min-h-9 items-center justify-center rounded-lg px-3 py-2 text-[0.65rem] tracking-[0.1em] uppercase transition-colors disabled:opacity-40",
+    "inline-flex min-h-11 items-center justify-center rounded-lg px-3 py-2 text-[0.68rem] tracking-[0.1em] uppercase transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
     variant === "primary" &&
       "border border-accent/40 bg-accent/15 text-accent hover:bg-accent/25",
     variant === "secondary" &&
@@ -112,17 +112,17 @@ export function WorkspaceAIStrip({ className }: { className?: string }) {
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[0.55rem] tracking-[0.14em] text-accent uppercase">AI · Business Brain</p>
+          <p className="text-[0.65rem] tracking-[0.14em] text-accent uppercase">AI · Business Brain</p>
           {health && (
-            <span className="rounded-full border border-stone/30 px-1.5 py-0.5 text-[0.5rem] tracking-[0.08em] text-muted uppercase">
+            <span className="rounded-full border border-stone/30 px-1.5 py-0.5 text-[0.62rem] tracking-[0.08em] text-muted uppercase">
               Health {health.score} · {health.label}
             </span>
           )}
-          <span className="rounded-full border border-stone/30 px-1.5 py-0.5 text-[0.5rem] tracking-[0.08em] text-muted uppercase">
+          <span className="rounded-full border border-stone/30 px-1.5 py-0.5 text-[0.62rem] tracking-[0.08em] text-muted uppercase">
             Trust {context.trustScore}
           </span>
           {partial.length > 0 && (
-            <span className="rounded-full border border-amber-500/40 px-1.5 py-0.5 text-[0.5rem] tracking-[0.08em] text-amber-300 uppercase">
+            <span className="rounded-full border border-amber-500/40 px-1.5 py-0.5 text-[0.62rem] tracking-[0.08em] text-amber-300 uppercase">
               Partial · {partial.map((p) => p.source).join(", ")}
             </span>
           )}
@@ -289,7 +289,7 @@ export function WorkspaceChrome({
   extra,
   related,
   children,
-  showAI = true,
+  showAI = false,
 }: {
   eyebrow: string;
   title: string;

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { z } from "zod";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import {
   getVerificationQueue,
   getVerificationStats,
@@ -7,6 +9,15 @@ import {
   runAutoVerification,
 } from "@/lib/ai/memory/verification";
 import { invalidateIntelligenceCaches } from "@/lib/ai/cognitive/cache";
+
+const verificationSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("auto") }),
+  z.object({
+    action: z.literal("batch"),
+    memoryIds: z.array(z.string().min(1).max(100)).min(1).max(200),
+    status: z.enum(["verified", "trusted", "archived", "pending"]),
+  }),
+]);
 
 export async function GET() {
   try {
@@ -21,26 +32,25 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("admin");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = (await req.json()) as {
-    action?: "batch" | "auto";
-    memoryIds?: string[];
-    status?: "verified" | "trusted" | "archived" | "pending";
-  };
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:memory-verify");
+  if (blocked) return blocked;
+
+  const parsed = verificationSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid verification payload" }, { status: 400 });
+  }
+  const body = parsed.data;
 
   if (body.action === "auto") {
     const result = await runAutoVerification();
     await invalidateIntelligenceCaches();
     const stats = await getVerificationStats();
     return NextResponse.json({ ok: true, ...result, stats });
-  }
-
-  if (!body.memoryIds?.length || !body.status) {
-    return NextResponse.json({ error: "memoryIds and status required" }, { status: 400 });
   }
 
   const count = await setVerificationStatus(body.memoryIds, body.status, "admin", "Batch verification");

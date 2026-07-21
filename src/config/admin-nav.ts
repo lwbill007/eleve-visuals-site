@@ -20,7 +20,7 @@ const SYSTEM_ORDER: OsSystemId[] = ["command", "work", "create", "grow", "brain"
 
 export const ADMIN_NAV: AdminNavSection[] = SYSTEM_ORDER.map((system) => ({
   label: OS_SYSTEM_LABELS[system].label,
-  items: OS_PAGES.filter((p) => p.system === system).map((p) => ({
+  items: OS_PAGES.filter((p) => p.system === system && p.primary !== false).map((p) => ({
     label: p.label,
     href: p.href,
     desc: p.question,
@@ -37,20 +37,13 @@ export const ADMIN_QUICK_ACTIONS = [
 ];
 
 /** Live secondary workspaces — command palette only (not primary OS nav). */
-export const ADMIN_SECONDARY_NAV: AdminNavItem[] = [
-  { label: "Services", href: "/admin/services", desc: "Offerings CMS" },
-  { label: "Testimonials", href: "/admin/testimonials", desc: "Social proof CMS" },
-  { label: "Page Copy", href: "/admin/content", desc: "Global copy · FAQ" },
-  { label: "About", href: "/admin/about", desc: "About page CMS" },
-  { label: "Contact", href: "/admin/contact", desc: "Contact page CMS" },
-  { label: "Booking form", href: "/admin/booking", desc: "Booking form CMS" },
-  { label: "Forms hub", href: "/admin/forms", desc: "All intake forms" },
-  { label: "Sponsorship", href: "/admin/sponsorship", desc: "Sponsor metrics" },
-  { label: "Referrals hub", href: "/admin/referrals", desc: "Referral sources · CRM" },
-  { label: "Content studio", href: "/admin/content-hub", desc: "AI content drafts" },
-  { label: "Payments (legacy)", href: "/admin/payments", desc: "Redirects to Financial Center" },
-  { label: "AI Health (legacy)", href: "/admin/ai-health", desc: "Redirects to AI Operations" },
-];
+export const ADMIN_SECONDARY_NAV: AdminNavItem[] = OS_PAGES.filter(
+  (page) => page.primary === false
+).map((page) => ({
+  label: page.label,
+  href: page.href,
+  desc: page.purpose,
+}));
 
 export const ADMIN_COMMANDS = [
   ...ADMIN_NAV.flatMap((section) =>

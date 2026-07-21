@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 import { WHY_JOIN_PILLARS } from "@/lib/sessions-experience";
 import { SessionIcon } from "./SessionIcon";
 
@@ -9,13 +6,7 @@ export function WhyJoin() {
     <section className="section-padding border-b border-stone/30 bg-ink-soft">
       <div className="container-wide">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
-            className="lg:col-span-5"
-          >
+          <div className="lg:col-span-5">
             <p className="label-caps mb-4 text-accent">Why ÉLEVÉ</p>
             <div className="line-accent mb-6" />
             <h2 className="headline-lg text-balance">
@@ -31,18 +22,14 @@ export function WhyJoin() {
               You don&rsquo;t book a session. You&rsquo;re cast into one — and once you are, you
               belong to the archive for good.
             </p>
-          </motion.div>
+          </div>
 
           <div className="lg:col-span-7">
             <div className="grid gap-px overflow-hidden border border-stone/30 bg-stone/30 sm:grid-cols-2">
-              {WHY_JOIN_PILLARS.map((pillar, i) => (
-                <motion.div
+              {WHY_JOIN_PILLARS.map((pillar) => (
+                <div
                   key={pillar.title}
-                  initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.06 }}
-                  className="group bg-ink-soft p-7 transition-colors duration-500 hover:bg-charcoal/60"
+                  className="group bg-ink-soft p-7 transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-charcoal/60"
                 >
                   <SessionIcon
                     name={pillar.icon}
@@ -50,7 +37,7 @@ export function WhyJoin() {
                   />
                   <h3 className="mt-5 font-display text-xl text-cream">{pillar.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-fog">{pillar.description}</p>
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>

@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 import { PRODUCTION_TIMELINE } from "@/lib/sessions-experience";
 
 export function ProductionTimeline() {
@@ -18,23 +15,16 @@ export function ProductionTimeline() {
         </div>
 
         <div className="relative">
-          <div className="absolute top-8 right-0 left-0 hidden h-px bg-stone/30 lg:block" />
-          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] lg:grid lg:grid-cols-7 lg:gap-4 lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
-            {PRODUCTION_TIMELINE.map((stage, index) => (
-              <motion.div
+          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] lg:grid lg:grid-cols-4 lg:gap-px lg:overflow-hidden lg:bg-stone/30 lg:pb-0 [&::-webkit-scrollbar]:hidden">
+            {PRODUCTION_TIMELINE.map((stage) => (
+              <div
                 key={stage.step}
-                initial={{ opacity: 0, y: 26 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.07, ease: [0.16, 1, 0.3, 1] }}
-                className="w-[70%] shrink-0 snap-start xs:w-[55%] sm:w-[40%] md:w-[30%] lg:w-auto lg:min-w-0"
+                className="w-[70%] shrink-0 snap-start border-t border-stone/40 pt-5 xs:w-[55%] sm:w-[40%] md:w-[30%] lg:w-auto lg:min-w-0 lg:border-0 lg:bg-ink lg:p-7"
               >
-                <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full border border-accent/60 bg-ink text-xs text-accent">
-                  {index + 1}
-                </span>
+                <span className="text-[0.65rem] tracking-[0.2em] text-accent">{stage.step}</span>
                 <h3 className="mt-5 font-display text-lg text-cream">{stage.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-fog">{stage.description}</p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import type { SessionVolumeDTO } from "@/lib/types";
 import { resolveSessionPosterImage } from "@/lib/session-volume";
 import { SessionStatusBadge } from "./SessionStatusBadge";
@@ -11,9 +10,12 @@ export function VolumePosterCard({ volume, showTheme = false }: { volume: Sessio
   const poster = resolveSessionPosterImage(volume);
 
   return (
-    <motion.article whileHover={{ y: -8 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} className="group h-full">
-      <Link href={`/sessions/${volume.slug}`} className="block h-full">
-        <div className="relative aspect-[2/3] overflow-hidden bg-charcoal">
+    <article className="group h-full">
+      <Link
+        href={`/sessions/${volume.slug}`}
+        className="block h-full transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-2 focus-visible:-translate-y-2"
+      >
+        <div className="relative aspect-[2/3] overflow-hidden bg-charcoal ring-1 ring-cream/10 transition-[box-shadow] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:ring-accent/50 group-focus-within:ring-accent/50">
           {poster ? (
             <Image
               src={poster}
@@ -28,8 +30,6 @@ export function VolumePosterCard({ volume, showTheme = false }: { volume: Sessio
           )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/15 to-transparent opacity-90 transition-opacity duration-500 group-hover:opacity-100" />
-          <div className="absolute inset-0 ring-1 ring-inset ring-transparent transition-all duration-500 group-hover:ring-accent/40" />
-
           <div className="absolute top-3 left-3">
             <SessionStatusBadge status={volume.status} />
           </div>
@@ -42,16 +42,12 @@ export function VolumePosterCard({ volume, showTheme = false }: { volume: Sessio
             {showTheme && volume.theme && (
               <p className="mt-1 line-clamp-1 text-[0.65rem] tracking-[0.12em] text-fog uppercase">{volume.theme}</p>
             )}
-            <div className="grid grid-rows-[0fr] opacity-0 transition-all duration-500 group-hover:grid-rows-[1fr] group-hover:opacity-100">
-              <span className="overflow-hidden">
-                <span className="mt-2 block text-[0.6rem] tracking-[0.2em] text-cream-dim uppercase">
-                  View Volume →
-                </span>
-              </span>
-            </div>
+            <span className="mt-2 block text-[0.6rem] tracking-[0.2em] text-cream-dim uppercase">
+              View Volume →
+            </span>
           </div>
         </div>
       </Link>
-    </motion.article>
+    </article>
   );
 }

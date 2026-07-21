@@ -1,5 +1,3 @@
-"use client";
-
 import { GalleryMasonry } from "@/components/gallery/GalleryMasonry";
 import type { GalleryItem } from "@/components/gallery/types";
 

@@ -1,27 +1,34 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { z } from "zod";
+import { requireMinimumRole } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { completeMission } from "@/lib/ai/executive/mission-control";
 import { invalidateIntelligenceCaches } from "@/lib/ai/cognitive/cache";
 
+const missionSchema = z.object({
+  missionId: z.string().min(1).max(200),
+  title: z.string().min(1).max(500),
+  worked: z.boolean(),
+  revenueImpact: z.number().finite().min(-100_000_000).max(100_000_000).optional(),
+  bookingsImpact: z.number().int().min(-100_000).max(100_000).optional(),
+  notes: z.string().max(5000).optional(),
+});
+
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("operator");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = (await req.json()) as {
-    missionId: string;
-    title: string;
-    worked: boolean;
-    revenueImpact?: number;
-    bookingsImpact?: number;
-    notes?: string;
-  };
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:mission-complete");
+  if (blocked) return blocked;
 
-  if (!body.missionId || !body.title) {
-    return NextResponse.json({ error: "missionId and title required" }, { status: 400 });
+  const parsed = missionSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid mission payload" }, { status: 400 });
   }
+  const body = parsed.data;
 
   const result = await completeMission(body);
   const { emitBusinessEvent } = await import("@/lib/ai/platform/business-events");

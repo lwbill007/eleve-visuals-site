@@ -3,6 +3,7 @@ import { getAdminCRMContacts } from "@/lib/admin-os-server";
 import { generateAIContent } from "../service";
 import { setAIMemory } from "../memory";
 import type { CRMContactIntelligence } from "../types";
+import { bookingDetailHref } from "@/lib/admin-operations";
 
 function parseSubmissionData(raw: string): Record<string, unknown> {
   try {
@@ -51,6 +52,8 @@ export async function getCRMContactIntelligence(email: string): Promise<CRMConta
       href:
         s.type === "session"
           ? `/admin/applications?focus=${s.id}`
+          : s.type === "booking"
+            ? bookingDetailHref(s.id)
           : `/admin/submissions?type=${s.type}&focus=${s.id}`,
     };
   });

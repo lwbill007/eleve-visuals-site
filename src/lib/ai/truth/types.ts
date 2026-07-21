@@ -63,7 +63,13 @@ export interface ProductionReadinessReport {
   generatedAt: string;
   overallScore: number;
   database: { score: number; status: string; detail: string };
-  apis: { score: number; passed: number; total: number; failures: string[] };
+  apis: {
+    status: "executed" | "not_run";
+    score: number | null;
+    passed: number;
+    total: number;
+    failures: string[];
+  };
   memory: { score: number; verifiedPct: number; pending: number; trusted: number };
   graph: GraphHealth;
   performance: { slowEndpoints: { path: string; ms: number }[] };

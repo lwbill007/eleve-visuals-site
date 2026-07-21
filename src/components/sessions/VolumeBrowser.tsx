@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
 import type { SessionVolumeDTO } from "@/lib/types";
 import { VOLUME_CATEGORIES } from "@/lib/sessions-experience";
 import { VolumePosterCard } from "./VolumePosterCard";
@@ -23,18 +22,26 @@ function Rail({ group }: { group: Group }) {
   }
 
   return (
-    <div className="mb-14 last:mb-0">
+    <div className="mb-14 last:mb-0" aria-labelledby={`volume-rail-${group.id}`}>
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <h3 className="font-display text-2xl text-cream md:text-3xl">{group.label}</h3>
+          <div className="flex items-baseline gap-3">
+            <h3 id={`volume-rail-${group.id}`} className="font-display text-2xl text-cream md:text-3xl">
+              {group.label}
+            </h3>
+            <span className="text-[0.6rem] tracking-[0.18em] text-muted uppercase">
+              {group.items.length} {group.items.length === 1 ? "volume" : "volumes"}
+            </span>
+          </div>
           <p className="mt-1 text-xs tracking-wide text-fog">{group.blurb}</p>
         </div>
-        <div className="hidden gap-2 md:flex">
+        {group.items.length > 4 ? (
+          <div className="hidden gap-2 md:flex">
           <button
             type="button"
             onClick={() => scrollBy(-1)}
             aria-label={`Scroll ${group.label} left`}
-            className="flex h-10 w-10 items-center justify-center border border-stone/50 text-fog transition-colors hover:border-cream/40 hover:text-cream"
+            className="flex h-11 w-11 items-center justify-center border border-stone/50 text-fog transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-cream/40 hover:text-cream"
           >
             ‹
           </button>
@@ -42,15 +49,18 @@ function Rail({ group }: { group: Group }) {
             type="button"
             onClick={() => scrollBy(1)}
             aria-label={`Scroll ${group.label} right`}
-            className="flex h-10 w-10 items-center justify-center border border-stone/50 text-fog transition-colors hover:border-cream/40 hover:text-cream"
+            className="flex h-11 w-11 items-center justify-center border border-stone/50 text-fog transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-cream/40 hover:text-cream"
           >
             ›
           </button>
-        </div>
+          </div>
+        ) : null}
       </div>
 
       <div
         ref={scroller}
+        aria-label={`${group.label} volumes`}
+        tabIndex={0}
         className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:-mx-8 md:px-8 lg:-mx-12 lg:px-12 [&::-webkit-scrollbar]:hidden"
       >
         {group.items.map((v) => (
@@ -95,20 +105,27 @@ export function VolumeBrowser({ volumes }: { volumes: SessionVolumeDTO[] }) {
   const activeGroup = groups.find((g) => g.id === active);
 
   return (
-    <section id="browse" className="section-padding overflow-hidden border-b border-stone/30">
+    <section id="browse" className="scroll-mt-20 overflow-hidden border-b border-stone/30 py-20 md:py-28">
       <div className="container-wide">
-        <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="label-caps mb-3 text-accent">The Collection</p>
-            <h2 className="headline-lg">Browse the Volumes</h2>
+        <div className="mb-12 grid gap-7 border-t border-stone/50 pt-5 md:grid-cols-12 md:items-end">
+          <div className="md:col-span-7">
+            <p className="label-caps mb-4 text-accent">Now streaming at ÉLEVÉ</p>
+            <h2 className="font-display text-[clamp(3rem,6vw,6.5rem)] leading-[0.9] tracking-[-0.04em]">
+              Choose your Volume.
+            </h2>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div
+            className="flex flex-wrap gap-2 md:col-span-5 md:justify-end"
+            role="group"
+            aria-label="Filter session volumes"
+          >
             {tabs.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setActive(t.id)}
-                className={`inline-flex min-h-11 items-center border px-4 py-2 text-[0.65rem] tracking-[0.18em] uppercase transition-colors duration-300 ${
+                aria-pressed={active === t.id}
+                className={`inline-flex min-h-11 items-center border px-4 py-2 text-[0.65rem] tracking-[0.18em] uppercase transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                   active === t.id
                     ? "border-accent bg-accent/10 text-accent"
                     : "border-stone/50 text-fog hover:border-cream/40 hover:text-cream"
@@ -120,25 +137,25 @@ export function VolumeBrowser({ volumes }: { volumes: SessionVolumeDTO[] }) {
           </div>
         </div>
 
-        {active === "all" ? (
+        <div
+          id="volume-browser-panel"
+          aria-live="polite"
+          aria-label={active === "all" ? "All session volumes" : activeGroup?.label}
+        >
+          {active === "all" ? (
           <div>
             {groups.map((g) => (
               <Rail key={g.id} group={g} />
             ))}
           </div>
         ) : activeGroup ? (
-          <motion.div
-            key={activeGroup.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-5"
-          >
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-5">
             {activeGroup.items.map((v) => (
               <VolumePosterCard key={v.id} volume={v} />
             ))}
-          </motion.div>
+          </div>
         ) : null}
+        </div>
       </div>
     </section>
   );

@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 import { AWARD_CATEGORIES } from "@/lib/sessions-experience";
 import { SessionIcon } from "./SessionIcon";
 
@@ -18,22 +15,19 @@ export function SessionsAwards() {
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-px bg-stone/30 sm:grid-cols-2 lg:grid-cols-12">
           {AWARD_CATEGORIES.map((award, i) => (
-            <motion.div
+            <div
               key={award.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.55, delay: (i % 3) * 0.08 }}
-              whileHover={{ y: -6 }}
-              className="group relative overflow-hidden border border-stone/40 bg-charcoal/30 p-8 transition-colors duration-500 hover:border-accent/50"
+              className={`group relative overflow-hidden bg-ink p-8 transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-charcoal/60 ${
+                i < 2 ? "lg:col-span-6" : "lg:col-span-3"
+              }`}
             >
               <div className="pointer-events-none absolute -top-10 -right-10 h-24 w-24 rounded-full bg-accent/10 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
               <SessionIcon name={award.icon} className="h-8 w-8 text-accent" />
               <h3 className="mt-6 font-display text-2xl text-cream">{award.title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-fog">{award.description}</p>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

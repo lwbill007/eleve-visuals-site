@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TracedMetric, TruthStatus } from "@/lib/ai/truth/types";
 import { TRUTH_STATUS_LABELS } from "@/lib/ai/truth/types";
 import { cn } from "@/lib/utils";
@@ -21,19 +21,70 @@ export function MetricExplainPanel({
   label?: string;
   onClose?: () => void;
 }) {
-  const [open, setOpen] = useState(true);
-  if (!open) return null;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => onClose?.(), [onClose]);
+
+  useEffect(() => {
+    const returnFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        close();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      returnFocus?.focus();
+    };
+  }, [close]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-4 sm:items-center" onClick={() => { setOpen(false); onClose?.(); }}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-4 sm:items-center"
+      onClick={close}
+    >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-stone/25 bg-charcoal p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="Why am I seeing this?"
+        aria-modal="true"
+        aria-labelledby="metric-explain-title"
       >
         <p className="text-[0.6rem] tracking-[0.14em] text-accent uppercase">Why am I seeing this?</p>
-        <h3 className="mt-1 font-display text-xl text-cream">{label ?? metric.label ?? String(metric.value)}</h3>
+        <h3 id="metric-explain-title" className="mt-1 font-display text-xl text-cream">
+          {label ?? metric.label ?? String(metric.value)}
+        </h3>
         <p className="mt-2 font-display text-3xl text-cream">{metric.value}</p>
 
         <span className={cn("mt-3 inline-block rounded-full border px-2 py-0.5 text-[0.55rem] uppercase", STATUS_STYLES[metric.status])}>
@@ -90,9 +141,10 @@ export function MetricExplainPanel({
         </dl>
 
         <button
+          ref={closeRef}
           type="button"
-          onClick={() => { setOpen(false); onClose?.(); }}
-          className="mt-5 w-full rounded-lg border border-stone/30 py-2 text-xs text-fog uppercase hover:border-accent"
+          onClick={close}
+          className="mt-5 min-h-11 w-full rounded-lg border border-stone/30 py-2 text-xs text-fog uppercase hover:border-accent"
         >
           Close
         </button>

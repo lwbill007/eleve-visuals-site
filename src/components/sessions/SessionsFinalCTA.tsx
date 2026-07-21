@@ -1,7 +1,4 @@
-"use client";
-
 import Image from "next/image";
-import { motion } from "framer-motion";
 import type { SessionVolumeDTO } from "@/lib/types";
 import { resolveSessionPosterImage } from "@/lib/session-volume";
 import { Button } from "@/components/ui/Button";
@@ -32,23 +29,18 @@ export function SessionsFinalCTA({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(184,168,138,0.12),transparent_60%)]" />
 
       <div className="relative section-padding py-28 md:py-40">
-        <motion.div
-          initial={{ opacity: 0, y: 28 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          className="container-narrow text-center"
-        >
-          <p className="label-caps mb-6 text-accent">The Invitation</p>
-          <h2 className="font-display text-4xl leading-[1.05] text-balance text-cream md:text-6xl">
+        <div className="container-wide">
+          <div className="max-w-5xl border-t border-cream/20 pt-6">
+          <p className="label-caps mb-6 text-accent">The next casting call</p>
+          <h2 className="font-display text-[clamp(3.4rem,7vw,7.5rem)] leading-[0.9] tracking-[-0.045em] text-balance text-cream">
             Every creative has a moment where everything changes.
             <span className="block text-accent">This could be yours.</span>
           </h2>
-          <p className="body-lg mx-auto mt-7 max-w-xl">
+          <p className="body-lg mt-7 max-w-xl">
             The cast is curated. The spots are limited. If you&rsquo;ve been waiting for a reason to
             create something that lasts — this is it.
           </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row">
             {showApply ? (
               <>
                 <Button variant="primary" size="lg" href={`/sessions/${volume!.slug}/apply`}>
@@ -64,7 +56,8 @@ export function SessionsFinalCTA({
               </Button>
             )}
           </div>
-        </motion.div>
+          </div>
+        </div>
       </div>
     </section>
   );

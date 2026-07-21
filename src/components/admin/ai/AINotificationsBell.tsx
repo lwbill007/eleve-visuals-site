@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { AdminOverlay } from "@/components/admin/os/AdminOverlay";
 import { adminFetch } from "@/lib/admin-fetch";
 import { cn } from "@/lib/utils";
 
@@ -21,36 +22,43 @@ export function AINotificationsBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AINotificationRow[]>([]);
 
-  function load() {
-    adminFetch("/api/admin/ai/notifications?unread=1")
-      .then((r) => r.json())
-      .then((d) => setItems(d.notifications ?? []));
-  }
+  const load = useCallback(async () => {
+    try {
+      const response = await adminFetch("/api/admin/ai/notifications?unread=1");
+      if (!response.ok) return;
+      const data = await response.json();
+      setItems(data.notifications ?? []);
+    } catch {
+      // Preserve the last known notification state during a transient failure.
+    }
+  }, []);
 
   useEffect(() => {
     load();
     const t = setInterval(load, 5 * 60 * 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [load]);
 
   async function markRead(id: string) {
-    await adminFetch(`/api/admin/ai/notifications/${id}`, {
+    const response = await adminFetch(`/api/admin/ai/notifications/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "read" }),
     });
-    load();
+    if (response.ok) await load();
   }
 
   const unread = items.filter((i) => !i.read).length;
 
   return (
-    <div className="relative">
+    <>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-stone/30 text-fog transition-colors hover:border-accent/40 hover:text-cream"
+        className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-stone/30 text-fog transition-colors hover:border-accent/40 hover:text-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
         aria-label="AI notifications"
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
         ✦
         {unread > 0 && (
@@ -60,13 +68,26 @@ export function AINotificationsBell() {
         )}
       </button>
 
-      {open && (
-        <>
-          <button type="button" className="fixed inset-0 z-40" aria-label="Close" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-stone/30 bg-charcoal shadow-2xl">
-            <div className="border-b border-stone/20 px-4 py-3">
+      <AdminOverlay
+        open={open}
+        onClose={() => setOpen(false)}
+        title="AI alerts"
+        description="Unread operational notifications."
+        className="max-w-sm"
+      >
+            <div className="flex items-center justify-between border-b border-stone/20 px-4 py-3">
+              <div>
               <p className="text-xs tracking-[0.14em] text-accent uppercase">AI Alerts</p>
               <p className="text-[0.65rem] text-muted">Only when something matters</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close alerts"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-fog hover:bg-ink/40 hover:text-cream"
+              >
+                ×
+              </button>
             </div>
             <ul className="max-h-80 overflow-y-auto p-2">
               {items.length === 0 ? (
@@ -76,7 +97,10 @@ export function AINotificationsBell() {
                   <li key={item.id} className="mb-1">
                     <Link
                       href={item.href || "/admin/insights"}
-                      onClick={() => markRead(item.id)}
+                      onClick={() => {
+                        setOpen(false);
+                        void markRead(item.id);
+                      }}
                       className={cn(
                         "block rounded-lg px-3 py-2.5 transition-colors hover:bg-stone/20",
                         item.severity === "high" && "border-l-2 border-red-500/50"
@@ -90,9 +114,7 @@ export function AINotificationsBell() {
                 ))
               )}
             </ul>
-          </div>
-        </>
-      )}
-    </div>
+      </AdminOverlay>
+    </>
   );
 }

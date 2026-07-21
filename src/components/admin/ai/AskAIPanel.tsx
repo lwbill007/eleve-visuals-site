@@ -1,18 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AdminOverlay } from "@/components/admin/os/AdminOverlay";
 import { adminFetch } from "@/lib/admin-fetch";
+import { parseContextStreamPayload } from "@/lib/ai/context-stream";
+import type { AIWorkflowMode } from "@/lib/ai/prompts/workflows";
 import { PAGE_AI_PROMPTS } from "@/lib/ai/types";
 import { useAIContext } from "./AIContextProvider";
 import { cn } from "@/lib/utils";
+
+const STANDARD_WORKFLOW: { mode: AIWorkflowMode; label: string } = {
+  mode: "standard",
+  label: "Standard",
+};
 
 export function AskAIPanel() {
   const { context, panelOpen, closePanel } = useAIContext();
   const [input, setInput] = useState("");
   const [response, setResponse] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [workflow, setWorkflow] = useState(STANDARD_WORKFLOW);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const pageConfig = PAGE_AI_PROMPTS[context.page] || PAGE_AI_PROMPTS.general;
 
@@ -24,6 +33,7 @@ export function AskAIPanel() {
     if (!panelOpen) {
       setResponse("");
       setInput("");
+      setWorkflow(STANDARD_WORKFLOW);
     }
   }, [panelOpen]);
 
@@ -31,6 +41,7 @@ export function AskAIPanel() {
     if (!text.trim() || streaming) return;
     setStreaming(true);
     setResponse("");
+    setWorkflow(STANDARD_WORKFLOW);
 
     try {
       const res = await adminFetch("/api/admin/ai/context", {
@@ -44,25 +55,41 @@ export function AskAIPanel() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let accumulated = "";
+      let buffer = "";
+
+      const consumeLine = (line: string) => {
+        if (!line.startsWith("data: ")) return;
+        const payload = line.slice(6).trim();
+        if (payload === "[DONE]") return;
+        try {
+          const event = parseContextStreamPayload(JSON.parse(payload));
+          if (event?.type === "mode") {
+            setWorkflow({ mode: event.mode, label: event.label });
+          } else if (event?.type === "text") {
+            accumulated += event.text;
+            setResponse(accumulated);
+          } else if (event?.type === "error") {
+            setResponse(
+              accumulated
+                ? `${accumulated}\n\nAI response interrupted. Please try again.`
+                : "AI response interrupted. Please try again."
+            );
+          }
+        } catch {
+          // A malformed event must not discard valid events that follow it.
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        for (const line of decoder.decode(value).split("\n")) {
-          if (!line.startsWith("data: ")) continue;
-          const payload = line.slice(6).trim();
-          if (payload === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(payload) as { text?: string };
-            if (parsed.text) {
-              accumulated += parsed.text;
-              setResponse(accumulated);
-            }
-          } catch {
-            /* skip */
-          }
-        }
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        lines.forEach(consumeLine);
       }
+      buffer += decoder.decode();
+      if (buffer) consumeLine(buffer);
     } catch {
       setResponse("Something went wrong. Check AI configuration or try again.");
     } finally {
@@ -71,33 +98,26 @@ export function AskAIPanel() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {panelOpen ? (
-        <>
-          <motion.button
-            key="ai-backdrop"
-            type="button"
-            aria-label="Close AI panel"
-            className="fixed inset-0 z-[250] bg-ink/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={closePanel}
-          />
-          <motion.aside
-            key="ai-panel"
-            className="fixed inset-y-0 right-0 z-[260] flex w-full max-w-md flex-col border-l border-stone/25 bg-charcoal shadow-2xl"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 320 }}
-          >
+    <AdminOverlay
+      open={panelOpen}
+      onClose={closePanel}
+      title="Ask ÉLEVÉ AI"
+      description={`${pageConfig.label} workspace context`}
+      variant="sheet"
+      className="flex flex-col"
+      initialFocusRef={inputRef}
+    >
             <div className="flex items-center justify-between border-b border-stone/20 px-5 py-4">
               <div>
                 <p className="label-caps text-accent">Ask ÉLEVÉ AI</p>
                 <p className="text-xs text-muted">{pageConfig.label} context</p>
               </div>
-              <button type="button" onClick={closePanel} className="text-fog hover:text-cream">
+              <button
+                type="button"
+                onClick={closePanel}
+                aria-label="Close AI panel"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-fog hover:bg-ink/40 hover:text-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+              >
                 ✕
               </button>
             </div>
@@ -121,6 +141,14 @@ export function AskAIPanel() {
 
               {(response || streaming) && (
                 <div className="mt-5 rounded-xl border border-stone/20 bg-ink/50 p-4">
+                  {workflow.mode !== "standard" ? (
+                    <div
+                      className="mb-3 inline-flex rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[0.58rem] tracking-[0.12em] text-accent uppercase"
+                      role="status"
+                    >
+                      {workflow.label} · Draft only
+                    </div>
+                  ) : null}
                   {streaming && !response && (
                     <p className="text-sm text-fog animate-pulse">Analyzing with page context…</p>
                   )}
@@ -139,6 +167,7 @@ export function AskAIPanel() {
             >
               <div className="flex gap-2">
                 <input
+                  ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={`Ask about ${pageConfig.label.toLowerCase()}…`}
@@ -158,10 +187,7 @@ export function AskAIPanel() {
               </div>
               <p className="mt-2 text-[0.65rem] text-muted">Drafts require review before sending.</p>
             </form>
-          </motion.aside>
-        </>
-      ) : null}
-    </AnimatePresence>
+    </AdminOverlay>
   );
 }
 
@@ -172,7 +198,7 @@ export function AskAIButton({ className }: { className?: string }) {
       type="button"
       onClick={openPanel}
       className={cn(
-        "inline-flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs tracking-[0.1em] text-accent uppercase transition-colors hover:border-accent/50 hover:bg-accent/10",
+        "inline-flex min-h-11 items-center gap-2 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs tracking-[0.1em] text-accent uppercase transition-colors hover:border-accent/50 hover:bg-accent/10",
         className
       )}
     >

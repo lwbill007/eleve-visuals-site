@@ -398,6 +398,7 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
   return {
     content: "",
     finishReason: "error",
+    error: lastError || "No OpenRouter model returned a usable completion",
     provider: "openrouter",
     model: models[0]?.id ?? "",
     attempts: totalAttempts,

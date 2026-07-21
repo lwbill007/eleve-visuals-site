@@ -210,7 +210,9 @@ export async function completeMission(input: {
     detail:
       input.notes ??
       (input.worked
-        ? `Mission completed — revenue impact ~$${input.revenueImpact ?? 0}, bookings +${input.bookingsImpact ?? 0}`
+        ? input.revenueImpact != null || input.bookingsImpact != null
+          ? `Mission completed — reported revenue impact ${input.revenueImpact != null ? `$${input.revenueImpact}` : "not provided"}, bookings ${input.bookingsImpact != null ? `+${input.bookingsImpact}` : "not provided"}`
+          : "Mission completed; outcome metrics were not provided."
         : "Mission completed without measurable lift — confidence reduced for similar recommendations"),
     revenueImpact: input.revenueImpact,
   });
@@ -239,15 +241,25 @@ export async function completeMission(input: {
       notes: input.notes,
       accuracy: outcome.accuracy,
     },
-    confidence: input.worked ? 0.9 : 0.4,
+    confidence: outcome.accuracy ?? 0,
     importance: 85,
     source: "user",
     sourceRef: input.missionId,
-    verified: true,
-    tags: ["mission", "executive-os", input.worked ? "success" : "failure", "learning"],
+    verified: false,
+    tags: [
+      "mission",
+      "executive-os",
+      "operator-reported",
+      input.worked ? "success" : "failure",
+      "learning",
+    ],
     actor: "mission-control",
-    reason: "Mission completion tracked for learning loop",
+    reason: "Operator-reported mission completion; independent outcome verification is pending",
   });
 
-  return { ok: true, lesson: outcome.lesson || lesson.lesson, accuracy: outcome.accuracy };
+  return {
+    ok: true,
+    lesson: outcome.lesson || lesson.lesson,
+    accuracy: outcome.accuracy ?? undefined,
+  };
 }

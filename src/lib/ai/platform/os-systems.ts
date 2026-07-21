@@ -3,6 +3,8 @@
  * Nav + chrome should reference this registry; do not invent parallel IA.
  */
 
+import type { AIPageContext } from "@/lib/ai/types";
+
 export type OsSystemId = "command" | "work" | "create" | "grow" | "brain" | "trust";
 
 export interface OsPageSpec {
@@ -13,6 +15,12 @@ export interface OsPageSpec {
   /** One business question this page answers. */
   question: string;
   purpose: string;
+  /** False keeps specialist workspaces searchable without crowding primary navigation. */
+  primary?: boolean;
+  aliases?: string[];
+  aiContext?: AIPageContext;
+  nestedAIContext?: AIPageContext;
+  permission?: "admin";
 }
 
 export const OS_SYSTEM_LABELS: Record<OsSystemId, { label: string; mission: string }> = {
@@ -49,6 +57,7 @@ export const OS_PAGES: OsPageSpec[] = [
     href: "/admin/opportunities",
     question: "How do we grow?",
     purpose: "Evidence-backed growth actions with outcome learning.",
+    aliases: ["/admin/insights"],
   },
   {
     id: "risks",
@@ -90,6 +99,7 @@ export const OS_PAGES: OsPageSpec[] = [
     href: "/admin/submissions?type=booking",
     question: "What does this booking need next?",
     purpose: "One booking record — timeline through files.",
+    aliases: ["/admin/bookings"],
   },
   {
     id: "clients",
@@ -98,6 +108,7 @@ export const OS_PAGES: OsPageSpec[] = [
     href: "/admin/crm",
     question: "Who is this customer?",
     purpose: "Complete customer record — never search multiple pages.",
+    nestedAIContext: "crm_profile",
   },
   {
     id: "inbox",
@@ -205,6 +216,7 @@ export const OS_PAGES: OsPageSpec[] = [
     href: "/admin/memory",
     question: "What have we learned?",
     purpose: "Rules, decisions, patterns, confidence, learning.",
+    aliases: ["/admin/intelligence", "/admin/assistant"],
   },
   {
     id: "research",
@@ -279,7 +291,197 @@ export const OS_PAGES: OsPageSpec[] = [
     question: "How is the OS configured?",
     purpose: "Clear domains — org, brand, AI, security, billing.",
   },
+  {
+    id: "services",
+    system: "create",
+    label: "Services",
+    href: "/admin/services",
+    question: "What can clients book?",
+    purpose: "Offerings CMS.",
+    primary: false,
+  },
+  {
+    id: "testimonials",
+    system: "create",
+    label: "Testimonials",
+    href: "/admin/testimonials",
+    question: "Which proof should the site show?",
+    purpose: "Social proof CMS.",
+    primary: false,
+  },
+  {
+    id: "content",
+    system: "create",
+    label: "Page Copy",
+    href: "/admin/content",
+    question: "What shared copy is published?",
+    purpose: "Global copy and FAQ.",
+    primary: false,
+  },
+  {
+    id: "about",
+    system: "create",
+    label: "About",
+    href: "/admin/about",
+    question: "How does the brand introduce itself?",
+    purpose: "About page CMS.",
+    primary: false,
+  },
+  {
+    id: "contact",
+    system: "create",
+    label: "Contact",
+    href: "/admin/contact",
+    question: "How can clients make contact?",
+    purpose: "Contact page CMS.",
+    primary: false,
+  },
+  {
+    id: "booking-form",
+    system: "create",
+    label: "Booking form",
+    href: "/admin/booking",
+    question: "What does booking intake ask?",
+    purpose: "Canonical booking form CMS.",
+    primary: false,
+  },
+  {
+    id: "forms",
+    system: "work",
+    label: "Forms hub",
+    href: "/admin/forms",
+    question: "Which intake forms are active?",
+    purpose: "All intake forms.",
+    primary: false,
+  },
+  {
+    id: "sponsorship",
+    system: "grow",
+    label: "Sponsorship",
+    href: "/admin/sponsorship",
+    question: "What sponsorship activity is measured?",
+    purpose: "Sponsor metrics.",
+    primary: false,
+    aiContext: "sponsorship",
+  },
+  {
+    id: "referrals",
+    system: "grow",
+    label: "Lead sources",
+    href: "/admin/referrals",
+    question: "Which measured sources refer clients?",
+    purpose: "Self-reported source attribution · CRM.",
+    primary: false,
+  },
+  {
+    id: "content-hub",
+    system: "grow",
+    label: "Content studio",
+    href: "/admin/content-hub",
+    question: "Which content drafts need review?",
+    purpose: "AI-assisted content drafts.",
+    primary: false,
+  },
+  {
+    id: "payments-legacy",
+    system: "trust",
+    label: "Payments (legacy)",
+    href: "/admin/payments",
+    question: "Where is settled payment truth?",
+    purpose: "Redirects to Financial Center.",
+    primary: false,
+  },
+  {
+    id: "ai-health-legacy",
+    system: "trust",
+    label: "AI Health (legacy)",
+    href: "/admin/ai-health",
+    question: "Is the AI trustworthy?",
+    purpose: "Redirects to AI Operations.",
+    primary: false,
+  },
 ];
+
+const AI_CONTEXT_BY_PAGE: Partial<Record<string, AIPageContext>> = {
+  home: "dashboard",
+  briefing: "assistant",
+  opportunities: "opportunities",
+  risks: "risks",
+  leaks: "intelligence",
+  workboard: "pipeline",
+  pipeline: "pipeline",
+  bookings: "bookings",
+  clients: "crm",
+  inbox: "general",
+  sessions: "sessions",
+  volumes: "sessions",
+  applications: "applications",
+  portfolio: "portfolio",
+  media: "portfolio",
+  marketing: "marketing",
+  email: "email",
+  analytics: "analytics",
+  website: "analytics",
+  homepage: "analytics",
+  reports: "reports",
+  memory: "memory",
+  research: "insights",
+  timeline: "intelligence",
+  "booking-intelligence": "bookings",
+  qa: "general",
+  financial: "intelligence",
+  automations: "automations",
+  "ai-operations": "intelligence",
+  notifications: "general",
+  settings: "general",
+};
+
+export function matchesOsPage(
+  page: OsPageSpec,
+  pathname: string,
+  search: string
+): boolean {
+  const candidates = [page.href, ...(page.aliases ?? [])];
+  return candidates.some((candidate) => {
+    const [pathPart, queryPart] = candidate.split("?");
+    const pathMatch =
+      pathPart === "/admin"
+        ? pathname === "/admin"
+        : pathname === pathPart || pathname.startsWith(`${pathPart}/`);
+    if (!pathMatch) return false;
+    if (!queryPart) return true;
+    const required = new URLSearchParams(queryPart);
+    const current = new URLSearchParams(search);
+    return Array.from(required.entries()).every(([key, value]) => current.get(key) === value);
+  });
+}
+
+export function resolveOsPage(pathname: string, search = ""): OsPageSpec | undefined {
+  const matches = OS_PAGES.filter((page) => matchesOsPage(page, pathname, search));
+  return matches.toSorted((a, b) => {
+    const aQuery = a.href.includes("?") ? 1 : 0;
+    const bQuery = b.href.includes("?") ? 1 : 0;
+    if (aQuery !== bQuery) return bQuery - aQuery;
+    return b.href.split("?")[0].length - a.href.split("?")[0].length;
+  })[0];
+}
+
+export function osAIContext(
+  page: OsPageSpec | undefined,
+  pathname?: string
+): AIPageContext {
+  if (!page) return "general";
+  const basePath = page.href.split("?")[0];
+  if (
+    page.nestedAIContext &&
+    pathname &&
+    pathname !== basePath &&
+    pathname.startsWith(`${basePath}/`)
+  ) {
+    return page.nestedAIContext;
+  }
+  return page.aiContext ?? AI_CONTEXT_BY_PAGE[page.id] ?? "general";
+}
 
 export function osPage(id: string): OsPageSpec | undefined {
   return OS_PAGES.find((p) => p.id === id);

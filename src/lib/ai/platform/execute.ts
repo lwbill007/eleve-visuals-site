@@ -34,6 +34,7 @@ export interface ExecuteRequest {
 export interface ExecuteResult {
   ok: boolean;
   kind: ExecuteKind;
+  executionStatus?: "opened" | "executed" | "failed";
   message: string;
   href?: string;
   affected?: number;
@@ -75,42 +76,66 @@ async function journal(input: ExecuteRequest, kind: ExecuteKind) {
 
 export async function executeRecommendation(input: ExecuteRequest): Promise<ExecuteResult> {
   const kind = inferKind(input);
-  const decision = await journal(input, kind);
-  const decisionId = decision?.id;
 
   switch (kind) {
     case "mark_booking_contacted": {
       if (!input.submissionId) {
-        return { ok: false, kind, message: "Missing submission id.", href: input.href, decisionId };
+        return {
+          ok: false,
+          kind,
+          executionStatus: "failed",
+          message: "Missing submission id.",
+          href: input.href,
+        };
       }
       const existing = await prisma.submission.findUnique({ where: { id: input.submissionId } });
       if (!existing || existing.type !== "booking") {
         return {
           ok: false,
           kind,
+          executionStatus: "failed",
           message: "Booking not found.",
           href: "/admin/submissions?type=booking",
-          decisionId,
         };
       }
-      await prisma.submission.update({
-        where: { id: input.submissionId },
-        data: { status: "discovery", read: true },
+      await prisma.$transaction(async (tx) => {
+        await tx.submission.update({
+          where: { id: input.submissionId },
+          data: { status: "discovery", read: true },
+        });
+        await tx.activityLog.create({
+          data: {
+            actor: "admin",
+            action: "booking_stage_changed",
+            target: input.submissionId,
+            details: `${existing.status} → discovery · recommendation ${input.recommendationId}`,
+          },
+        });
       });
+      const serverTitle = `Advance booking ${existing.id} to Consultation`;
+      const decision = await journal(
+        {
+          ...input,
+          title: serverTitle,
+          evidence: [`Booking ${existing.id} was in ${existing.status}`],
+          expectedRevenue: undefined,
+        },
+        kind
+      );
       await completeMission({
         missionId: input.recommendationId,
-        title: input.title ?? "Advanced booking to Discovery",
+        title: serverTitle,
         worked: true,
-        revenueImpact: input.expectedRevenue,
         notes: `Executed mark_booking_contacted → discovery on ${input.submissionId}`,
-      });
+      }).catch((error) => console.error("[execute] mission follow-up", error));
       return {
         ok: true,
         kind,
+        executionStatus: "executed",
         message: "Advanced to Discovery · Decision recorded. Reply to the client next.",
         href: `/admin/submissions?type=booking&focus=${input.submissionId}`,
         affected: 1,
-        decisionId,
+        decisionId: decision?.id,
       };
     }
 
@@ -127,29 +152,57 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
       });
       const toTouch = stale.filter((s) => s.status === "new" || s.status === "lead");
       if (toTouch.length === 0) {
+        const decision = await journal(
+          {
+            ...input,
+            title: "Review stale booking inquiries",
+            evidence: [`${stale.length} stale inquiries found; none required a stage change`],
+            expectedRevenue: undefined,
+          },
+          kind
+        );
         return {
           ok: true,
           kind,
+          executionStatus: "opened",
           message:
             stale.length > 0
               ? "Stale leads already in Discovery — open inbox to reply. Decision recorded."
               : "No stale bookings found. Decision recorded.",
           href: "/admin/submissions?type=booking",
           affected: 0,
-          decisionId,
+          decisionId: decision?.id,
         };
       }
-      await prisma.submission.updateMany({
-        where: { id: { in: toTouch.map((s) => s.id) } },
-        data: { status: "discovery", read: true },
+      await prisma.$transaction(async (tx) => {
+        await tx.submission.updateMany({
+          where: { id: { in: toTouch.map((s) => s.id) } },
+          data: { status: "discovery", read: true },
+        });
+        await tx.activityLog.create({
+          data: {
+            actor: "admin",
+            action: "booking_stage_changed_batch",
+            target: "stale-bookings",
+            details: `${toTouch.length} lead(s) → discovery · recommendation ${input.recommendationId}`,
+          },
+        });
       });
+      const decision = await journal(
+        {
+          ...input,
+          title: "Advance stale booking leads to Consultation",
+          evidence: [`${toTouch.length} server-selected stale leads advanced`],
+          expectedRevenue: undefined,
+        },
+        kind
+      );
       await completeMission({
         missionId: input.recommendationId,
-        title: input.title ?? "Stale leads advanced to Discovery",
+        title: "Stale leads advanced to Discovery",
         worked: true,
-        revenueImpact: input.expectedRevenue,
         notes: `Advanced ${toTouch.length} stale bookings to discovery`,
-      });
+      }).catch((error) => console.error("[execute] mission follow-up", error));
       void emitBusinessEvent({
         type: "booking_updated",
         entityType: "Submission",
@@ -159,10 +212,11 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
       return {
         ok: true,
         kind,
+        executionStatus: "executed",
         message: `Advanced ${toTouch.length} lead${toTouch.length === 1 ? "" : "s"} to Discovery · Decision recorded. Reply next.`,
         href: "/admin/submissions?type=booking",
         affected: toTouch.length,
-        decisionId,
+        decisionId: decision?.id,
       };
     }
 
@@ -174,56 +228,74 @@ export async function executeRecommendation(input: ExecuteRequest): Promise<Exec
         revenueImpact: input.expectedRevenue,
         notes: "Executed from recommendation adapter",
       });
+      const decision = await journal(input, kind);
       return {
         ok: true,
         kind,
+        executionStatus: "executed",
         message: "Marked complete · Decision recorded.",
         href: input.href,
-        decisionId,
+        decisionId: decision?.id,
       };
     }
 
-    case "open_pipeline":
+    case "open_pipeline": {
+      const decision = await journal(input, kind);
       return {
         ok: true,
         kind,
+        executionStatus: "opened",
         message: "Opening pipeline · Decision recorded.",
         href: "/admin/pipeline",
-        decisionId,
+        decisionId: decision?.id,
       };
-    case "open_applications":
+    }
+    case "open_applications": {
+      const decision = await journal(input, kind);
       return {
         ok: true,
         kind,
+        executionStatus: "opened",
         message: "Opening applications · Decision recorded.",
         href: "/admin/applications",
-        decisionId,
+        decisionId: decision?.id,
       };
-    case "open_memory_verify":
+    }
+    case "open_memory_verify": {
+      const decision = await journal(input, kind);
       return {
         ok: true,
         kind,
+        executionStatus: "opened",
         message: "Opening verification queue · Decision recorded.",
         href: "/admin/memory",
-        decisionId,
+        decisionId: decision?.id,
       };
-    case "open_payments_trust":
+    }
+    case "open_payments_trust": {
+      const decision = await journal(input, kind);
       return {
         ok: true,
         kind,
+        executionStatus: "opened",
         message: "Opening Trust / connectors · Decision recorded.",
         href: "/admin/qa",
-        decisionId,
+        decisionId: decision?.id,
       };
+    }
     case "navigate":
-    default:
+    default: {
+      const href = input.href?.startsWith("/admin") ? input.href : "/admin";
+      const decision = await journal({ ...input, href }, "navigate");
       return {
         ok: true,
         kind: "navigate",
+        executionStatus: "opened",
         message: "Opening destination · Decision recorded.",
-        href: input.href || "/admin",
-        decisionId,
+        href,
+        decisionId: decision?.id,
       };
+    }
   }
 }
 

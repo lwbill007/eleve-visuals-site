@@ -3,6 +3,11 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { recordLearningOutcome } from "@/lib/ai/memory/learning";
 import { invalidateCache } from "@/lib/ai/cache";
+import { prisma } from "@/lib/db";
+import {
+  canTransitionOpportunity,
+  type OpportunityStatus,
+} from "@/lib/admin-operations";
 
 const bodySchema = z.object({
   recommendationId: z.string().min(1),
@@ -27,6 +32,27 @@ export async function POST(req: Request) {
   }
 
   const body = parsed.data;
+  const latest = await prisma.aILearningOutcome.findFirst({
+    where: {
+      domain: "opportunities",
+      actionRef: body.recommendationId,
+      actionType: { startsWith: "recommendation_" },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { actionType: true },
+  });
+  const storedStatus = latest?.actionType.replace("recommendation_", "");
+  const current: OpportunityStatus =
+    storedStatus === "accepted" || storedStatus === "completed" || storedStatus === "rejected"
+      ? storedStatus
+      : "pending";
+  if (!canTransitionOpportunity(current, body.status)) {
+    return NextResponse.json(
+      { error: `Cannot move opportunity from ${current} to ${body.status}.` },
+      { status: 409 }
+    );
+  }
+
   const outcome =
     body.status === "rejected"
       ? "negative"

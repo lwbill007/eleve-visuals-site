@@ -17,26 +17,11 @@ import {
 import { METRIC_OWNERS, type MissingMetric } from "@/lib/ai/platform/metric-owners";
 import { osEyebrow, osPage } from "@/lib/ai/platform/os-systems";
 import { cn } from "@/lib/utils";
-
-interface PipelineItem {
-  id: string;
-  name: string;
-  email: string;
-  service: string;
-  value: number;
-  valueQuality?: "estimated" | "verified";
-  createdAt: string;
-  updatedAt?: string;
-  ageDays?: number;
-  leadScore?: number;
-  priority?: string;
-}
-
-interface PipelineColumn {
-  id: string;
-  label: string;
-  items: PipelineItem[];
-}
+import {
+  bookingDetailHref,
+  type AdminPipelineColumn,
+} from "@/lib/admin-operations";
+import { PIPELINE_STAGES, type ProductionStatus } from "@/lib/booking-pipeline";
 
 const page = osPage("pipeline")!;
 
@@ -59,7 +44,7 @@ function predMissing(
 
 export function PipelineClient() {
   const { toast } = useAdminToast();
-  const [columns, setColumns] = useState<PipelineColumn[]>([]);
+  const [columns, setColumns] = useState<AdminPipelineColumn[]>([]);
   const [totalValue, setTotalValue] = useState(0);
   const [dragging, setDragging] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -89,23 +74,28 @@ export function PipelineClient() {
     void load();
   }, [load]);
 
-  async function moveItem(itemId: string, newStatus: string) {
+  async function moveItem(itemId: string, newStatus: ProductionStatus) {
     setBusyId(itemId);
-    const res = await adminFetch("/api/admin/submissions", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: itemId, status: newStatus }),
-    });
-    setBusyId(null);
-    if (res.ok) {
+    try {
+      const res = await adminFetch("/api/admin/submissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: itemId, status: newStatus }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || "Update failed.");
+      }
       toast(newStatus === "discovery" ? "Advanced to Consultation." : "Stage updated.");
-      void load();
-    } else {
-      toast("Update failed.", "error");
+      await load();
+    } catch (moveError) {
+      toast(moveError instanceof Error ? moveError.message : "Update failed.", "error");
+    } finally {
+      setBusyId(null);
     }
   }
 
-  function onDrop(columnId: string) {
+  function onDrop(columnId: ProductionStatus) {
     if (dragging) {
       void moveItem(dragging, columnId);
       setDragging(null);
@@ -307,7 +297,7 @@ export function PipelineClient() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <Link
-                          href={`/admin/submissions?type=booking&focus=${item.id}`}
+                          href={bookingDetailHref(item.id)}
                           className="min-w-0 flex-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -341,6 +331,24 @@ export function PipelineClient() {
                           </Link>
                         )}
                       </div>
+                      <label className="mt-3 block text-[0.55rem] tracking-[0.08em] text-muted uppercase">
+                        Move stage
+                        <select
+                          value={col.id}
+                          disabled={busyId === item.id}
+                          onChange={(event) =>
+                            void moveItem(item.id, event.target.value as ProductionStatus)
+                          }
+                          className="mt-1 w-full rounded-lg border border-stone/30 bg-charcoal px-2 py-1.5 text-xs text-cream disabled:opacity-50"
+                          aria-label={`Move ${item.name} to stage`}
+                        >
+                          {PIPELINE_STAGES.map((stage) => (
+                            <option key={stage.id} value={stage.id}>
+                              {stage.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       {col.id === "lead" && (
                         <button
                           type="button"
@@ -358,7 +366,9 @@ export function PipelineClient() {
                   );
                 })}
                 {col.items.length === 0 && (
-                  <p className="px-2 py-8 text-center text-xs text-muted">Drop leads here</p>
+                  <p className="px-2 py-8 text-center text-xs text-muted">
+                    No matching deals
+                  </p>
                 )}
               </div>
             </div>
@@ -388,7 +398,7 @@ export function PipelineClient() {
 
       <AdminPanel title="How to use" subtitle="Status IDs stay stable — labels follow the sales vision" className="mt-6">
         <p className="text-sm text-fog">
-          Drag cards to update stage, or Advance to Consultation on new leads. Values are estimated from form
+          Drag cards or use each card&apos;s Move stage menu. Values are estimated from form
           budget ranges until Financial Center verifies payments. Target board: Lead → Qualified →
           Consultation → Proposal → Contract Sent → Deposit Paid → Booked → Completed → Archived —
           missing stages appear above as MissingMetric, not fake columns.

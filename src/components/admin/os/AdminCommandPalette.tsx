@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
 import { ADMIN_COMMANDS } from "@/config/admin-nav";
+import { AdminOverlay } from "@/components/admin/os/AdminOverlay";
 import { adminFetch } from "@/lib/admin-fetch";
 import type { AICommandResult } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
   const [searchResults, setSearchResults] = useState<PaletteItem[]>([]);
   const [commandResult, setCommandResult] = useState<AICommandResult | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const navResults = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -96,7 +97,6 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setActiveIndex((i) => Math.min(i + 1, results.length - 1));
@@ -117,11 +117,7 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
       }
     };
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose, results, activeIndex, query, executeCommand, navigate]);
 
   useEffect(() => {
@@ -168,28 +164,18 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
     return () => clearTimeout(t);
   }, [query, executeCommand]);
 
-  if (!open) return null;
-
   return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-[300] flex items-start justify-center bg-ink/80 p-4 pt-[12vh] backdrop-blur-md"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      >
-        <motion.div
-          className="w-full max-w-xl overflow-hidden rounded-xl border border-stone/30 bg-charcoal shadow-2xl"
-          initial={{ opacity: 0, y: -12, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -8, scale: 0.98 }}
-          onClick={(e) => e.stopPropagation()}
-        >
+    <AdminOverlay
+      open={open}
+      onClose={onClose}
+      title="Command palette"
+      description="Navigate workspaces or run an administrative command."
+      initialFocusRef={inputRef}
+    >
           <div className="flex items-center gap-3 border-b border-stone/25 px-4 py-3">
             <span className="text-accent">✦</span>
             <input
-              autoFocus
+              ref={inputRef}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -262,9 +248,7 @@ export function AdminCommandPalette({ open, onClose }: { open: boolean; onClose:
               ))
             )}
           </ul>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+    </AdminOverlay>
   );
 }
 

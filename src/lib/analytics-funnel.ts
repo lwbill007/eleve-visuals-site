@@ -6,20 +6,23 @@
 import { prisma } from "./db";
 import type { Prisma } from "@prisma/client";
 
-export const FUNNEL_STAGES = [
-  "homepage_loaded",
-  "hero_cta_clicked",
-  "portfolio_viewed",
-  "session_viewed",
-  "booking_started",
-  "booking_step_1",
-  "booking_step_2",
-  "booking_step_3",
-  "booking_step_4",
-  "submission_completed",
-] as const;
+export const FUNNEL_BRANCHES = {
+  directBooking: [
+    "homepage_loaded",
+    "hero_cta_clicked",
+    "booking_started",
+    "booking_step_1",
+    "booking_step_2",
+    "booking_step_3",
+    "booking_step_4",
+    "submission_completed",
+  ],
+  portfolioDiscovery: ["homepage_loaded", "portfolio_viewed"],
+  sessionDiscovery: ["homepage_loaded", "session_viewed"],
+} as const;
 
-export type FunnelStage = (typeof FUNNEL_STAGES)[number];
+export type FunnelStage =
+  (typeof FUNNEL_BRANCHES)[keyof typeof FUNNEL_BRANCHES][number];
 
 export const LIGHTHOUSE_TARGETS = {
   performance: 95,
@@ -74,9 +77,9 @@ export interface ConversionDashboard {
   bookingCompletions: number;
   inquiryCompletionRate: number;
   portfolioViews: number;
-  portfolioToInquiryRate: number;
+  inquiriesPerPortfolioViewPct: number;
   sessionViews: number;
-  sessionToInquiryRate: number;
+  inquiriesPerSessionViewPct: number;
   avgCompletionMinutes: number | null;
   mobileSharePct: number | null;
   desktopSharePct: number | null;
@@ -84,8 +87,31 @@ export interface ConversionDashboard {
   mostViewedSession: { path: string; views: number } | null;
   mostClickedPortfolio: { path: string; views: number } | null;
   funnel: FunnelStepMetric[];
+  funnels: {
+    directBooking: FunnelStepMetric[];
+    portfolioDiscovery: FunnelStepMetric[];
+    sessionDiscovery: FunnelStepMetric[];
+  };
   lighthouseTargets: typeof LIGHTHOUSE_TARGETS;
   note: string;
+}
+
+function buildFunnel(
+  steps: { id: string; label: string; count: number }[]
+): FunnelStepMetric[] {
+  const start = steps[0]?.count || 1;
+  return steps.map((step, index) => {
+    const previous = index === 0 ? null : steps[index - 1].count;
+    const dropOff =
+      previous != null && previous > 0
+        ? Math.round(((previous - step.count) / previous) * 1000) / 10
+        : null;
+    return {
+      ...step,
+      dropOffPct: dropOff != null && dropOff >= 0 ? dropOff : null,
+      conversionFromStartPct: rate(step.count, start),
+    };
+  });
 }
 
 export async function getConversionDashboard(days = 30): Promise<ConversionDashboard> {
@@ -228,11 +254,9 @@ export async function getConversionDashboard(days = 30): Promise<ConversionDashb
   const topSession = [...sessionPathCounts.entries()].sort((a, b) => b[1] - a[1])[0];
   const topPortfolio = [...portfolioPathCounts.entries()].sort((a, b) => b[1] - a[1])[0];
 
-  const funnelRaw: { id: string; label: string; count: number }[] = [
+  const bookingSteps: { id: string; label: string; count: number }[] = [
     { id: "homepage_loaded", label: "Homepage loaded", count: homepageLoads },
     { id: "hero_cta_clicked", label: "Hero CTA clicked", count: heroClicks },
-    { id: "portfolio_viewed", label: "Portfolio viewed", count: portfolioViews },
-    { id: "session_viewed", label: "Session viewed", count: sessionViews },
     { id: "booking_started", label: "Booking started", count: bookingStarts },
     { id: "booking_step_1", label: "Step 1 completed", count: stepCounts[0] },
     { id: "booking_step_2", label: "Step 2 completed", count: stepCounts[1] },
@@ -240,20 +264,15 @@ export async function getConversionDashboard(days = 30): Promise<ConversionDashb
     { id: "booking_step_4", label: "Step 4 completed", count: stepCounts[3] },
     { id: "submission_completed", label: "Submission completed", count: bookingCompletions },
   ];
-
-  const start = funnelRaw[0]?.count || visitors || 1;
-  const funnel: FunnelStepMetric[] = funnelRaw.map((step, i) => {
-    const prev = i === 0 ? null : funnelRaw[i - 1].count;
-    const dropOffPct =
-      prev != null && prev > 0 ? Math.round(((prev - step.count) / prev) * 1000) / 10 : null;
-    return {
-      id: step.id,
-      label: step.label,
-      count: step.count,
-      dropOffPct: dropOffPct != null && dropOffPct > 0 ? dropOffPct : dropOffPct === 0 ? 0 : null,
-      conversionFromStartPct: rate(step.count, start),
-    };
-  });
+  const funnel = buildFunnel(bookingSteps);
+  const portfolioDiscovery = buildFunnel([
+    { id: "homepage_loaded", label: "Homepage loaded", count: homepageLoads },
+    { id: "portfolio_viewed", label: "Portfolio viewed", count: portfolioViews },
+  ]);
+  const sessionDiscovery = buildFunnel([
+    { id: "homepage_loaded", label: "Homepage loaded", count: homepageLoads },
+    { id: "session_viewed", label: "Session viewed", count: sessionViews },
+  ]);
 
   return {
     periodDays: days,
@@ -266,9 +285,9 @@ export async function getConversionDashboard(days = 30): Promise<ConversionDashb
     bookingCompletions,
     inquiryCompletionRate: rate(bookingCompletions, bookingStarts || 1),
     portfolioViews,
-    portfolioToInquiryRate: rate(bookingCompletions, portfolioViews || 1),
+    inquiriesPerPortfolioViewPct: rate(bookingCompletions, portfolioViews || 1),
     sessionViews,
-    sessionToInquiryRate: rate(bookingCompletions, sessionViews || 1),
+    inquiriesPerSessionViewPct: rate(bookingCompletions, sessionViews || 1),
     avgCompletionMinutes,
     mobileSharePct: deviceTotal ? rate(mobile, deviceTotal) : null,
     desktopSharePct: deviceTotal ? rate(desktop, deviceTotal) : null,
@@ -276,8 +295,13 @@ export async function getConversionDashboard(days = 30): Promise<ConversionDashb
     mostViewedSession: topSession ? { path: topSession[0], views: topSession[1] } : null,
     mostClickedPortfolio: topPortfolio ? { path: topPortfolio[0], views: topPortfolio[1] } : null,
     funnel,
+    funnels: {
+      directBooking: funnel,
+      portfolioDiscovery,
+      sessionDiscovery,
+    },
     lighthouseTargets: LIGHTHOUSE_TARGETS,
     note:
-      "Rates use first-party AnalyticsEvent rows. Funnel stages prefer explicit funnel labels; pageviews backfill when labels are sparse.",
+      "Discovery paths are separate branches. Inquiry-per-view figures are ratios, not user-level attribution.",
   };
 }

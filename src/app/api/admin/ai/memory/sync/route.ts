@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireMinimumRole } from "@/lib/auth";
 import { syncAllMemories } from "@/lib/ai/memory";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("admin");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const blocked = await guardMutatingAdminAi(request, "admin-ai:memory-sync");
+  if (blocked) return blocked;
 
   const result = await syncAllMemories();
   return NextResponse.json({

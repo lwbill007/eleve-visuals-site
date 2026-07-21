@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
 import { uploadImageFile, uploadMediaFile, type UploadProgressCallback } from "@/lib/upload-client";
@@ -8,6 +8,7 @@ import { ADMIN_VIDEO_ACCEPT } from "@/lib/upload-constants";
 import { toVideoEmbed } from "@/lib/video-embed";
 import { AdminPreviewImage } from "@/components/admin/AdminPreviewImage";
 import { isVideoUrl, isAudioUrl, isDocumentUrl } from "@/lib/image-url";
+import { useUploadsActive } from "@/lib/upload-tracker";
 
 interface MediaAsset {
   id: string;
@@ -32,15 +33,51 @@ function MediaLibraryModal({
   const [items, setItems] = useState<MediaAsset[]>([]);
   const [loading, setLoading] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPicked([]);
     setLoading(true);
     adminFetch("/api/admin/media")
       .then((r) => (r.ok ? r.json() : []))
       .then(setItems)
       .finally(() => setLoading(false));
+
+    const frame = requestAnimationFrame(() => closeButtonRef.current?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", handleKeyDown);
+      restoreFocusRef.current?.focus();
+    };
   }, [open]);
 
   if (!open) return null;
@@ -63,11 +100,23 @@ function MediaLibraryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/90 p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[100dvh] w-full max-w-4xl flex-col border border-stone/40 bg-ink sm:max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/90 p-0 sm:items-center sm:p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="media-library-title"
+        className="flex max-h-[100dvh] w-full max-w-4xl flex-col border border-stone/40 bg-ink sm:max-h-[90vh]"
+      >
         <div className="flex items-center justify-between border-b border-stone/30 px-4 py-3 sm:px-6 sm:py-4">
-          <h3 className="font-display text-base text-cream sm:text-lg">Media Library</h3>
+          <h3 id="media-library-title" className="font-display text-base text-cream sm:text-lg">Media Library</h3>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             className="admin-touch-btn-compact min-w-16 border border-stone/40 text-fog hover:text-cream"
@@ -400,14 +449,30 @@ interface AdminFieldProps {
   label: string;
   children: React.ReactNode;
   hint?: string;
+  error?: string;
+  id?: string;
 }
 
-export function AdminField({ label, children, hint }: AdminFieldProps) {
+export function AdminField({ label, children, hint, error, id }: AdminFieldProps) {
+  const generatedId = useId();
+  const controlId = id ?? `admin-field-${generatedId.replace(/:/g, "")}`;
+  const hintId = hint ? `${controlId}-hint` : undefined;
+  const errorId = error ? `${controlId}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+  const control = isValidElement<Record<string, unknown>>(children)
+    ? cloneElement(children, {
+        id: children.props.id ?? controlId,
+        "aria-describedby": children.props["aria-describedby"] ?? describedBy,
+        "aria-invalid": children.props["aria-invalid"] ?? (error ? true : undefined),
+      })
+    : children;
+
   return (
     <div className="space-y-2">
-      <label className="block text-sm text-cream-dim">{label}</label>
-      {children}
-      {hint && <p className="text-xs text-muted">{hint}</p>}
+      <label htmlFor={controlId} className="block text-sm text-cream-dim">{label}</label>
+      {control}
+      {hint && <p id={hintId} className="text-xs text-muted">{hint}</p>}
+      {error && <p id={errorId} className="field-error" role="alert">{error}</p>}
     </div>
   );
 }
@@ -1123,19 +1188,31 @@ export function SaveBar({
   message?: string;
   autosaveNote?: string;
 }) {
+  const uploadsActive = useUploadsActive();
+  const statusMessage = uploadsActive
+    ? "Upload in progress. Saving is temporarily disabled."
+    : saving
+      ? "Saving changes…"
+      : message || autosaveNote || "";
+
   return (
-    <div className="sticky bottom-0 -mx-4 mt-8 flex flex-col gap-4 border-t border-stone/30 bg-ink/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 md:-mx-10 md:px-10">
-      <div className="text-sm">
-        {message && <p className="text-accent">{message}</p>}
-        {autosaveNote && !message && <p className="text-muted">{autosaveNote}</p>}
+    <div className="sticky bottom-0 -mx-4 mt-8 flex flex-col gap-4 border-t border-stone/30 bg-ink/95 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 md:-mx-10 md:px-10">
+      <div className="min-h-5 text-sm" role="status" aria-live="polite" aria-atomic="true">
+        {statusMessage && (
+          <p className={message && !saving && !uploadsActive ? "text-accent" : "text-muted"}>
+            {statusMessage}
+          </p>
+        )}
       </div>
       <button
         type="button"
-        onClick={onSave}
-        disabled={saving}
+        onClick={() => {
+          if (!uploadsActive) onSave();
+        }}
+        disabled={saving || uploadsActive}
         className="admin-touch-btn bg-cream tracking-[0.15em] text-ink uppercase disabled:opacity-50 sm:px-6"
       >
-        {saving ? "Saving..." : "Save Changes"}
+        {uploadsActive ? "Wait for uploads…" : saving ? "Saving..." : "Save Changes"}
       </button>
     </div>
   );

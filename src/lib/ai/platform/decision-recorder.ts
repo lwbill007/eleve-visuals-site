@@ -49,7 +49,7 @@ export async function recordDecisionOnExecute(input: {
     recommendationId: input.recommendationId,
     recommendation: input.title,
     evidence: input.evidence ?? [],
-    confidence: input.confidence ?? 0.5,
+    confidence: input.confidence ?? 0,
     expectedOutcome:
       input.expectedOutcome ??
       (input.expectedRevenue && input.expectedRevenue > 0
@@ -68,16 +68,16 @@ export async function recordDecisionOnExecute(input: {
     category: CATEGORY,
     key,
     title: `Decision: ${input.title}`,
-    summary: `Executed (${input.executeKind}) · expected ${decision.expectedOutcome} · ${Math.round(decision.confidence * 100)}% confidence`,
+    summary: `Executed (${input.executeKind}) · expected ${decision.expectedOutcome} · ${Math.round(decision.confidence * 100)}% model confidence`,
     value: decision as unknown as Record<string, unknown>,
     confidence: decision.confidence,
     importance: 88,
-    source: "system",
+    source: "user",
     sourceRef: input.recommendationId,
-    verified: true,
-    tags: ["decision", "execute", input.executeKind, "pending-outcome"],
+    verified: false,
+    tags: ["decision", "execute", input.executeKind, "pending-outcome", "unverified-outcome"],
     actor: "decision-recorder",
-    reason: "Automatic Decision Journal entry from Execute",
+    reason: "Operator accepted this action; outcome verification is still pending",
   });
 
   // Pending learning row — outcome filled when measured
@@ -95,7 +95,7 @@ export async function recordDecisionOnExecute(input: {
       status: "accepted",
       expectedROI: decision.expectedROI,
     },
-    outcomeEvidence: true,
+    outcomeEvidence: false,
   });
 
   return decision;
@@ -108,21 +108,21 @@ export async function recordDecisionOutcome(input: {
   actualRevenue?: number;
   expectedRevenue?: number;
   notes?: string;
-}): Promise<{ lesson: string; accuracy: number }> {
+}): Promise<{ lesson: string; accuracy: number | null }> {
   const expected = input.expectedRevenue ?? 0;
-  const actual = input.actualRevenue ?? (input.worked ? expected : 0);
+  const actual = input.actualRevenue ?? 0;
   const accuracy =
-    expected > 0
+    expected > 0 && input.actualRevenue != null
       ? Math.min(1, Math.max(0, 1 - Math.abs(actual - expected) / expected))
-      : input.worked
-        ? 0.9
-        : 0.35;
+      : null;
 
   const lesson = input.worked
-    ? expected > 0 && actual > 0
-      ? `Prediction ~$${expected.toLocaleString()} → actual ~$${actual.toLocaleString()} (${Math.round(accuracy * 100)}% accuracy). ${input.notes ?? "Learning stored."}`
-      : `Action succeeded. ${input.notes ?? "Pattern reinforced for similar recommendations."}`
-    : `Action did not deliver expected lift. Confidence reduced for similar recommendations. ${input.notes ?? ""}`.trim();
+    ? accuracy != null
+      ? `Prediction ~$${expected.toLocaleString()} → reported actual ~$${actual.toLocaleString()} (${Math.round(accuracy * 100)}% directional accuracy). ${input.notes ?? "Outcome stored."}`
+      : `Operator reported the action succeeded; prediction accuracy and revenue impact were not measured. ${input.notes ?? ""}`.trim()
+    : accuracy != null
+      ? `Operator reported no lift; reported revenue was $${actual.toLocaleString()} against ~$${expected.toLocaleString()} expected. ${input.notes ?? ""}`.trim()
+      : `Operator reported no lift; prediction accuracy and revenue impact were not measured. ${input.notes ?? ""}`.trim();
 
   const key = `decision-outcome-${input.recommendationId}-${Date.now()}`;
   const entry: RecordedDecision = {
@@ -130,7 +130,7 @@ export async function recordDecisionOutcome(input: {
     recommendationId: input.recommendationId,
     recommendation: input.title,
     evidence: [],
-    confidence: accuracy,
+    confidence: accuracy ?? 0,
     expectedOutcome: expected > 0 ? `~$${expected.toLocaleString()}` : "Positive business outcome",
     expectedROI: expected,
     executedBy: "studio-owner",
@@ -139,7 +139,7 @@ export async function recordDecisionOutcome(input: {
     actualOutcome: input.worked ? "positive" : "negative",
     actualRevenue: actual || undefined,
     lessonsLearned: lesson,
-    accuracy: Math.round(accuracy * 100) / 100,
+    accuracy: accuracy == null ? undefined : Math.round(accuracy * 100) / 100,
     timestamp: new Date().toISOString(),
   };
 
@@ -150,14 +150,14 @@ export async function recordDecisionOutcome(input: {
     title: `Outcome: ${input.title}`,
     summary: lesson,
     value: entry as unknown as Record<string, unknown>,
-    confidence: accuracy,
+    confidence: accuracy ?? 0,
     importance: 90,
-    source: "system",
+    source: "user",
     sourceRef: input.recommendationId,
-    verified: true,
-    tags: ["decision", "outcome", input.worked ? "success" : "failure"],
+    verified: false,
+    tags: ["decision", "outcome", "operator-reported", input.worked ? "success" : "failure"],
     actor: "decision-recorder",
-    reason: "Decision outcome closed learning loop",
+    reason: "Operator-reported outcome; independent provenance verification remains pending",
   });
 
   await recordLearningOutcome({
@@ -167,7 +167,7 @@ export async function recordDecisionOutcome(input: {
     hypothesis: lesson,
     outcome: input.worked ? "positive" : "negative",
     revenueImpact: actual || undefined,
-    confidence: accuracy,
+    confidence: accuracy ?? undefined,
     metrics: {
       decisionId: key,
       expectedROI: expected,
@@ -175,7 +175,7 @@ export async function recordDecisionOutcome(input: {
       accuracy,
       status: "completed",
     },
-    outcomeEvidence: true,
+    outcomeEvidence: false,
   });
 
   return { lesson, accuracy };

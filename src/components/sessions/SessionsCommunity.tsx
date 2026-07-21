@@ -1,8 +1,5 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 
 export interface Spotlight {
   name: string;
@@ -77,12 +74,8 @@ export function SessionsCommunity({
               );
 
               return (
-                <motion.figure
+                <figure
                   key={`${p.slug || p.name}-${i}`}
-                  initial={{ opacity: 0, y: 18 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: (i % 4) * 0.06 }}
                   className="group"
                 >
                   {p.profileEnabled && p.slug ? (
@@ -92,7 +85,7 @@ export function SessionsCommunity({
                   ) : (
                     figure
                   )}
-                </motion.figure>
+                </figure>
               );
             })}
           </div>
@@ -101,12 +94,8 @@ export function SessionsCommunity({
         {testimonials.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {testimonials.map((t, i) => (
-              <motion.blockquote
+              <blockquote
                 key={`${t.name}-${i}`}
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
                 className="border border-stone/40 bg-charcoal/30 p-7"
               >
                 <p className="font-display text-lg leading-relaxed text-cream-dim italic">
@@ -116,7 +105,7 @@ export function SessionsCommunity({
                   {t.name}
                   {t.role && <span className="text-muted"> · {t.role}</span>}
                 </footer>
-              </motion.blockquote>
+              </blockquote>
             ))}
           </div>
         ) : (

@@ -14,13 +14,13 @@ import { osEyebrow } from "@/lib/ai/platform/os-systems";
 import { ExecutiveReportV2View } from "./ExecutiveReportV2View";
 
 const REPORT_TYPES: { type: AIReportType; label: string }[] = [
-  { type: "monthly", label: "Monthly Business Report" },
-  { type: "quarterly", label: "Quarterly Report" },
-  { type: "yearly", label: "Yearly Report" },
-  { type: "sponsor", label: "Sponsor Report" },
-  { type: "revenue", label: "Revenue Forecast" },
-  { type: "growth", label: "Growth Forecast" },
-  { type: "marketing", label: "Marketing Report" },
+  { type: "monthly", label: "Monthly Business Draft" },
+  { type: "quarterly", label: "Quarterly Business Draft" },
+  { type: "yearly", label: "Yearly Business Draft" },
+  { type: "sponsor", label: "Sponsor-Ready Draft" },
+  { type: "revenue", label: "Revenue Analysis Draft" },
+  { type: "growth", label: "Growth Outlook · AI Prediction" },
+  { type: "marketing", label: "Marketing Performance Draft" },
 ];
 
 export function BIReportsClient() {
@@ -57,8 +57,8 @@ export function BIReportsClient() {
       {
         id: "period",
         label: "Period reports",
-        status: "live",
-        summary: "Monthly / quarterly / yearly drafts generate from live studio data.",
+        status: "partial",
+        summary: "Monthly / quarterly / yearly drafts generate from available studio data; verify before sharing.",
       },
       {
         id: "export",
@@ -114,7 +114,7 @@ export function BIReportsClient() {
     <WorkspaceChrome
       eyebrow={osEyebrow("grow", "What should leadership see?")}
       title="Reports"
-      description="Automatic period reports with one-click export. Structured layers are labeled; money claims must cross-check Financial Center and traffic must cross-check Analytics."
+      description="On-demand report drafts with structured truth labels. Export is not one-click yet; money and traffic claims require source verification."
       extra={<AskAIButton />}
       related={[
         { label: "Analytics", href: "/admin/analytics", desc: "What is traffic doing?" },

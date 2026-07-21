@@ -9,19 +9,22 @@ const ollama = new OllamaProvider();
 /** Provider-agnostic completion — callers never specify a model. */
 export async function aiComplete(request: AICompletionRequest): Promise<AICompletionResult | null> {
   if (!isAIConfigured()) return null;
+  let lastFailure: AICompletionResult | null = null;
 
   if (isOpenRouterConfigured()) {
     const result = await openRouterComplete(request);
     if (result.finishReason !== "error") return result;
+    lastFailure = result;
   }
 
   if (ollama.isConfigured()) {
     const result = await ollama.complete(request);
     if (result.finishReason !== "error") return result;
+    lastFailure = result;
   }
 
   await logAIAction("ai_adapter_failed", "all", "No provider returned a result");
-  return null;
+  return lastFailure;
 }
 
 /** Provider-agnostic streaming with automatic fallback to completion. */

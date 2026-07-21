@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { z } from "zod";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { getLatestOrchestratorAudit, runOrchestrator } from "@/lib/ai/orchestrator";
+
+const orchestratorSchema = z.object({
+  taskKind: z.enum(["booking_submitted", "booking_review"]).default("booking_review"),
+  submissionId: z.string().min(1).max(100),
+  data: z.record(z.unknown()),
+  email: z.string().email().max(320).optional(),
+});
 
 export async function GET(req: Request) {
   try {
@@ -21,24 +30,22 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("operator");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = (await req.json()) as {
-    taskKind?: "booking_submitted" | "booking_review";
-    submissionId?: string;
-    data?: Record<string, unknown>;
-    email?: string;
-  };
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:orchestrator");
+  if (blocked) return blocked;
 
-  if (!body.submissionId || !body.data) {
-    return NextResponse.json({ error: "submissionId and data required" }, { status: 400 });
+  const parsed = orchestratorSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid orchestrator payload" }, { status: 400 });
   }
+  const body = parsed.data;
 
   const result = await runOrchestrator({
-    taskKind: body.taskKind || "booking_review",
+    taskKind: body.taskKind,
     submissionId: body.submissionId,
     data: body.data,
     email: body.email,

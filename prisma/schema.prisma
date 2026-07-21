@@ -146,8 +146,8 @@ model ApplicationEvaluation {
   @@index([lastEvaluatedAt])
 }
 
-/// Settled payments from Stripe webhooks (or manual admin entry).
-/// Truth Layer uses these for Verified revenue when present.
+/// Payment evidence from Stripe webhooks or manual admin entry.
+/// Only succeeded + verified rows count as settled revenue.
 model Payment {
   id               String   @id @default(cuid())
   stripeEventId    String   @unique
@@ -159,6 +159,9 @@ model Payment {
   description      String   @default("")
   submissionId     String?
   source           String   @default("stripe")
+  verificationStatus String @default("pending")
+  reconciledAt     DateTime?
+  reconciledBy     String   @default("")
   paidAt           DateTime
   raw              String   @default("{}")
   createdAt        DateTime @default(now())
@@ -166,6 +169,7 @@ model Payment {
 
   @@index([paidAt])
   @@index([status, paidAt])
+  @@index([verificationStatus, status, paidAt])
   @@index([customerEmail])
   @@index([submissionId])
 }

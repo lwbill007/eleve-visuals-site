@@ -16,6 +16,7 @@ import {
 } from "@/components/admin/os/WorkspaceFrame";
 import { METRIC_OWNERS, type MissingMetric } from "@/lib/ai/platform/metric-owners";
 import { osEyebrow, osPage } from "@/lib/ai/platform/os-systems";
+import { bookingDetailHref, emailComposerHref } from "@/lib/admin-operations";
 
 const page = osPage("clients")!;
 
@@ -78,14 +79,20 @@ export function CRMProfileClient({ email }: { email: string }) {
   async function generate(type: "summary" | "email" | "upsell") {
     setLoadingAI(type);
     setAiOutput("");
-    const res = await adminFetch(`/api/admin/ai/crm/${encodeURIComponent(email)}/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type }),
-    });
-    const data = res.ok ? await res.json() : { content: "Generation failed." };
-    setAiOutput(data.content);
-    setLoadingAI(null);
+    try {
+      const res = await adminFetch(`/api/admin/ai/crm/${encodeURIComponent(email)}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      const data = (await res.json().catch(() => null)) as { content?: string; error?: string } | null;
+      if (!res.ok) throw new Error(data?.error || "Generation failed.");
+      setAiOutput(data?.content || "No draft was returned.");
+    } catch (generateError) {
+      setAiOutput(generateError instanceof Error ? generateError.message : "Generation failed.");
+    } finally {
+      setLoadingAI(null);
+    }
   }
 
   if (!intel) {
@@ -192,6 +199,17 @@ export function CRMProfileClient({ email }: { email: string }) {
       extra={
         <div className="flex gap-2">
           <AskAIButton />
+          <WorkspaceButton
+            href={emailComposerHref({
+              email: contact.email,
+              name: contact.name,
+              templateId: "follow_up_booking",
+              source: "crm",
+            })}
+            variant="primary"
+          >
+            Compose email
+          </WorkspaceButton>
           <WorkspaceButton href="/admin/crm" variant="secondary">
             ← CRM
           </WorkspaceButton>
@@ -317,7 +335,12 @@ export function CRMProfileClient({ email }: { email: string }) {
             <ul className="space-y-2">
               {intel.bookingHistory.map((b) => (
                 <li key={b.id} className="flex justify-between gap-4 text-sm">
-                  <span className="text-cream">{b.service || "Booking"} · {b.status}</span>
+                  <Link
+                    href={bookingDetailHref(b.id)}
+                    className="text-cream hover:text-accent"
+                  >
+                    {b.service || "Booking"} · {b.status}
+                  </Link>
                   <span className="text-muted">{new Date(b.createdAt).toLocaleDateString()}</span>
                 </li>
               ))}

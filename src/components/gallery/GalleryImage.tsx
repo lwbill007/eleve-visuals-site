@@ -1,14 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import {
-  galleryImageSizes,
-  imageOrientation,
-  skeletonAspectForOrientation,
-  type ImageOrientation,
-} from "@/lib/gallery-utils";
+import { galleryImageSizes } from "@/lib/gallery-utils";
 
 export function GalleryImage({
   src,
@@ -27,9 +21,6 @@ export function GalleryImage({
   onClick?: () => void;
   interactive?: boolean;
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const [orientation, setOrientation] = useState<ImageOrientation>("portrait");
-
   const Wrapper = interactive ? "button" : "div";
   const wrapperProps = interactive
     ? ({
@@ -48,13 +39,6 @@ export function GalleryImage({
         className
       )}
     >
-      {!loaded && (
-        <div
-          className={cn("w-full animate-pulse bg-charcoal/70", skeletonAspectForOrientation(orientation))}
-          aria-hidden
-        />
-      )}
-
       <Image
         src={src}
         alt={alt}
@@ -64,19 +48,13 @@ export function GalleryImage({
         priority={priority}
         loading={priority ? "eager" : "lazy"}
         className={cn(
-          "h-auto w-full transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          loaded ? "relative opacity-100" : "absolute inset-0 opacity-0",
+          "relative h-auto w-full transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
           interactive && "sm:group-hover:scale-[1.008]"
         )}
         style={{ width: "100%", height: "auto" }}
-        onLoad={(event) => {
-          const img = event.currentTarget;
-          setOrientation(imageOrientation(img.naturalWidth, img.naturalHeight));
-          setLoaded(true);
-        }}
       />
 
-      {loaded && interactive && (
+      {interactive && (
         <>
           <div
             className="pointer-events-none absolute inset-0 bg-ink/0 transition-colors duration-500 group-hover:bg-ink/10"

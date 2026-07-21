@@ -82,11 +82,8 @@ export function TruthMetricCard({
       </div>
       <button
         type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          setShowExplain(true);
-        }}
-        className="mt-2 text-left font-display text-3xl text-cream sm:text-4xl hover:underline decoration-accent/40 underline-offset-4"
+        onClick={() => setShowExplain(true)}
+        className="mt-2 min-h-11 text-left font-display text-3xl text-cream decoration-accent/40 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:text-4xl"
         title="Why am I seeing this?"
       >
         {formatValue(metric.value, currency)}
@@ -99,6 +96,14 @@ export function TruthMetricCard({
           {delta >= 0 ? "↑" : "↓"} {Math.abs(delta)}% vs last month
         </p>
       )}
+      {href ? (
+        <Link
+          href={href}
+          className="mt-3 inline-flex min-h-11 items-center text-[0.65rem] tracking-[0.1em] text-accent uppercase hover:text-cream"
+        >
+          View owner →
+        </Link>
+      ) : null}
       {showExplain && (
         <MetricExplainPanel metric={toTracedMetric(metric)} label={label} onClose={() => setShowExplain(false)} />
       )}
@@ -109,14 +114,6 @@ export function TruthMetricCard({
     "rounded-xl border border-stone/25 bg-charcoal/20 p-5 transition-all duration-300 hover:border-accent/35 hover:bg-charcoal/40",
     className
   );
-
-  if (href) {
-    return (
-      <Link href={href} className={classes}>
-        {inner}
-      </Link>
-    );
-  }
 
   return <div className={classes}>{inner}</div>;
 }

@@ -36,18 +36,23 @@ function SignalCard({
 }) {
   const toneClass =
     tone === "win"
-      ? "border-emerald-400/30 bg-emerald-400/[0.05]"
+      ? "border-emerald-400/50"
       : tone === "problem" || tone === "risk"
-        ? "border-red-400/30 bg-red-400/[0.05]"
-        : "border-accent/30 bg-accent/[0.05]";
+        ? "border-red-400/50"
+        : "border-accent/50";
   const evidenceItems = evidence ?? [];
   return (
     <Link
       href={href}
-      className={cn("rounded-xl border p-4 transition-colors hover:border-accent/40", toneClass)}
+      className={cn(
+        "group border-l bg-charcoal/10 px-4 py-3 transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-charcoal/35",
+        toneClass
+      )}
     >
       <p className="text-[0.55rem] tracking-[0.14em] text-muted uppercase">{eyebrow}</p>
-      <p className="mt-2 text-sm leading-snug text-cream">{title}</p>
+      <p className="mt-2 text-sm leading-snug text-cream transition-colors group-hover:text-accent">
+        {title}
+      </p>
       <ul className="mt-2 space-y-0.5">
         {evidenceItems.slice(0, 2).map((item) => (
           <li key={item} className="text-[0.65rem] text-fog">
@@ -88,208 +93,182 @@ export function AdminDashboard() {
     load();
   }, [load]);
 
+  const generatedLabel = data?.generatedAt
+    ? new Date(data.generatedAt).toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
   return (
     <WorkspaceChrome
-      eyebrow="Command · What happened?"
-      title="Executive Dashboard"
-      description="Single source of truth. Every KPI has one owner. Missing numbers explain how to unlock them."
+      eyebrow="Command home"
+      title="Today at ÉLEVÉ"
+      description="Measured business signals, ranked decisions, and the next work that moves the studio forward."
       onRefresh={() => load(true)}
       refreshing={loading}
+      extra={
+        generatedLabel ? (
+          <span className="text-[0.6rem] tracking-[0.08em] text-muted uppercase">
+            Updated {generatedLabel}
+          </span>
+        ) : null
+      }
       related={RELATED}
+      showAI={false}
     >
       {loading && !data ? (
         <WorkspaceLoading />
       ) : error && !data ? (
         <WorkspaceError message={error} onRetry={() => load(true)} />
       ) : data ? (
-        <div className="space-y-8">
-          <section>
-            <p className="text-[0.58rem] tracking-[0.16em] text-accent uppercase">
-              Executive summary
-            </p>
-            <p className="mt-3 max-w-4xl text-base leading-relaxed text-cream">
-              {data.executiveSummary?.briefing ?? "Executive summary unavailable."}
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {data.executiveSummary?.biggestWin && (
+        <div className="space-y-10">
+          <section aria-labelledby="executive-summary-heading">
+            <div className="grid gap-5 border-t border-stone/30 pt-4 lg:grid-cols-12">
+              <p
+                id="executive-summary-heading"
+                className="text-[0.58rem] tracking-[0.16em] text-accent uppercase lg:col-span-2"
+              >
+                Executive read
+              </p>
+              <p className="max-w-4xl text-base leading-relaxed text-cream lg:col-span-10 lg:text-lg">
+                {data.executiveSummary?.briefing ?? "Executive summary unavailable."}
+              </p>
+            </div>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {data.executiveSummary?.biggestWin ? (
                 <SignalCard
-                  eyebrow="Biggest win"
+                  eyebrow="Win"
                   title={data.executiveSummary.biggestWin.title}
                   evidence={data.executiveSummary.biggestWin.evidence}
                   href={data.executiveSummary.biggestWin.href}
                   tone="win"
                 />
-              )}
-              {data.executiveSummary?.biggestProblem && (
+              ) : null}
+              {data.executiveSummary?.biggestProblem ? (
                 <SignalCard
-                  eyebrow="Biggest problem"
+                  eyebrow="Problem"
                   title={data.executiveSummary.biggestProblem.title}
                   evidence={data.executiveSummary.biggestProblem.evidence}
                   href={data.executiveSummary.biggestProblem.href}
                   tone="problem"
                 />
-              )}
-              {data.executiveSummary?.biggestOpportunity && (
+              ) : null}
+              {data.executiveSummary?.biggestOpportunity ? (
                 <SignalCard
-                  eyebrow="Biggest opportunity"
+                  eyebrow="Opportunity"
                   title={data.executiveSummary.biggestOpportunity.title}
                   evidence={data.executiveSummary.biggestOpportunity.evidence}
                   href={data.executiveSummary.biggestOpportunity.href}
                   tone="opportunity"
                 />
-              )}
-              {data.executiveSummary?.biggestRisk && (
+              ) : null}
+              {data.executiveSummary?.biggestRisk ? (
                 <SignalCard
-                  eyebrow="Biggest risk"
+                  eyebrow="Risk"
                   title={data.executiveSummary.biggestRisk.title}
                   evidence={data.executiveSummary.biggestRisk.evidence}
                   href={data.executiveSummary.biggestRisk.href}
                   tone="risk"
                 />
-              )}
+              ) : null}
             </div>
           </section>
 
-          <section>
-            <div className="flex items-end justify-between gap-3">
+          <section aria-labelledby="owned-metrics-heading">
+            <div className="flex flex-wrap items-end justify-between gap-3 border-t border-stone/30 pt-4">
               <div>
                 <p className="text-[0.58rem] tracking-[0.16em] text-muted uppercase">
-                  Today’s KPIs
+                  Business snapshot
                 </p>
-                <h3 className="mt-1 font-display text-2xl text-cream">Owned metrics only</h3>
-              </div>
-              <p className="text-xs text-muted">No duplicate calculations</p>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {(data.kpis ?? []).map((kpi) => (
-                <OwnedMetricCard
-                  key={kpi.key}
-                  owned={kpi}
-                  currency={kpi.key.includes("revenue") || kpi.key.includes("pipeline") || kpi.key.includes("cash")}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <p className="text-[0.58rem] tracking-[0.16em] text-muted uppercase">
-              Business health
-            </p>
-            <div className="mt-3 flex flex-wrap items-end gap-4">
-              <p className="font-display text-5xl text-cream">
-                {data.businessHealth?.overall == null
-                  ? "—"
-                  : Math.round(data.businessHealth.overall)}
-              </p>
-              <p className="max-w-xl text-sm text-fog">{data.businessHealth?.disclaimer}</p>
-            </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-              {(data.businessHealth?.domains ?? []).map((domain) => (
-                <Link
-                  key={domain.id}
-                  href={domain.href}
-                  className="rounded-xl border border-stone/20 bg-charcoal/20 p-3 transition-colors hover:border-accent/35"
-                >
-                  <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
-                    {domain.label}
-                  </p>
-                  <p className="mt-2 font-display text-2xl text-cream">
-                    {domain.score == null ? "—" : Math.round(domain.score)}
-                  </p>
-                  <p className="mt-1 line-clamp-2 text-[0.62rem] text-fog">{domain.explain}</p>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <p className="text-[0.58rem] tracking-[0.16em] text-muted uppercase">
-              What’s changed
-            </p>
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              {(data.whatChanged ?? []).map((change) => (
-                <Link
-                  key={change.id}
-                  href={change.ownerHref}
-                  className="rounded-xl border border-stone/20 bg-charcoal/15 p-4 transition-colors hover:border-accent/35"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm text-cream">{change.label}</p>
-                    <span
-                      className={cn(
-                        "text-xs",
-                        change.direction === "up"
-                          ? "text-emerald-300"
-                          : change.direction === "down"
-                            ? "text-red-300"
-                            : "text-muted"
-                      )}
-                    >
-                      {change.deltaLabel} · {(change.period ?? "unknown").replaceAll("_", " ")}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm leading-relaxed text-fog">{change.why}</p>
-                  <ul className="mt-2 space-y-0.5">
-                    {(change.evidence ?? []).map((item) => (
-                      <li key={item} className="text-[0.65rem] text-muted">
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="text-[0.58rem] tracking-[0.16em] text-muted uppercase">
-                  Today’s priorities
-                </p>
-                <h3 className="mt-1 font-display text-2xl text-cream">
-                  Max five · ranked by impact
+                <h3 id="owned-metrics-heading" className="mt-1 font-display text-2xl text-cream">
+                  Owned metrics
                 </h3>
               </div>
-              <Link href="/admin/opportunities" className="text-xs text-accent">
+              <p className="text-xs text-muted">One source per metric · unknown stays unknown</p>
+            </div>
+            {(data.kpis ?? []).length > 0 ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {(data.kpis ?? []).map((kpi) => (
+                  <OwnedMetricCard
+                    key={kpi.key}
+                    owned={kpi}
+                    currency={
+                      kpi.key.includes("revenue") ||
+                      kpi.key.includes("pipeline") ||
+                      kpi.key.includes("cash")
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 border border-stone/20 px-4 py-6 text-sm text-muted">
+                No owned metrics are available yet.
+              </p>
+            )}
+          </section>
+
+          <section aria-labelledby="priority-heading">
+            <div className="flex flex-wrap items-end justify-between gap-3 border-t border-stone/30 pt-4">
+              <div>
+                <p className="text-[0.58rem] tracking-[0.16em] text-accent uppercase">
+                  Decision runway
+                </p>
+                <h3 id="priority-heading" className="mt-1 font-display text-2xl text-cream">
+                  What needs action today
+                </h3>
+              </div>
+              <Link
+                href="/admin/opportunities"
+                className="inline-flex min-h-11 items-center text-xs text-accent hover:text-cream"
+              >
                 All opportunities →
               </Link>
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4">
               {(data.priorities ?? []).length === 0 ? (
-                <p className="rounded-xl border border-stone/20 px-4 py-6 text-sm text-muted">
-                  No ranked priorities yet. Opportunities appear when measured signals create
-                  evidence-backed recommendations.
+                <p className="border border-stone/20 px-4 py-8 text-sm text-muted">
+                  No ranked priorities yet. They appear when measured signals create an
+                  evidence-backed recommendation.
                 </p>
               ) : (
                 (data.priorities ?? []).map((priority, index) => (
                   <article
                     key={priority.id}
-                    className="rounded-xl border border-stone/20 bg-charcoal/15 p-4"
+                    className="grid gap-4 border-t border-stone/25 py-5 first:border-t-0 sm:grid-cols-[3rem_minmax(0,1fr)]"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
+                    <p className="font-display text-3xl text-stone/70" aria-label={`Priority ${index + 1}`}>
+                      {String(index + 1).padStart(2, "0")}
+                    </p>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0 max-w-3xl flex-1">
                         <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
-                          #{index + 1} · {priority.category} · {priority.owner}
+                          {priority.category} · {priority.owner}
                         </p>
-                        <h4 className="mt-1 text-base text-cream">{priority.recommendation}</h4>
+                        <h4 className="mt-1 text-base leading-snug text-cream">
+                          {priority.recommendation}
+                        </h4>
                         <p className="mt-1 text-sm text-fog">{priority.problem}</p>
-                        <p className="mt-2 text-xs text-muted">
+                        <p className="mt-3 text-xs leading-relaxed text-muted">
                           Impact · {priority.businessImpact}
                           {priority.estimatedRevenueImpact > 0
-                            ? ` · Est. $${priority.estimatedRevenueImpact.toLocaleString()} (Predicted)`
-                            : " · $ impact unknown"}
+                            ? ` · Est. $${priority.estimatedRevenueImpact.toLocaleString()} (predicted)`
+                            : " · Revenue impact unknown"}
                           {" · "}
                           {priority.timeRequiredMinutes}m · Confidence{" "}
                           {Math.round(priority.confidence * 100)}%
                         </p>
-                        <ul className="mt-2 space-y-0.5">
-                          {(priority.evidence ?? []).slice(0, 3).map((item) => (
-                            <li key={item} className="text-[0.65rem] text-fog">
-                              Evidence · {item}
-                            </li>
-                          ))}
-                        </ul>
+                        {(priority.evidence ?? []).length > 0 ? (
+                          <ul className="mt-2 space-y-0.5">
+                            {(priority.evidence ?? []).slice(0, 3).map((item) => (
+                              <li key={item} className="text-[0.65rem] text-fog">
+                                Evidence · {item}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                         <p className="mt-2 text-[0.65rem] text-muted">
                           Success · {priority.successMetric}
                         </p>
@@ -312,7 +291,7 @@ export function AdminDashboard() {
                         ))}
                         <Link
                           href="/admin/opportunities"
-                          className="rounded-lg border border-stone/30 px-3 py-2 text-[0.65rem] text-fog uppercase"
+                          className="inline-flex min-h-9 items-center rounded-lg border border-stone/30 px-3 py-2 text-[0.65rem] text-fog uppercase hover:border-accent/40 hover:text-accent"
                         >
                           Track outcome
                         </Link>
@@ -323,6 +302,89 @@ export function AdminDashboard() {
               )}
             </div>
           </section>
+
+          <div className="grid gap-8 xl:grid-cols-12">
+            <section className="xl:col-span-5" aria-labelledby="business-health-heading">
+              <div className="border-t border-stone/30 pt-4">
+                <p className="text-[0.58rem] tracking-[0.16em] text-muted uppercase">
+                  Business health
+                </p>
+                <div className="mt-3 flex items-end gap-4">
+                  <p id="business-health-heading" className="font-display text-6xl text-cream">
+                    {data.businessHealth?.overall == null
+                      ? "—"
+                      : Math.round(data.businessHealth.overall)}
+                  </p>
+                  <p className="pb-2 text-sm text-fog">{data.businessHealth?.disclaimer}</p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-px bg-stone/20">
+                {(data.businessHealth?.domains ?? []).map((domain) => (
+                  <Link
+                    key={domain.id}
+                    href={domain.href}
+                    className="group bg-ink p-3 transition-colors duration-500 hover:bg-charcoal/35"
+                  >
+                    <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
+                      {domain.label}
+                    </p>
+                    <p className="mt-2 font-display text-2xl text-cream group-hover:text-accent">
+                      {domain.score == null ? "—" : Math.round(domain.score)}
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-[0.62rem] text-fog">{domain.explain}</p>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <section className="xl:col-span-7" aria-labelledby="changes-heading">
+              <div className="border-t border-stone/30 pt-4">
+                <p className="text-[0.58rem] tracking-[0.16em] text-muted uppercase">
+                  Movement
+                </p>
+                <h3 id="changes-heading" className="mt-1 font-display text-2xl text-cream">
+                  What changed
+                </h3>
+              </div>
+              {(data.whatChanged ?? []).length > 0 ? (
+                <div className="mt-4 divide-y divide-stone/20">
+                  {(data.whatChanged ?? []).map((change) => (
+                    <Link
+                      key={change.id}
+                      href={change.ownerHref}
+                      className="group block py-4 first:pt-0"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-cream group-hover:text-accent">{change.label}</p>
+                        <span
+                          className={cn(
+                            "text-xs",
+                            change.direction === "up"
+                              ? "text-emerald-300"
+                              : change.direction === "down"
+                                ? "text-red-300"
+                                : "text-muted"
+                          )}
+                        >
+                          {change.deltaLabel} · {(change.period ?? "unknown").replaceAll("_", " ")}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm leading-relaxed text-fog">{change.why}</p>
+                      {(change.evidence ?? []).length > 0 ? (
+                        <p className="mt-2 line-clamp-2 text-[0.65rem] text-muted">
+                          {(change.evidence ?? []).join(" · ")}
+                        </p>
+                      ) : null}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 border border-stone/20 px-4 py-8 text-sm text-muted">
+                  No measured changes are available for the current comparison periods.
+                </p>
+              )}
+            </section>
+          </div>
         </div>
       ) : null}
     </WorkspaceChrome>

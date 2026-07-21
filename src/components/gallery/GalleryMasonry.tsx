@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { galleryImageSizes, masonryColumnClass } from "@/lib/gallery-utils";
 import { GalleryImage } from "./GalleryImage";
@@ -30,12 +29,8 @@ export function GalleryMasonry({
   const grid = (
     <div className={cn("min-w-0", columnClass)}>
       {items.map((item, i) => (
-        <motion.div
+        <div
           key={`${item.type}-${item.src}-${i}`}
-          initial={{ opacity: 0, y: 14 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-32px" }}
-          transition={{ duration: 0.5, delay: Math.min((i % 8) * 0.04, 0.28) }}
           className="mb-3 break-inside-avoid md:mb-4"
         >
           {item.type === "video" ? (
@@ -45,11 +40,10 @@ export function GalleryMasonry({
               src={item.src}
               alt={item.alt || ""}
               sizes={sizes}
-              priority={i < 2}
               onClick={() => setIndex(i)}
             />
           )}
-        </motion.div>
+        </div>
       ))}
     </div>
   );

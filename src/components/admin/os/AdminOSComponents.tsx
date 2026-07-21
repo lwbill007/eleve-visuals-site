@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export function AdminMetricCard({
@@ -117,19 +114,23 @@ export function AdminBarChart({
 }) {
   const max = Math.max(...data.map((d) => Number(d[valueKey])), 1);
   const maxBarPx = 120;
+  const summary = data
+    .map((point) => `${String(point[labelKey])}: ${String(point[valueKey])}`)
+    .join(", ");
 
   return (
-    <div className="pointer-events-none relative isolate h-44 overflow-hidden">
+    <div
+      className="relative isolate h-44 overflow-hidden"
+      role="img"
+      aria-label={`Bar chart. ${summary || "No measured values."}`}
+    >
       <div className="flex h-full items-end gap-2 sm:gap-3">
         {data.map((point, i) => {
           const value = Number(point[valueKey]);
           const barHeightPx = Math.max(Math.round((value / max) * maxBarPx), value > 0 ? 6 : 0);
           return (
             <div key={i} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2">
-              <motion.div
-                initial={{ scaleY: 0 }}
-                animate={{ scaleY: 1 }}
-                transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+              <div
                 style={{ height: barHeightPx, transformOrigin: "bottom center" }}
                 className={cn(
                   "pointer-events-none w-full rounded-t-sm",

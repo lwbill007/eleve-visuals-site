@@ -40,7 +40,13 @@ function parseName(data: Record<string, unknown>): string {
 }
 
 import { estimateBudgetValue } from "@/lib/estimate-budget";
-import { PIPELINE_STAGES, normalizeInquiryStatus } from "@/lib/booking-pipeline";
+import {
+  PIPELINE_STAGES,
+  isClosedWonStatus,
+  isOpenPipelineValueStatus,
+  isProductionOrClosedValueStatus,
+  normalizeInquiryStatus,
+} from "@/lib/booking-pipeline";
 
 function parseEmail(data: Record<string, unknown>, fallback: string): string {
   return (typeof data.email === "string" && data.email) || fallback;
@@ -110,7 +116,7 @@ export async function getAdminDashboardOS() {
 
   const completedByEmail = new Map<string, number>();
   for (const row of returningBookingRows) {
-    if (row.status === "completed" && row.contactEmail) {
+    if (isClosedWonStatus(row.status) && row.contactEmail) {
       completedByEmail.set(row.contactEmail, (completedByEmail.get(row.contactEmail) ?? 0) + 1);
     }
   }
@@ -128,7 +134,7 @@ export async function getAdminDashboardOS() {
   for (const b of bookings) {
     const key = monthKey(b.createdAt);
     if (bookingsByMonth.has(key)) bookingsByMonth.set(key, (bookingsByMonth.get(key) ?? 0) + 1);
-    if (["new", "contacted", "scheduled"].includes(b.status)) {
+    if (isOpenPipelineValueStatus(b.status)) {
       const data = parseSubmissionData(b.data);
       const budget = typeof data.budgetRange === "string" ? data.budgetRange : "";
       pipelineValue += estimateBudgetValue(budget) || 0;
@@ -170,7 +176,7 @@ export async function getAdminDashboardOS() {
   const conversionRate = visitors30 > 0 ? Math.round((conversions30 / visitors30) * 1000) / 10 : 0;
 
   const pendingTasks =
-    bookings.filter((b) => ["new", "contacted"].includes(b.status)).length +
+    bookings.filter((b) => isOpenPipelineValueStatus(b.status)).length +
     applications.filter((a) => normalizeApplicationStatus(a.status) === "pending_review").length +
     unread;
 
@@ -221,7 +227,10 @@ export async function getAdminDashboardOS() {
   return {
     metrics: {
       revenue: { value: pipelineValue, label: "Pipeline value", hint: "Estimated from open booking budgets" },
-      bookings: { value: bookings.length, pending: bookings.filter((b) => ["new", "contacted"].includes(b.status)).length },
+      bookings: {
+        value: bookings.length,
+        pending: bookings.filter((b) => isOpenPipelineValueStatus(b.status)).length,
+      },
       leads: { value: bookings.length + applications.length + contacts, thisMonth: submissions90.filter((s) => s.createdAt >= since30).length },
       visitors: { value: visitors30, week: visitors7 },
       subscribers: { value: uniqueEmails.size, label: "Unique contacts" },
@@ -442,8 +451,15 @@ export async function getAdminPipeline() {
     (sum, col) => sum + col.items.reduce((s, i) => s + i.value, 0),
     0
   );
+  const items = columns.flatMap((column) => column.items);
+  const openPipelineValue = items
+    .filter((item) => isOpenPipelineValueStatus(item.status))
+    .reduce((sum, item) => sum + item.value, 0);
+  const productionOrClosedValue = items
+    .filter((item) => isProductionOrClosedValueStatus(item.status))
+    .reduce((sum, item) => sum + item.value, 0);
 
-  return { columns, totalValue };
+  return { columns, totalValue, openPipelineValue, productionOrClosedValue };
 }
 
 export async function getAdminInsights() {

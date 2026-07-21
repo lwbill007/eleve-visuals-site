@@ -83,8 +83,6 @@ export async function runExecutiveQA(baseUrl?: string): Promise<ProductionReadin
         apiFailures.push(`${path}: ${e instanceof Error ? e.message : "failed"}`);
       }
     }
-  } else {
-    apiPassed = QA_PROBE_PATHS.length;
   }
 
   if (embeddings.chunks < nodeCount * 0.3) {
@@ -99,11 +97,16 @@ export async function runExecutiveQA(baseUrl?: string): Promise<ProductionReadin
   const memScore = Math.min(100, memStats.verifiedPct + (graph.healthScore > 50 ? 10 : 0));
   const apiScore = baseUrl
     ? Math.round((apiPassed / QA_PROBE_PATHS.length) * 100)
-    : 100;
+    : null;
 
-  const overallScore = Math.round(
-    (dbScore * 0.25 + memScore * 0.3 + graph.healthScore * 0.2 + apiScore * 0.15 + (embeddings.chunks > 0 ? 90 : 50) * 0.1)
-  );
+  const scoredWeight = apiScore == null ? 0.85 : 1;
+  const weightedScore =
+    dbScore * 0.25 +
+    memScore * 0.3 +
+    graph.healthScore * 0.2 +
+    (apiScore ?? 0) * 0.15 +
+    (embeddings.chunks > 0 ? 90 : 50) * 0.1;
+  const overallScore = Math.round(weightedScore / scoredWeight);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -114,6 +117,7 @@ export async function runExecutiveQA(baseUrl?: string): Promise<ProductionReadin
       detail: dbReport?.checks[0]?.detail ?? "Not checked",
     },
     apis: {
+      status: baseUrl ? "executed" : "not_run",
       score: apiScore,
       passed: apiPassed,
       total: QA_PROBE_PATHS.length,
