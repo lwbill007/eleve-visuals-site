@@ -48,11 +48,12 @@ import type {
 } from "./types";
 
 async function getJsonContent<T>(key: string, fallback: T): Promise<T> {
-  const row = await prisma.siteContent.findUnique({ where: { key } });
-  if (!row) return fallback;
   try {
+    const row = await prisma.siteContent.findUnique({ where: { key } });
+    if (!row) return fallback;
     return JSON.parse(row.value) as T;
-  } catch {
+  } catch (error) {
+    console.error(`[content] Falling back for ${key}:`, error);
     return fallback;
   }
 }
