@@ -1,25 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
-import { AIGeneratePanel } from "@/components/admin/ai/AIGeneratePanel";
 import { useSetAIPage } from "@/components/admin/ai/AIContextProvider";
 import {
   AdminBarChart,
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/os/AdminOSComponents";
-import { OsCapabilityGrid, type OsCapability } from "@/components/admin/os/OsCapabilityGrid";
 import {
   WorkspaceChrome,
   WorkspaceEmpty,
   WorkspaceError,
   WorkspaceLoading,
-  WorkspaceToolbar,
 } from "@/components/admin/os/WorkspaceFrame";
 import type { ConversionDashboard } from "@/lib/analytics-funnel";
-import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
+import type { ExecutiveAnalyticsPayload } from "@/lib/executive-analytics";
 import { osEyebrow } from "@/lib/ai/platform/os-systems";
+import { cn } from "@/lib/utils";
 
 interface AnalyticsData {
   periodDays: number;
@@ -33,6 +32,30 @@ interface AnalyticsData {
   topPages: { path: string; views: number }[];
   topSources: { source: string; visits: number }[];
   conversion?: ConversionDashboard;
+  executive?: ExecutiveAnalyticsPayload;
+}
+
+function Delta({ value }: { value: number | null }) {
+  if (value == null) return null;
+  return (
+    <span className={cn("text-xs", value >= 0 ? "text-emerald-400/90" : "text-red-400/90")}>
+      {value >= 0 ? "▲" : "▼"} {Math.abs(value)}%
+    </span>
+  );
+}
+
+function ImpactBadge({ impact }: { impact: "high" | "medium" | "low" }) {
+  const tone =
+    impact === "high"
+      ? "border-red-400/40 bg-red-400/10 text-red-200"
+      : impact === "medium"
+        ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
+        : "border-stone/30 text-fog";
+  return (
+    <span className={cn("rounded-full border px-2 py-0.5 text-[0.55rem] tracking-wider uppercase", tone)}>
+      {impact} impact
+    </span>
+  );
 }
 
 export function AnalyticsClient() {
@@ -41,7 +64,6 @@ export function AnalyticsClient() {
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [q, setQ] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,114 +84,21 @@ export function AnalyticsClient() {
     void load();
   }, [load]);
 
-  const c = data?.conversion;
-  const sourceChart =
-    data?.topSources.slice(0, 6).map((s) => ({ month: s.source.slice(0, 12), value: s.visits })) ?? [];
-  const funnelChart =
-    c?.funnel.map((s) => ({ month: s.label.slice(0, 14), value: s.count })) ?? [];
+  const exec = data?.executive;
+  const bookingChart =
+    exec?.booking.steps.map((step) => ({
+      month: step.label.slice(0, 14),
+      value: step.count,
+    })) ?? [];
 
-  const pages = (data?.topPages ?? []).filter((p) =>
-    q.trim() ? p.path.toLowerCase().includes(q.trim().toLowerCase()) : true
-  );
-
-  const hasTraffic = (data?.totals.uniqueSessions ?? 0) > 0;
-  const owner = METRIC_OWNERS.analytics;
-  const analyticsCapabilities: OsCapability[] = useMemo(
-    () => [
-      {
-        id: "ssot",
-        label: "Traffic SSoT",
-        status: hasTraffic ? "live" : "planned",
-        summary: hasTraffic
-          ? "This page owns site traffic charts. Other pages must link here — never duplicate."
-          : "Waiting for first-party analytics events.",
-        missing: hasTraffic
-          ? undefined
-          : {
-              label: "Traffic",
-              reason: "No analytics sessions recorded yet",
-              required: ["Analytics collector enabled", "Page views recorded"],
-              confidence: 0,
-              unlockAfter: "Unlock after analytics events begin flowing",
-              owner,
-              unlockHref: "/admin/qa",
-            },
-      },
-      {
-        id: "funnel",
-        label: "Conversion funnel",
-        status: hasTraffic ? "live" : "planned",
-        summary: "First-party funnel from homepage to inquiry when events exist.",
-      },
-      {
-        id: "heatmaps",
-        label: "Heatmaps",
-        status: "planned",
-        summary: "Click / scroll heatmaps are not connected.",
-        missing: {
-          label: "Heatmaps",
-          reason: "No heatmap connector — never invent click maps",
-          required: ["Heatmap vendor", "Consent review"],
-          confidence: 0,
-          unlockAfter: "Unlock after heatmap connector",
-          owner,
-          unlockHref: "/admin/qa",
-        },
-      },
-      {
-        id: "ab",
-        label: "A/B tests",
-        status: "planned",
-        summary: "Experiment traffic split + significance not instrumented.",
-        missing: {
-          label: "A/B tests",
-          reason: "No experiment framework with measured outcomes",
-          required: ["Variant assignment", "Outcome events", "Sample size gate"],
-          confidence: 0,
-          unlockAfter: "Unlock after A/B experiment framework",
-          owner,
-          unlockHref: "/admin/qa",
-        },
-      },
-      {
-        id: "session-replay",
-        label: "Session replay",
-        status: "planned",
-        summary: "Session replay is not connected.",
-        missing: {
-          label: "Session replay",
-          reason: "No replay vendor",
-          required: ["Replay connector", "PII redaction"],
-          confidence: 0,
-          unlockAfter: "Unlock after session replay connector",
-          owner,
-          unlockHref: "/admin/qa",
-        },
-      },
-      {
-        id: "lighthouse-live",
-        label: "Live Lighthouse",
-        status: "planned",
-        summary: "Targets below are not live scores — verify in CI / Lighthouse after releases.",
-        missing: {
-          label: "Live Lighthouse scores",
-          reason: "No continuous Lighthouse ingest into Analytics",
-          required: ["CI Lighthouse job", "Score store"],
-          confidence: 0,
-          unlockAfter: "Unlock after Lighthouse CI ingest",
-          owner,
-          unlockHref: "/admin/website",
-        },
-      },
-    ],
-    [hasTraffic, owner]
-  );
+  const plannedIntegrations =
+    exec?.integrations.filter((item) => item.status === "planned") ?? [];
 
   return (
     <WorkspaceChrome
-      eyebrow={osEyebrow("grow", "What is traffic doing?")}
+      eyebrow={osEyebrow("grow", "Is the business healthy?")}
       title="Analytics"
-      description="Single analytics SSoT for site traffic — no duplicate charts elsewhere. Heatmaps, A/B, and replay stay MissingMetric until connected."
+      description="Executive view — health at a glance, then what to do next."
       onRefresh={() => void load()}
       refreshing={loading}
       extra={
@@ -185,220 +114,317 @@ export function AnalyticsClient() {
         </select>
       }
       related={[
-        { label: "Website Intelligence", href: "/admin/website", desc: "Is the site healthy?" },
-        { label: "Homepage Intelligence", href: "/admin/homepage", desc: "Is the homepage converting?" },
-        { label: "Marketing", href: "/admin/marketing", desc: "What campaigns should run?" },
-        { label: "Revenue Leaks", href: "/admin/leaks", desc: "Where are we losing money?" },
+        { label: "AI Briefing", href: "/admin/briefing", desc: "Weekly executive summary" },
+        { label: "Opportunities", href: "/admin/opportunities", desc: "Growth actions" },
+        { label: "Revenue Leaks", href: "/admin/leaks", desc: "Where money is lost" },
+        { label: "Website Intelligence", href: "/admin/website", desc: "Site health drill-down" },
       ]}
     >
       {loading && !data ? (
         <WorkspaceLoading />
       ) : error ? (
         <WorkspaceError message={error} onRetry={() => void load()} />
-      ) : !data ? (
+      ) : !data || !exec ? (
         <WorkspaceEmpty
           title="No analytics yet"
-          detail="Pageviews and conversions appear after visitors hit the public site."
+          detail="Executive metrics appear after visitors interact with the public site."
           actionHref="/"
           actionLabel="View site"
         />
       ) : (
         <div className="space-y-8">
-          <div className="rounded-xl border border-accent/25 bg-accent/5 px-4 py-3 text-sm text-fog">
-            This is the <span className="text-cream">traffic single source of truth</span>. Other
-            Create/Grow pages link here for views and funnel — they must not redraw these charts.
-          </div>
-
-          <OsCapabilityGrid
-            title="Measurement map"
-            subtitle="Live first-party traffic only. Advanced channels stay MissingMetric."
-            capabilities={analyticsCapabilities}
-          />
-
-          <AdminPanel
-            title="Conversion Dashboard"
-            subtitle="Visitors → inquiry. Rates are first-party only."
-          >
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <AdminMetricCard label="Visitors" value={(c?.visitors ?? data.totals.uniqueSessions).toLocaleString()} />
-              <AdminMetricCard label="Hero CTR" value={`${c?.heroCtr ?? 0}%`} hint="Hero clicks / homepage" />
-              <AdminMetricCard label="Booking starts" value={(c?.bookingStarts ?? 0).toLocaleString()} />
-              <AdminMetricCard
-                label="Inquiry completion"
-                value={`${c?.inquiryCompletionRate ?? 0}%`}
-                hint="Submits / booking starts"
-              />
-              <AdminMetricCard label="Booking completions" value={(c?.bookingCompletions ?? data.conversions.booking).toLocaleString()} />
-              <AdminMetricCard label="Booking start rate" value={`${c?.bookingStartRate ?? 0}%`} />
-              <AdminMetricCard
-                label="Inquiries / portfolio views"
-                value={`${c?.inquiriesPerPortfolioViewPct ?? 0}%`}
-                hint="Aggregate ratio · not attributed journeys"
-              />
-              <AdminMetricCard
-                label="Inquiries / session views"
-                value={`${c?.inquiriesPerSessionViewPct ?? 0}%`}
-                hint="Aggregate ratio · not attributed journeys"
-              />
-            </div>
-
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
-              <div className="rounded-lg border border-stone/20 p-4 text-sm">
-                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Avg completion time</p>
-                <p className="mt-1 font-display text-2xl text-cream">
-                  {c?.avgCompletionMinutes != null ? `${c.avgCompletionMinutes}m` : "—"}
-                </p>
-              </div>
-              <div className="rounded-lg border border-stone/20 p-4 text-sm">
-                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Top traffic source</p>
-                <p className="mt-1 text-cream">
-                  {c?.topTrafficSource
-                    ? `${c.topTrafficSource.source} (${c.topTrafficSource.visits})`
-                    : "—"}
-                </p>
-              </div>
-              <div className="rounded-lg border border-stone/20 p-4 text-sm">
-                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Device mix</p>
-                <p className="mt-1 text-cream">
-                  {c?.mobileSharePct != null
-                    ? `Mobile ${c.mobileSharePct}% · Desktop ${c.desktopSharePct}%`
-                    : "Collecting…"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-lg border border-stone/20 p-4 text-sm">
-                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Most-viewed session</p>
-                <p className="mt-1 truncate text-cream">
-                  {c?.mostViewedSession
-                    ? `${c.mostViewedSession.path} (${c.mostViewedSession.views})`
-                    : "—"}
-                </p>
-              </div>
-              <div className="rounded-lg border border-stone/20 p-4 text-sm">
-                <p className="text-[0.55rem] tracking-[0.1em] text-muted uppercase">Most-clicked portfolio</p>
-                <p className="mt-1 truncate text-cream">
-                  {c?.mostClickedPortfolio
-                    ? `${c.mostClickedPortfolio.path} (${c.mostClickedPortfolio.views})`
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          </AdminPanel>
-
-          <AdminPanel title="Funnel drop-off" subtitle="Where visitors abandon the path to inquiry">
-            {funnelChart.length > 0 && (
-              <AdminBarChart data={funnelChart} labelKey="month" valueKey="value" accent />
-            )}
-            <ul className="mt-4 space-y-2 text-sm">
-              {(c?.funnel ?? []).map((step) => (
-                <li
-                  key={step.id}
-                  className="flex flex-wrap items-center justify-between gap-2 border-b border-stone/10 py-2"
-                >
-                  <span className="text-fog">{step.label}</span>
-                  <span className="text-cream">
-                    {step.count}
-                    {step.dropOffPct != null && step.dropOffPct > 0 ? (
-                      <span className="ml-2 text-amber-200/90">↓ {step.dropOffPct}%</span>
-                    ) : null}
-                    <span className="ml-2 text-muted">{step.conversionFromStartPct}% of start</span>
-                  </span>
-                </li>
+          <section aria-label="Executive summary">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-6">
+              {exec.summary.map((metric) => (
+                <AdminMetricCard
+                  key={metric.key}
+                  label={metric.label}
+                  value={metric.value}
+                  hint={metric.detail}
+                  delta={metric.delta}
+                  className="p-4"
+                />
               ))}
-            </ul>
-            {c?.note && <p className="mt-3 text-xs text-muted">{c.note}</p>}
+            </div>
+          </section>
+
+          <AdminPanel title="AI Executive Brief" subtitle="What is happening and what matters now">
+            <p className="text-sm leading-relaxed text-cream-dim">{exec.brief.narrative}</p>
+            {exec.brief.priority ? (
+              <div className="mt-5 rounded-xl border border-accent/25 bg-accent/5 p-4">
+                <p className="text-[0.55rem] tracking-[0.12em] text-accent uppercase">
+                  Priority {exec.brief.priority.rank}
+                </p>
+                <p className="mt-2 text-base text-cream">{exec.brief.priority.title}</p>
+                <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                  <div>
+                    <p className="text-[0.55rem] tracking-wider text-muted uppercase">Estimated impact</p>
+                    <p className="mt-1 text-fog">{exec.brief.priority.estimatedImpact}</p>
+                  </div>
+                  <div>
+                    <p className="text-[0.55rem] tracking-wider text-muted uppercase">Confidence</p>
+                    <p className="mt-1 text-fog">{exec.brief.priority.confidence}%</p>
+                  </div>
+                </div>
+                {exec.brief.priority.href ? (
+                  <Link
+                    href={exec.brief.priority.href}
+                    className="mt-4 inline-flex text-xs tracking-wider text-accent uppercase hover:underline"
+                  >
+                    Open action →
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
           </AdminPanel>
 
-          <AdminPanel
-            title="Lighthouse targets"
-            subtitle="Verify after each release — not live scores"
-          >
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
-              {(
-                [
-                  ["Performance", c?.lighthouseTargets.performance ?? 95],
-                  ["Accessibility", c?.lighthouseTargets.accessibility ?? 95],
-                  ["Best Practices", c?.lighthouseTargets.bestPractices ?? 100],
-                  ["SEO", c?.lighthouseTargets.seo ?? 100],
-                ] as const
-              ).map(([label, target]) => (
-                <div key={label} className="rounded-lg border border-stone/20 p-3 text-center">
-                  <p className="font-display text-xl text-cream">≥{target}</p>
-                  <p className="text-[0.55rem] tracking-[0.08em] text-muted uppercase">{label}</p>
+          <AdminPanel title="Revenue Funnel" subtitle="Visitors to revenue — each stage shows drop-off">
+            <div className="space-y-2">
+              {exec.revenueFunnel.map((stage, index) => (
+                <div
+                  key={stage.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone/15 px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-7 w-7 place-items-center rounded-full border border-stone/30 text-xs text-muted">
+                      {index + 1}
+                    </span>
+                    <div>
+                      <p className="text-sm text-cream">{stage.label}</p>
+                      {stage.id === "revenue" && stage.revenue != null ? (
+                        <p className="text-xs text-fog">${stage.revenue.toLocaleString()} generated</p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
+                    <span className="text-cream">{stage.id === "revenue" ? stage.revenue != null ? `$${stage.revenue.toLocaleString()}` : "—" : stage.count.toLocaleString()}</span>
+                    {stage.dropOffPct != null && stage.dropOffPct > 0 ? (
+                      <span className="text-amber-200">↓ {stage.dropOffPct}%</span>
+                    ) : null}
+                    {stage.pctOfPrevious != null && index > 0 ? (
+                      <span className="text-muted">{stage.pctOfPrevious}% of previous</span>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>
           </AdminPanel>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <AdminMetricCard label="Pageviews" value={data.totals.pageviews.toLocaleString()} />
-            <AdminMetricCard label="Sessions" value={data.totals.uniqueSessions.toLocaleString()} />
-            <AdminMetricCard label="Conversions" value={data.totals.conversions.toLocaleString()} />
-            <AdminMetricCard
-              label="Legacy conv. rate"
-              value={`${data.totals.conversionRate}%`}
-              hint="Inquiry pageviews → conversions"
-            />
-          </div>
+          <AdminPanel title="Traffic Intelligence" subtitle="Traffic with conversion context">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {(
+                [
+                  ["Visitors", exec.traffic.visitors],
+                  ["Sessions", exec.traffic.sessions],
+                  ["Returning Visitors", exec.traffic.returningVisitors],
+                  ["Average Engagement", exec.traffic.avgEngagement],
+                ] as const
+              ).map(([label, metric]) => (
+                <div key={label} className="rounded-lg border border-stone/20 p-4">
+                  <p className="text-[0.55rem] tracking-wider text-muted uppercase">{label}</p>
+                  <p className="mt-2 font-display text-2xl text-cream">{metric.value}</p>
+                  <div className="mt-2">
+                    <Delta value={metric.delta} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stone/20 text-left text-[0.55rem] tracking-wider text-muted uppercase">
+                    <th className="py-2 pr-4">Source</th>
+                    <th className="py-2 pr-4">Traffic</th>
+                    <th className="py-2 pr-4">Conversion</th>
+                    <th className="py-2">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exec.traffic.topSources.map((source) => (
+                    <tr key={source.source} className="border-b border-stone/10">
+                      <td className="py-3 pr-4 text-cream">{source.source}</td>
+                      <td className="py-3 pr-4 text-fog">{source.traffic.toLocaleString()}</td>
+                      <td className="py-3 pr-4 text-fog">{source.conversionRate}%</td>
+                      <td className="py-3 text-muted">
+                        {source.revenue != null ? `$${source.revenue.toLocaleString()}` : "Not attributed"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </AdminPanel>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <AdminPanel title="Top sources" subtitle="Where visitors arrive">
-              {sourceChart.length === 0 ? (
-                <p className="text-sm text-muted">No source data in this window.</p>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <AdminPanel title="Portfolio Intelligence" subtitle="What creative work drives interest">
+              {exec.portfolio.length === 0 ? (
+                <p className="text-sm text-muted">No published portfolio items yet.</p>
               ) : (
-                <AdminBarChart data={sourceChart} labelKey="month" valueKey="value" accent />
+                <div className="space-y-3">
+                  {exec.portfolio.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-stone/15 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm text-cream">{item.title}</p>
+                        <span className="text-xs text-fog">{item.views} views</span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-fog sm:grid-cols-4">
+                        <span>Conversion {item.conversionScore}</span>
+                        <span>Engagement {item.engagementScore}</span>
+                        <span>Bookings {item.bookings}</span>
+                        <span>Revenue {item.revenue != null ? `$${item.revenue}` : "—"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </AdminPanel>
-            <AdminPanel title="Conversions by type">
-              <ul className="space-y-2 text-sm">
-                <li className="flex justify-between text-fog">
-                  <span>Booking</span>
-                  <span className="text-cream">{data.conversions.booking}</span>
-                </li>
-                <li className="flex justify-between text-fog">
-                  <span>Contact</span>
-                  <span className="text-cream">{data.conversions.contact}</span>
-                </li>
-                <li className="flex justify-between text-fog">
-                  <span>Session app</span>
-                  <span className="text-cream">{data.conversions.session}</span>
-                </li>
-              </ul>
+
+            <AdminPanel title="Session Intelligence" subtitle="Health score per session volume">
+              {exec.sessions.length === 0 ? (
+                <p className="text-sm text-muted">No published sessions yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {exec.sessions.map((session) => (
+                    <div key={session.id} className="rounded-lg border border-stone/15 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm text-cream">{session.title}</p>
+                        <span className="rounded-full border border-accent/30 px-2 py-0.5 text-xs text-accent">
+                          Health {session.health}
+                        </span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-fog sm:grid-cols-4">
+                        <span>{session.views} views</span>
+                        <span>{session.bookings} bookings</span>
+                        <span>{session.conversionRate}% conv.</span>
+                        <span>{session.avgViewMinutes != null ? `${session.avgViewMinutes}m avg` : "—"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </AdminPanel>
           </div>
 
-          <AdminPanel title="Top pages">
-            <WorkspaceToolbar search={q} onSearch={setQ} searchPlaceholder="Filter paths…" />
-            {pages.length === 0 ? (
-              <p className="text-sm text-muted">No pages match.</p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {pages.slice(0, 12).map((p) => (
-                  <li key={p.path} className="flex justify-between gap-4 border-b border-stone/10 py-2">
-                    <span className="truncate text-fog">{p.path}</span>
-                    <span className="shrink-0 text-cream">{p.views}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <AdminPanel title="Booking Intelligence" subtitle="Where the booking flow breaks">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <AdminMetricCard label="Started" value={exec.booking.started} className="p-4" />
+              <AdminMetricCard label="Completed" value={exec.booking.completed} className="p-4" />
+              <AdminMetricCard label="Completion Rate" value={`${exec.booking.completionRate}%`} className="p-4" />
+              <AdminMetricCard
+                label="Average Time"
+                value={exec.booking.avgMinutes != null ? `${exec.booking.avgMinutes}m` : "—"}
+                className="p-4"
+              />
+              <AdminMetricCard label="Abandonment Rate" value={`${exec.booking.abandonmentRate}%`} className="p-4" />
+            </div>
+            {exec.booking.biggestDrop ? (
+              <p className="mt-4 text-sm text-amber-200">
+                Biggest drop-off: {exec.booking.biggestDrop.label} ({exec.booking.biggestDrop.dropOffPct}%)
+              </p>
+            ) : null}
+            {bookingChart.length > 0 ? (
+              <div className="mt-6">
+                <AdminBarChart data={bookingChart} labelKey="month" valueKey="value" accent />
+              </div>
+            ) : null}
           </AdminPanel>
 
-          <AdminPanel title="AI analysis" subtitle="Explain numbers — review before acting">
-            <AIGeneratePanel
-              task="analytics_explain"
-              label="Analytics insight"
-              prompt="Explain this analytics and conversion funnel with summary, drop-off risks, and next experiment."
-              context={{
-                periodDays: data.periodDays,
-                totals: data.totals,
-                conversions: data.conversions,
-                conversion: data.conversion,
-                topPages: data.topPages,
-              }}
-            />
+          <AdminPanel title="Marketing Intelligence" subtitle="Source performance — traffic, conversion, revenue">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stone/20 text-left text-[0.55rem] tracking-wider text-muted uppercase">
+                    <th className="py-2 pr-4">Source</th>
+                    <th className="py-2 pr-4">Traffic</th>
+                    <th className="py-2 pr-4">Bookings</th>
+                    <th className="py-2">ROI</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exec.marketing.map((row) => (
+                    <tr key={row.source} className="border-b border-stone/10">
+                      <td className="py-3 pr-4 text-cream">{row.source}</td>
+                      <td className="py-3 pr-4 text-fog">{row.traffic.toLocaleString()}</td>
+                      <td className="py-3 pr-4 text-fog">{row.conversions}</td>
+                      <td className="py-3 text-muted">{row.revenue != null ? `$${row.revenue}` : "Not connected"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </AdminPanel>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <AdminPanel title="Website Health" subtitle="Performance at a glance">
+              <div className="grid grid-cols-2 gap-3">
+                <AdminMetricCard
+                  label="Performance"
+                  value={exec.website.performance ?? "—"}
+                  className="p-4"
+                />
+                <AdminMetricCard label="SEO" value={exec.website.seo ?? "—"} className="p-4" />
+                <AdminMetricCard
+                  label="Accessibility"
+                  value={exec.website.accessibility ?? "—"}
+                  className="p-4"
+                />
+                <AdminMetricCard
+                  label="Overall"
+                  value={exec.website.overall ?? "—"}
+                  className="p-4"
+                />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3 text-xs">
+                <span className="rounded-full border border-stone/30 px-3 py-1 text-fog">
+                  Core Web Vitals · {exec.website.coreWebVitals.replace("_", " ")}
+                </span>
+                <span className="rounded-full border border-emerald-400/30 px-3 py-1 text-emerald-200">
+                  Deployment · {exec.website.deploymentStatus}
+                </span>
+              </div>
+            </AdminPanel>
+
+            <AdminPanel title="AI Opportunities" subtitle="Action list ranked by impact">
+              {exec.opportunities.length === 0 ? (
+                <p className="text-sm text-muted">No opportunities surfaced for this window.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {exec.opportunities.map((item) => (
+                    <li key={item.id} className="rounded-lg border border-stone/15 p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ImpactBadge impact={item.impact} />
+                        <p className="text-sm text-cream">{item.title}</p>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-4 text-xs text-fog">
+                        <span>Potential gain · {item.potentialGain}</span>
+                        <span>Confidence · {item.confidence}%</span>
+                      </div>
+                      {item.href ? (
+                        <Link href={item.href} className="mt-3 inline-flex text-xs text-accent hover:underline">
+                          Review →
+                        </Link>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </AdminPanel>
+          </div>
+
+          {plannedIntegrations.length > 0 ? (
+            <AdminPanel title="Integrations" subtitle="Connect advanced analytics when ready">
+              <div className="flex flex-wrap gap-2">
+                {plannedIntegrations.map((item) => (
+                  <span
+                    key={item.id}
+                    className="rounded-full border border-stone/30 px-3 py-1.5 text-xs text-muted"
+                  >
+                    {item.label} · planned
+                  </span>
+                ))}
+              </div>
+            </AdminPanel>
+          ) : null}
         </div>
       )}
     </WorkspaceChrome>
