@@ -90,7 +90,7 @@ export const OS_PAGES: OsPageSpec[] = [
     label: "Pipeline",
     href: "/admin/pipeline",
     question: "Where is every deal?",
-    purpose: "Visual CRM with win/ghost/value predictions.",
+    purpose: "Visual deal board over the same inquiries as Clients — drag stages here; open a contact in Clients for full history.",
   },
   {
     id: "bookings",
@@ -107,7 +107,7 @@ export const OS_PAGES: OsPageSpec[] = [
     label: "Clients",
     href: "/admin/crm",
     question: "Who is this customer?",
-    purpose: "Complete customer record — never search multiple pages.",
+    purpose: "Every contact rolled up across inquiries — see their pipeline stage here, or work the deal itself in Pipeline.",
     nestedAIContext: "crm_profile",
   },
   {
@@ -116,7 +116,7 @@ export const OS_PAGES: OsPageSpec[] = [
     label: "Inbox",
     href: "/admin/submissions",
     question: "What needs a reply?",
-    purpose: "One communication center across channels.",
+    purpose: "Raw log of every inquiry as it arrived — for working views, use Pipeline (deals) or Clients (people).",
   },
   // Create
   {

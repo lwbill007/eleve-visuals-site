@@ -46,6 +46,7 @@ import {
   isOpenPipelineValueStatus,
   isProductionOrClosedValueStatus,
   normalizeInquiryStatus,
+  type ProductionStatus,
 } from "@/lib/booking-pipeline";
 
 function parseEmail(data: Record<string, unknown>, fallback: string): string {
@@ -274,10 +275,19 @@ export async function getAdminDashboardOSCached(force = false) {
   return data;
 }
 
-export async function getAdminCRMContacts() {
+async function computeCrmAggregates() {
   const submissions = await prisma.submission.findMany({
     orderBy: { createdAt: "desc" },
-    select: { id: true, type: true, status: true, data: true, contactEmail: true, createdAt: true, notes: true },
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      data: true,
+      contactEmail: true,
+      createdAt: true,
+      updatedAt: true,
+      notes: true,
+    },
   });
 
   const byEmail = new Map<
@@ -297,6 +307,8 @@ export async function getAdminCRMContacts() {
       revenue: number;
       lastActivity: string;
       notes: string;
+      pipelineStage: ProductionStatus | null;
+      pipelineStageUpdatedAt: string | null;
     }
   >();
 
@@ -323,6 +335,8 @@ export async function getAdminCRMContacts() {
       revenue: 0,
       lastActivity: row.createdAt.toISOString(),
       notes: "",
+      pipelineStage: null as ProductionStatus | null,
+      pipelineStageUpdatedAt: null as string | null,
     };
 
     if (parseName(data)) existing.name = parseName(data);
@@ -334,6 +348,11 @@ export async function getAdminCRMContacts() {
     if (row.type === "booking") {
       existing.bookings += 1;
       const stage = normalizeInquiryStatus(row.status);
+      const updatedAt = row.updatedAt.toISOString();
+      if (!existing.pipelineStageUpdatedAt || updatedAt > existing.pipelineStageUpdatedAt) {
+        existing.pipelineStage = stage;
+        existing.pipelineStageUpdatedAt = updatedAt;
+      }
       const q = data.qualification as
         | { crmSegment?: string; estimatedProjectValue?: number; packageName?: string }
         | undefined;
@@ -395,17 +414,25 @@ export async function getAdminCRMContacts() {
     byEmail.set(email, existing);
   }
 
+  return byEmail;
+}
+
+export async function getAdminCRMContacts() {
+  const byEmail = await computeCrmAggregates();
   return [...byEmail.values()].sort(
     (a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
   );
 }
 
 export async function getAdminPipeline() {
-  const bookings = await prisma.submission.findMany({
-    where: { type: "booking" },
-    orderBy: { updatedAt: "desc" },
-    select: { id: true, status: true, data: true, contactEmail: true, createdAt: true, updatedAt: true },
-  });
+  const [bookings, crmByEmail] = await Promise.all([
+    prisma.submission.findMany({
+      where: { type: "booking" },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, status: true, data: true, contactEmail: true, createdAt: true, updatedAt: true },
+    }),
+    computeCrmAggregates(),
+  ]);
 
   const columns = PIPELINE_STAGES.map((stage) => ({
     id: stage.id,
@@ -423,6 +450,8 @@ export async function getAdminPipeline() {
           (typeof data.projectCategory === "string" && data.projectCategory) ||
           (Array.isArray(data.serviceTypes) && (data.serviceTypes as string[])[0]) ||
           (typeof data.serviceType === "string" ? data.serviceType : "");
+        const email = (b.contactEmail || parseEmail(data, "")).toLowerCase().trim();
+        const contact = email ? crmByEmail.get(email) : undefined;
         return {
           id: b.id,
           name: parseName(data) || b.contactEmail || "Unknown",
@@ -443,6 +472,9 @@ export async function getAdminPipeline() {
           updatedAt: b.updatedAt.toISOString(),
           ageDays: Math.floor((Date.now() - b.updatedAt.getTime()) / 86400000),
           status: normalizeInquiryStatus(b.status),
+          contactBookingsCount: contact?.bookings,
+          contactRevenue: contact?.revenue,
+          isRepeatClient: (contact?.bookings ?? 0) > 1,
         };
       }),
   }));

@@ -319,6 +319,12 @@ export function PipelineClient() {
                           <p className="mt-2 text-[0.65rem] text-muted">
                             {new Date(item.createdAt).toLocaleDateString()}
                           </p>
+                          {(item.contactBookingsCount ?? 0) > 1 && (
+                            <p className="mt-1 text-[0.65rem] text-muted">
+                              {item.contactBookingsCount} bookings
+                              {item.contactRevenue ? ` · $${item.contactRevenue.toLocaleString()} lifetime` : ""}
+                            </p>
+                          )}
                         </Link>
                         {item.email && (
                           <Link

@@ -17,6 +17,8 @@ import {
 } from "@/components/admin/os/WorkspaceFrame";
 import { METRIC_OWNERS, type MissingMetric } from "@/lib/ai/platform/metric-owners";
 import { osEyebrow, osPage } from "@/lib/ai/platform/os-systems";
+import { INQUIRY_STATUS_COLORS, INQUIRY_STATUS_LABELS, type ProductionStatus } from "@/lib/booking-pipeline";
+import { cn } from "@/lib/utils";
 
 interface Contact {
   id: string;
@@ -32,6 +34,7 @@ interface Contact {
   contacts: number;
   revenue: number;
   lastActivity: string;
+  pipelineStage: ProductionStatus | null;
 }
 
 const page = osPage("clients")!;
@@ -311,6 +314,7 @@ export function CRMClient() {
               <tr className="border-b border-stone/20 text-[0.65rem] tracking-[0.14em] text-muted uppercase">
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Stage</th>
                 <th className="px-4 py-3">Segment</th>
                 <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3">Bookings</th>
@@ -332,6 +336,20 @@ export function CRMClient() {
                   </td>
                   <td className="px-4 py-4">
                     <AdminStatusBadge status={c.status} />
+                  </td>
+                  <td className="px-4 py-4">
+                    {c.pipelineStage ? (
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full border px-2 py-0.5 text-[0.6rem] tracking-[0.06em] uppercase",
+                          INQUIRY_STATUS_COLORS[c.pipelineStage]
+                        )}
+                      >
+                        {INQUIRY_STATUS_LABELS[c.pipelineStage]}
+                      </span>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex flex-wrap gap-1">

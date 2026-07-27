@@ -12,6 +12,9 @@ export interface AdminBookingSummary {
   ageDays?: number;
   leadScore?: number;
   priority?: string;
+  contactBookingsCount?: number;
+  contactRevenue?: number;
+  isRepeatClient?: boolean;
 }
 
 export interface AdminPipelineColumn {
