@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {
+  getAboutContent,
   getBrandStory,
   getFeaturedPortfolio,
   getFeaturedTestimonials,
@@ -17,6 +18,7 @@ import { HomeStats } from "@/components/home/HomeStats";
 import { HomeFeaturedWork } from "@/components/home/HomeFeaturedWork";
 import { HomeServicesPreview } from "@/components/home/HomeServicesPreview";
 import { HomeSessionsPreview } from "@/components/home/HomeSessionsPreview";
+import { HomeFounderIntro } from "@/components/home/HomeFounderIntro";
 import { HomeWhyEleve } from "@/components/home/HomeWhyEleve";
 import { HomeProcessTimeline } from "@/components/home/HomeProcessTimeline";
 import { HomeTestimonials } from "@/components/home/HomeTestimonials";
@@ -65,7 +67,7 @@ function orderedSections(sections: { id: string; enabled: boolean }[]) {
 }
 
 export default async function HomePage() {
-  const [hero, homepage, featured, services, brandStory, testimonials, site] =
+  const [hero, homepage, featured, services, brandStory, testimonials, site, about] =
     await Promise.all([
       getHeroContent(),
       getHomepageContent(),
@@ -74,6 +76,7 @@ export default async function HomePage() {
       getBrandStory(),
       getFeaturedTestimonials(),
       getSiteConfig(),
+      getAboutContent(),
     ]);
 
   let featuredWork = featured;
@@ -122,6 +125,7 @@ export default async function HomePage() {
         copy={homepage.copy.sessions}
       />
     ) : null,
+    founder: <HomeFounderIntro key="founder" about={about} />,
     "brand-story": (
       <HomeWhyEleve
         key="brand-story"
@@ -134,7 +138,9 @@ export default async function HomePage() {
       <HomeProcessTimeline
         key="process"
         copy={homepage.copy.process}
-        steps={homepage.processSteps}
+        steps={homepage.processSteps.slice(0, 3)}
+        moreHref="/experience"
+        moreLabel="See the full experience →"
       />
     ),
     testimonials: (

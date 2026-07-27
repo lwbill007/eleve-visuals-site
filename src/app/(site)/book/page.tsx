@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { BookingForm } from "@/components/forms/BookingForm";
 import { BookingHero } from "@/components/booking/BookingHero";
-import { getBookingOptions, getPageCopy, getSiteConfig } from "@/lib/content";
+import { TrustSnippet } from "@/components/marketing/TrustSnippet";
+import { getBookingOptions, getFeaturedTestimonials, getPageCopy, getSiteConfig } from "@/lib/content";
 import { buildPageMetadata, siteResponseTime } from "@/lib/seo/page-metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,12 +16,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function BookPage() {
-  const [bookingOptions, pageCopy, site] = await Promise.all([
+  const [bookingOptions, pageCopy, site, testimonials] = await Promise.all([
     getBookingOptions(),
     getPageCopy(),
     getSiteConfig(),
+    getFeaturedTestimonials(),
   ]);
   const responseTime = siteResponseTime(site);
+  const testimonial = testimonials[0] ?? null;
 
   return (
     <>
@@ -32,12 +35,25 @@ export default async function BookPage() {
       />
 
       <section className="section-padding">
-        <div className="container-wide max-w-6xl">
-          <BookingForm
-            bookingOptions={bookingOptions}
-            bookPage={pageCopy.bookPage}
-            responseTime={responseTime}
-          />
+        <div className="container-wide">
+          <div className="grid gap-16 lg:grid-cols-12">
+            <div className="lg:col-span-5 lg:order-2">
+              <div className="lg:sticky lg:top-28">
+                <TrustSnippet
+                  testimonial={testimonial}
+                  responseTime={responseTime}
+                  serviceArea={site.serviceArea}
+                />
+              </div>
+            </div>
+            <div className="lg:col-span-7 lg:order-1">
+              <BookingForm
+                bookingOptions={bookingOptions}
+                bookPage={pageCopy.bookPage}
+                responseTime={responseTime}
+              />
+            </div>
+          </div>
         </div>
       </section>
     </>

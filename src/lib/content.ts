@@ -7,6 +7,7 @@ import {
   DEFAULT_BOOKING_TERMS,
   DEFAULT_BRAND_STORY,
   DEFAULT_CONTACT_PAGE,
+  DEFAULT_EXPERIENCE,
   DEFAULT_FAQ,
   DEFAULT_HERO,
   DEFAULT_HOMEPAGE,
@@ -28,6 +29,7 @@ import type {
   BookingTermsContent,
   BrandStory,
   ContactPageContent,
+  ExperienceContent,
   FaqItem,
   HomepageContent,
   NavigationConfig,
@@ -297,6 +299,10 @@ export async function getAboutContent(): Promise<AboutContent> {
   return getJsonContent(CONTENT_KEYS.about, DEFAULT_ABOUT);
 }
 
+export async function getExperienceContent(): Promise<ExperienceContent> {
+  return getJsonContent(CONTENT_KEYS.experience, DEFAULT_EXPERIENCE);
+}
+
 export async function getSessionsContent(): Promise<SessionsContent> {
   return getJsonContent(CONTENT_KEYS.sessions, DEFAULT_SESSIONS);
 }
@@ -468,6 +474,7 @@ export const contentSetters = {
   faq: (v: FaqItem[]) => setJsonContent(CONTENT_KEYS.faq, v),
   contactPage: (v: ContactPageContent) => setJsonContent(CONTENT_KEYS.contactPage, v),
   about: (v: AboutContent) => setJsonContent(CONTENT_KEYS.about, v),
+  experience: (v: ExperienceContent) => setJsonContent(CONTENT_KEYS.experience, v),
   sessions: (v: SessionsContent) => setJsonContent(CONTENT_KEYS.sessions, v),
   sessionsApplication: (v: SessionsApplicationContent) =>
     setJsonContent(CONTENT_KEYS.sessionsApplication, v),

@@ -1,13 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import type { HomepageProcessStep, HomepageSectionCopy } from "@/lib/types";
 
 export function HomeProcessTimeline({
   copy,
   steps,
+  moreHref,
+  moreLabel,
 }: {
   copy: HomepageSectionCopy;
   steps: HomepageProcessStep[];
+  moreHref?: string;
+  moreLabel?: string;
 }) {
   if (steps.length === 0) return null;
 
@@ -35,6 +40,15 @@ export function HomeProcessTimeline({
             ))}
           </div>
         </div>
+
+        {moreHref && (
+          <Link
+            href={moreHref}
+            className="mt-8 inline-block text-xs tracking-[0.2em] text-accent uppercase link-underline"
+          >
+            {moreLabel || "See the full experience →"}
+          </Link>
+        )}
       </div>
     </section>
   );

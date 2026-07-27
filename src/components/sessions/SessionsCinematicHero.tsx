@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useReducedMotion } from "framer-motion";
 import type { SessionVolumeDTO } from "@/lib/types";
 import { resolveSessionPosterImage } from "@/lib/session-volume";
 import { Button } from "@/components/ui/Button";
 import { SessionStatusBadge } from "./SessionStatusBadge";
 import { SessionCountdown } from "./SessionCountdown";
 import { MediaLightbox, type LightboxItem } from "./MediaLightbox";
+import { AmbientVideoBackground } from "./AmbientVideoBackground";
 import { toVideoEmbed } from "@/lib/video-embed";
 
 export function SessionsCinematicHero({
@@ -22,6 +24,7 @@ export function SessionsCinematicHero({
   fallbackAlt: string;
 }) {
   const [trailerOpen, setTrailerOpen] = useState(false);
+  const reduce = useReducedMotion();
 
   const backdrop = (volume ? volume.bannerImage || resolveSessionPosterImage(volume) : null) || fallbackPoster;
   const alt = volume ? volume.bannerImageAlt || volume.posterImageAlt || volume.title : fallbackAlt;
@@ -30,12 +33,18 @@ export function SessionsCinematicHero({
     ? { type: "video", src: volume.teaserVideoUrl, embed: toVideoEmbed(volume.teaserVideoUrl), alt: `${volume.title} trailer` }
     : null;
 
+  // Only self-hosted files can autoplay reliably as an ambient loop; YouTube/Vimeo embeds keep the static backdrop.
+  const ambientVideoSrc =
+    volume?.teaserVideoUrl && !toVideoEmbed(volume.teaserVideoUrl) ? volume.teaserVideoUrl : null;
+
   const tagline = volume?.subtitle || volume?.theme || "An ongoing series of cinematic creative productions.";
 
   return (
     <section className="relative flex min-h-[78dvh] items-end overflow-hidden bg-ink md:min-h-[88dvh]">
       <div className="absolute inset-0">
-        {backdrop ? (
+        {ambientVideoSrc ? (
+          <AmbientVideoBackground src={ambientVideoSrc} poster={backdrop} reduce={reduce} />
+        ) : backdrop ? (
           <Image
             src={backdrop}
             alt={alt}

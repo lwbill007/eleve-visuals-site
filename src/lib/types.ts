@@ -198,6 +198,12 @@ export interface AboutContent {
   imageAlt: string;
 }
 
+export interface ExperienceContent {
+  headline: string;
+  subheadline: string;
+  stages: HomepageProcessStep[];
+}
+
 export interface ContactPageContent {
   headline: string;
   subheadline: string;
@@ -573,6 +579,7 @@ export interface PageCopy {
   servicesCta: PageCta;
   aboutCta: PageCta;
   sessionsCta: PageCta;
+  experienceCta: PageCta;
   bookPage: {
     headline: string;
     subheadline: string;

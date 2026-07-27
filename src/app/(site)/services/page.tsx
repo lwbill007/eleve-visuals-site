@@ -12,7 +12,6 @@ import { ServiceEditorialSection } from "@/components/services/ServiceEditorialS
 import { ServicesProcess } from "@/components/services/ServicesProcess";
 import { ServicesFeaturedWork } from "@/components/services/ServicesFeaturedWork";
 import { ServicesWhyEleve } from "@/components/services/ServicesWhyEleve";
-import { ServicesClientExperience } from "@/components/services/ServicesClientExperience";
 import { ServicesFaq } from "@/components/services/ServicesFaq";
 import { ServicesFinalCta } from "@/components/services/ServicesFinalCta";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -104,7 +103,9 @@ export default async function ServicesPage() {
         eyebrow={pageContent.process.eyebrow}
         headline={pageContent.process.headline}
         subheadline={pageContent.process.subheadline}
-        steps={pageContent.process.steps}
+        steps={pageContent.process.steps.slice(0, 3)}
+        moreHref="/experience"
+        moreLabel="See the full experience →"
       />
 
       <ServicesFeaturedWork
@@ -118,13 +119,6 @@ export default async function ServicesPage() {
         eyebrow={pageContent.whyEleve.eyebrow}
         headline={pageContent.whyEleve.headline}
         items={pageContent.whyEleve.items}
-      />
-
-      <ServicesClientExperience
-        eyebrow={pageContent.clientExperience.eyebrow}
-        headline={pageContent.clientExperience.headline}
-        subheadline={pageContent.clientExperience.subheadline}
-        steps={pageContent.clientExperience.steps}
       />
 
       <ServicesFaq

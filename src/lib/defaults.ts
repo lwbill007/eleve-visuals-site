@@ -5,6 +5,7 @@ import type {
   BrandColors,
   BrandStory,
   ContactPageContent,
+  ExperienceContent,
   HeroContent,
   PageCopy,
   ServicesPageIntro,
@@ -64,12 +65,14 @@ export const DEFAULT_NAVIGATION: NavigationConfig = {
     { label: "Portfolio", href: "/portfolio" },
     { label: "Sessions", href: "/sessions" },
     { label: "Services", href: "/services" },
+    { label: "Experience", href: "/experience" },
     { label: "About", href: "/about" },
   ],
   footerLinks: [
     { label: "Portfolio", href: "/portfolio" },
     { label: "Sessions", href: "/sessions" },
     { label: "Services", href: "/services" },
+    { label: "Experience", href: "/experience" },
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
     { label: "Book Your Experience", href: "/book" },
@@ -80,13 +83,14 @@ export const DEFAULT_NAVIGATION: NavigationConfig = {
 
 export const DEFAULT_HOMEPAGE: HomepageContent = {
   sections: [
-    { id: "testimonials", label: "Testimonials", enabled: true },
     { id: "stats", label: "Signature Stats", enabled: true },
     { id: "featured-work", label: "Featured Work", enabled: true },
-    { id: "sessions", label: "ÉLEVÉ Sessions", enabled: true },
     { id: "services", label: "Services", enabled: true },
-    { id: "brand-story", label: "Why ÉLEVÉ", enabled: true },
+    { id: "sessions", label: "ÉLEVÉ Sessions", enabled: true },
+    { id: "founder", label: "Meet the Founder", enabled: true },
     { id: "process", label: "Client Experience", enabled: true },
+    { id: "brand-story", label: "Why ÉLEVÉ", enabled: true },
+    { id: "testimonials", label: "Testimonials", enabled: true },
     { id: "cta", label: "Final CTA", enabled: true },
   ],
   featuredSessionVolumeId: null,
@@ -347,6 +351,56 @@ export const DEFAULT_ABOUT: AboutContent = {
   },
   image: null,
   imageAlt: "",
+};
+
+export const DEFAULT_EXPERIENCE: ExperienceContent = {
+  headline: "From inquiry to long-term partner.",
+  subheadline:
+    "Luxury buyers want certainty. Here's exactly what happens when you work with ÉLEVÉ — start to finish, and beyond.",
+  stages: [
+    {
+      step: "01",
+      title: "Inquiry",
+      description:
+        "You share your vision, goals, and timeline. We respond within 1–2 business days with next steps.",
+    },
+    {
+      step: "02",
+      title: "Creative Direction",
+      description:
+        "We align on concept, mood, and references — the point of view that will carry the entire project.",
+    },
+    {
+      step: "03",
+      title: "Planning",
+      description:
+        "Locations, wardrobe, shot list, logistics, and schedule — locked before anyone shows up on set.",
+    },
+    {
+      step: "04",
+      title: "Production",
+      description:
+        "Shoot day, directed and produced with editorial precision. Focused, efficient, and adaptive in real time.",
+    },
+    {
+      step: "05",
+      title: "Editing",
+      description:
+        "Selects, retouching, and color grade — refined until every frame meets the ÉLEVÉ standard.",
+    },
+    {
+      step: "06",
+      title: "Delivery",
+      description:
+        "Final assets delivered in formats ready for web, print, and campaign — on schedule, every time.",
+    },
+    {
+      step: "07",
+      title: "Long-term Relationship",
+      description:
+        "Most clients come back. We stay in your corner for the next project, the next campaign, the next chapter.",
+    },
+  ],
 };
 
 export const DEFAULT_SESSIONS: SessionsContent = {
@@ -763,6 +817,14 @@ export const DEFAULT_PAGE_COPY: PageCopy = {
     primaryLabel: "Apply Now",
     primaryHref: "/sessions/apply",
   },
+  experienceCta: {
+    headline: "Ready to start your project?",
+    subheadline: "Every ÉLEVÉ project begins with a conversation.",
+    primaryLabel: "Start Your Project",
+    primaryHref: "/book",
+    secondaryLabel: "View Portfolio",
+    secondaryHref: "/portfolio",
+  },
   bookPage: {
     headline: "Begin your creative partnership",
     subheadline:
@@ -972,6 +1034,7 @@ export const CONTENT_KEYS = {
   faq: "faq",
   contactPage: "contact-page",
   about: "about",
+  experience: "experience",
   sessions: "sessions",
   sessionsApplication: "sessions-application",
   servicesIntro: "services-intro",

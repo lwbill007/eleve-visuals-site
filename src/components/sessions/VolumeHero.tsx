@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from "framer-motion";
@@ -9,6 +9,7 @@ import { resolveSessionPosterImage, getSessionStatusLabel } from "@/lib/session-
 import { SessionStatusBadge } from "./SessionStatusBadge";
 import { SessionCountdown } from "./SessionCountdown";
 import { VolumeFilmPlayer } from "./VolumeFilmPlayer";
+import { AmbientVideoBackground } from "./AmbientVideoBackground";
 
 function HeroMeta({
   status,
@@ -199,68 +200,6 @@ function HeroOverlay({
   );
 }
 
-function FeaturedVideoBackground({
-  src,
-  poster,
-  reduce,
-  y,
-  scale,
-}: {
-  src: string;
-  poster: string | null;
-  reduce: boolean | null;
-  y: MotionValue<string>;
-  scale: MotionValue<number>;
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    setReady(false);
-  }, [src]);
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    const video = videoRef.current;
-    if (!section || !video || reduce) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) video.play().catch(() => {});
-        else video.pause();
-      },
-      { threshold: 0.15 }
-    );
-
-    observer.observe(section);
-    video.play().catch(() => {});
-    return () => observer.disconnect();
-  }, [reduce, src]);
-
-  return (
-    <motion.div ref={sectionRef} style={{ y, scale }} className="absolute inset-0">
-      <video
-        ref={videoRef}
-        src={src}
-        poster={poster || undefined}
-        muted
-        loop
-        playsInline
-        autoPlay={!reduce}
-        preload="metadata"
-        onCanPlay={() => setReady(true)}
-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
-          ready ? "opacity-100" : "opacity-0"
-        }`}
-      />
-      {!ready && poster && (
-        <Image src={poster} alt="" fill priority className="object-cover" sizes="100vw" />
-      )}
-    </motion.div>
-  );
-}
-
 function HeroScrim({ overlayOpacity }: { overlayOpacity: MotionValue<number> }) {
   return (
     <>
@@ -323,7 +262,7 @@ export function VolumeHero({
     <>
       <section ref={ref} className="relative flex min-h-[100svh] items-end overflow-hidden">
         {useFeaturedVideo ? (
-          <FeaturedVideoBackground
+          <AmbientVideoBackground
             src={featuredVideoUrl}
             poster={artwork}
             reduce={reduce}

@@ -328,6 +328,15 @@ export const OS_PAGES: OsPageSpec[] = [
     primary: false,
   },
   {
+    id: "experience",
+    system: "create",
+    label: "Experience",
+    href: "/admin/experience",
+    question: "What does working with ÉLEVÉ actually feel like?",
+    purpose: "Client journey CMS.",
+    primary: false,
+  },
+  {
     id: "contact",
     system: "create",
     label: "Contact",

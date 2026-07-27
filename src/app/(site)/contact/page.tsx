@@ -4,7 +4,8 @@ import { PageHero } from "@/components/ui/Section";
 import { ContactForm } from "@/components/forms/ContactForm";
 import { FAQ } from "@/components/sections/FAQ";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { getContactPage, getFaqItems, getSiteConfig } from "@/lib/content";
+import { TrustSnippet } from "@/components/marketing/TrustSnippet";
+import { getContactPage, getFaqItems, getFeaturedTestimonials, getSiteConfig } from "@/lib/content";
 import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { buildBreadcrumbSchema, buildFaqSchema } from "@/lib/seo/structured-data";
 
@@ -20,11 +21,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ContactPage() {
-  const [siteConfig, contactPage, faqItems] = await Promise.all([
+  const [siteConfig, contactPage, faqItems, testimonials] = await Promise.all([
     getSiteConfig(),
     getContactPage(),
     getFaqItems(),
+    getFeaturedTestimonials(),
   ]);
+  const testimonial = testimonials[0] ?? null;
 
   const schemas = [
     buildBreadcrumbSchema(siteConfig, [
@@ -80,6 +83,8 @@ export default async function ContactPage() {
                   <p className="label-caps mb-3">Response Time</p>
                   <p className="text-sm text-fog">{siteConfig.responseTime}</p>
                 </div>
+
+                {testimonial && <TrustSnippet testimonial={testimonial} />}
 
                 <div className="border border-stone/40 p-6">
                   <p className="mb-2 text-sm text-cream-dim">{contactPage.formNote}</p>

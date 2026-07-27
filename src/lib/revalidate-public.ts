@@ -35,6 +35,12 @@ export function revalidateSiteLayout() {
 
 export function revalidateAboutPage() {
   revalidatePath("/about");
+  // Homepage founder section reads live About content.
+  revalidatePath("/");
+}
+
+export function revalidateExperiencePage() {
+  revalidatePath("/experience");
 }
 
 export function revalidateContactPage() {
@@ -52,6 +58,7 @@ const CONTENT_KEY_REVALIDATORS: Record<string, () => void> = {
   siteConfig: revalidateSiteLayout,
   navigation: revalidateSiteLayout,
   about: revalidateAboutPage,
+  experience: revalidateExperiencePage,
   contactPage: revalidateContactPage,
   servicesPage: revalidateServicesPages,
   servicesIntro: revalidateServicesPages,
@@ -62,6 +69,7 @@ const CONTENT_KEY_REVALIDATORS: Record<string, () => void> = {
     revalidateAboutPage();
     revalidateBookPage();
     revalidateSessionPages();
+    revalidateExperiencePage();
   },
   bookingOptions: revalidateBookPage,
   bookingTerms: () => revalidatePath("/booking-terms"),

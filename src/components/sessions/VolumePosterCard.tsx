@@ -8,9 +8,12 @@ import { SessionStatusBadge } from "./SessionStatusBadge";
 
 export function VolumePosterCard({ volume, showTheme = false }: { volume: SessionVolumeDTO; showTheme?: boolean }) {
   const poster = resolveSessionPosterImage(volume);
+  const canApply = volume.status === "applications_open";
+  const synopsis = volume.synopsis?.split("\n").find(Boolean) || "";
+  const meta = [volume.genre, volume.runtime].filter(Boolean);
 
   return (
-    <article className="group h-full">
+    <article className="group relative z-0 h-full hover:z-30 focus-within:z-30">
       <Link
         href={`/sessions/${volume.slug}`}
         className="block h-full transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-2 focus-visible:-translate-y-2"
@@ -48,6 +51,31 @@ export function VolumePosterCard({ volume, showTheme = false }: { volume: Sessio
           </div>
         </div>
       </Link>
+
+      <div className="invisible absolute inset-x-0 top-full z-30 hidden translate-y-[-4px] opacity-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 md:block">
+        <div className="border border-stone/40 bg-charcoal p-4 shadow-2xl shadow-black/60">
+          {meta.length > 0 && (
+            <p className="text-[0.6rem] tracking-[0.16em] text-fog uppercase">{meta.join(" · ")}</p>
+          )}
+          {synopsis && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-cream-dim">{synopsis}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {canApply && (
+              <Link
+                href={`/sessions/${volume.slug}/apply`}
+                className="inline-flex min-h-9 items-center border border-accent bg-accent/10 px-3 py-1.5 text-[0.6rem] tracking-[0.16em] text-accent uppercase transition-colors hover:bg-accent/20"
+              >
+                Apply
+              </Link>
+            )}
+            <Link
+              href={`/sessions/${volume.slug}`}
+              className="inline-flex min-h-9 items-center border border-stone/50 px-3 py-1.5 text-[0.6rem] tracking-[0.16em] text-fog uppercase transition-colors hover:border-cream/40 hover:text-cream"
+            >
+              View Volume
+            </Link>
+          </div>
+        </div>
+      </div>
     </article>
   );
 }

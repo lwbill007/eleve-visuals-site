@@ -218,6 +218,7 @@ export default function AdminHomepagePage() {
           { label: "Website Intelligence", href: "/admin/website", desc: "Is the site healthy?" },
           { label: "Media", href: "/admin/media", desc: "Where is the asset?" },
           { label: "Portfolio", href: "/admin/portfolio", desc: "Which work drives business?" },
+          { label: "Experience", href: "/admin/experience", desc: "Full client journey lives here" },
         ]}
       >
       <OsCapabilityGrid

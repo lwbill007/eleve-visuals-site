@@ -383,6 +383,15 @@ export default function AdminContentPage() {
               <AdminInput value={pageCopy.homeCta.headline} onChange={(e) => setPageCopy({ ...pageCopy, homeCta: { ...pageCopy.homeCta, headline: e.target.value } })} />
             </AdminField>
           </div>
+          <div>
+            <h3 className="mb-4 font-display text-lg">Experience Page CTA</h3>
+            <AdminField label="Headline">
+              <AdminInput value={pageCopy.experienceCta.headline} onChange={(e) => setPageCopy({ ...pageCopy, experienceCta: { ...pageCopy.experienceCta, headline: e.target.value } })} />
+            </AdminField>
+            <AdminField label="Subheadline">
+              <AdminInput value={pageCopy.experienceCta.subheadline ?? ""} onChange={(e) => setPageCopy({ ...pageCopy, experienceCta: { ...pageCopy.experienceCta, subheadline: e.target.value } })} />
+            </AdminField>
+          </div>
         </div>
       )}
 

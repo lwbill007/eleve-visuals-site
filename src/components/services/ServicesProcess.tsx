@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import type { ServicesProcessStep } from "@/lib/types";
 
@@ -8,11 +9,15 @@ export function ServicesProcess({
   headline,
   subheadline,
   steps,
+  moreHref,
+  moreLabel,
 }: {
   eyebrow: string;
   headline: string;
   subheadline: string;
   steps: ServicesProcessStep[];
+  moreHref?: string;
+  moreLabel?: string;
 }) {
   return (
     <section className="section-padding border-y border-stone/30 bg-ink-soft">
@@ -44,6 +49,15 @@ export function ServicesProcess({
             </motion.div>
           ))}
         </div>
+
+        {moreHref && (
+          <Link
+            href={moreHref}
+            className="mt-10 inline-block text-xs tracking-[0.2em] text-accent uppercase link-underline"
+          >
+            {moreLabel || "See the full experience →"}
+          </Link>
+        )}
       </div>
     </section>
   );
