@@ -238,7 +238,7 @@ export function MarketingStudioClient() {
       )}
 
       {activeTab === "calendar" && <ContentCalendarPanel />}
-      {activeTab === "campaigns" && <CampaignMemoryPanel cmo={cmo} />}
+      {activeTab === "campaigns" && <CampaignMemoryPanel cmo={cmo} onLogged={() => void refreshCMO()} />}
       {activeTab === "learn" && <LearningPanel cmo={cmo} />}
     </WorkspaceChrome>
   );
@@ -425,8 +425,41 @@ function CMOCommandCenter({
   );
 }
 
-function CampaignMemoryPanel({ cmo }: { cmo: CMOIntelligence | null }) {
+function CampaignMemoryPanel({ cmo, onLogged }: { cmo: CMOIntelligence | null; onLogged: () => void }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [bookingsInput, setBookingsInput] = useState("");
+  const [revenueInput, setRevenueInput] = useState("");
+  const [saving, setSaving] = useState(false);
+
   if (!cmo) return null;
+
+  function startLogging(id: string, bookings: number, revenue: number) {
+    setEditingId(id);
+    setBookingsInput(bookings ? String(bookings) : "");
+    setRevenueInput(revenue ? String(revenue) : "");
+  }
+
+  async function submitResults(id: string) {
+    setSaving(true);
+    try {
+      await adminFetch("/api/admin/ai/marketing/campaigns", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          metrics: {
+            bookings: Number(bookingsInput) || 0,
+            revenue: Number(revenueInput) || 0,
+          },
+        }),
+      });
+      setEditingId(null);
+      onLogged();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <AdminPanel title="Campaign case studies" subtitle={`${cmo.campaigns.length} permanent records`}>
       {cmo.campaigns.length === 0 ? (
@@ -445,6 +478,54 @@ function CampaignMemoryPanel({ cmo }: { cmo: CMOIntelligence | null }) {
                 <p className="mt-2 text-[0.65rem] text-accent">
                   {c.metrics.bookings ?? 0} bookings · ${c.metrics.revenue ?? 0} revenue
                 </p>
+              )}
+
+              {editingId === c.id ? (
+                <div className="mt-3 flex flex-wrap items-end gap-2">
+                  <label className="text-xs text-fog">
+                    Bookings
+                    <input
+                      type="number"
+                      min="0"
+                      value={bookingsInput}
+                      onChange={(e) => setBookingsInput(e.target.value)}
+                      className="mt-1 block w-24 rounded-lg border border-stone/30 bg-charcoal px-2 py-1.5 text-xs text-cream"
+                    />
+                  </label>
+                  <label className="text-xs text-fog">
+                    Revenue ($)
+                    <input
+                      type="number"
+                      min="0"
+                      value={revenueInput}
+                      onChange={(e) => setRevenueInput(e.target.value)}
+                      className="mt-1 block w-28 rounded-lg border border-stone/30 bg-charcoal px-2 py-1.5 text-xs text-cream"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void submitResults(c.id)}
+                    className="rounded-lg border border-accent/40 px-3 py-1.5 text-[0.65rem] text-accent uppercase hover:bg-accent/10 disabled:opacity-50"
+                  >
+                    {saving ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(null)}
+                    className="rounded-lg border border-stone/25 px-3 py-1.5 text-[0.65rem] text-fog uppercase hover:text-cream"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => startLogging(c.id, c.metrics.bookings ?? 0, c.metrics.revenue ?? 0)}
+                  className="mt-2 text-[0.65rem] text-accent uppercase hover:underline"
+                >
+                  Log results
+                </button>
               )}
             </li>
           ))}

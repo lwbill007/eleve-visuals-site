@@ -12,14 +12,36 @@ import { DEFAULT_CONTACT_PAGE } from "@/lib/defaults";
 import { useAdminEditor } from "@/hooks/useAdminEditor";
 import type { ContactPageContent } from "@/lib/types";
 
+function isPlausibleLink(value: string): boolean {
+  return value.startsWith("/") || value.startsWith("http://") || value.startsWith("https://");
+}
+
+function validateContact(value: ContactPageContent): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!value.headline?.trim()) errors.headline = "Headline is required.";
+  if (value.bookingLink && !isPlausibleLink(value.bookingLink)) {
+    errors.bookingLink = "Must start with / or http(s)://";
+  }
+  if (value.calendarUrl && !isPlausibleLink(value.calendarUrl)) {
+    errors.calendarUrl = "Must start with / or http(s)://";
+  }
+  return errors;
+}
+
 export default function AdminContactPage() {
   const { toast } = useAdminToast();
   const [contact, setContact] = useState<ContactPageContent>(DEFAULT_CONTACT_PAGE);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const editor = useAdminEditor(
     contact,
-    (next) => saveAdminContent("contactPage", next),
+    (next) => {
+      const errors = validateContact(next);
+      setValidationErrors(errors);
+      if (Object.keys(errors).length > 0) return Promise.resolve(false);
+      return saveAdminContent("contactPage", next);
+    },
     { autosave: true }
   );
   const resetEditor = editor.reset;
@@ -41,7 +63,7 @@ export default function AdminContactPage() {
   async function persist() {
     const ok = await editor.save();
     if (ok) toast("Contact page saved.");
-    setMessage(ok ? "Saved." : "Save failed.");
+    setMessage(ok ? "Saved." : Object.keys(validationErrors).length > 0 ? "Fix the highlighted fields before saving." : "Save failed.");
     return ok;
   }
 
@@ -68,7 +90,7 @@ export default function AdminContactPage() {
       </p>
 
       <div className="space-y-4">
-        <AdminField label="Page headline">
+        <AdminField label="Page headline" error={validationErrors.headline}>
           <AdminInput value={contact.headline} onChange={(e) => setContact({ ...contact, headline: e.target.value })} />
         </AdminField>
         <AdminField label="Subheadline">
@@ -77,10 +99,10 @@ export default function AdminContactPage() {
         <AdminField label="Form note" hint="Shown above or near the contact form">
           <AdminTextarea value={contact.formNote} onChange={(e) => setContact({ ...contact, formNote: e.target.value })} />
         </AdminField>
-        <AdminField label="Booking CTA link" hint="e.g. /book">
+        <AdminField label="Booking CTA link" hint="e.g. /book" error={validationErrors.bookingLink}>
           <AdminInput value={contact.bookingLink} onChange={(e) => setContact({ ...contact, bookingLink: e.target.value })} />
         </AdminField>
-        <AdminField label="Calendar URL (Calendly, etc.)" hint="Leave empty to hide">
+        <AdminField label="Calendar URL (Calendly, etc.)" hint="Leave empty to hide" error={validationErrors.calendarUrl}>
           <AdminInput
             value={contact.calendarUrl || ""}
             onChange={(e) => setContact({ ...contact, calendarUrl: e.target.value || null })}

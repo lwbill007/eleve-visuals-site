@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { aiNaturalLanguageSearch } from "@/lib/ai/service";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 
 export async function POST(request: Request) {
   try {
@@ -7,6 +8,9 @@ export async function POST(request: Request) {
   } catch {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(request, "admin-ai:search");
+  if (blocked) return blocked;
 
   const body = await request.json();
   const query = String(body.query || "").trim();

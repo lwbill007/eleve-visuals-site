@@ -5,6 +5,7 @@ import { mapSessionVolume } from "@/lib/session-volume";
 import { parseSessionVolumeBody } from "@/lib/session-volume-admin";
 import { validateFeaturedMediaId } from "@/lib/volume-videos-server";
 import { revalidateSessionPages } from "@/lib/revalidate-public";
+import { deleteBlobUrlsForRecord } from "@/lib/blob-storage";
 
 async function sanitizeFeaturedMediaId(
   data: ReturnType<typeof parseSessionVolumeBody>
@@ -95,7 +96,20 @@ export async function DELETE(
 
   const { id } = await params;
   try {
-    await prisma.sessionVolume.delete({ where: { id } });
+    const item = await prisma.sessionVolume.delete({ where: { id } });
+    await deleteBlobUrlsForRecord([
+      item.posterImage,
+      item.bannerImage,
+      item.moodBoard,
+      item.gallery,
+      item.btsGallery,
+      item.videos,
+      item.interviews,
+      item.audio,
+      item.callSheet,
+      item.teaserVideoUrl,
+      item.wardrobeGuide,
+    ]).catch(() => {});
     revalidateSessionPages();
     return NextResponse.json({ ok: true });
   } catch {

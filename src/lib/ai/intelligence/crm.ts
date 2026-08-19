@@ -162,9 +162,9 @@ export async function getCRMContactIntelligence(email: string): Promise<CRMConta
 export async function generateCRMContactAI(
   email: string,
   type: "summary" | "email" | "upsell"
-): Promise<string> {
+): Promise<{ content: string; reason?: string }> {
   const intel = await getCRMContactIntelligence(email);
-  if (!intel) return "Contact not found.";
+  if (!intel) return { content: "", reason: "Contact not found." };
 
   const taskMap = {
     summary: "client_summary" as const,
@@ -184,5 +184,5 @@ export async function generateCRMContactAI(
     context: { contact: intel.contact, timeline: intel.timeline.slice(0, 5), upsells: intel.upsells },
   });
 
-  return result.content;
+  return { content: result.content, reason: result.ok ? undefined : result.reason };
 }

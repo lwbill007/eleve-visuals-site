@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
 import type { AIReportResult, AIReportType } from "@/lib/ai/types";
+import type { WeeklyExecutiveReport } from "@/lib/ai/intelligence/weekly-executive-report";
 import { AskAIButton } from "./AskAIPanel";
 import { useSetAIPage } from "./AIContextProvider";
 import { AdminPanel } from "@/components/admin/os/AdminOSComponents";
@@ -29,6 +30,9 @@ export function BIReportsClient() {
   const [report, setReport] = useState<AIReportResult | null>(null);
   const [error, setError] = useState("");
   const [showNarrative, setShowNarrative] = useState(false);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [weeklyReport, setWeeklyReport] = useState<WeeklyExecutiveReport | null>(null);
+  const [weeklyError, setWeeklyError] = useState("");
 
   async function generate(type: AIReportType) {
     setLoading(type);
@@ -47,6 +51,21 @@ export function BIReportsClient() {
       setError("Report generation failed. Retry, or open Analytics / Financial Center for measured sources.");
     } finally {
       setLoading(null);
+    }
+  }
+
+  async function generateWeekly() {
+    setWeeklyLoading(true);
+    setWeeklyReport(null);
+    setWeeklyError("");
+    try {
+      const res = await adminFetch("/api/admin/ai/weekly-report?persist=1");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setWeeklyReport((await res.json()) as WeeklyExecutiveReport);
+    } catch {
+      setWeeklyError("Weekly report generation failed. Retry, or open Analytics / Financial Center for measured sources.");
+    } finally {
+      setWeeklyLoading(false);
     }
   }
 
@@ -156,6 +175,17 @@ export function BIReportsClient() {
             </p>
           </button>
         ))}
+        <button
+          type="button"
+          disabled={weeklyLoading}
+          onClick={generateWeekly}
+          className="rounded-xl border border-stone/25 p-5 text-left transition-colors hover:border-accent/30 disabled:opacity-50"
+        >
+          <p className="font-display text-lg text-cream">Weekly Executive Report</p>
+          <p className="mt-1 text-xs text-accent uppercase">
+            {weeklyLoading ? "Generating…" : "✦ Generate Report 2.0"}
+          </p>
+        </button>
       </div>
 
       {error && (
@@ -202,6 +232,31 @@ export function BIReportsClient() {
               Structured Report 2.0 unavailable for this run — open the narrative draft or retry.
             </p>
           )}
+        </AdminPanel>
+      )}
+
+      {weeklyError && (
+        <div className="mt-6">
+          <WorkspaceError message={weeklyError} onRetry={() => setWeeklyError("")} />
+        </div>
+      )}
+
+      {weeklyReport?.reportV2 && (
+        <div className="mt-8">
+          <ExecutiveReportV2View report={weeklyReport.reportV2} />
+        </div>
+      )}
+
+      {weeklyReport && !weeklyReport.reportV2 && (
+        <AdminPanel
+          title="Weekly Executive Report"
+          subtitle={`Week ending ${weeklyReport.weekEnding} · Provider: ${weeklyReport.provider}`}
+          className="mt-8"
+        >
+          <p className="text-sm leading-relaxed text-cream-dim">{weeklyReport.headline}</p>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-cream-dim">
+            {weeklyReport.narrative}
+          </p>
         </AdminPanel>
       )}
 

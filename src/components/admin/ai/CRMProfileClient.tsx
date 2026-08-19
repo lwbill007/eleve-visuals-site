@@ -85,9 +85,11 @@ export function CRMProfileClient({ email }: { email: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type }),
       });
-      const data = (await res.json().catch(() => null)) as { content?: string; error?: string } | null;
+      const data = (await res.json().catch(() => null)) as
+        | { content?: string; reason?: string; error?: string }
+        | null;
       if (!res.ok) throw new Error(data?.error || "Generation failed.");
-      setAiOutput(data?.content || "No draft was returned.");
+      setAiOutput(data?.content || data?.reason || "No draft was returned.");
     } catch (generateError) {
       setAiOutput(generateError instanceof Error ? generateError.message : "Generation failed.");
     } finally {

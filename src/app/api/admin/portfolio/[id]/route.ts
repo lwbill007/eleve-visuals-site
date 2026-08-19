@@ -5,6 +5,7 @@ import { mapPortfolioItem } from "@/lib/content";
 import { buildPortfolioData } from "@/lib/portfolio-utils";
 import { clearPortfolioFeaturedFlag, uniquePortfolioSlug } from "@/lib/portfolio";
 import { revalidatePortfolioPages } from "@/lib/revalidate-public";
+import { deleteBlobUrlsForRecord } from "@/lib/blob-storage";
 
 export async function GET(
   _request: Request,
@@ -72,6 +73,15 @@ export async function DELETE(
   try {
     const item = await prisma.portfolioItem.findUnique({ where: { id } });
     await prisma.portfolioItem.delete({ where: { id } });
+    if (item) {
+      await deleteBlobUrlsForRecord([
+        item.image,
+        item.heroImage,
+        item.gallery,
+        item.btsGallery,
+        item.videos,
+      ]).catch(() => {});
+    }
     revalidatePortfolioPages(item?.slug);
     return NextResponse.json({ ok: true });
   } catch {

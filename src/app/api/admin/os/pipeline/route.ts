@@ -9,6 +9,14 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const pipeline = await getAdminPipeline();
-  return NextResponse.json(pipeline);
+  try {
+    const pipeline = await getAdminPipeline();
+    return NextResponse.json(pipeline);
+  } catch (error) {
+    console.error("Admin pipeline failed:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Pipeline could not be loaded." },
+      { status: 503 }
+    );
+  }
 }

@@ -9,6 +9,14 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const contacts = await getAdminCRMContacts();
-  return NextResponse.json({ contacts });
+  try {
+    const contacts = await getAdminCRMContacts();
+    return NextResponse.json({ contacts });
+  } catch (error) {
+    console.error("Admin CRM failed:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Clients could not be loaded." },
+      { status: 503 }
+    );
+  }
 }

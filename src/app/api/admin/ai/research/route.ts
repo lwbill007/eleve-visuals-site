@@ -12,6 +12,7 @@ import {
   SOURCE_PROFILE_CATALOG,
   type ResearchMode,
 } from "@/lib/ai/research";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 
 export async function GET() {
   try {
@@ -44,6 +45,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:research");
+  if (blocked) return blocked;
 
   const body = (await req.json().catch(() => ({}))) as {
     query?: string;

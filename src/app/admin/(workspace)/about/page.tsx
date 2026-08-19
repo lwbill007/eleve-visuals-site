@@ -18,14 +18,27 @@ import { DEFAULT_ABOUT } from "@/lib/defaults";
 import { useAdminEditor } from "@/hooks/useAdminEditor";
 import type { AboutContent } from "@/lib/types";
 
+function validateAbout(value: AboutContent): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!value.headline?.trim()) errors.headline = "Headline is required.";
+  if (!value.intro?.trim()) errors.intro = "Intro is required.";
+  return errors;
+}
+
 export default function AdminAboutPage() {
   const { toast } = useAdminToast();
   const [about, setAbout] = useState<AboutContent>(DEFAULT_ABOUT);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const editor = useAdminEditor(
     about,
-    (next) => saveAdminContent("about", next),
+    (next) => {
+      const errors = validateAbout(next);
+      setValidationErrors(errors);
+      if (Object.keys(errors).length > 0) return Promise.resolve(false);
+      return saveAdminContent("about", next);
+    },
     { autosave: true }
   );
   const resetEditor = editor.reset;
@@ -47,7 +60,7 @@ export default function AdminAboutPage() {
   async function persist() {
     const ok = await editor.save();
     if (ok) toast("About page saved.");
-    setMessage(ok ? "Saved." : "Save failed.");
+    setMessage(ok ? "Saved." : Object.keys(validationErrors).length > 0 ? "Fix the highlighted fields before saving." : "Save failed.");
     return ok;
   }
 
@@ -65,10 +78,10 @@ export default function AdminAboutPage() {
         <section className="border border-stone/30 p-6">
           <h2 className="mb-6 font-display text-xl">Hero</h2>
           <div className="space-y-4">
-            <AdminField label="Headline">
+            <AdminField label="Headline" error={validationErrors.headline}>
               <AdminInput value={about.headline} onChange={(e) => setAbout({ ...about, headline: e.target.value })} />
             </AdminField>
-            <AdminField label="Intro">
+            <AdminField label="Intro" error={validationErrors.intro}>
               <AdminTextarea value={about.intro} onChange={(e) => setAbout({ ...about, intro: e.target.value })} />
             </AdminField>
             {about.story.map((p, i) => (

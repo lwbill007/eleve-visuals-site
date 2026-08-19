@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { inferMimeType, assertExtensionMatchesMime } from "@/lib/image-url";
+import { inferMimeType, assertExtensionMatchesMime, detectImageMime } from "@/lib/image-url";
 import {
   blobFolderForMime,
   isAllowedUploadMime,
@@ -33,6 +33,7 @@ export async function POST(request: Request) {
   }
 
   const mimeType = inferMimeType(file);
+  const buffer = Buffer.from(await file.arrayBuffer());
 
   console.log("[upload-api] received", {
     name: file.name,
@@ -40,6 +41,18 @@ export async function POST(request: Request) {
     reportedType: file.type,
     size: file.size,
   });
+
+  // Byte-level check for the image types we can actually sniff — client-reported MIME/extension
+  // is otherwise trusted, so this closes the gap for a mislabeled non-image masquerading as one.
+  if (mimeType === "image/jpeg" || mimeType === "image/png" || mimeType === "image/webp") {
+    const detected = detectImageMime(buffer);
+    if (detected !== mimeType) {
+      return NextResponse.json(
+        { error: "File content doesn't match its declared image type." },
+        { status: 400 }
+      );
+    }
+  }
 
   if (!isAllowedUploadMime(mimeType)) {
     if (mimeType === "image/heic" || mimeType === "image/heif") {
@@ -83,7 +96,6 @@ export async function POST(request: Request) {
   }
 
   const filename = sanitizeUploadFilename(file.name, mimeType);
-  const buffer = Buffer.from(await file.arrayBuffer());
   const blobPath = `${blobFolderForMime(mimeType)}/${filename}`;
 
   try {

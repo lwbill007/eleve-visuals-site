@@ -1,6 +1,6 @@
 import type { SessionTimelineStep, SessionVolumeStatus } from "@/lib/types";
 import { SESSION_VOLUME_STATUSES } from "@/lib/types";
-import { normalizePortfolioGallery } from "@/lib/portfolio-utils";
+import { normalizePortfolioGallery, isPlausibleMediaUrl } from "@/lib/portfolio-utils";
 import { DEFAULT_SESSION_APPLICATION_SETTINGS } from "@/lib/session-application";
 
 function stringList(value: unknown): string[] {
@@ -60,7 +60,7 @@ export function parseSessionVolumeBody(body: Record<string, unknown>) {
     btsGallery: JSON.stringify(normalizePortfolioGallery(body.btsGallery)),
     videos: JSON.stringify(
       Array.isArray(body.videos)
-        ? body.videos.filter((v) => typeof v === "string" && v.trim())
+        ? body.videos.filter((v): v is string => typeof v === "string" && v.trim().length > 0 && isPlausibleMediaUrl(v))
         : []
     ),
     status,

@@ -57,6 +57,7 @@ export function getAIConfig() {
     },
     maxToolIterations: Number(process.env.AI_MAX_TOOL_ITERATIONS) || 4,
     cacheTtlMs: Number(process.env.AI_CACHE_TTL_MS) || 5 * 60 * 1000,
+    dailyCallCap: Number(process.env.AI_DAILY_CALL_CAP) || 500,
   };
 }
 

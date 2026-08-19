@@ -14,9 +14,15 @@ export function resolvePortfolioHeroImage(item: Pick<PortfolioItemDTO, "heroImag
   return resolvePortfolioCoverImage(item.image, item.gallery);
 }
 
+export function isPlausibleMediaUrl(value: string): boolean {
+  return value.startsWith("/") || value.startsWith("http://") || value.startsWith("https://");
+}
+
 export function normalizePortfolioGallery(gallery: unknown): string[] {
   if (!Array.isArray(gallery)) return [];
-  return gallery.filter((item): item is string => typeof item === "string" && item.length > 0);
+  return gallery.filter(
+    (item): item is string => typeof item === "string" && item.length > 0 && isPlausibleMediaUrl(item)
+  );
 }
 
 export function normalizePortfolioCredits(credits: unknown): PortfolioCredit[] {

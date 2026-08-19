@@ -483,6 +483,23 @@ export default function AdminHomepagePage() {
               />
             </AdminField>
           </div>
+          <div className="mt-4">
+            <ImageUpload
+              label="Banner background image (optional)"
+              value={homepage.banner?.image ?? null}
+              onChange={(url) =>
+                setHomepage({
+                  ...homepage,
+                  banner: {
+                    enabled: homepage.banner?.enabled ?? false,
+                    text: homepage.banner?.text || "",
+                    href: homepage.banner?.href || "/book",
+                    image: url,
+                  },
+                })
+              }
+            />
+          </div>
         </section>
 
         <section className="border border-stone/30 p-6">

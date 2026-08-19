@@ -1,8 +1,7 @@
-import { getAIConfig, getOpenRouterModelChain, isAIConfigured } from "../config";
+import { getAIConfig } from "../config";
 import type { AIProvider, AIProviderId } from "../types";
 import { OpenRouterProvider } from "./openrouter";
 import { OllamaProvider } from "./ollama";
-import { isOpenRouterConfigured } from "./openrouter-client";
 
 const instances: Partial<Record<AIProviderId, AIProvider>> = {};
 
@@ -29,20 +28,4 @@ export function getAIProvider(preferred?: AIProviderId): AIProvider {
 
   if (!instances.openrouter) instances.openrouter = new OpenRouterProvider();
   return instances.openrouter;
-}
-
-export function getProviderStatus() {
-  const config = getAIConfig();
-  const active = getAIProvider();
-  return {
-    active: active.isConfigured() ? active.id : "rules",
-    configured: isAIConfigured(),
-    model: active.isConfigured() ? active.model : null,
-    modelChain: isOpenRouterConfigured() ? getOpenRouterModelChain() : [],
-    providers: (["openrouter", "ollama"] as AIProviderId[]).map((id) => {
-      const p = createProvider(id);
-      return { id, configured: p.isConfigured(), model: p.model };
-    }),
-    envProvider: config.provider,
-  };
 }

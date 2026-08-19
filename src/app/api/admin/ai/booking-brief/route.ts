@@ -4,6 +4,7 @@ import { searchMemories } from "@/lib/ai/memory/store";
 import { getWorkspaceId } from "@/lib/ai/memory/workspace";
 import { prisma } from "@/lib/db";
 import { persistBookingProductionIntel } from "@/lib/ai/intelligence/booking-production-brief";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 
 export async function GET(request: Request) {
   try {
@@ -49,6 +50,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(request, "admin-ai:booking-brief");
+  if (blocked) return blocked;
 
   const body = (await request.json()) as { id?: string };
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 });

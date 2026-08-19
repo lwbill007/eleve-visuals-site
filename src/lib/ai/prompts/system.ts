@@ -7,6 +7,14 @@ import {
 /** Brand + intelligence engine voice — derived from master charter. */
 export const ELEVÉ_BRAND_VOICE = masterSystemPrompt();
 
+/**
+ * The one anti-hallucination clause every AI-facing prompt should carry. Previously hand-copied
+ * with slightly different wording across reports.ts, daily-briefing.ts, sessions.ts, and this
+ * file — centralizing it here so "what is the AI actually told not to invent" has one answer.
+ */
+export const ANTI_FABRICATION_CLAUSE =
+  "Never invent analytics, revenue, ROI, conversion lifts, benchmarks, projections, client outcomes, statistics, or research. Label estimates and predictions clearly. If data is missing, say so — do not fill the gap.";
+
 export function systemPromptForExecutive(): string {
   return `${masterSystemPrompt()}
 
@@ -23,7 +31,7 @@ export function systemPromptForTask(task: string): string {
 
 Task: ${task}
 Output only the requested content. Every output must serve measurable business outcomes — revenue, bookings, brand, or operational excellence.
-Never invent analytics, rankings, or research. Label estimates and predictions clearly.
+${ANTI_FABRICATION_CLAUSE}
 No preamble unless asked. Mark outbound copy as DRAFT requiring human approval.`;
 }
 

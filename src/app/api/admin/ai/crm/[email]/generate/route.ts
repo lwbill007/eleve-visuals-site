@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { generateCRMContactAI } from "@/lib/ai/intelligence/crm";
 
 export async function POST(req: Request, { params }: { params: Promise<{ email: string }> }) {
@@ -9,8 +10,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ email: 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:crm-generate");
+  if (blocked) return blocked;
+
   const { email } = await params;
   const { type } = (await req.json()) as { type?: "summary" | "email" | "upsell" };
-  const content = await generateCRMContactAI(decodeURIComponent(email), type || "summary");
-  return NextResponse.json({ content });
+  const { content, reason } = await generateCRMContactAI(decodeURIComponent(email), type || "summary");
+  return NextResponse.json({ content, reason });
 }

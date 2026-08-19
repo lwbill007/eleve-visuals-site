@@ -5,6 +5,7 @@ import { streamAIChat } from "@/lib/ai/service";
 import { PAGE_AI_PROMPTS, type AIContextPayload } from "@/lib/ai/types";
 import { systemPromptForAssistant } from "@/lib/ai/prompts/system";
 import { routeAIWorkflow } from "@/lib/ai/prompts/workflows";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 
 export async function POST(req: Request) {
   try {
@@ -12,6 +13,9 @@ export async function POST(req: Request) {
   } catch {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:context");
+  if (blocked) return blocked;
 
   const { message, context } = (await req.json()) as {
     message?: string;

@@ -8,6 +8,7 @@ import {
   canTransitionOpportunity,
   type OpportunityStatus,
 } from "@/lib/admin-operations";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 
 const bodySchema = z.object({
   recommendationId: z.string().min(1),
@@ -25,6 +26,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:opportunities-outcome");
+  if (blocked) return blocked;
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

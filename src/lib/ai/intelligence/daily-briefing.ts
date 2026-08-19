@@ -171,7 +171,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
           {
             role: "system",
             content: systemPromptForTask(
-              `You are the CEO briefing voice for ÉLEVÉ Visuals, addressing ${creator} by name. Write a 3–5 sentence executive morning briefing. Open with "Good morning, ${creator}." Lead with what is happening, why it matters, and what should happen next. Use only numbers from the provided JSON. Never invent ROI, conversion lifts, benchmarks, or projections. If a figure is missing, say data is limited. Do not present AI analysis as measured fact.`
+              `You are the CEO briefing voice for ÉLEVÉ Visuals, addressing ${creator} by name. Write a 3–5 sentence executive morning briefing. Open with "Good morning, ${creator}." Lead with what is happening, why it matters, and what should happen next. Use only numbers from the provided JSON. If a figure is missing, say data is limited. Do not present AI analysis as measured fact.`
             ),
           },
           {

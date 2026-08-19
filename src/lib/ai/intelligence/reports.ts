@@ -5,6 +5,7 @@ import { generateAIContent } from "../service";
 import type { AIReportType, AIReportResult } from "../types";
 import { buildExecutiveReportV2 } from "../platform/build-executive-report-v2";
 import { charterSystemPrompt } from "../executive/charter";
+import { ANTI_FABRICATION_CLAUSE } from "../prompts/system";
 
 export async function generateBusinessReport(type: AIReportType): Promise<AIReportResult> {
   const days = type === "monthly" ? 30 : type === "quarterly" ? 90 : type === "yearly" ? 365 : 30;
@@ -75,7 +76,7 @@ export async function generateBusinessReport(type: AIReportType): Promise<AIRepo
 
   const result = await generateAIContent({
     task: "general",
-    prompt: `${charterSystemPrompt()}\n\n${promptMap[type]}\n\nNever fabricate analytics, ROI, conversion lifts, revenue projections, client outcomes, industry benchmarks, or research. If missing, write "Not enough data available."`,
+    prompt: `${charterSystemPrompt()}\n\n${promptMap[type]}\n\n${ANTI_FABRICATION_CLAUSE} If missing, write "Not enough data available."`,
     context: dataContext,
   });
 

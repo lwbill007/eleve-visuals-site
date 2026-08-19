@@ -151,7 +151,7 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, read, status, notes, starred, dataPatch, ops } = body;
+    const { id, read, status, notes, starred, ops } = body;
     if (!id || typeof id !== "string") {
       return NextResponse.json({ error: "Invalid submission id" }, { status: 400 });
     }
@@ -188,27 +188,32 @@ export async function PATCH(request: Request) {
       }
     }
 
-    // Merge ops / dataPatch into Submission.data JSON (booking command center)
-    if (
-      existing.type === "booking" &&
-      ((ops && typeof ops === "object") || (dataPatch && typeof dataPatch === "object"))
-    ) {
+    // Merge ops into Submission.data JSON (booking command center) — allow-listed to the known
+    // BookingOpsState shape so a caller can't inject arbitrary keys into the stored record.
+    const ALLOWED_OPS_KEYS = new Set([
+      "discoveryAnswers",
+      "checklist",
+      "tasks",
+      "team",
+      "projectName",
+      "assignedTo",
+      "preferredContact",
+      "timezone",
+      "internalLog",
+    ]);
+    if (existing.type === "booking" && ops && typeof ops === "object") {
       let parsed: Record<string, unknown> = {};
       try {
         parsed = JSON.parse(existing.data) as Record<string, unknown>;
       } catch {
         parsed = {};
       }
-      if (dataPatch && typeof dataPatch === "object") {
-        parsed = { ...parsed, ...(dataPatch as Record<string, unknown>) };
-      }
-      if (ops && typeof ops === "object") {
-        const prevOps =
-          parsed.ops && typeof parsed.ops === "object"
-            ? (parsed.ops as Record<string, unknown>)
-            : {};
-        parsed.ops = { ...prevOps, ...(ops as Record<string, unknown>) };
-      }
+      const prevOps =
+        parsed.ops && typeof parsed.ops === "object" ? (parsed.ops as Record<string, unknown>) : {};
+      const nextOps = Object.fromEntries(
+        Object.entries(ops as Record<string, unknown>).filter(([k]) => ALLOWED_OPS_KEYS.has(k))
+      );
+      parsed.ops = { ...prevOps, ...nextOps };
       data.data = JSON.stringify(parsed).slice(0, 500_000);
     }
 

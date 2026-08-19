@@ -10,6 +10,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Rate-limit clearing is disabled in production." },
+      { status: 403 }
+    );
+  }
+
   let route = "submit:booking";
   try {
     const body = (await request.json()) as { route?: string };

@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getExecutiveOS } from "@/lib/ai/executive";
 import { recordRecommendationFeedback } from "@/lib/ai/executive/self-improvement";
 import { invalidateIntelligenceCaches } from "@/lib/ai/cognitive/cache";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 
 export async function GET(request: Request) {
   try {
@@ -22,6 +23,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:executive-os");
+  if (blocked) return blocked;
 
   const body = await req.json();
   const { action, recommendationId, title, worked, detail, revenueImpact } = body as {
