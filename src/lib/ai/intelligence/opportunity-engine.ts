@@ -57,7 +57,13 @@ function insightToOpportunity(insight: BusinessInsight): ExecutiveOpportunity {
             : insight.category
     ),
     impact: insight.metric ?? "Measurable pipeline impact",
-    evidence: [insight.detail, insight.why, insight.metric ? `Metric: ${insight.metric}` : ""].filter(Boolean),
+    evidence: [
+      ...new Set(
+        [insight.detail, insight.why, insight.metric ? `Metric: ${insight.metric}` : ""].filter(
+          Boolean
+        )
+      ),
+    ],
     actions: insight.actions,
     estimatedMinutes: insight.timeSavedMinutes ?? 30,
     problem: insight.detail,
