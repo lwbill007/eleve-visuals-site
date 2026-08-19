@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/admin-fetch";
+import { useAdminToast } from "@/components/admin/AdminToast";
 import { formatInquiryId } from "@/lib/booking";
 import {
   CLIENT_JOURNEY_TIMELINE,
@@ -84,6 +85,16 @@ export function BookingCommandCenter({
   const [saving, setSaving] = useState(false);
   const [internalNote, setInternalNote] = useState("");
   const [localNotes, setLocalNotes] = useState(notes || "");
+  const { toast } = useAdminToast();
+  const [outcomeForm, setOutcomeForm] = useState({
+    booked: true,
+    finalRevenue: "",
+    clientRating: "",
+    deliveryDays: "",
+    portfolioFeatured: false,
+    notes: "",
+  });
+  const [savingOutcome, setSavingOutcome] = useState(false);
 
   useEffect(() => {
     setLocalOps(parseOps(data));
@@ -148,6 +159,38 @@ export function BookingCommandCenter({
   const grade = leadIntel.bookingIntelligence.opportunityGrade;
   const mail = email || asString(data.email) || "";
   const phone = asString(data.phone) || "";
+  const projectStage = normalizeInquiryStatus(status);
+  const showProjectOutcome = projectStage === "delivered" || projectStage === "follow_up";
+
+  const submitProjectOutcome = async () => {
+    setSavingOutcome(true);
+    try {
+      const res = await adminFetch("/api/admin/ai/project-outcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submissionId,
+          clientEmail: mail || undefined,
+          booked: outcomeForm.booked,
+          finalRevenue: outcomeForm.finalRevenue ? Number(outcomeForm.finalRevenue) : undefined,
+          clientRating: outcomeForm.clientRating ? Number(outcomeForm.clientRating) : undefined,
+          deliveryDays: outcomeForm.deliveryDays ? Number(outcomeForm.deliveryDays) : undefined,
+          portfolioFeatured: outcomeForm.portfolioFeatured,
+          notes: outcomeForm.notes || undefined,
+        }),
+      });
+      if (res.ok) {
+        toast("Project outcome recorded.");
+      } else {
+        const body = await res.json().catch(() => null);
+        toast(body?.error || "Could not record project outcome.", "error");
+      }
+    } catch {
+      toast("Could not record project outcome.", "error");
+    } finally {
+      setSavingOutcome(false);
+    }
+  };
   const ig = asString(data.instagram)?.replace(/^@/, "") || "";
   const hasRefs = leadIntel.missingAssets.every(
     (a) => a.label !== "Visual References" || !a.missing
@@ -438,6 +481,81 @@ export function BookingCommandCenter({
           systems connect.
         </p>
       </Panel>
+
+      {showProjectOutcome && (
+        <Panel title="Mark Project Complete">
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="flex items-center gap-2 text-sm text-cream md:col-span-2">
+              <input
+                type="checkbox"
+                checked={outcomeForm.booked}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, booked: e.target.checked })}
+              />
+              Client booked (uncheck if this project fell through)
+            </label>
+            <label className="text-xs text-fog">
+              Final revenue ($)
+              <input
+                type="number"
+                min="0"
+                value={outcomeForm.finalRevenue}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, finalRevenue: e.target.value })}
+                className="mt-1 block w-full rounded-lg border border-stone/30 bg-charcoal px-2 py-1.5 text-sm text-cream"
+              />
+            </label>
+            <label className="text-xs text-fog">
+              Client rating (0–5)
+              <input
+                type="number"
+                min="0"
+                max="5"
+                step="0.5"
+                value={outcomeForm.clientRating}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, clientRating: e.target.value })}
+                className="mt-1 block w-full rounded-lg border border-stone/30 bg-charcoal px-2 py-1.5 text-sm text-cream"
+              />
+            </label>
+            <label className="text-xs text-fog">
+              Delivery days (inquiry to final delivery)
+              <input
+                type="number"
+                min="0"
+                value={outcomeForm.deliveryDays}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, deliveryDays: e.target.value })}
+                className="mt-1 block w-full rounded-lg border border-stone/30 bg-charcoal px-2 py-1.5 text-sm text-cream"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-cream">
+              <input
+                type="checkbox"
+                checked={outcomeForm.portfolioFeatured}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, portfolioFeatured: e.target.checked })}
+              />
+              Featured in portfolio
+            </label>
+            <label className="text-xs text-fog md:col-span-2">
+              Notes
+              <textarea
+                value={outcomeForm.notes}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, notes: e.target.value })}
+                rows={2}
+                className="mt-1 block w-full rounded-lg border border-stone/30 bg-charcoal px-2 py-1.5 text-sm text-cream"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            disabled={savingOutcome}
+            onClick={() => void submitProjectOutcome()}
+            className="mt-3 rounded-lg border border-accent/40 px-4 py-2 text-xs text-accent uppercase tracking-[0.08em] hover:bg-accent/10 disabled:opacity-50"
+          >
+            {savingOutcome ? "Saving…" : "Record Outcome"}
+          </button>
+          <p className="mt-2 text-[0.6rem] text-muted">
+            Feeds the AI learning layer only — doesn&apos;t change this booking&apos;s status. Safe to resubmit if details change.
+          </p>
+        </Panel>
+      )}
 
       {/* 5–14 AI / sales intel — single source for scores & summaries */}
       <LeadQualificationPanel

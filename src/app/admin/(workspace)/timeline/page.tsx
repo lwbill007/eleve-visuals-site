@@ -25,11 +25,49 @@ interface TimelineEvent {
   verified: boolean;
 }
 
+interface LearningTimelineEvent {
+  id: string;
+  date: string;
+  title: string;
+  detail: string;
+  category: "refresh" | "memory" | "learning" | "issue" | "milestone";
+  verified: boolean;
+  confidence?: number;
+}
+
 export default function TimelinePage() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
+  const [tab, setTab] = useState<"business" | "learning">("business");
+  const [learningEvents, setLearningEvents] = useState<LearningTimelineEvent[]>([]);
+  const [learningLoading, setLearningLoading] = useState(false);
+  const [learningError, setLearningError] = useState("");
+  const [learningLoaded, setLearningLoaded] = useState(false);
+
+  const loadLearning = useCallback(async () => {
+    setLearningLoading(true);
+    setLearningError("");
+    try {
+      const res = await adminFetch("/api/admin/ai/memory/learn-timeline");
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setLearningEvents(data.events ?? []);
+    } catch {
+      setLearningError("Could not load learning history.");
+      setLearningEvents([]);
+    } finally {
+      setLearningLoading(false);
+      setLearningLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === "learning" && !learningLoaded) {
+      void loadLearning();
+    }
+  }, [tab, learningLoaded, loadLearning]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,30 +167,86 @@ export default function TimelinePage() {
           className="mb-8"
         />
 
-        <WorkspaceToolbar
-          search={q}
-          onSearch={setQ}
-          searchPlaceholder="Filter timeline…"
-        />
+        <div className="mb-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setTab("business")}
+            className={cn(
+              "rounded-lg border px-3 py-1.5 text-xs uppercase tracking-[0.08em]",
+              tab === "business" ? "border-accent text-accent" : "border-stone/25 text-fog"
+            )}
+          >
+            Business events
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("learning")}
+            className={cn(
+              "rounded-lg border px-3 py-1.5 text-xs uppercase tracking-[0.08em]",
+              tab === "learning" ? "border-accent text-accent" : "border-stone/25 text-fog"
+            )}
+          >
+            Learning &amp; refresh history
+          </button>
+        </div>
 
-        {loading && events.length === 0 ? (
+        {tab === "business" && (
+          <WorkspaceToolbar
+            search={q}
+            onSearch={setQ}
+            searchPlaceholder="Filter timeline…"
+          />
+        )}
+
+        {tab === "business" ? (
+          loading && events.length === 0 ? (
+            <WorkspaceLoading />
+          ) : error && events.length === 0 ? (
+            <WorkspaceError message={error} onRetry={() => void load()} />
+          ) : filtered.length === 0 ? (
+            <WorkspaceEmpty
+              title={events.length === 0 ? "Timeline is empty" : "No matching events"}
+              detail={
+                events.length === 0
+                  ? "Complete missions, record payments, or wait for cron intelligence refresh — irreversible events appear here."
+                  : "Try a different filter."
+              }
+              actionHref={events.length === 0 ? "/admin/financial" : undefined}
+              actionLabel={events.length === 0 ? "Open Financial Center" : undefined}
+            />
+          ) : (
+            <ol className="relative space-y-0 border-l border-stone/25 pl-6">
+              {filtered.map((e) => (
+                <li key={e.id} className="relative pb-8">
+                  <span className="absolute -left-[1.4rem] top-1 h-2.5 w-2.5 rounded-full border border-accent bg-ink" />
+                  <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
+                    {e.category} · {new Date(e.date).toLocaleString()}
+                    {e.verified ? " · verified" : ""}
+                  </p>
+                  <h3 className="mt-1 font-display text-lg text-cream">{e.title}</h3>
+                  <p className="mt-1 text-sm text-fog">{e.detail}</p>
+                  <p className="mt-2 text-[0.65rem] text-muted">
+                    {e.source}
+                    {e.impact ? (
+                      <span className={cn("ml-2 text-emerald-400")}>{e.impact}</span>
+                    ) : null}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          )
+        ) : learningLoading && learningEvents.length === 0 ? (
           <WorkspaceLoading />
-        ) : error && events.length === 0 ? (
-          <WorkspaceError message={error} onRetry={() => void load()} />
-        ) : filtered.length === 0 ? (
+        ) : learningError && learningEvents.length === 0 ? (
+          <WorkspaceError message={learningError} onRetry={() => void loadLearning()} />
+        ) : learningEvents.length === 0 ? (
           <WorkspaceEmpty
-            title={events.length === 0 ? "Timeline is empty" : "No matching events"}
-            detail={
-              events.length === 0
-                ? "Complete missions, record payments, or wait for cron intelligence refresh — irreversible events appear here."
-                : "Try a different filter."
-            }
-            actionHref={events.length === 0 ? "/admin/financial" : undefined}
-            actionLabel={events.length === 0 ? "Open Financial Center" : undefined}
+            title="No learning history yet"
+            detail="Refresh and learning events appear here as the intelligence layer runs."
           />
         ) : (
           <ol className="relative space-y-0 border-l border-stone/25 pl-6">
-            {filtered.map((e) => (
+            {learningEvents.map((e) => (
               <li key={e.id} className="relative pb-8">
                 <span className="absolute -left-[1.4rem] top-1 h-2.5 w-2.5 rounded-full border border-accent bg-ink" />
                 <p className="text-[0.55rem] tracking-[0.12em] text-muted uppercase">
@@ -161,12 +255,9 @@ export default function TimelinePage() {
                 </p>
                 <h3 className="mt-1 font-display text-lg text-cream">{e.title}</h3>
                 <p className="mt-1 text-sm text-fog">{e.detail}</p>
-                <p className="mt-2 text-[0.65rem] text-muted">
-                  {e.source}
-                  {e.impact ? (
-                    <span className={cn("ml-2 text-emerald-400")}>{e.impact}</span>
-                  ) : null}
-                </p>
+                {typeof e.confidence === "number" && (
+                  <p className="mt-2 text-[0.65rem] text-muted">{Math.round(e.confidence * 100)}% confidence</p>
+                )}
               </li>
             ))}
           </ol>

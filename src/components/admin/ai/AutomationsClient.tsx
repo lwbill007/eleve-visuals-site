@@ -33,6 +33,18 @@ interface DraftAutomation {
   enabled: boolean;
 }
 
+interface RefreshScheduleOption {
+  id: string;
+  label: string;
+  available: boolean;
+  enabled: boolean;
+}
+
+interface RefreshScheduleSettings {
+  enabled: boolean;
+  schedules: string[];
+}
+
 export function AutomationsClient() {
   useSetAIPage("automations");
   const { toast } = useAdminToast();
@@ -47,6 +59,54 @@ export function AutomationsClient() {
   const [draftError, setDraftError] = useState("");
   const [running, setRunning] = useState<string | null>(null);
   const [runAllPreviewOpen, setRunAllPreviewOpen] = useState(false);
+
+  const [refreshSettings, setRefreshSettings] = useState<RefreshScheduleSettings | null>(null);
+  const [refreshOptions, setRefreshOptions] = useState<RefreshScheduleOption[]>([]);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  const loadRefreshSchedule = useCallback(async () => {
+    const res = await adminFetch("/api/admin/ai/memory/automation");
+    if (!res.ok) return;
+    const data = (await res.json()) as { settings: RefreshScheduleSettings; options: RefreshScheduleOption[] };
+    setRefreshSettings(data.settings);
+    setRefreshOptions(data.options);
+  }, []);
+
+  useEffect(() => {
+    void loadRefreshSchedule();
+  }, [loadRefreshSchedule]);
+
+  async function saveRefreshSchedule(next: RefreshScheduleSettings) {
+    setSavingSchedule(true);
+    try {
+      const res = await adminFetch("/api/admin/ai/memory/automation", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { settings: RefreshScheduleSettings; options: RefreshScheduleOption[] }
+        | null;
+      if (res.ok && data) {
+        setRefreshSettings(data.settings);
+        setRefreshOptions(data.options);
+        toast("Refresh schedule saved.");
+      } else {
+        toast("Could not save refresh schedule.", "error");
+      }
+    } finally {
+      setSavingSchedule(false);
+    }
+  }
+
+  function toggleScheduleTrigger(id: string) {
+    if (!refreshSettings) return;
+    const has = refreshSettings.schedules.includes(id);
+    const schedules = has
+      ? refreshSettings.schedules.filter((s) => s !== id)
+      : [...refreshSettings.schedules, id];
+    void saveRefreshSchedule({ ...refreshSettings, schedules });
+  }
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -265,6 +325,45 @@ export function AutomationsClient() {
                   </li>
                 ))}
               </ul>
+            )}
+          </AdminPanel>
+
+          <AdminPanel
+            title="Intelligence refresh schedule"
+            subtitle="When business knowledge auto-refreshes, separate from the system jobs above"
+          >
+            {!refreshSettings ? (
+              <WorkspaceLoading />
+            ) : (
+              <div className="space-y-4">
+                <label className="flex items-center gap-3 text-sm text-cream">
+                  <input
+                    type="checkbox"
+                    checked={refreshSettings.enabled}
+                    disabled={savingSchedule}
+                    onChange={(e) => void saveRefreshSchedule({ ...refreshSettings, enabled: e.target.checked })}
+                  />
+                  Enable automatic refresh
+                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {refreshOptions.map((opt) => (
+                    <label
+                      key={opt.id}
+                      className={`flex items-center gap-2 rounded-lg border border-stone/20 p-3 text-sm ${
+                        opt.available ? "text-fog" : "text-muted opacity-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={opt.enabled}
+                        disabled={!opt.available || savingSchedule || !refreshSettings.enabled}
+                        onChange={() => toggleScheduleTrigger(opt.id)}
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
             )}
           </AdminPanel>
 

@@ -9,6 +9,9 @@ import { listTaskSpecs } from "@/lib/ai/tasks/registry";
 import { METRIC_OWNERS } from "@/lib/ai/platform/metric-owners";
 import { loadAdminOsAuditSummary } from "@/lib/ai/platform/os-audit-summary";
 import { MissingMetricCard } from "@/components/admin/ai/OwnedMetricCard";
+import { TruthMetricCard } from "@/components/admin/ai/TruthMetricCard";
+import { resolveMetrics } from "@/lib/ai/platform/truth-resolver";
+import { getDisconnectedBlockers } from "@/lib/ai/platform/connectors";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -53,6 +56,17 @@ export default async function AIOperationsPage() {
   const osAudit = await loadAdminOsAuditSummary();
   const owner = METRIC_OWNERS.ai_operations;
   const tasks = listTaskSpecs();
+
+  let truthMetrics: Awaited<ReturnType<typeof resolveMetrics>> | null = null;
+  let blockedDecisions: string[] = [];
+  try {
+    [truthMetrics, blockedDecisions] = await Promise.all([
+      resolveMetrics(),
+      Promise.resolve(getDisconnectedBlockers()),
+    ]);
+  } catch {
+    /* Business Truth Registry is additive — page still works without it */
+  }
   const trustGaps = [
     {
       label: "Hallucination rate",
@@ -245,6 +259,35 @@ export default async function AIOperationsPage() {
                 ))}
               </div>
             </section>
+
+            {truthMetrics && (
+              <section className="mt-8">
+                <h3 className="font-display text-xl text-cream">Business Truth Registry</h3>
+                <p className="mt-1 text-sm text-fog">
+                  Every business metric shown anywhere in the OS resolves through this engine —
+                  labeled Verified / Calculated / Estimated / Predicted / Unknown, never invented.
+                </p>
+                {blockedDecisions.length > 0 && (
+                  <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
+                    <p className="text-xs text-amber-300 uppercase tracking-[0.1em]">
+                      {blockedDecisions.length} decision{blockedDecisions.length === 1 ? "" : "s"} blocked by disconnected sources
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {blockedDecisions.map((b) => (
+                        <li key={b} className="text-sm text-fog">
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {Object.entries(truthMetrics.metrics).map(([id, metric]) => (
+                    <TruthMetricCard key={id} metric={metric} />
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="mt-6 grid gap-4 lg:grid-cols-3">
               <div className="rounded-2xl border border-stone/20 bg-charcoal/15 p-5">
