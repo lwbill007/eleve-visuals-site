@@ -102,7 +102,7 @@ export const DEFAULT_HOMEPAGE: HomepageContent = {
     headline: "Confidence before the first frame.",
     stats: [
       { label: "Typical reply", value: "1–2 days" },
-      { label: "Inquiry-first", value: "No deposit online" },
+      { label: "Inquiry-first", value: "No public checkout" },
       { label: "Production", value: "Northern California" },
     ],
     primaryCtaLabel: "Book Your Experience",

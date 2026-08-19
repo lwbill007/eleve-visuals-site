@@ -148,3 +148,51 @@ export function applicationStatusEmail({
     `,
   };
 }
+
+export function contractSignedEmail({
+  name,
+  signerName,
+  isAdminCopy,
+}: {
+  name: string;
+  signerName: string;
+  isAdminCopy: boolean;
+}) {
+  return {
+    subject: isAdminCopy ? `Contract signed — ${name}` : "Your contract has been signed — ÉLEVÉ Visuals",
+    html: isAdminCopy
+      ? `
+      <p>${name}'s project agreement was signed by <strong>${signerName}</strong>.</p>
+      <p>Review it in the admin booking detail page.</p>
+    `
+      : `
+      <p>Hi ${name},</p>
+      <p>Thanks — your project agreement has been signed and is on file.</p>
+      <p>— ÉLEVÉ Visuals</p>
+    `,
+  };
+}
+
+export function depositConfirmedEmail({
+  name,
+  amount,
+  isAdminCopy,
+}: {
+  name: string;
+  amount: number;
+  isAdminCopy: boolean;
+}) {
+  const formatted = `$${amount.toLocaleString()}`;
+  return {
+    subject: isAdminCopy ? `Deposit received — ${name}` : "Deposit received — ÉLEVÉ Visuals",
+    html: isAdminCopy
+      ? `
+      <p>A deposit of <strong>${formatted}</strong> was received from ${name}. The booking has been advanced to Booked.</p>
+    `
+      : `
+      <p>Hi ${name},</p>
+      <p>We've received your deposit of <strong>${formatted}</strong> — your booking is confirmed.</p>
+      <p>— ÉLEVÉ Visuals</p>
+    `,
+  };
+}

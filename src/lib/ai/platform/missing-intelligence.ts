@@ -65,7 +65,7 @@ export async function getMissingBusinessIntelligence(): Promise<{
   items: MissingIntelItem[];
   payments: { hasPayments: boolean; count: number };
 }> {
-  const connectors = getConnectorHealth();
+  const connectors = await getConnectorHealth();
   const payments = await getPaymentRevenueSummary().catch(() => ({
     hasPayments: false,
     count: 0,

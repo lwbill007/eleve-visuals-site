@@ -10,13 +10,17 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const connectors = getConnectorHealth();
-  const knowledge = await listKnowledgeConnectors();
+  const [connectors, knowledge, degraded, blockedDecisions] = await Promise.all([
+    getConnectorHealth(),
+    listKnowledgeConnectors(),
+    intelligenceDegraded(),
+    getDisconnectedBlockers(),
+  ]);
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
     connectors,
     knowledge,
-    degraded: intelligenceDegraded(),
-    blockedDecisions: getDisconnectedBlockers(),
+    degraded,
+    blockedDecisions,
   });
 }

@@ -13,6 +13,7 @@ import { getVerificationStats } from "../memory/verification";
 import { getConnectorHealth } from "./connectors";
 import { buildTruthValue, type TruthValue } from "./truth-metadata";
 import { getCached, setCache } from "../cache";
+import { prisma } from "@/lib/db";
 
 const CACHE_KEY = "truth-metrics-v1";
 const CACHE_TTL_MS = 60_000;
@@ -64,7 +65,7 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
   const [m, verification, connectors, dashboard] = await Promise.all([
     getOperatorMetrics(),
     getVerificationStats(),
-    Promise.resolve(getConnectorHealth()),
+    getConnectorHealth(),
     getAdminDashboardOSCached(),
   ]);
 
@@ -75,6 +76,14 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
   const revenueVerified = Boolean(m.revenue.verified);
   const stripeConnected = stripe?.health === "healthy";
   const trafficVerified = ga4?.health === "healthy";
+
+  const ga4Snapshot30d = trafficVerified
+    ? await prisma.gA4Snapshot.aggregate({
+        where: { date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+        _sum: { sessions: true },
+      })
+    : null;
+  const ga4Traffic30d = ga4Snapshot30d?._sum.sessions ?? null;
 
   const metrics: Record<CanonicalMetricId, TruthValue<number>> = {
     "revenue.today": buildTruthValue({
@@ -198,13 +207,17 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
       displayLabel: "Leads (all sources)",
     }),
     "traffic.30d": buildTruthValue({
-      value: m.traffic.visitors30,
+      value: ga4Traffic30d ?? m.traffic.visitors30,
       label: trafficVerified ? "verified" : "estimated",
-      source: trafficVerified ? "GA4 + first-party Analytics" : "First-party AnalyticsEvent",
-      table: "AnalyticsEvent",
-      api: "/api/analytics",
-      calculation: "COUNT(pageviews over trailing 30 days)",
-      evidence: ["First-party pageview events"],
+      source: trafficVerified ? "GA4 Data API (GA4Snapshot)" : "First-party AnalyticsEvent",
+      table: trafficVerified ? "GA4Snapshot" : "AnalyticsEvent",
+      api: trafficVerified ? undefined : "/api/analytics",
+      calculation: trafficVerified
+        ? "SUM(GA4Snapshot.sessions over trailing 30 days)"
+        : "COUNT(pageviews over trailing 30 days)",
+      evidence: trafficVerified
+        ? ["Google Analytics 4 Data API — daily cron pull"]
+        : ["First-party pageview events"],
       dependencies: trafficVerified ? [] : ["GA4 (for cross-device + bot filtering)"],
       verificationStatus: "verified",
       missingReason: trafficVerified

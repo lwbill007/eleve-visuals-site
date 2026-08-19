@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const reply = siteResponseTime(site);
   return buildPageMetadata({
     title: "Book Your Experience",
-    description: `Start an ÉLEVÉ Visuals inquiry in four short steps. Photography, film, and creative direction — Northern California. Reply ${reply}. No payment online.`,
+    description: `Start an ÉLEVÉ Visuals inquiry in four short steps. Photography, film, and creative direction — Northern California. Reply ${reply}. No public checkout — payment happens via a private link after booking.`,
     path: "/book",
   });
 }

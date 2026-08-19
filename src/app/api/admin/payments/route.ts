@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       orderBy: { paidAt: "desc" },
       take: limit,
     }),
-    Promise.resolve(getConnectorHealth().find((c) => c.id === "stripe")),
+    getConnectorHealth().then((connectors) => connectors.find((c) => c.id === "stripe")),
   ]);
 
   return NextResponse.json({

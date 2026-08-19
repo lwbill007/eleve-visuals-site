@@ -45,7 +45,7 @@ function fromConnector(
 /** Only report real gaps — connectors that are disconnected/degraded, or measured data holes. */
 export async function buildUnknowns(): Promise<UnknownItem[]> {
   const workspaceId = getWorkspaceId();
-  const connectors = getConnectorHealth();
+  const connectors = await getConnectorHealth();
 
   const [metrics, embeddings, lowConf, memoryTotal, expenseMemories] = await Promise.all([
     getOperatorMetrics(),

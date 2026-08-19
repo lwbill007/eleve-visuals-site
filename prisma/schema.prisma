@@ -248,6 +248,17 @@ model RateLimitEntry {
   @@index([ip, route, createdAt])
 }
 
+model GA4Snapshot {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  sessions    Int      @default(0)
+  activeUsers Int      @default(0)
+  conversions Int      @default(0)
+  fetchedAt   DateTime @default(now())
+
+  @@index([date])
+}
+
 model AnalyticsEvent {
   id             String   @id @default(cuid())
   type           String

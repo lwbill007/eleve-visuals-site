@@ -3,6 +3,7 @@
  * Real integrations expose health; disconnected = degraded intelligence, not invented data.
  */
 
+import { prisma } from "@/lib/db";
 import type { TruthLabel } from "./truth-metadata";
 
 export type ConnectorId =
@@ -170,7 +171,25 @@ const CONNECTOR_DEFS: Omit<
   },
 ];
 
-function resolveConnector(def: (typeof CONNECTOR_DEFS)[number]): ConnectorHealth {
+const GA4_FRESHNESS_MS = 36 * 60 * 60 * 1000; // slightly over the daily cron interval
+
+interface GA4HealthState {
+  healthy: boolean;
+  lastFetchedAt: string | null;
+}
+
+async function resolveGA4HealthState(): Promise<GA4HealthState> {
+  if (!env("GA4_PROPERTY_ID")) return { healthy: false, lastFetchedAt: null };
+  const latest = await prisma.gA4Snapshot.findFirst({ orderBy: { fetchedAt: "desc" } });
+  if (!latest) return { healthy: false, lastFetchedAt: null };
+  const healthy = Date.now() - latest.fetchedAt.getTime() < GA4_FRESHNESS_MS;
+  return { healthy, lastFetchedAt: latest.fetchedAt.toISOString() };
+}
+
+function resolveConnector(
+  def: (typeof CONNECTOR_DEFS)[number],
+  ga4Health: GA4HealthState
+): ConnectorHealth {
   const now = new Date().toISOString();
 
   let connected = false;
@@ -223,7 +242,8 @@ function resolveConnector(def: (typeof CONNECTOR_DEFS)[number]): ConnectorHealth
     def.id === "booking_platform" ||
     def.id === "neon" ||
     def.id === "resend" ||
-    def.id === "stripe";
+    def.id === "stripe" ||
+    (def.id === "ga4" && ga4Health.healthy);
 
   const health: ConnectorHealth["health"] = !connected
     ? "disconnected"
@@ -246,7 +266,7 @@ function resolveConnector(def: (typeof CONNECTOR_DEFS)[number]): ConnectorHealth
     connected,
     health,
     syncStatus,
-    lastUpdate: connected ? now : undefined,
+    lastUpdate: def.id === "ga4" ? (ga4Health.lastFetchedAt ?? undefined) : connected ? now : undefined,
     coverage,
     confidence,
     truthLabel,
@@ -259,13 +279,14 @@ function resolveConnector(def: (typeof CONNECTOR_DEFS)[number]): ConnectorHealth
   };
 }
 
-export function getConnectorHealth(): ConnectorHealth[] {
-  return CONNECTOR_DEFS.map(resolveConnector);
+export async function getConnectorHealth(): Promise<ConnectorHealth[]> {
+  const ga4Health = await resolveGA4HealthState();
+  return CONNECTOR_DEFS.map((def) => resolveConnector(def, ga4Health));
 }
 
-export function getDisconnectedBlockers(): string[] {
+export async function getDisconnectedBlockers(): Promise<string[]> {
   const blockers = new Set<string>();
-  for (const c of getConnectorHealth()) {
+  for (const c of await getConnectorHealth()) {
     if (c.health !== "healthy") {
       for (const b of c.blocksDecisions) blockers.add(b);
     }
@@ -273,6 +294,7 @@ export function getDisconnectedBlockers(): string[] {
   return [...blockers];
 }
 
-export function intelligenceDegraded(): boolean {
-  return getConnectorHealth().some((c) => c.id !== "vercel" && c.health !== "healthy" && c.blocksDecisions.length > 0);
+export async function intelligenceDegraded(): Promise<boolean> {
+  const connectors = await getConnectorHealth();
+  return connectors.some((c) => c.id !== "vercel" && c.health !== "healthy" && c.blocksDecisions.length > 0);
 }

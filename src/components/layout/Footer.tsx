@@ -39,7 +39,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
               </p>
               <p className="mt-4 text-xs text-muted">
                 Typical reply · {siteConfig.responseTime || "1–2 business days"} · Inquiry-first (no
-                online payment)
+                public checkout)
               </p>
             </div>
 

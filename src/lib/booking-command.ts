@@ -306,6 +306,8 @@ export function buildHealth(data: Record<string, unknown>): HealthItem[] {
   const feeling = has("feelingPrompt") || has("projectVision") || has("purpose");
   const refs = has("moodBoardUrl") || has("pinterestLink") || has("driveLink") || has("inspirationInstagram");
   const terms = data.termsAccepted === true;
+  const contract = data.contract as { status?: string; signedAt?: string } | undefined;
+  const contractSigned = contract?.status === "signed";
 
   return [
     {
@@ -332,10 +334,12 @@ export function buildHealth(data: Record<string, unknown>): HealthItem[] {
     {
       key: "contract",
       label: "Contract",
-      status: terms ? "warn" : "missing",
-      detail: terms
-        ? "Terms accepted at inquiry — formal contract not generated"
-        : "No contract on file",
+      status: contractSigned ? "ready" : terms ? "warn" : "missing",
+      detail: contractSigned
+        ? `Signed ${contract?.signedAt ? new Date(contract.signedAt).toLocaleDateString() : ""}`
+        : terms
+          ? "Terms accepted at inquiry — formal contract not yet signed"
+          : "No contract on file",
       requestSubject: "ÉLEVÉ — Project agreement",
     },
     {

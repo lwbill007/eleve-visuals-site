@@ -132,8 +132,8 @@ export default function FinancialCenterPage() {
       label: "Deposits",
       status: summary?.hasPayments ? "partial" : "planned",
       summary: summary?.hasPayments
-        ? "Settled Payment rows are live. Dedicated deposit stage linking is partial."
-        : "No settled payments yet.",
+        ? "Settled Payment rows are live, linked to bookings via Stripe Checkout metadata."
+        : "No settled payments yet — deposit checkout is live via each booking's client link.",
       missing: summary?.hasPayments
         ? undefined
         : {

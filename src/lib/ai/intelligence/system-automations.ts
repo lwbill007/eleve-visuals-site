@@ -232,7 +232,7 @@ export async function runSystemAutomation(id: string): Promise<SystemAutomationR
     }
 
     case "sys-connector-blockers": {
-      const connectors = getConnectorHealth().filter(
+      const connectors = (await getConnectorHealth()).filter(
         (c) => c.health !== "healthy" && c.blocksDecisions.length > 0
       );
       if (connectors.length === 0) {

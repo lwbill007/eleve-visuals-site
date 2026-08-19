@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { refreshIntelligence, shouldRunScheduledRefresh } from "@/lib/ai/memory/knowledge";
+import { prisma } from "@/lib/db";
+import { fetchGA4DailyMetrics, isGA4Configured } from "@/lib/ga4-client";
 
 /**
  * Scheduled intelligence refresh. Triggered by Vercel Cron (nightly + weekly).
@@ -45,10 +47,31 @@ export async function GET(request: Request) {
     await generateWeeklyExecutiveReport({ persist: true }).catch(() => {});
   }
 
+  let ga4Synced = false;
+  if (schedule === "daily" && isGA4Configured()) {
+    try {
+      const daily = await fetchGA4DailyMetrics(1);
+      await prisma.gA4Snapshot.upsert({
+        where: { date: daily.date },
+        create: daily,
+        update: {
+          sessions: daily.sessions,
+          activeUsers: daily.activeUsers,
+          conversions: daily.conversions,
+          fetchedAt: new Date(),
+        },
+      });
+      ga4Synced = true;
+    } catch {
+      // GA4 is additive — a fetch failure should never break the rest of the daily refresh.
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     refreshId: report.refreshId,
     pagesScanned: report.pagesScanned,
+    ga4Synced,
     healthScore: report.executiveReport.overallHealthScore,
     qaScore: qaReport?.overallScore,
     qaIssues: qaReport?.issues?.length ?? 0,

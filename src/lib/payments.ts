@@ -1,5 +1,9 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/db";
+import { normalizeInquiryStatus } from "@/lib/booking-pipeline";
+import { sendEmail, depositConfirmedEmail } from "@/lib/email";
+import { getSiteConfig } from "@/lib/content";
+import { invalidateIntelligenceCaches } from "@/lib/ai/cognitive/cache";
 
 export interface PaymentRevenueSummary {
   todayCents: number;
@@ -178,6 +182,50 @@ export async function upsertPayment(input: UpsertPaymentInput) {
   });
 }
 
+/**
+ * A verified Stripe payment linked to a submission that's still at "proposal" reads as the
+ * deposit clearing — advance it to "booked" and notify both sides. Any other stage is left
+ * alone (e.g. a repeat/manual payment on an already-booked project shouldn't move the stage).
+ */
+async function advanceBookingAfterDeposit(submissionId: string, amountCents: number) {
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { id: true, status: true, data: true, contactEmail: true },
+  });
+  if (!submission || normalizeInquiryStatus(submission.status) !== "proposal") return;
+
+  await prisma.submission.update({ where: { id: submissionId }, data: { status: "booked" } });
+  void invalidateIntelligenceCaches().catch(() => {});
+
+  let data: Record<string, unknown> = {};
+  try {
+    data = JSON.parse(submission.data) as Record<string, unknown>;
+  } catch {
+    data = {};
+  }
+  const clientName = typeof data.fullName === "string" ? data.fullName : "Client";
+  const amount = dollarsFromCents(amountCents);
+
+  const [siteConfig] = await Promise.all([getSiteConfig().catch(() => null)]);
+  const recipients: Promise<unknown>[] = [];
+  if (submission.contactEmail) {
+    const mail = depositConfirmedEmail({ name: clientName, amount, isAdminCopy: false });
+    recipients.push(
+      sendEmail({
+        to: submission.contactEmail,
+        subject: mail.subject,
+        html: mail.html,
+        replyTo: siteConfig?.email,
+      })
+    );
+  }
+  if (siteConfig?.email) {
+    const mail = depositConfirmedEmail({ name: clientName, amount, isAdminCopy: true });
+    recipients.push(sendEmail({ to: siteConfig.email, subject: mail.subject, html: mail.html }));
+  }
+  await Promise.allSettled(recipients);
+}
+
 type StripeObject = Record<string, unknown>;
 
 function asObj(v: unknown): StripeObject | null {
@@ -229,6 +277,8 @@ export async function ingestStripeEvent(event: {
       paidAt,
       raw: event,
     });
+    const submissionId = asString(asObj(obj.metadata)?.submissionId);
+    if (submissionId) await advanceBookingAfterDeposit(submissionId, amount).catch(() => {});
     return { ok: true as const, type: event.type };
   }
 
@@ -247,6 +297,8 @@ export async function ingestStripeEvent(event: {
       paidAt,
       raw: event,
     });
+    const submissionId = asString(asObj(obj.metadata)?.submissionId);
+    if (submissionId) await advanceBookingAfterDeposit(submissionId, amount).catch(() => {});
     return { ok: true as const, type: event.type };
   }
 

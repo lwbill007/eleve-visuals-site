@@ -11,6 +11,8 @@ const LIMITS: Record<string, number> = {
   "submit:session-upload": 40,
   "auth:login": 10,
   "analytics:pageview": 120,
+  "contract:sign": 10,
+  "booking:deposit-session": 10,
   // High-cost / mutating admin AI (per IP / hour)
   "admin-ai:generate": 60,
   "admin-ai:chat": 90,

@@ -45,7 +45,7 @@ export async function runExecutiveQA(baseUrl?: string): Promise<ProductionReadin
     });
   }
 
-  const connectors = getConnectorHealth();
+  const connectors = await getConnectorHealth();
   const integrations = connectors.map((c) => ({
     id: c.id,
     label: c.label,

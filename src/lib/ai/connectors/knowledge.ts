@@ -115,7 +115,7 @@ const PLANNED: KnowledgeConnector[] = [
 export async function listKnowledgeConnectors(): Promise<KnowledgeConnector[]> {
   let platform: ConnectorHealth[] = [];
   try {
-    platform = getConnectorHealth();
+    platform = await getConnectorHealth();
   } catch {
     platform = [];
   }

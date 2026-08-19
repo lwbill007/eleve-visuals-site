@@ -26,7 +26,7 @@ export function HomeTrustBar({
     ? content.stats
     : [
         { label: "Typical reply", value: reply },
-        { label: "Inquiry-first", value: "No deposit online" },
+        { label: "Inquiry-first", value: "No public checkout" },
         { label: "Production", value: "Northern California" },
       ];
 

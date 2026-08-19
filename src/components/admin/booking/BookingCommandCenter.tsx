@@ -95,6 +95,8 @@ export function BookingCommandCenter({
     notes: "",
   });
   const [savingOutcome, setSavingOutcome] = useState(false);
+  const [generatingAccess, setGeneratingAccess] = useState(false);
+  const [accessUrl, setAccessUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalOps(parseOps(data));
@@ -191,6 +193,36 @@ export function BookingCommandCenter({
       setSavingOutcome(false);
     }
   };
+  const contract = data.contract as
+    | { status?: string; signedAt?: string; signerName?: string }
+    | undefined;
+  const contractSigned = contract?.status === "signed";
+
+  const generateClientAccess = async () => {
+    setGeneratingAccess(true);
+    try {
+      const res = await adminFetch(`/api/admin/bookings/${submissionId}/client-access`, {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => null);
+      if (res.ok && body?.url) {
+        setAccessUrl(body.url);
+        try {
+          await navigator.clipboard.writeText(body.url);
+          toast("Client link copied to clipboard.");
+        } catch {
+          toast("Client link generated.");
+        }
+      } else {
+        toast(body?.error || "Could not generate client link.", "error");
+      }
+    } catch {
+      toast("Could not generate client link.", "error");
+    } finally {
+      setGeneratingAccess(false);
+    }
+  };
+
   const ig = asString(data.instagram)?.replace(/^@/, "") || "";
   const hasRefs = leadIntel.missingAssets.every(
     (a) => a.label !== "Visual References" || !a.missing
@@ -753,22 +785,54 @@ export function BookingCommandCenter({
             />
           </div>
 
+          <Panel title="Contract">
+            <p className="text-sm text-fog">
+              {contractSigned
+                ? `Signed by ${contract?.signerName || "client"}${contract?.signedAt ? ` on ${new Date(contract.signedAt).toLocaleDateString()}` : ""}.`
+                : "Not signed yet. Generate a client link below, then send it via email."}
+            </p>
+            {contractSigned && (
+              <a
+                href={`/api/contracts/${submissionId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-block border border-stone/40 px-3 py-1.5 text-[0.65rem] tracking-[0.1em] text-fog uppercase"
+              >
+                View Signed Contract
+              </a>
+            )}
+          </Panel>
+
           <Panel title="Client portal">
             <p className="text-sm text-fog">
-              Gallery portal is not connected yet. Controls reserved for when client access ships.
+              Send this client a private link to review and sign their contract and pay their deposit.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2 opacity-50">
-              {["Enable Gallery", "Generate Access Code", "Allow Downloads"].map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  disabled
-                  className="cursor-not-allowed border border-stone/25 px-3 py-1.5 text-[0.6rem] tracking-[0.08em] text-muted uppercase"
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void generateClientAccess()}
+                disabled={generatingAccess}
+                className="border border-accent px-3 py-1.5 text-[0.6rem] tracking-[0.08em] text-accent uppercase disabled:opacity-50"
+              >
+                {generatingAccess ? "Generating…" : "Generate Access Link"}
+              </button>
+              <button
+                type="button"
+                disabled
+                className="cursor-not-allowed border border-stone/25 px-3 py-1.5 text-[0.6rem] tracking-[0.08em] text-muted uppercase"
+              >
+                Enable Gallery
+              </button>
             </div>
+            {accessUrl && (
+              <p className="mt-3 break-all text-[0.7rem] text-muted">
+                {accessUrl}
+                {" — "}
+                <a href={emailHref("ÉLEVÉ — Your booking link", accessUrl)} className="text-accent underline">
+                  send via email
+                </a>
+              </p>
+            )}
           </Panel>
 
           <div className="flex flex-wrap gap-2">
