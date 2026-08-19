@@ -13,3 +13,21 @@ export function estimateBudgetValue(budgetRange: string, packageId?: string, add
   if (nums.length === 1) return nums[0];
   return 0;
 }
+
+/**
+ * Single source of truth for "what is this submission worth" — prefers a qualification-stage
+ * override (set once a human/AI has actually scoped the project) over the raw budget-range
+ * estimate. Every place that values a booking (Dashboard, Pipeline, CRM) should call this
+ * instead of re-deriving the value inline, so the same submission can't price out differently
+ * on different admin pages.
+ */
+export function estimateSubmissionValue(data: Record<string, unknown>): number {
+  const qualification = data.qualification as { estimatedProjectValue?: number } | undefined;
+  if (typeof qualification?.estimatedProjectValue === "number") {
+    return qualification.estimatedProjectValue;
+  }
+  const budgetRange = typeof data.budgetRange === "string" ? data.budgetRange : "";
+  const packageId = typeof data.packageId === "string" ? data.packageId : undefined;
+  const addOnIds = Array.isArray(data.addOnIds) ? (data.addOnIds as string[]) : undefined;
+  return estimateBudgetValue(budgetRange, packageId, addOnIds) || 0;
+}

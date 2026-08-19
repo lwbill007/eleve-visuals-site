@@ -12,6 +12,7 @@ import {
 import { notifyApplicationStatusChange } from "@/lib/application-notifications";
 import { maybeAutoCloseVolumeAfterAccept } from "@/lib/session-application-server";
 import { parseApplicationSettings } from "@/lib/session-application";
+import { invalidateIntelligenceCaches } from "@/lib/ai/cognitive/cache";
 
 function parseSubmissionData(raw: string) {
   try {
@@ -216,6 +217,7 @@ export async function PATCH(request: Request) {
     }
 
     await prisma.submission.update({ where: { id }, data });
+    void invalidateIntelligenceCaches().catch(() => {});
 
     let emailSent: boolean | null = null;
     if (typeof data.status === "string" && existing.type === "session" && isApplicationStatus(data.status)) {

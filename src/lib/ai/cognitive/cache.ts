@@ -13,5 +13,8 @@ export async function invalidateIntelligenceCaches(): Promise<void> {
     invalidateCache("weekly-executive-report"),
     invalidateCache("operator-metrics"),
     invalidateCache("executive-report-v3"),
+    invalidateCache("admin-dashboard-os"),
+    invalidateCache("command-home"),
+    invalidateCache("crm-aggregates"),
   ]);
 }

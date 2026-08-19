@@ -42,6 +42,9 @@ yarn-error.log*
 # local node
 .node-local/
 
+# personal Obsidian vault — not project documentation, never ships with the code
+/eleve/
+
 # local uploads (dev fallback — never commit user media)
 /public/uploads/
 

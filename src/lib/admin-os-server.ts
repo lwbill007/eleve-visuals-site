@@ -1,6 +1,6 @@
 import { prisma } from "./db";
 import { getAnalyticsSummary } from "./analytics-server";
-import { getCached, setCache } from "./ai/cache";
+import { getCached, setCache, withInflight } from "./ai/cache";
 import { normalizeApplicationStatus } from "./types";
 
 function monthKey(d: Date) {
@@ -39,7 +39,7 @@ function parseName(data: Record<string, unknown>): string {
   );
 }
 
-import { estimateBudgetValue } from "@/lib/estimate-budget";
+import { estimateSubmissionValue } from "@/lib/estimate-budget";
 import {
   PIPELINE_STAGES,
   isClosedWonStatus,
@@ -137,8 +137,7 @@ export async function getAdminDashboardOS() {
     if (bookingsByMonth.has(key)) bookingsByMonth.set(key, (bookingsByMonth.get(key) ?? 0) + 1);
     if (isOpenPipelineValueStatus(b.status)) {
       const data = parseSubmissionData(b.data);
-      const budget = typeof data.budgetRange === "string" ? data.budgetRange : "";
-      pipelineValue += estimateBudgetValue(budget) || 0;
+      pipelineValue += estimateSubmissionValue(data);
     }
   }
 
@@ -275,7 +274,47 @@ export async function getAdminDashboardOSCached(force = false) {
   return data;
 }
 
-async function computeCrmAggregates() {
+interface ContactAggregate {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  instagram: string;
+  source: string;
+  tags: string[];
+  status: string;
+  bookings: number;
+  applications: number;
+  contacts: number;
+  revenue: number;
+  lastActivity: string;
+  notes: string;
+  pipelineStage: ProductionStatus | null;
+  pipelineStageUpdatedAt: string | null;
+}
+
+const CRM_AGGREGATES_CACHE_KEY = "crm-aggregates-v1";
+const CRM_AGGREGATES_TTL_MS = 10 * 60 * 1000;
+
+async function computeCrmAggregates(): Promise<Map<string, ContactAggregate>> {
+  return withInflight(CRM_AGGREGATES_CACHE_KEY, async () => {
+    const cached = await getCached<[string, ContactAggregate][]>(CRM_AGGREGATES_CACHE_KEY);
+    if (cached) return new Map(cached);
+
+    const byEmail = await buildCrmAggregates();
+
+    await setCache(CRM_AGGREGATES_CACHE_KEY, [...byEmail.entries()], CRM_AGGREGATES_TTL_MS);
+    return byEmail;
+  });
+}
+
+/**
+ * Unbounded by design — a contact's lifetime booking count/revenue needs every submission
+ * they've ever made, not just a recent window. `computeCrmAggregates()` above caches this
+ * (10 min TTL, busted on submission writes via invalidateIntelligenceCaches) rather than
+ * bounding the query, so long-time repeat clients don't silently lose history off the aggregate.
+ */
+async function buildCrmAggregates(): Promise<Map<string, ContactAggregate>> {
   const submissions = await prisma.submission.findMany({
     orderBy: { createdAt: "desc" },
     select: {
@@ -290,27 +329,7 @@ async function computeCrmAggregates() {
     },
   });
 
-  const byEmail = new Map<
-    string,
-    {
-      id: string;
-      name: string;
-      email: string;
-      phone: string;
-      instagram: string;
-      source: string;
-      tags: string[];
-      status: string;
-      bookings: number;
-      applications: number;
-      contacts: number;
-      revenue: number;
-      lastActivity: string;
-      notes: string;
-      pipelineStage: ProductionStatus | null;
-      pipelineStageUpdatedAt: string | null;
-    }
-  >();
+  const byEmail = new Map<string, ContactAggregate>();
 
   for (const row of submissions) {
     const data = parseSubmissionData(row.data);
@@ -354,20 +373,14 @@ async function computeCrmAggregates() {
         existing.pipelineStageUpdatedAt = updatedAt;
       }
       const q = data.qualification as
-        | { crmSegment?: string; estimatedProjectValue?: number; packageName?: string }
+        | { crmSegment?: string; packageName?: string }
         | undefined;
       const segment =
         (typeof q?.crmSegment === "string" && q.crmSegment) ||
         inferCrmSegment(data);
       if (segment && !existing.tags.includes(segment)) existing.tags.push(segment);
 
-      const estValue =
-        (typeof q?.estimatedProjectValue === "number" && q.estimatedProjectValue) ||
-        estimateBudgetValue(
-          String(data.budgetRange ?? ""),
-          typeof data.packageId === "string" ? data.packageId : undefined,
-          Array.isArray(data.addOnIds) ? (data.addOnIds as string[]) : undefined
-        );
+      const estValue = estimateSubmissionValue(data);
       if (
         (segment === "Creative Partner" || estValue >= 5000) &&
         !existing.tags.includes("VIP")
@@ -380,15 +393,7 @@ async function computeCrmAggregates() {
       }
 
       if (stage === "delivered" || stage === "follow_up") {
-        const value =
-          (typeof q?.estimatedProjectValue === "number" && q.estimatedProjectValue) ||
-          estimateBudgetValue(
-            String(data.budgetRange ?? ""),
-            typeof data.packageId === "string" ? data.packageId : undefined,
-            Array.isArray(data.addOnIds) ? (data.addOnIds as string[]) : undefined
-          ) ||
-          0;
-        existing.revenue += value;
+        existing.revenue += estimateSubmissionValue(data);
         existing.status = existing.bookings > 1 ? "repeat" : "completed";
         if (existing.bookings > 1 && !existing.tags.includes("Repeat Client")) {
           existing.tags.push("Repeat Client");
@@ -441,7 +446,6 @@ export async function getAdminPipeline() {
       .filter((b) => normalizeInquiryStatus(b.status) === stage.id)
       .map((b) => {
         const data = parseSubmissionData(b.data);
-        const budget = typeof data.budgetRange === "string" ? data.budgetRange : "";
         const q = data.qualification as
           | { estimatedProjectValue?: number; packageName?: string; leadScore?: number; priority?: string }
           | undefined;
@@ -457,14 +461,7 @@ export async function getAdminPipeline() {
           name: parseName(data) || b.contactEmail || "Unknown",
           email: b.contactEmail || parseEmail(data, ""),
           service: category,
-          value:
-            (typeof q?.estimatedProjectValue === "number" && q.estimatedProjectValue) ||
-            estimateBudgetValue(
-              budget,
-              typeof data.packageId === "string" ? data.packageId : undefined,
-              Array.isArray(data.addOnIds) ? (data.addOnIds as string[]) : undefined
-            ) ||
-            0,
+          value: estimateSubmissionValue(data),
           valueQuality: "estimated" as const,
           leadScore: typeof q?.leadScore === "number" ? q.leadScore : undefined,
           priority: typeof q?.priority === "string" ? q.priority : undefined,
