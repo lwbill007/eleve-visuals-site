@@ -62,8 +62,12 @@ export async function GET(request: Request) {
         },
       });
       ga4Synced = true;
-    } catch {
-      // GA4 is additive — a fetch failure should never break the rest of the daily refresh.
+    } catch (error) {
+      // GA4 is additive — a fetch failure should never break the rest of the daily refresh —
+      // but it must be logged, or a misconfigured credential can run broken indefinitely with
+      // zero diagnostic trail (the response body's ga4Synced:false is only visible to whoever
+      // is actively checking cron output).
+      console.error("[cron] GA4 sync failed:", error);
     }
   }
 

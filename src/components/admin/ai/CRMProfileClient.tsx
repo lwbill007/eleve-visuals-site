@@ -135,7 +135,7 @@ export function CRMProfileClient({ email }: { email: string }) {
       label: "LTV / revenue",
       status: hasRevenue || intel.predictedLTV > 0 ? "partial" : "planned",
       summary: hasRevenue
-        ? `$${intel.revenueGenerated.toLocaleString()} recorded — Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated).`
+        ? `$${intel.revenueGenerated.toLocaleString()} est. from pipeline stage (not Payment-verified) — Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated).`
         : intel.predictedLTV > 0
           ? `Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated) — not ledger-verified.`
           : "No revenue or predicted LTV for this client.",

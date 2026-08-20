@@ -1,5 +1,15 @@
 const RESEND_API = "https://api.resend.com/emails";
 
+/** Escape user-controlled text before interpolating into an HTML email template. */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 interface SendEmailOptions {
   to: string | string[];
   subject: string;
@@ -158,15 +168,17 @@ export function contractSignedEmail({
   signerName: string;
   isAdminCopy: boolean;
 }) {
+  const safeName = escapeHtml(name);
+  const safeSigner = escapeHtml(signerName);
   return {
     subject: isAdminCopy ? `Contract signed — ${name}` : "Your contract has been signed — ÉLEVÉ Visuals",
     html: isAdminCopy
       ? `
-      <p>${name}'s project agreement was signed by <strong>${signerName}</strong>.</p>
+      <p>${safeName}'s project agreement was signed by <strong>${safeSigner}</strong>.</p>
       <p>Review it in the admin booking detail page.</p>
     `
       : `
-      <p>Hi ${name},</p>
+      <p>Hi ${safeName},</p>
       <p>Thanks — your project agreement has been signed and is on file.</p>
       <p>— ÉLEVÉ Visuals</p>
     `,
@@ -182,15 +194,16 @@ export function depositConfirmedEmail({
   amount: number;
   isAdminCopy: boolean;
 }) {
+  const safeName = escapeHtml(name);
   const formatted = `$${amount.toLocaleString()}`;
   return {
     subject: isAdminCopy ? `Deposit received — ${name}` : "Deposit received — ÉLEVÉ Visuals",
     html: isAdminCopy
       ? `
-      <p>A deposit of <strong>${formatted}</strong> was received from ${name}. The booking has been advanced to Booked.</p>
+      <p>A deposit of <strong>${formatted}</strong> was received from ${safeName}. The booking has been advanced to Booked.</p>
     `
       : `
-      <p>Hi ${name},</p>
+      <p>Hi ${safeName},</p>
       <p>We've received your deposit of <strong>${formatted}</strong> — your booking is confirmed.</p>
       <p>— ÉLEVÉ Visuals</p>
     `,

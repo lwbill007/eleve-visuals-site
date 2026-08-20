@@ -49,7 +49,10 @@ export async function POST(
     data = {};
   }
   const pkg = getPackageById(asString(data.packageId) || "");
-  const origin = new URL(request.url).origin;
+  // Prefer the canonical site origin over the request's Host header — this URL is embedded in
+  // a Stripe redirect a paying client follows, so it shouldn't trust a header that could be
+  // forged if the app is ever reachable outside Cloudflare's hostname binding.
+  const origin = process.env.CANONICAL_SITE_URL?.replace(/\/$/, "") ?? new URL(request.url).origin;
 
   try {
     const url = await createDepositCheckoutSession({

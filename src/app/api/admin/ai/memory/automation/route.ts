@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import {
   getIntelligenceAutomationSettings,
   setIntelligenceAutomationSettings,
@@ -27,6 +28,9 @@ export async function PATCH(req: Request) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:memory-write");
+  if (blocked) return blocked;
 
   const body = await req.json().catch(() => ({}));
   const { enabled, schedules } = body as {

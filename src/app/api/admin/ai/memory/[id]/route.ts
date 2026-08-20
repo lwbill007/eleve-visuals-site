@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import {
   correctMemory,
   deleteMemory,
@@ -29,6 +30,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:memory-write");
+  if (blocked) return blocked;
 
   const { id } = await params;
   const body = await req.json();
@@ -68,12 +72,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   return NextResponse.json({ error: "No valid update" }, { status: 400 });
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAdmin();
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:memory-write");
+  if (blocked) return blocked;
 
   const { id } = await params;
   await deleteMemory(id, "admin", "Deleted from Memory Center");

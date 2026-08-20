@@ -44,6 +44,31 @@ Prisma + PostgreSQL only — never SQLite (`file:./dev.db` is explicitly wrong f
 
 Admin routes: `requireAdmin()` or `requireMinimumRole(role)` from `src/lib/auth.ts`. Public mutating routes (contract sign, deposit checkout, form submits): `checkRateLimit()` from `src/lib/rate-limit.ts`, keyed by a named bucket added to that file's `LIMITS` map. Client-scoped, unauthenticated access (contract signing, deposit payment) uses a short-purpose-scoped JWT pattern — see `src/lib/booking-access-token.ts` and `src/lib/session-upload-token.ts` for the two existing examples — reuse that pattern rather than inventing new auth for a new client-facing flow.
 
-## Documentation
+## Knowledge base (`eleve/`)
 
-Deeper architecture notes, changelogs, and open issues live in a personal Obsidian vault at `eleve/` in this repo root — **gitignored, not shipped with the code**. Check `eleve/Open Issues.md` and `eleve/README.md` there for current in-progress work and known gaps before assuming something is finished or broken.
+Deeper architecture notes, decisions, and changelogs live in a personal Obsidian vault at `eleve/` in this repo root — **gitignored, not shipped with the code** (the repo is public; the vault has real business numbers in it). Being gitignored doesn't limit read access — it's a normal directory, read it like any other. Start at `eleve/00_HOME/Dashboard.md`.
+
+Before making decisions involving:
+- business logic or the booking pipeline → `eleve/01_PRODUCT/` (especially `Decisions.md`)
+- architecture, database, deployment → `eleve/04_SYSTEM/`
+- what's currently broken or in-progress → `eleve/00_HOME/Open Issues.md`
+
+Don't treat vault documentation as automatically correct — it can drift from the code. If a note and the actual code disagree, say so explicitly rather than silently trusting one over the other or silently rewriting the note to match.
+
+After a real architectural decision (a genuine fork chosen between, not a routine implementation detail), add an ADR to `eleve/01_PRODUCT/Decisions.md`. After finishing a body of work, add a dated note to `eleve/08_CHANGELOG/`.
+
+The vault contains real revenue, client, and security detail. Read and use it freely when working on this project, but never commit it, push it, or copy its specifics into code comments, commit messages, or anything else that ends up in the public repo.
+
+## Engineering intelligence (`eleve/09_ENGINEERING/`)
+
+When work involves something broken or worth tracking, classify it — a request can be more than one of these:
+
+- **Bug** — something is broken or behaves incorrectly.
+- **Fix** — the change that resolves a bug.
+- **Improvement** — existing functionality works but should get better (conversion, performance, a11y, SEO, UX, architecture).
+- **Refinement** — small UI/UX/copy/brand polish. Not a bug — don't touch working behavior while refining.
+- **Regression** — something previously fixed broke again. Highest-value category to log well; check `eleve/09_ENGINEERING/REGRESSIONS/` before assuming a bug is new.
+- **Tech debt** — a known shortcut with a real future cost.
+- **Testing gap** — missing coverage, not a missing feature.
+
+Before fixing a bug: search the codebase, search `eleve/09_ENGINEERING/` for whether this (or something like it) happened before, identify root cause, then fix — don't skip straight to a patch on symptom. After: update the relevant note and `eleve/09_ENGINEERING/00_ENGINEERING_INDEX.md`, following the formats in that folder's `README.md`. Don't create a note for routine work — this is for things worth a future session being able to find, not a log of every edit.

@@ -46,6 +46,10 @@ export async function createDepositCheckoutSession(input: DepositCheckoutInput):
     ],
     customer_email: input.clientEmail,
     metadata: { submissionId: input.submissionId },
+    // Session-level metadata isn't automatically copied onto the underlying PaymentIntent,
+    // but Stripe fires both checkout.session.completed and payment_intent.succeeded for this
+    // payment — set it here too so submissionId is present regardless of event delivery order.
+    payment_intent_data: { metadata: { submissionId: input.submissionId } },
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
   });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireMinimumRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createBookingAccessToken } from "@/lib/booking-access-token";
 
@@ -8,9 +8,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    // Mints a 30-day token capable of triggering a real Stripe checkout — bare requireAdmin()
+    // would let a viewer-level credential do this, so require at least operator.
+    await requireMinimumRole("operator");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;

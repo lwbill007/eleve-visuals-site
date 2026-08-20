@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import {
   getSavedRankingState,
   rerankSessionApplications,
@@ -50,6 +51,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:sessions-rank");
+  if (blocked) return blocked;
 
   const volumeId = new URL(req.url).searchParams.get("volumeId") || undefined;
   try {

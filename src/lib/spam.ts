@@ -1,3 +1,5 @@
+import { getClientIp } from "@/lib/rate-limit";
+
 const MIN_FORM_SECONDS = 3;
 
 export interface SpamCheckResult {
@@ -50,11 +52,8 @@ export async function verifyTurnstile(
   }
 
   try {
-    const remoteIp = request
-      ? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        request.headers.get("x-real-ip") ||
-        undefined
-      : undefined;
+    const ip = request ? getClientIp(request) : undefined;
+    const remoteIp = ip && ip !== "unknown" ? ip : undefined;
     const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },

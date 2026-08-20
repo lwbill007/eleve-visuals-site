@@ -17,7 +17,8 @@ export function StickyMobileBookCta() {
       pathname === "/sessions" ||
       pathname.startsWith("/sessions/") ||
       pathname === "/portfolio" ||
-      pathname.startsWith("/portfolio/")
+      pathname.startsWith("/portfolio/") ||
+      pathname.startsWith("/b/")
     ) {
       setVisible(false);
       return;
@@ -42,6 +43,7 @@ export function StickyMobileBookCta() {
     pathname.startsWith("/sessions/") ||
     pathname === "/portfolio" ||
     pathname.startsWith("/portfolio/") ||
+    pathname.startsWith("/b/") ||
     !visible
   ) return null;
 

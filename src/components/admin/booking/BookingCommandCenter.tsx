@@ -594,7 +594,6 @@ export function BookingCommandCenter({
         data={data}
         email={mail}
         submissionId={submissionId}
-        hideMetricsInHeader
       />
 
       {/* 15. Tasks */}

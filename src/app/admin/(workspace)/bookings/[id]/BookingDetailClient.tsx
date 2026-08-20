@@ -69,7 +69,9 @@ export function BookingDetailClient({
   const hasTimeline =
     healthByKey.get("timeline")?.status === "ready" || Boolean(data.preferredDate);
   const hasQuestionnaire = healthByKey.get("questionnaire")?.status === "ready";
-  const hasContractTerms = healthByKey.get("contract")?.status !== "missing";
+  const contractHealthStatus = healthByKey.get("contract")?.status;
+  const contractSigned = contractHealthStatus === "ready";
+  const hasContractTerms = contractHealthStatus !== "missing";
   const deliverablesLive =
     (Array.isArray(data.deliverables) && data.deliverables.length > 0) ||
     typeof data.packageId === "string";
@@ -94,10 +96,12 @@ export function BookingDetailClient({
     {
       id: "contract",
       label: "Contract",
-      status: hasContractTerms ? "partial" : "planned",
-      summary: hasContractTerms
-        ? "Terms accepted at inquiry — formal contract not generated."
-        : "No contract on file.",
+      status: contractSigned ? "live" : hasContractTerms ? "partial" : "planned",
+      summary: contractSigned
+        ? "Signed and on file — see the Contract panel below."
+        : hasContractTerms
+          ? "Terms accepted at inquiry — formal contract not yet signed."
+          : "No contract on file.",
       missing: hasContractTerms
         ? undefined
         : capMissing(

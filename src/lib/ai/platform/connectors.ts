@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { withInflight } from "../cache";
 import type { TruthLabel } from "./truth-metadata";
 
 export type ConnectorId =
@@ -180,10 +181,20 @@ interface GA4HealthState {
 
 async function resolveGA4HealthState(): Promise<GA4HealthState> {
   if (!env("GA4_PROPERTY_ID")) return { healthy: false, lastFetchedAt: null };
-  const latest = await prisma.gA4Snapshot.findFirst({ orderBy: { fetchedAt: "desc" } });
-  if (!latest) return { healthy: false, lastFetchedAt: null };
-  const healthy = Date.now() - latest.fetchedAt.getTime() < GA4_FRESHNESS_MS;
-  return { healthy, lastFetchedAt: latest.fetchedAt.toISOString() };
+  try {
+    const latest = await prisma.gA4Snapshot.findFirst({ orderBy: { fetchedAt: "desc" } });
+    if (!latest) return { healthy: false, lastFetchedAt: null };
+    const healthy = Date.now() - latest.fetchedAt.getTime() < GA4_FRESHNESS_MS;
+    return { healthy, lastFetchedAt: latest.fetchedAt.toISOString() };
+  } catch (error) {
+    // A DB hiccup here used to be impossible (this function was synchronous before the GA4
+    // integration). Degrade to "disconnected" rather than throwing — a transient Postgres
+    // error should never take down the ~9 features that call getConnectorHealth(), and
+    // "unknown" is exactly the honest state this codebase's anti-fabrication design expects
+    // for something that couldn't be verified, not a hard failure.
+    console.error("[connectors] GA4 health check failed:", error);
+    return { healthy: false, lastFetchedAt: null };
+  }
 }
 
 function resolveConnector(
@@ -280,8 +291,14 @@ function resolveConnector(
 }
 
 export async function getConnectorHealth(): Promise<ConnectorHealth[]> {
-  const ga4Health = await resolveGA4HealthState();
-  return CONNECTOR_DEFS.map((def) => resolveConnector(def, ga4Health));
+  // Several callers compose functions that each independently call this (e.g. the
+  // /api/admin/ai/connectors route calls it directly and via listKnowledgeConnectors(),
+  // intelligenceDegraded(), and getDisconnectedBlockers() in the same Promise.all) — collapse
+  // concurrent calls within one request into a single GA4Snapshot query instead of up to 4.
+  return withInflight("connector-health", async () => {
+    const ga4Health = await resolveGA4HealthState();
+    return CONNECTOR_DEFS.map((def) => resolveConnector(def, ga4Health));
+  });
 }
 
 export async function getDisconnectedBlockers(): Promise<string[]> {

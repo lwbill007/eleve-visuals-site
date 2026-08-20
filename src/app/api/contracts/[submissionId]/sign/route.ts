@@ -67,29 +67,54 @@ export async function POST(
   const totalValue = estimateSubmissionValue(data);
   const signedAt = new Date().toISOString();
 
-  const pdfBuffer = await generateContractPdf({
-    clientName: asString(data.fullName) || "Client",
-    packageName: asString(data.packageId) || "ÉLEVÉ Experience",
-    preferredDate: asString(data.preferredDate) || undefined,
-    totalValue,
-    depositAmount: Math.round(totalValue * 0.5),
-    signerName,
-    signedAt,
-    signerIp: ip,
-    terms,
-  });
+  let pdfUrl: string;
+  try {
+    const pdfBuffer = await generateContractPdf({
+      clientName: asString(data.fullName) || "Client",
+      packageName: asString(data.packageId) || "ÉLEVÉ Experience",
+      preferredDate: asString(data.preferredDate) || undefined,
+      totalValue,
+      depositAmount: Math.round(totalValue * 0.5),
+      signerName,
+      signedAt,
+      signerIp: ip,
+      terms,
+    });
 
-  const pdfUrl = await putPrivateBlob(
-    `contracts/${submissionId}-${Date.now()}.pdf`,
-    pdfBuffer,
-    "application/pdf"
-  );
+    pdfUrl = await putPrivateBlob(
+      `contracts/${submissionId}-${Date.now()}.pdf`,
+      pdfBuffer,
+      "application/pdf"
+    );
+  } catch (error) {
+    console.error("[contracts/sign] PDF generation or storage failed:", submissionId, error);
+    return NextResponse.json(
+      { error: "Could not process your signature. Please try again." },
+      { status: 503 }
+    );
+  }
 
-  data.contract = { status: "signed", signedAt, signerName, signerIp: ip, pdfUrl };
+  // PDF generation + blob upload above take real time (hundreds of ms), widening the window
+  // for a double-click or client retry to both pass the check at the top of this handler.
+  // Re-read immediately before writing to shrink that window as much as possible without a
+  // full DB transaction around the slow I/O above (see TD note in the vault for the fully
+  // atomic version of this fix).
+  const fresh = await prisma.submission.findUnique({ where: { id: submissionId }, select: { data: true } });
+  let freshData: Record<string, unknown> = {};
+  try {
+    freshData = JSON.parse(fresh?.data ?? "{}") as Record<string, unknown>;
+  } catch {
+    freshData = {};
+  }
+  if ((freshData.contract as { status?: string } | undefined)?.status === "signed") {
+    return NextResponse.json({ error: "This contract has already been signed." }, { status: 409 });
+  }
+
+  freshData.contract = { status: "signed", signedAt, signerName, signerIp: ip, pdfUrl };
 
   await prisma.submission.update({
     where: { id: submissionId },
-    data: { data: JSON.stringify(data).slice(0, 500_000) },
+    data: { data: JSON.stringify(freshData).slice(0, 500_000) },
   });
   void invalidateIntelligenceCaches().catch(() => {});
 

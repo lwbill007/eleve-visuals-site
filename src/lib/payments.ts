@@ -146,6 +146,29 @@ export interface UpsertPaymentInput {
 export async function upsertPayment(input: UpsertPaymentInput) {
   if (input.amountCents <= 0) return null;
 
+  // Stripe fires more than one event type for a single Checkout Session payment
+  // (checkout.session.completed AND payment_intent.succeeded both reference the same
+  // PaymentIntent id). Each has a distinct event.id, so the upsert below alone would
+  // create two Payment rows for one real charge and double every revenue sum. Dedupe on
+  // the payment intent id first — if some *other* event already recorded this exact
+  // payment, return that row instead of creating a second one.
+  if (input.stripePaymentId) {
+    const alreadyRecorded = await prisma.payment.findFirst({
+      where: { stripePaymentId: input.stripePaymentId, NOT: { stripeEventId: input.stripeEventId } },
+    });
+    if (alreadyRecorded) {
+      // Webhook delivery order isn't guaranteed — backfill submissionId if the first event
+      // that landed didn't have it but this one does, so booking↔payment linkage still works.
+      if (!alreadyRecorded.submissionId && input.submissionId) {
+        return prisma.payment.update({
+          where: { id: alreadyRecorded.id },
+          data: { submissionId: input.submissionId },
+        });
+      }
+      return alreadyRecorded;
+    }
+  }
+
   return prisma.payment.upsert({
     where: { stripeEventId: input.stripeEventId },
     create: {
@@ -183,6 +206,28 @@ export async function upsertPayment(input: UpsertPaymentInput) {
 }
 
 /**
+ * Refunds don't create a new Payment row (the old `amountCents <= 0` upsert path silently
+ * discarded them entirely — they never showed up anywhere, and the original charge stayed
+ * counted as verified revenue forever). Instead, mark the original payment's status so it
+ * drops out of `VERIFIED_SETTLED_PAYMENT_WHERE` (which matches on `status: "succeeded"`).
+ * A partial refund is treated the same as a full one — safer to undercount than to keep
+ * claiming a partially-refunded charge as fully verified revenue.
+ */
+async function markPaymentRefunded(stripePaymentId: string, amountRefunded: number, event: unknown) {
+  if (!stripePaymentId) return null;
+  const payment = await prisma.payment.findFirst({ where: { stripePaymentId } });
+  if (!payment) return null;
+
+  return prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: amountRefunded >= payment.amountCents ? "refunded" : "partially_refunded",
+      raw: JSON.stringify(event),
+    },
+  });
+}
+
+/**
  * A verified Stripe payment linked to a submission that's still at "proposal" reads as the
  * deposit clearing — advance it to "booked" and notify both sides. Any other stage is left
  * alone (e.g. a repeat/manual payment on an already-booked project shouldn't move the stage).
@@ -194,7 +239,17 @@ async function advanceBookingAfterDeposit(submissionId: string, amountCents: num
   });
   if (!submission || normalizeInquiryStatus(submission.status) !== "proposal") return;
 
-  await prisma.submission.update({ where: { id: submissionId }, data: { status: "booked" } });
+  // Stripe commonly delivers checkout.session.completed and payment_intent.succeeded for the
+  // same deposit within milliseconds of each other, and both call this function. A plain
+  // read-then-write here would let both invocations see "proposal" and both send the
+  // "booking confirmed" email. The conditional updateMany makes the transition atomic —
+  // only the invocation that actually flips the row proceeds to notify anyone.
+  const { count } = await prisma.submission.updateMany({
+    where: { id: submissionId, status: submission.status },
+    data: { status: "booked" },
+  });
+  if (count === 0) return;
+
   void invalidateIntelligenceCaches().catch(() => {});
 
   let data: Record<string, unknown> = {};
@@ -277,6 +332,7 @@ export async function ingestStripeEvent(event: {
       paidAt,
       raw: event,
     });
+    void invalidateIntelligenceCaches().catch(() => {});
     const submissionId = asString(asObj(obj.metadata)?.submissionId);
     if (submissionId) await advanceBookingAfterDeposit(submissionId, amount).catch(() => {});
     return { ok: true as const, type: event.type };
@@ -297,6 +353,7 @@ export async function ingestStripeEvent(event: {
       paidAt,
       raw: event,
     });
+    void invalidateIntelligenceCaches().catch(() => {});
     const submissionId = asString(asObj(obj.metadata)?.submissionId);
     if (submissionId) await advanceBookingAfterDeposit(submissionId, amount).catch(() => {});
     return { ok: true as const, type: event.type };
@@ -305,17 +362,9 @@ export async function ingestStripeEvent(event: {
   if (event.type === "charge.refunded") {
     const amountRefunded = asNumber(obj.amount_refunded);
     if (amountRefunded > 0) {
-      await upsertPayment({
-        stripeEventId: event.id,
-        stripePaymentId: asString(obj.payment_intent) || asString(obj.id),
-        amountCents: -amountRefunded,
-        currency: asString(obj.currency) || "usd",
-        status: "refunded",
-        customerEmail: asString(asObj(obj.billing_details)?.email),
-        description: "Refund",
-        paidAt,
-        raw: event,
-      });
+      const stripePaymentId = asString(obj.payment_intent) || asString(obj.id);
+      await markPaymentRefunded(stripePaymentId, amountRefunded, event);
+      void invalidateIntelligenceCaches().catch(() => {});
       return { ok: true as const, type: event.type };
     }
   }

@@ -81,15 +81,11 @@ export function LeadQualificationPanel({
   data,
   email,
   submissionId,
-  hideMetricsInHeader = false,
 }: {
   data: Record<string, unknown>;
   email?: string;
   submissionId?: string;
-  /** When true, metrics only appear in Lead Intelligence (page header shows actions only). */
-  hideMetricsInHeader?: boolean;
 }) {
-  void hideMetricsInHeader;
   const intel = useMemo(() => buildLeadIntel(data), [data]);
   const mail = email || (typeof data.email === "string" ? data.email : "");
   const missing = intel.missingAssets.filter((a) => a.missing);

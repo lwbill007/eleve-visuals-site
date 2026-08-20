@@ -47,7 +47,7 @@ export function BookingHero({
             {subheadline}
           </motion.p>
           <p className="mt-4 text-sm text-muted">
-            Four short steps · Inquiry only · Reply {responseTime} · No payment online
+            Four short steps · Inquiry only · Reply {responseTime} · No public checkout
           </p>
           <motion.ul
             initial={{ opacity: 0, y: 16 }}

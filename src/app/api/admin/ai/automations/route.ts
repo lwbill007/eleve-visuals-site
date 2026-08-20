@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import {
   createAutomationFromPrompt,
   deleteAutomation,
@@ -24,6 +25,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:automations");
+  if (blocked) return blocked;
 
   const body = (await req.json()) as { prompt?: string; action?: string; id?: string; enabled?: boolean };
 

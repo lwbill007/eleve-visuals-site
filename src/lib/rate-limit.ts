@@ -22,9 +22,20 @@ const LIMITS: Record<string, number> = {
   "admin-ai:memory-write": 60,
   "admin-ai:embeddings": 10,
   "admin-ai:cognitive": 40,
+  "admin-ai:sessions-rank": 20,
+  "admin-ai:notifications": 60,
 };
 
+/**
+ * This site is proxied through Cloudflare, which always overwrites `CF-Connecting-IP` at its
+ * edge with the real client IP — it can't be spoofed by a direct request the way
+ * `X-Forwarded-For` can (XFF is client-suppliable and only trustworthy if every hop in front
+ * of the app enforces append-only semantics, which isn't guaranteed here). Prefer it; fall back
+ * to XFF/`X-Real-IP` only for local dev or if Cloudflare is ever removed from the request path.
+ */
 export function getClientIp(request: Request): string {
+  const cfIp = request.headers.get("cf-connecting-ip");
+  if (cfIp) return cfIp.trim() || "unknown";
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
   return request.headers.get("x-real-ip") || "unknown";

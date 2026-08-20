@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { dismissAINotification, markAINotificationRead } from "@/lib/ai/intelligence/notifications";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -8,6 +9,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const blocked = await guardMutatingAdminAi(req, "admin-ai:notifications");
+  if (blocked) return blocked;
 
   const { id } = await params;
   const { action } = (await req.json()) as { action?: "read" | "dismiss" };

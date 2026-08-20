@@ -81,9 +81,17 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
     ? await prisma.gA4Snapshot.aggregate({
         where: { date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
         _sum: { sessions: true },
+        _count: true,
       })
     : null;
-  const ga4Traffic30d = ga4Snapshot30d?._sum.sessions ?? null;
+  // The connector being "healthy" only means the *latest* sync succeeded — it says nothing
+  // about whether earlier days in this 30-day window have rows (e.g. the cron silently failed
+  // for several days, then recovered). A sum over a window with gaps understates traffic while
+  // still claiming to be "Verified," which is exactly what this codebase's anti-fabrication
+  // design exists to prevent — require most of the window to actually have data.
+  const ga4WindowComplete = (ga4Snapshot30d?._count ?? 0) >= 25;
+  const traffic30dVerified = trafficVerified && ga4WindowComplete;
+  const ga4Traffic30d = traffic30dVerified ? (ga4Snapshot30d?._sum.sessions ?? null) : null;
 
   const metrics: Record<CanonicalMetricId, TruthValue<number>> = {
     "revenue.today": buildTruthValue({
@@ -208,21 +216,23 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
     }),
     "traffic.30d": buildTruthValue({
       value: ga4Traffic30d ?? m.traffic.visitors30,
-      label: trafficVerified ? "verified" : "estimated",
-      source: trafficVerified ? "GA4 Data API (GA4Snapshot)" : "First-party AnalyticsEvent",
-      table: trafficVerified ? "GA4Snapshot" : "AnalyticsEvent",
-      api: trafficVerified ? undefined : "/api/analytics",
-      calculation: trafficVerified
+      label: traffic30dVerified ? "verified" : "estimated",
+      source: traffic30dVerified ? "GA4 Data API (GA4Snapshot)" : "First-party AnalyticsEvent",
+      table: traffic30dVerified ? "GA4Snapshot" : "AnalyticsEvent",
+      api: traffic30dVerified ? undefined : "/api/analytics",
+      calculation: traffic30dVerified
         ? "SUM(GA4Snapshot.sessions over trailing 30 days)"
         : "COUNT(pageviews over trailing 30 days)",
-      evidence: trafficVerified
+      evidence: traffic30dVerified
         ? ["Google Analytics 4 Data API — daily cron pull"]
         : ["First-party pageview events"],
-      dependencies: trafficVerified ? [] : ["GA4 (for cross-device + bot filtering)"],
-      verificationStatus: "verified",
-      missingReason: trafficVerified
+      dependencies: traffic30dVerified ? [] : ["GA4 (for cross-device + bot filtering)"],
+      verificationStatus: traffic30dVerified ? "verified" : "pending",
+      missingReason: traffic30dVerified
         ? undefined
-        : "GA4 not connected — first-party pageviews only (no bot filtering / cross-device).",
+        : trafficVerified
+          ? "GA4 syncing, but fewer than 25 of the last 30 days have data yet — sum would understate traffic."
+          : "GA4 not connected — first-party pageviews only (no bot filtering / cross-device).",
       timestamp: m.generatedAt,
       displayLabel: "Traffic (30d pageviews)",
     }),
