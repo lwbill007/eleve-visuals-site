@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { contentSetters } from "@/lib/content";
 import { logActivity } from "@/lib/activity-log";
 import { revalidateContentKey } from "@/lib/revalidate-public";
@@ -70,9 +70,9 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {

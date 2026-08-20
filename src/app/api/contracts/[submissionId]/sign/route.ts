@@ -96,26 +96,33 @@ export async function POST(
 
   // PDF generation + blob upload above take real time (hundreds of ms), widening the window
   // for a double-click or client retry to both pass the check at the top of this handler.
-  // Re-read immediately before writing to shrink that window as much as possible without a
-  // full DB transaction around the slow I/O above (see TD note in the vault for the fully
-  // atomic version of this fix).
-  const fresh = await prisma.submission.findUnique({ where: { id: submissionId }, select: { data: true } });
-  let freshData: Record<string, unknown> = {};
-  try {
-    freshData = JSON.parse(fresh?.data ?? "{}") as Record<string, unknown>;
-  } catch {
-    freshData = {};
-  }
-  if ((freshData.contract as { status?: string } | undefined)?.status === "signed") {
+  // Serialize the check-and-write with a Postgres advisory lock scoped to this submissionId —
+  // held only for this brief read+write, never around the slow PDF/blob I/O above — so two
+  // concurrent requests can't both see "unsigned" and both write. The lock auto-releases when
+  // the transaction ends (pg_advisory_xact_lock), no manual unlock needed.
+  const signResult = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${submissionId}))`;
+    const fresh = await tx.submission.findUnique({ where: { id: submissionId }, select: { data: true } });
+    let freshData: Record<string, unknown> = {};
+    try {
+      freshData = JSON.parse(fresh?.data ?? "{}") as Record<string, unknown>;
+    } catch {
+      freshData = {};
+    }
+    if ((freshData.contract as { status?: string } | undefined)?.status === "signed") {
+      return null;
+    }
+    freshData.contract = { status: "signed", signedAt, signerName, signerIp: ip, pdfUrl };
+    await tx.submission.update({
+      where: { id: submissionId },
+      data: { data: JSON.stringify(freshData).slice(0, 500_000) },
+    });
+    return freshData;
+  });
+
+  if (!signResult) {
     return NextResponse.json({ error: "This contract has already been signed." }, { status: 409 });
   }
-
-  freshData.contract = { status: "signed", signedAt, signerName, signerIp: ip, pdfUrl };
-
-  await prisma.submission.update({
-    where: { id: submissionId },
-    data: { data: JSON.stringify(freshData).slice(0, 500_000) },
-  });
   void invalidateIntelligenceCaches().catch(() => {});
 
   const clientEmail = submission.contactEmail || asString(data.email);

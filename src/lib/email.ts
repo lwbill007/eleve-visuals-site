@@ -59,11 +59,13 @@ export function applicationNotificationEmail({
   applicationId: string;
   adminUrl: string;
 }) {
+  const safeName = escapeHtml(applicantName);
+  const safeVolume = escapeHtml(volumeTitle);
   return {
     subject: `New ÉLEVÉ Sessions application — Vol. ${volumeNumber}`,
     html: `
-      <p>A new application was submitted for <strong>${volumeTitle}</strong> (Vol. ${volumeNumber}).</p>
-      <p><strong>Applicant:</strong> ${applicantName}</p>
+      <p>A new application was submitted for <strong>${safeVolume}</strong> (Vol. ${volumeNumber}).</p>
+      <p><strong>Applicant:</strong> ${safeName}</p>
       <p><strong>Application ID:</strong> ${applicationId}</p>
       <p><a href="${adminUrl}">Review in admin</a></p>
     `,
@@ -81,11 +83,12 @@ export function applicantConfirmationEmail({
   applicationId: string;
   message: string;
 }) {
+  const safeName = escapeHtml(name);
   return {
     subject: `Application received — ${volumeTitle}`,
     html: `
-      <p>Hi ${name},</p>
-      <p>${message}</p>
+      <p>Hi ${safeName},</p>
+      <p>${escapeHtml(message)}</p>
       <p><strong>Application ID:</strong> ${applicationId}</p>
       <p>— ÉLEVÉ Visuals</p>
     `,
@@ -111,10 +114,10 @@ export function bookingNotificationEmail({
     subject: `New booking inquiry — ${name}`,
     html: `
       <p>A new booking inquiry was submitted.</p>
-      <p><strong>Name:</strong> ${name}</p>
-      <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Services:</strong> ${services}</p>
-      <p><strong>Preferred date:</strong> ${preferredDate}</p>
+      <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+      <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+      <p><strong>Services:</strong> ${escapeHtml(services)}</p>
+      <p><strong>Preferred date:</strong> ${escapeHtml(preferredDate)}</p>
       <p><strong>Inquiry ID:</strong> ${inquiryId}</p>
       <p><a href="${adminUrl}">Review in admin</a></p>
     `,
@@ -131,7 +134,7 @@ export function bookingConfirmationEmail({
   return {
     subject: "Booking inquiry received — ÉLEVÉ Visuals",
     html: `
-      <p>Hi ${name},</p>
+      <p>Hi ${escapeHtml(name)},</p>
       <p>Thank you for reaching out to ÉLEVÉ Visuals. Your inquiry has been received and will be reviewed personally.</p>
       <p><strong>Inquiry ID:</strong> ${inquiryId}</p>
       <p>If your project aligns with our creative direction, we will follow up with availability and next steps.</p>
@@ -152,8 +155,8 @@ export function applicationStatusEmail({
   return {
     subject: `ÉLEVÉ Sessions update — ${volumeTitle}`,
     html: `
-      <p>Hi ${name},</p>
-      <p>${message}</p>
+      <p>Hi ${escapeHtml(name)},</p>
+      <p>${escapeHtml(message)}</p>
       <p>— ÉLEVÉ Visuals</p>
     `,
   };

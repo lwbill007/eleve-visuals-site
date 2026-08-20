@@ -6,6 +6,7 @@ export function ExperienceTimeline({ stages }: { stages: HomepageProcessStep[] }
   return (
     <section className="section-padding">
       <div className="container-wide max-w-4xl">
+        <h2 className="sr-only">The stages of working together</h2>
         <div className="relative">
           <div className="absolute top-0 bottom-0 left-[27px] hidden w-px bg-stone/30 sm:block" />
           <ol className="space-y-12">

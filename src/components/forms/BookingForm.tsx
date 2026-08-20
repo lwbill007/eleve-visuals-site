@@ -74,7 +74,7 @@ const BOOKING_IDEMPOTENCY_KEY = "eleve-booking-idempotency-v1";
 export function BookingForm({
   bookingOptions,
   bookPage,
-  responseTime = "1–2 business days",
+  responseTime = "Within 24–48 hours on business days",
 }: {
   bookingOptions: BookingOptions;
   bookPage: PageCopy["bookPage"];

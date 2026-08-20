@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { mapPortfolioItem } from "@/lib/content";
 import { buildPortfolioData } from "@/lib/portfolio-utils";
 import { clearPortfolioFeaturedFlag, uniquePortfolioSlug } from "@/lib/portfolio";
@@ -22,9 +22,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await request.json();

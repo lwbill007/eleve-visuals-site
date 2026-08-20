@@ -62,6 +62,11 @@ export async function GET(request: Request) {
         },
       });
       ga4Synced = true;
+      // The main cache clear above ran before this GA4Snapshot write — a request landing in
+      // that window would cache pre-sync traffic numbers for up to the 60s TTL. Clear again
+      // now that the new snapshot is actually in place.
+      const { invalidateIntelligenceCaches } = await import("@/lib/ai/cognitive/cache");
+      void invalidateIntelligenceCaches().catch(() => {});
     } catch (error) {
       // GA4 is additive — a fetch failure should never break the rest of the daily refresh —
       // but it must be logged, or a misconfigured credential can run broken indefinitely with

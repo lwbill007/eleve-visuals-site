@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireMinimumRole } from "@/lib/auth";
 import { appendConversationMessage, buildMemoryContext, getConversationHistory } from "@/lib/ai/memory";
 import { buildCognitiveContextForPrompt } from "@/lib/ai/cognitive/context-prompt";
 import { streamAIChat } from "@/lib/ai/service";
@@ -9,9 +9,9 @@ import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
   }
 
   const blocked = await guardMutatingAdminAi(req, "admin-ai:context");

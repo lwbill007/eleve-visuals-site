@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { generateCRMContactAI } from "@/lib/ai/intelligence/crm";
 
 export async function POST(req: Request, { params }: { params: Promise<{ email: string }> }) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const blocked = await guardMutatingAdminAi(req, "admin-ai:crm-generate");

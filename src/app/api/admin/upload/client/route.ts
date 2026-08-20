@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireMinimumRole } from "@/lib/auth";
 import {
   MAX_VIDEO_BYTES,
   UPLOAD_ALL_TYPES,
@@ -94,9 +94,9 @@ export async function POST(request: Request) {
       body,
       onBeforeGenerateToken: async (_pathname, clientPayload) => {
         try {
-          await requireAdmin();
+          await requireMinimumRole("editor");
         } catch {
-          throw new Error("Unauthorized");
+          throw new Error("Forbidden");
         }
 
         const meta = parseClientPayload(clientPayload);
@@ -124,8 +124,8 @@ export async function POST(request: Request) {
     console.error("[upload-client-api] error:", error);
     const detail = error instanceof Error ? error.message : String(error);
 
-    if (/unauthorized/i.test(detail)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (/forbidden/i.test(detail)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const accessHint =
       /access|public|private|BlobAccess/i.test(detail)

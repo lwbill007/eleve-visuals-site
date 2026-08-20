@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { clearRateLimit } from "@/lib/rate-limit";
 
 /** Clear rate-limit rows so legitimate testing isn't locked out for an hour. */
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("admin");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   if (process.env.NODE_ENV === "production") {

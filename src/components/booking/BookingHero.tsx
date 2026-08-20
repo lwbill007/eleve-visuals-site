@@ -6,7 +6,7 @@ export function BookingHero({
   headline,
   subheadline,
   notes,
-  responseTime = "1–2 business days",
+  responseTime = "Within 24–48 hours on business days",
 }: {
   headline: string;
   subheadline: string;

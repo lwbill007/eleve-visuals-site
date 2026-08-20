@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { generateAIContent } from "@/lib/ai/service";
 import type { AIGenerateTask } from "@/lib/ai/types";
@@ -10,9 +10,9 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const blocked = await guardMutatingAdminAi(request, "admin-ai:generate");

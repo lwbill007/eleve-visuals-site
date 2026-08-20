@@ -46,7 +46,11 @@ export function useAIContext() {
 export function useSetAIPage(page: AIPageContext, data?: Record<string, unknown>, title?: string) {
   const { setPageContext } = useAIContext();
   const dataKey = data ? JSON.stringify(data) : "";
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `dataKey` is the intentional
+  // content-equality proxy for `data`; callers commonly pass a fresh object literal every
+  // render (e.g. `{ contact, ltv }`), so including the raw `data` reference here defeats the
+  // proxy and re-fires this effect (and setPageContext → re-render) every single render.
   useEffect(() => {
     setPageContext(page, data, title);
-  }, [page, title, dataKey, setPageContext, data]);
+  }, [page, title, dataKey, setPageContext]);
 }

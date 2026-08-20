@@ -691,6 +691,9 @@ export interface CRMContactIntelligence {
   suggestedText: string;
   lastConversation: string;
   revenueGenerated: number;
+  /** Real, Stripe-confirmed or reconciled revenue for this client — `0` means "no verified
+   * payments on file," not "unknown." `revenueGenerated` is the pipeline-stage estimate. */
+  verifiedRevenue: number;
   nextBestAction: string;
 }
 

@@ -62,7 +62,11 @@ const CONNECTOR_DEFS: Omit<
     id: "ga4",
     label: "Google Analytics 4",
     unknownFields: ["demographics", "realtime", "channel_groups"],
-    missingPermissions: env("GA4_PROPERTY_ID") ? [] : ["GA4_PROPERTY_ID or service account"],
+    missingPermissions: [
+      ...(!env("GA4_PROPERTY_ID") ? ["GA4_PROPERTY_ID"] : []),
+      ...(!env("GOOGLE_SERVICE_ACCOUNT_EMAIL") ? ["GOOGLE_SERVICE_ACCOUNT_EMAIL"] : []),
+      ...(!env("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY") ? ["GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY"] : []),
+    ],
     blocksDecisions: ["Channel ROI", "Audience demographics", "Landing page performance"],
   },
   {

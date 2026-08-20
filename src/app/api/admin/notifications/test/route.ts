@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { sendTestNotification } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let body: { channel?: string };

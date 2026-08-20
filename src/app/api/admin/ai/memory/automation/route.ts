@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import {
   getIntelligenceAutomationSettings,
@@ -24,9 +24,9 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("admin");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const blocked = await guardMutatingAdminAi(req, "admin-ai:memory-write");

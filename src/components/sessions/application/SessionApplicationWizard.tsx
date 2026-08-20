@@ -472,9 +472,15 @@ export function SessionApplicationWizard({
                 {errors.portfolioImages && <p className="field-error mt-2">{errors.portfolioImages}</p>}
                 {data.portfolioImages.length > 0 && (
                   <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-                    {data.portfolioImages.map((url) => (
+                    {data.portfolioImages.map((url, index) => (
                       <div key={url} className="relative aspect-square border border-stone/30">
-                        <AdminPreviewImage src={url} alt="" fill className="object-cover" sizes="120px" />
+                        <AdminPreviewImage
+                          src={url}
+                          alt={`Uploaded portfolio image ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          sizes="120px"
+                        />
                         <button
                           type="button"
                           onClick={() => update("portfolioImages", data.portfolioImages.filter((u) => u !== url))}

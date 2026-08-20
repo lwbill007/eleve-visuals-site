@@ -147,6 +147,7 @@ export async function getCRMContactIntelligence(email: string): Promise<CRMConta
     suggestedText,
     lastConversation,
     revenueGenerated: contact.revenue,
+    verifiedRevenue: contact.verifiedRevenueCents / 100,
     nextBestAction,
   };
 

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { normalizeApplicationStatus } from "@/lib/types";
+import { getVerifiedRevenueByEmail, dollarsFromCents } from "@/lib/payments";
 import { getCached, setCache } from "../cache";
 import { aiComplete } from "../adapter";
 import { isAIConfigured } from "../config";
@@ -816,29 +817,6 @@ function reasonForRank(
   }.`;
 }
 
-async function verifiedRevenueByEmail(
-  emails: string[]
-): Promise<Map<string, { total: number; count: number }>> {
-  const map = new Map<string, { total: number; count: number }>();
-  const valid = [...new Set(emails.filter(Boolean))];
-  if (!valid.length) return map;
-  const payments = await prisma.payment.findMany({
-    where: {
-      customerEmail: { in: valid },
-      status: "succeeded",
-      verificationStatus: "verified",
-    },
-    select: { customerEmail: true, amountCents: true },
-  });
-  for (const payment of payments) {
-    const current = map.get(payment.customerEmail) ?? { total: 0, count: 0 };
-    current.total += payment.amountCents / 100;
-    current.count += 1;
-    map.set(payment.customerEmail, current);
-  }
-  return map;
-}
-
 function buildFailedResult(
   applicant: EvaluatedApplicant,
   evaluatedAt: string
@@ -903,7 +881,7 @@ function buildFailedResult(
 
 function buildRankedResults(
   evaluated: EvaluatedApplicant[],
-  revenue: Map<string, { total: number; count: number }>,
+  revenue: Map<string, { totalCents: number; count: number }>,
   evaluatedAt: string
 ): SessionApplicationRank[] {
   const cohort = rankByAllPairs(evaluated);
@@ -950,7 +928,7 @@ function buildRankedResults(
         improvements: category?.improvements ?? [],
       };
     });
-    const payment = revenue.get(applicant.submission.contactEmail);
+    const payment = revenue.get(applicant.submission.contactEmail.toLowerCase().trim());
     const reason = reasonForRank(applicant, index, above, cohort.length);
     const riskLevel: SessionApplicationRank["riskLevel"] =
       applicant.confidence < 45 || applicant.ai.riskSignals.length >= 3
@@ -996,9 +974,9 @@ function buildRankedResults(
       expectedValue: payment
         ? {
             basis: "verified",
-            amount: Math.round(payment.total),
-            low: Math.round(payment.total),
-            high: Math.round(payment.total),
+            amount: Math.round(dollarsFromCents(payment.totalCents)),
+            low: Math.round(dollarsFromCents(payment.totalCents)),
+            high: Math.round(dollarsFromCents(payment.totalCents)),
             confidence: 100,
             rationale: `Verified: ${payment.count} settled payment${
               payment.count === 1 ? "" : "s"
@@ -1151,7 +1129,7 @@ export async function rerankSessionApplications(
     );
   }
   const evaluatedAt = new Date().toISOString();
-  const revenue = await verifiedRevenueByEmail(
+  const revenue = await getVerifiedRevenueByEmail(
     applications.map((application) => application.contactEmail)
   );
   const ranked = buildRankedResults(evaluated, revenue, evaluatedAt);

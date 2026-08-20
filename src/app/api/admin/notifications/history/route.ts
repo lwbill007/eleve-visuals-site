@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { truncatePreview } from "@/lib/notifications";
 import { logActivity } from "@/lib/activity-log";
@@ -70,9 +70,9 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let body: { id?: string; ids?: string[]; read?: boolean; archived?: boolean; action?: string };

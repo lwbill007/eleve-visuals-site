@@ -34,7 +34,7 @@ export function ContactForm({ responseTime }: { responseTime?: string }) {
   const [formError, setFormError] = useState("");
   const idempotencyKeyRef = useRef("");
   const spam = useFormSpam();
-  const reply = responseTime?.trim() || "within 24–48 hours on business days";
+  const reply = responseTime?.trim() || "Within 24–48 hours on business days";
 
   useEffect(() => {
     idempotencyKeyRef.current = crypto.randomUUID();

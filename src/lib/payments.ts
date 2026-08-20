@@ -28,6 +28,30 @@ export function paymentCountsAsVerifiedRevenue(payment: {
   return payment.status === "succeeded" && payment.verificationStatus === "verified";
 }
 
+/** Real, Stripe-confirmed or reconciled revenue per client email — the one source of truth
+ * any per-client "verified revenue" figure should use, rather than re-deriving it from
+ * pipeline-stage estimates (see `estimateSubmissionValue()` for the estimate side). */
+export async function getVerifiedRevenueByEmail(
+  emails: string[]
+): Promise<Map<string, { totalCents: number; count: number }>> {
+  const map = new Map<string, { totalCents: number; count: number }>();
+  const valid = [...new Set(emails.map((e) => e.toLowerCase().trim()).filter(Boolean))];
+  if (!valid.length) return map;
+
+  const payments = await prisma.payment.findMany({
+    where: { customerEmail: { in: valid }, ...VERIFIED_SETTLED_PAYMENT_WHERE },
+    select: { customerEmail: true, amountCents: true },
+  });
+  for (const payment of payments) {
+    const email = payment.customerEmail.toLowerCase().trim();
+    const current = map.get(email) ?? { totalCents: 0, count: 0 };
+    current.totalCents += payment.amountCents;
+    current.count += 1;
+    map.set(email, current);
+  }
+  return map;
+}
+
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }

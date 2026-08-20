@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { inferMimeType, assertExtensionMatchesMime, detectImageMime } from "@/lib/image-url";
 import {
   blobFolderForMime,
@@ -20,9 +20,9 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const formData = await request.formData();

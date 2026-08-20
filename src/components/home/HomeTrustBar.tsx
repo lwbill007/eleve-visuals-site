@@ -21,7 +21,7 @@ export function HomeTrustBar({
         .filter((t): t is TestimonialDTO => Boolean(t))
     : [];
   const featured = (pinned.length ? pinned : testimonials)[0];
-  const reply = responseTime?.trim() || "1–2 business days";
+  const reply = responseTime?.trim() || "Within 24–48 hours on business days";
   const stats = content.stats?.length
     ? content.stats
     : [

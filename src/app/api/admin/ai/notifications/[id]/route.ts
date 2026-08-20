@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 import { dismissAINotification, markAINotificationRead } from "@/lib/ai/intelligence/notifications";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const blocked = await guardMutatingAdminAi(req, "admin-ai:notifications");

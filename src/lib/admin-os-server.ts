@@ -2,6 +2,7 @@ import { prisma } from "./db";
 import { getAnalyticsSummary } from "./analytics-server";
 import { getCached, setCache, withInflight } from "./ai/cache";
 import { normalizeApplicationStatus } from "./types";
+import { getVerifiedRevenueByEmail } from "./payments";
 
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -287,6 +288,10 @@ interface ContactAggregate {
   applications: number;
   contacts: number;
   revenue: number;
+  /** Real, Stripe-confirmed or reconciled revenue for this client — see `getVerifiedRevenueByEmail()`.
+   * `0` genuinely means "no verified payments on file," not "unknown" — check `revenue` (the
+   * pipeline-stage estimate) as the honest fallback when this is 0. */
+  verifiedRevenueCents: number;
   lastActivity: string;
   notes: string;
   pipelineStage: ProductionStatus | null;
@@ -352,6 +357,7 @@ async function buildCrmAggregates(): Promise<Map<string, ContactAggregate>> {
       applications: 0,
       contacts: 0,
       revenue: 0,
+      verifiedRevenueCents: 0,
       lastActivity: row.createdAt.toISOString(),
       notes: "",
       pipelineStage: null as ProductionStatus | null,
@@ -417,6 +423,11 @@ async function buildCrmAggregates(): Promise<Map<string, ContactAggregate>> {
     }
 
     byEmail.set(email, existing);
+  }
+
+  const verifiedRevenue = await getVerifiedRevenueByEmail([...byEmail.keys()]);
+  for (const [email, aggregate] of byEmail) {
+    aggregate.verifiedRevenueCents = verifiedRevenue.get(email)?.totalCents ?? 0;
   }
 
   return byEmail;

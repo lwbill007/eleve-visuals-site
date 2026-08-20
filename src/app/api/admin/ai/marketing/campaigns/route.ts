@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireMinimumRole } from "@/lib/auth";
 import { registerCampaign, updateCampaignMetrics } from "@/lib/ai/marketing";
 import type { RegisterCampaignInput } from "@/lib/ai/marketing/types";
 import { guardMutatingAdminAi } from "@/lib/admin-request-guard";
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const blocked = await guardMutatingAdminAi(req, "admin-ai:marketing-campaigns");
@@ -21,9 +21,9 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    await requireAdmin();
+    await requireMinimumRole("editor");
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();

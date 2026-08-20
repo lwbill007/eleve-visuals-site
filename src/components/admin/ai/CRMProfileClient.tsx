@@ -120,6 +120,7 @@ export function CRMProfileClient({ email }: { email: string }) {
   }
 
   const { contact } = intel;
+  const hasVerifiedRevenue = intel.verifiedRevenue > 0;
   const hasRevenue = intel.revenueGenerated > 0;
   const hasBookings = intel.bookingHistory.length > 0;
 
@@ -133,12 +134,14 @@ export function CRMProfileClient({ email }: { email: string }) {
     {
       id: "ltv",
       label: "LTV / revenue",
-      status: hasRevenue || intel.predictedLTV > 0 ? "partial" : "planned",
-      summary: hasRevenue
-        ? `$${intel.revenueGenerated.toLocaleString()} est. from pipeline stage (not Payment-verified) — Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated).`
-        : intel.predictedLTV > 0
-          ? `Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated) — not ledger-verified.`
-          : "No revenue or predicted LTV for this client.",
+      status: hasVerifiedRevenue ? "live" : hasRevenue || intel.predictedLTV > 0 ? "partial" : "planned",
+      summary: hasVerifiedRevenue
+        ? `$${intel.verifiedRevenue.toLocaleString()} verified (Stripe/reconciled) — Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated).`
+        : hasRevenue
+          ? `$${intel.revenueGenerated.toLocaleString()} est. from pipeline stage (not Payment-verified) — Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated).`
+          : intel.predictedLTV > 0
+            ? `Predicted LTV $${intel.predictedLTV.toLocaleString()} (Estimated) — not ledger-verified.`
+            : "No revenue or predicted LTV for this client.",
       href: "/admin/financial",
       missing:
         hasRevenue || intel.predictedLTV > 0
@@ -252,10 +255,14 @@ export function CRMProfileClient({ email }: { email: string }) {
           </AdminPanel>
           <AdminPanel className="!p-4">
             <p className="text-[0.6rem] uppercase text-muted">
-              Revenue Generated {hasRevenue ? "(Estimated)" : "(Unknown)"}
+              Revenue Generated {hasVerifiedRevenue ? "(Verified)" : hasRevenue ? "(Estimated)" : "(Unknown)"}
             </p>
             <p className="mt-1 font-display text-2xl text-cream">
-              {hasRevenue ? `$${intel.revenueGenerated.toLocaleString()}` : "—"}
+              {hasVerifiedRevenue
+                ? `$${intel.verifiedRevenue.toLocaleString()}`
+                : hasRevenue
+                  ? `$${intel.revenueGenerated.toLocaleString()}`
+                  : "—"}
             </p>
           </AdminPanel>
           <AdminPanel className="!p-4">
