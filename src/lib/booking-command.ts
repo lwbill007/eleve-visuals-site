@@ -301,7 +301,10 @@ export function buildActivityTimeline(input: {
   return events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }
 
-export function buildHealth(data: Record<string, unknown>): HealthItem[] {
+export function buildHealth(
+  data: Record<string, unknown>,
+  verifiedPayment?: { amountCents: number; count: number } | null
+): HealthItem[] {
   const has = (k: string) => typeof data[k] === "string" && String(data[k]).trim().length > 0;
   const feeling = has("feelingPrompt") || has("projectVision") || has("purpose");
   const refs = has("moodBoardUrl") || has("pinterestLink") || has("driveLink") || has("inspirationInstagram");
@@ -359,8 +362,11 @@ export function buildHealth(data: Record<string, unknown>): HealthItem[] {
     {
       key: "payment",
       label: "Payment / Retainer",
-      status: "deferred",
-      detail: "Link payment manually in Financial Center — no silent auto-charge",
+      status: verifiedPayment && verifiedPayment.count > 0 ? "ready" : "deferred",
+      detail:
+        verifiedPayment && verifiedPayment.count > 0
+          ? `$${(verifiedPayment.amountCents / 100).toLocaleString()} verified (Stripe/reconciled) across ${verifiedPayment.count} payment${verifiedPayment.count === 1 ? "" : "s"}`
+          : "Link payment manually in Financial Center — no silent auto-charge",
       requestSubject: "ÉLEVÉ — Retainer payment",
     },
     {

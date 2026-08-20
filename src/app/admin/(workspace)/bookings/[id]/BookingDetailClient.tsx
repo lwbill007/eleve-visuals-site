@@ -37,6 +37,7 @@ function capMissing(
 
 export function BookingDetailClient({
   submission,
+  verifiedPayment,
 }: {
   submission: {
     id: string;
@@ -47,6 +48,7 @@ export function BookingDetailClient({
     contactEmail: string;
     data: Record<string, unknown>;
   };
+  verifiedPayment?: { amountCents: number; count: number } | null;
 }) {
   const { toast } = useAdminToast();
   const [status, setStatus] = useState(submission.status);
@@ -60,7 +62,7 @@ export function BookingDetailClient({
     submission.contactEmail ||
     (typeof data.email === "string" ? data.email : "");
 
-  const health = useMemo(() => buildHealth(data), [data]);
+  const health = useMemo(() => buildHealth(data, verifiedPayment), [data, verifiedPayment]);
   const healthByKey = useMemo(() => {
     const m = new Map(health.map((h) => [h.key, h]));
     return m;
@@ -175,8 +177,11 @@ export function BookingDetailClient({
     {
       id: "payments",
       label: "Payments",
-      status: "partial",
-      summary: "Record and verify cash in Financial Center — no silent auto-charge here.",
+      status: verifiedPayment && verifiedPayment.count > 0 ? "live" : "partial",
+      summary:
+        verifiedPayment && verifiedPayment.count > 0
+          ? `$${(verifiedPayment.amountCents / 100).toLocaleString()} verified across ${verifiedPayment.count} payment${verifiedPayment.count === 1 ? "" : "s"}.`
+          : "Record and verify cash in Financial Center — no silent auto-charge here.",
       href: "/admin/financial",
     },
     {

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { VERIFIED_SETTLED_PAYMENT_WHERE } from "@/lib/payments";
 import { BookingDetailClient } from "./BookingDetailClient";
 
 export default async function BookingCommandPage({
@@ -10,7 +11,14 @@ export default async function BookingCommandPage({
 }) {
   await requireAdmin();
   const { id } = await params;
-  const row = await prisma.submission.findUnique({ where: { id } });
+  const [row, paymentAgg] = await Promise.all([
+    prisma.submission.findUnique({ where: { id } }),
+    prisma.payment.aggregate({
+      where: { submissionId: id, ...VERIFIED_SETTLED_PAYMENT_WHERE },
+      _sum: { amountCents: true },
+      _count: true,
+    }),
+  ]);
   if (!row || row.type !== "booking") notFound();
 
   let data: Record<string, unknown> = {};
@@ -30,6 +38,10 @@ export default async function BookingCommandPage({
         updatedAt: row.updatedAt.toISOString(),
         contactEmail: row.contactEmail || "",
         data,
+      }}
+      verifiedPayment={{
+        amountCents: paymentAgg._sum.amountCents ?? 0,
+        count: paymentAgg._count,
       }}
     />
   );
