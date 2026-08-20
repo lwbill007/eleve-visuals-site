@@ -98,7 +98,7 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
   if (busyMonths.length > 0) {
     pricingRecommendations.push(`Raise availability pricing during peak months: ${busyMonths.join(", ")}`);
   }
-  if (pipeline.totalValue < 5000) {
+  if (pipeline.openPipelineValue < 5000) {
     pricingRecommendations.push("Bundle BTS content + prints to increase average booking value");
   }
   if (pricingRecommendations.length === 0) {
@@ -140,7 +140,7 @@ export async function getBookingIntelligence(force = false): Promise<BookingInte
     })),
     pricingRecommendations,
     promotions,
-    pipelineValue: pipeline.totalValue,
+    pipelineValue: pipeline.openPipelineValue,
     conversionTrend: dashboard.metrics.conversionRate,
     salesRecommendations: buildSalesRecommendations({
       crm,

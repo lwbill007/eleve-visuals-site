@@ -160,7 +160,7 @@ async function computeWeeklyExecutiveReport(
     `$${northStar.revenuePerVisitor} revenue/visitor`,
   ].join(" · ");
 
-  let narrative = `Week ending ${weekEndingLabel()}: $${metrics.revenue.thisMonth.toLocaleString()} MTD revenue (pipeline/ops), ${metrics.month.bookings} bookings, ${metrics.traffic.visitors30} visitors. ${leaks.length} revenue risks flagged — dollar “recoverable” totals are AI Predictions only when present, otherwise More financial data required. Top priority: ${prioritize[0] ?? "Run Intelligence Refresh"}.`;
+  let narrative = `Week ending ${weekEndingLabel()}: $${metrics.revenue.thisMonth.toLocaleString()} MTD revenue (pipeline/ops), ${metrics.month.bookings} bookings, ${metrics.traffic.pageviews30} visitors. ${leaks.length} revenue risks flagged — dollar “recoverable” totals are AI Predictions only when present, otherwise More financial data required. Top priority: ${prioritize[0] ?? "Run Intelligence Refresh"}.`;
   let provider: WeeklyExecutiveReport["provider"] = "rules";
 
   if (isAIConfigured()) {

@@ -136,7 +136,7 @@ export function computeExecutiveScores(metrics: OperatorMetrics): ExecutiveScore
         ? `Traffic ${traffic.trafficChange >= 0 ? "grew" : "fell"} ${Math.abs(traffic.trafficChange)}% week-over-week; conversion ${traffic.conversionChange >= 0 ? "improving" : "softening"}.`
         : `Traffic down ${Math.abs(traffic.trafficChange)}% — top page ${traffic.topPage} needs promotion.`,
       [
-        `${traffic.visitors30} visitors (30d)`,
+        `${traffic.pageviews30} pageviews (30d)`,
         `${traffic.conversionRate}% conversion`,
         `${traffic.instagramReferrals} Instagram referrals`,
       ],

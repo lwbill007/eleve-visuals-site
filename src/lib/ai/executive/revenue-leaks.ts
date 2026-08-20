@@ -117,7 +117,7 @@ export async function buildRevenueFunnel(): Promise<RevenueFunnelStage[]> {
 
   const col = (id: string) => pipeline.columns.find((c) => c.id === id)?.items.length ?? 0;
 
-  const traffic = conversion?.visitors ?? metrics.traffic.visitors30 ?? null;
+  const traffic = conversion?.visitors ?? metrics.traffic.pageviews30 ?? null;
   const portfolio = conversion?.portfolioViews ?? null;
   const bookingStarts = conversion?.bookingStarts ?? null;
   const inquiries = conversion?.bookingCompletions ?? metrics.month.bookings ?? null;
@@ -537,7 +537,7 @@ export async function detectRevenueLeaks(
     );
   }
 
-  if (metrics.traffic.conversionRate < 2.5 && metrics.traffic.visitors30 > 30) {
+  if (metrics.traffic.conversionRate < 2.5 && metrics.traffic.pageviews30 > 30) {
     leaks.push(
       leak({
         title: "Conversion soft relative to common studio ranges",
@@ -549,7 +549,7 @@ export async function detectRevenueLeaks(
         confidence: 0.5,
         formula: "Dollar gap intentionally omitted — More financial data / verified benchmark required",
         evidence: [
-          `${metrics.traffic.visitors30} visitors (30d) (Measured)`,
+          `${metrics.traffic.pageviews30} visitors (30d) (Measured)`,
           `${metrics.traffic.conversionRate}% conversion (Measured)`,
           `Top page: ${metrics.traffic.topPage}`,
           "Industry Best Practice: some studios cite ~2.5–4% — not verified for ÉLEVÉ; not used as $ math",

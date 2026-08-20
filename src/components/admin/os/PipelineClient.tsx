@@ -45,7 +45,7 @@ function predMissing(
 export function PipelineClient() {
   const { toast } = useAdminToast();
   const [columns, setColumns] = useState<AdminPipelineColumn[]>([]);
-  const [totalValue, setTotalValue] = useState(0);
+  const [openPipelineValue, setOpenPipelineValue] = useState(0);
   const [dragging, setDragging] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,7 +61,7 @@ export function PipelineClient() {
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       setColumns(data.columns ?? []);
-      setTotalValue(data.totalValue ?? 0);
+      setOpenPipelineValue(data.openPipelineValue ?? 0);
     } catch {
       setError("Could not load pipeline.");
       setColumns([]);
@@ -119,7 +119,7 @@ export function PipelineClient() {
   }, [columns, q, staleOnly]);
 
   const totalItems = columns.reduce((s, c) => s + c.items.length, 0);
-  const hasEstimatedValue = totalValue > 0;
+  const hasEstimatedValue = openPipelineValue > 0;
 
   const predictionCapabilities: OsCapability[] = [
     {
@@ -163,7 +163,7 @@ export function PipelineClient() {
       label: "Deal value",
       status: hasEstimatedValue ? "partial" : "planned",
       summary: hasEstimatedValue
-        ? `~$${totalValue.toLocaleString()} from form budgets — Estimated, not ledger-verified.`
+        ? `~$${openPipelineValue.toLocaleString()} from form budgets — Estimated, not ledger-verified.`
         : "No budget estimates on open deals.",
       href: hasEstimatedValue ? undefined : "/admin/qa",
       missing: hasEstimatedValue
@@ -248,8 +248,8 @@ export function PipelineClient() {
 
       {hasEstimatedValue && (
         <p className="mb-4 text-xs text-muted">
-          Pipeline value ~${totalValue.toLocaleString()}{" "}
-          <span className="text-amber-200/80">(Estimated from budgets)</span>
+          Open pipeline value ~${openPipelineValue.toLocaleString()}{" "}
+          <span className="text-amber-200/80">(Estimated from budgets, open stages only)</span>
         </p>
       )}
 

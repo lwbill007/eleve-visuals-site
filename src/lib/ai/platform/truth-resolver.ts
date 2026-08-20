@@ -215,7 +215,7 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
       displayLabel: "Leads (all sources)",
     }),
     "traffic.30d": buildTruthValue({
-      value: ga4Traffic30d ?? m.traffic.visitors30,
+      value: ga4Traffic30d ?? m.traffic.pageviews30,
       label: traffic30dVerified ? "verified" : "estimated",
       source: traffic30dVerified ? "GA4 Data API (GA4Snapshot)" : "First-party AnalyticsEvent",
       table: traffic30dVerified ? "GA4Snapshot" : "AnalyticsEvent",
@@ -237,7 +237,7 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
       displayLabel: "Traffic (30d pageviews)",
     }),
     "traffic.7d": buildTruthValue({
-      value: m.traffic.visitors7,
+      value: m.traffic.pageviews7,
       label: "verified",
       source: "First-party AnalyticsEvent",
       table: "AnalyticsEvent",

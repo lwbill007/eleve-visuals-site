@@ -101,7 +101,7 @@ export async function getExecutiveRisks(
       id: "traffic-decline",
       title: "Website traffic declining",
       detail: `Traffic down ${Math.abs(metrics.traffic.trafficChange)}% week-over-week.`,
-      why: `Analytics: ${metrics.traffic.visitors7} visitors this week vs prior period.`,
+      why: `Analytics: ${metrics.traffic.pageviews7} visitors this week vs prior period.`,
       category: "marketing",
       severity: "medium",
       likelihood: 0.75,

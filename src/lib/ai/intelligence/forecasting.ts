@@ -33,7 +33,7 @@ export async function getExecutiveForecasts(): Promise<ExecutiveForecast[]> {
       high: revenuePredicted + revenueVariance,
       confidence: confidenceBase,
       horizon: "30 days",
-      why: `Based on ${metrics.revenue.monthChange >= 0 ? "positive" : "negative"} pipeline trend and $${pipeline.totalValue.toLocaleString()} open pipeline.`,
+      why: `Based on ${metrics.revenue.monthChange >= 0 ? "positive" : "negative"} pipeline trend and $${pipeline.openPipelineValue.toLocaleString()} open pipeline.`,
       assumptions: [
         "Pipeline conversion rate holds steady",
         "No major pricing changes",
@@ -57,10 +57,10 @@ export async function getExecutiveForecasts(): Promise<ExecutiveForecast[]> {
     {
       metric: "pipeline",
       label: "Pipeline value",
-      current: pipeline.totalValue,
-      predicted: Math.round(pipeline.totalValue * (1 + revenueGrowth / 200)),
-      low: Math.round(pipeline.totalValue * 0.85),
-      high: Math.round(pipeline.totalValue * 1.2),
+      current: pipeline.openPipelineValue,
+      predicted: Math.round(pipeline.openPipelineValue * (1 + revenueGrowth / 200)),
+      low: Math.round(pipeline.openPipelineValue * 0.85),
+      high: Math.round(pipeline.openPipelineValue * 1.2),
       confidence: 0.7,
       horizon: "60 days",
       why: "Weighted from open pipeline stages and historical close patterns.",

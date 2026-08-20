@@ -161,6 +161,10 @@ export async function getAnalyticsSummary(days = 30) {
       pageviews: pageviews.length,
       uniqueSessions,
       conversions: totalConversions,
+      // Exposed so callers can isolate a sub-window's rate from a cumulative window by
+      // subtracting counts first and dividing after — subtracting two already-divided rates
+      // (as one caller used to do) doesn't isolate anything meaningful.
+      inquiryViews,
       conversionRate:
         inquiryViews > 0 ? Math.round((totalConversions / inquiryViews) * 1000) / 10 : 0,
     },

@@ -51,8 +51,8 @@ export async function buildDecisionEngineContext(query?: string): Promise<Decisi
   const facts: string[] = [
     `Revenue MTD: $${metrics.revenue.thisMonth.toLocaleString()} (${metrics.revenue.monthChange >= 0 ? "+" : ""}${metrics.revenue.monthChange}%)`,
     `Bookings this month: ${metrics.month.bookings}`,
-    `Pipeline: $${pipeline.totalValue.toLocaleString()}`,
-    `Traffic: ${metrics.traffic.visitors30} visitors · ${metrics.traffic.conversionRate}% conversion`,
+    `Pipeline: $${pipeline.openPipelineValue.toLocaleString()}`,
+    `Traffic: ${metrics.traffic.pageviews30} visitors · ${metrics.traffic.conversionRate}% conversion`,
     `CRM: ${crm.length} contacts · ${metrics.attention.followUpClients} need follow-up`,
     `Stale inquiries: ${bookings.staleInquiries}`,
     `Top page: ${analytics.topPages[0]?.path ?? "/"} (${analytics.topPages[0]?.views ?? 0} views)`,

@@ -75,7 +75,10 @@ export interface ConversionDashboard {
   bookingStarts: number;
   bookingStartRate: number;
   bookingCompletions: number;
-  inquiryCompletionRate: number;
+  // Booking-flow completions / booking-flow starts — a narrower "did they finish the form"
+  // metric, NOT the canonical site-wide conversion rate (conversions / inquiry-page pageviews,
+  // analytics-server.ts's conversionRate). Do not label this "conversion rate" in UI.
+  bookingFunnelCompletionRate: number;
   portfolioViews: number;
   inquiriesPerPortfolioViewPct: number;
   sessionViews: number;
@@ -283,7 +286,7 @@ export async function getConversionDashboard(days = 30): Promise<ConversionDashb
     bookingStarts,
     bookingStartRate: rate(bookingStarts, visitors || homepageLoads || 1),
     bookingCompletions,
-    inquiryCompletionRate: rate(bookingCompletions, bookingStarts || 1),
+    bookingFunnelCompletionRate: rate(bookingCompletions, bookingStarts || 1),
     portfolioViews,
     inquiriesPerPortfolioViewPct: rate(bookingCompletions, portfolioViews || 1),
     sessionViews,

@@ -144,7 +144,7 @@ export async function buildCommandHome(): Promise<CommandHomePayload> {
         ? {
             title: `Website traffic up ${Math.abs(metrics.traffic.trafficChange)}% week-over-week`,
             evidence: [
-              `${metrics.traffic.visitors7} visitors this week (Measured)`,
+              `${metrics.traffic.pageviews7} pageviews this week (Measured)`,
               `Top page: ${metrics.traffic.topPage}`,
             ],
             href: METRIC_OWNERS.analytics.href,
@@ -229,7 +229,7 @@ export async function buildCommandHome(): Promise<CommandHomePayload> {
     },
     {
       id: "traffic-week",
-      label: "Website visitors",
+      label: "Website traffic",
       period: "last_week",
       direction:
         metrics.traffic.trafficChange > 0
@@ -248,7 +248,7 @@ export async function buildCommandHome(): Promise<CommandHomePayload> {
           ? "No analytics sessions recorded this week — traffic change cannot be explained yet."
           : `Traffic moved ${Math.abs(metrics.traffic.trafficChange)}% week-over-week. Top page: ${metrics.traffic.topPage}.`,
       evidence: [
-        `${metrics.traffic.visitors7} visitors this week`,
+        `${metrics.traffic.pageviews7} pageviews this week`,
         `Top page: ${metrics.traffic.topPage}`,
       ],
       ownerHref: METRIC_OWNERS.analytics.href,

@@ -157,13 +157,17 @@ export async function getAdminDashboardOS() {
     if (visitorsByMonth.has(key)) visitorsByMonth.set(key, (visitorsByMonth.get(key) ?? 0) + 1);
   }
 
-  const bookingsThisMonth = bookings.filter((b) => b.createdAt >= since30).length;
-  const bookingsLastMonth = bookings.filter((b) => {
-    const d = b.createdAt;
-    const start = new Date(since30.getFullYear(), since30.getMonth() - 1, 1);
-    const end = since30;
-    return d >= start && d < end;
-  }).length;
+  // Calendar-month boundaries, not a rolling 30-day window — matches business-operator.ts's
+  // month.bookingsChange convention. The two used to disagree (this used a rolling window,
+  // that one calendar), so "bookings growth vs. last month" showed two different numbers
+  // depending on which page you were on for the same underlying question.
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const bookingsThisMonth = bookings.filter((b) => b.createdAt >= monthStart).length;
+  const bookingsLastMonth = bookings.filter(
+    (b) => b.createdAt >= lastMonthStart && b.createdAt < monthStart
+  ).length;
   const bookingGrowth =
     bookingsLastMonth > 0
       ? Math.round(((bookingsThisMonth - bookingsLastMonth) / bookingsLastMonth) * 100)
@@ -171,10 +175,12 @@ export async function getAdminDashboardOS() {
         ? 100
         : 0;
 
-  const visitors30 = pageviews90.filter((p) => p.createdAt >= since30).length;
-  const visitors7 = pageviews90.filter((p) => p.createdAt >= since7).length;
+  // Raw pageview counts, not deduped visitors — named pageviews30/7 to avoid the same
+  // "visitors" mislabel fixed in business-operator.ts's traffic fields.
+  const pageviews30 = pageviews90.filter((p) => p.createdAt >= since30).length;
+  const pageviews7 = pageviews90.filter((p) => p.createdAt >= since7).length;
   const conversions30 = conversions90.filter((c) => c.createdAt >= since30).length;
-  const conversionRate = visitors30 > 0 ? Math.round((conversions30 / visitors30) * 1000) / 10 : 0;
+  const conversionRate = pageviews30 > 0 ? Math.round((conversions30 / pageviews30) * 1000) / 10 : 0;
 
   const pendingTasks =
     bookings.filter((b) => isOpenPipelineValueStatus(b.status)).length +
@@ -232,8 +238,18 @@ export async function getAdminDashboardOS() {
         value: bookings.length,
         pending: bookings.filter((b) => isOpenPipelineValueStatus(b.status)).length,
       },
-      leads: { value: bookings.length + applications.length + contacts, thisMonth: submissions90.filter((s) => s.createdAt >= since30).length },
-      visitors: { value: visitors30, week: visitors7 },
+      // "Lead"/"inquiry" = commercial intent (booking + contact form) only. ÉLEVÉ Sessions
+      // program applications are a distinct casting funnel — tracked separately as
+      // `applications` below, not blended into the lead count. Calendar MTD, matching
+      // bookings' month boundary (this used to be a rolling-30-day window, a second
+      // inconsistency on top of the type-filter one).
+      leads: {
+        value: bookings.length + contacts,
+        thisMonth: submissions90.filter(
+          (s) => (s.type === "booking" || s.type === "contact") && s.createdAt >= monthStart
+        ).length,
+      },
+      visitors: { value: pageviews30, week: pageviews7 },
       subscribers: { value: uniqueEmails.size, label: "Unique contacts" },
       applications: { value: applications.length, pending: applications.filter((a) => normalizeApplicationStatus(a.status) === "pending_review").length },
       returningClients,
@@ -487,7 +503,9 @@ export async function getAdminPipeline() {
       }),
   }));
 
-  const totalValue = columns.reduce(
+  // Every stage, including delivered/follow_up/archived — NOT the default "pipeline value."
+  // Callers wanting "how much open opportunity is in the pipeline" want openPipelineValue below.
+  const allStagesValue = columns.reduce(
     (sum, col) => sum + col.items.reduce((s, i) => s + i.value, 0),
     0
   );
@@ -499,7 +517,7 @@ export async function getAdminPipeline() {
     .filter((item) => isProductionOrClosedValueStatus(item.status))
     .reduce((sum, item) => sum + item.value, 0);
 
-  return { columns, totalValue, openPipelineValue, productionOrClosedValue };
+  return { columns, allStagesValue, openPipelineValue, productionOrClosedValue };
 }
 
 export async function getAdminInsights() {

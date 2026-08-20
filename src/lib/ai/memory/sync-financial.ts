@@ -92,7 +92,7 @@ export async function syncFinancialMemory() {
       revenueChange: metrics.revenue.monthChange,
       completedEstimate: completedRevenue,
       openPipeline,
-      pipelineKanban: pipeline.totalValue,
+      pipelineKanban: pipeline.allStagesValue,
       atRiskValue: metrics.attention.followUpValue,
       staleInquiries: metrics.attention.abandonedInquiries,
       overdueInvoices: metrics.attention.overdueInvoices,

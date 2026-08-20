@@ -6,7 +6,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
-import { VERIFIED_SETTLED_PAYMENT_WHERE } from "@/lib/payments";
+import { getPaymentRevenueSummary } from "@/lib/payments";
 import { getAnalyticsSummary } from "@/lib/analytics-server";
 import { getOperatorMetrics } from "../intelligence/business-operator";
 import { buildTruthValue } from "./truth-metadata";
@@ -65,28 +65,16 @@ function startOfDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-function startOfMonth(d = new Date()) {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-
 /** Canonical KPI pack for Command Home — references only, no duplicate formulas. */
 export async function resolveCommandKpis(
   metricsOverride?: Awaited<ReturnType<typeof getOperatorMetrics>>
 ): Promise<OwnedMetric[]> {
   const todayStart = startOfDay();
-  const monthStart = startOfMonth();
-  const [metrics, analytics, paymentsToday, paymentsMtd, bookingsToday, leadsToday] =
+  const [metrics, analytics, paymentRevenue, bookingsToday, leadsToday] =
     await Promise.all([
       metricsOverride ? Promise.resolve(metricsOverride) : getOperatorMetrics(),
       getAnalyticsSummary(30),
-      prisma.payment.aggregate({
-        where: { ...VERIFIED_SETTLED_PAYMENT_WHERE, paidAt: { gte: todayStart } },
-        _sum: { amountCents: true },
-      }),
-      prisma.payment.aggregate({
-        where: { ...VERIFIED_SETTLED_PAYMENT_WHERE, paidAt: { gte: monthStart } },
-        _sum: { amountCents: true },
-      }),
+      getPaymentRevenueSummary(),
       prisma.submission.count({
         where: { type: "booking", createdAt: { gte: todayStart } },
       }),
@@ -98,8 +86,8 @@ export async function resolveCommandKpis(
       }),
     ]);
 
-  const revenueTodayCents = paymentsToday._sum.amountCents ?? 0;
-  const revenueMtdCents = paymentsMtd._sum.amountCents ?? 0;
+  const revenueTodayCents = paymentRevenue.todayCents;
+  const revenueMtdCents = paymentRevenue.thisMonthCents;
   const visitors = analytics.totals.uniqueSessions;
   const pipeline = metrics.revenue.pipeline;
 

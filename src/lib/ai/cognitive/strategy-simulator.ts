@@ -155,7 +155,7 @@ const SCENARIOS: Record<
     profit: { low: -500, mid: 0, high: 0 },
     capacity: "N/A",
     risk: "Spend without attribution wastes budget",
-    confidence: m.traffic.visitors30 > 0 ? 0.3 : 0,
+    confidence: m.traffic.pageviews30 > 0 ? 0.3 : 0,
     assumptions: [
       "Revenue outcomes Unknown — no invented ROAS",
       "Requires ads + conversion attribution before forecasting",

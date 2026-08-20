@@ -75,7 +75,7 @@ export async function computeCMOScores(metrics?: OperatorMetrics): Promise<Execu
       m.traffic.trafficChange >= 0
         ? `Traffic growing ${m.traffic.trafficChange}% — bookings ${m.month.bookingsChange >= 0 ? "up" : "down"} ${Math.abs(m.month.bookingsChange)}%`
         : `Traffic declined — focus on top channel and conversion optimization`,
-      [`${m.traffic.visitors30} visitors`, `${m.month.bookings} bookings/mo`],
+      [`${m.traffic.pageviews30} visitors`, `${m.month.bookings} bookings/mo`],
       0.78
     ),
     getExec("brand")!,

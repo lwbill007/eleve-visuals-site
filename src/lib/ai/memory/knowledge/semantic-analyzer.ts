@@ -573,7 +573,7 @@ export async function analyzePlatformRoutes(
       purpose: "Open booking value — leading revenue indicator",
       businessGoals: ["Close deals", "Reduce stale inquiries"],
       offers: [],
-      pricing: [`$${pipeline.totalValue.toLocaleString()} pipeline`],
+      pricing: [`$${pipeline.openPipelineValue.toLocaleString()} pipeline`],
       ctas: [],
       seo: { score: 0, issues: ["SEO score Unknown — no Lighthouse/Search Console measurement"] },
       branding: { tone: "sales", consistency: 100, notes: [] },
@@ -591,7 +591,7 @@ export async function analyzePlatformRoutes(
       businessArea: "sales",
       relatedKeys: [{ layer: "business", category: "page", key: "booking", relationType: "fed_by" }],
       issues: [],
-      evidence: [`$${pipeline.totalValue.toLocaleString()}`],
+      evidence: [`$${pipeline.openPipelineValue.toLocaleString()}`],
       rawSummary: "Pipeline value",
     });
   }

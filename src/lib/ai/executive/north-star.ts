@@ -60,7 +60,7 @@ export async function computeNorthStarMetrics(): Promise<NorthStarMetrics> {
   const avgProjectValue =
     metrics.month.bookings > 0
       ? Math.round(metrics.revenue.thisMonth / metrics.month.bookings)
-      : Math.round(pipeline.totalValue / Math.max(pipeline.columns.flatMap((c) => c.items).length, 1));
+      : Math.round(pipeline.openPipelineValue / Math.max(pipeline.columns.flatMap((c) => c.items).length, 1));
 
   const repeatClients = crm.filter((c) => c.status === "repeat" || c.status === "vip").length;
   const repeatClientRate = crm.length > 0 ? Math.round((repeatClients / crm.length) * 100) : 0;
@@ -86,8 +86,8 @@ export async function computeNorthStarMetrics(): Promise<NorthStarMetrics> {
     portfolioViews > 0 ? Math.round((portfolioInquiries / portfolioViews) * 1000) / 10 : 0;
 
   const revenuePerVisitor =
-    metrics.traffic.visitors30 > 0
-      ? Math.round((metrics.revenue.thisMonth / metrics.traffic.visitors30) * 100) / 100
+    metrics.traffic.pageviews30 > 0
+      ? Math.round((metrics.revenue.thisMonth / metrics.traffic.pageviews30) * 100) / 100
       : 0;
 
   const revenueByTrafficSource = analytics.topSources.slice(0, 8).map((s) => ({
@@ -110,7 +110,7 @@ export async function computeNorthStarMetrics(): Promise<NorthStarMetrics> {
 
   const dataPoints = [
     metrics.revenue.thisMonth > 0,
-    metrics.traffic.visitors30 > 10,
+    metrics.traffic.pageviews30 > 10,
     crm.length > 0,
     analytics.totals.pageviews > 0,
   ].filter(Boolean).length;
@@ -134,7 +134,7 @@ export async function computeNorthStarMetrics(): Promise<NorthStarMetrics> {
     repeatClientRate,
     referralRate,
     salesVelocityDays: 21,
-    pipelineHealth: Math.min(100, Math.round((pipeline.totalValue / 50000) * 100)),
+    pipelineHealth: Math.min(100, Math.round((pipeline.openPipelineValue / 50000) * 100)),
     growthRate: metrics.revenue.monthChange,
   };
 }

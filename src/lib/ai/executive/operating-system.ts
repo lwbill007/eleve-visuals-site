@@ -278,13 +278,13 @@ export async function buildExecutiveOperatingSystem(): Promise<ExecutiveOperatin
       recommendation: marketingRec?.title ?? "Feature top portfolio on Instagram",
       why: marketingRec?.whyNow ?? "Drive qualified traffic to booking funnel",
       expectedReach: qualifyMetric({
-        value: metrics.traffic.visitors30,
+        value: metrics.traffic.pageviews30,
         quality: "verified",
         updatedAt: metrics.generatedAt,
         source: "Analytics",
       }),
       expectedBookings: qualifyMetric({
-        value: Math.round(metrics.traffic.visitors30 * (metrics.traffic.conversionRate / 100)),
+        value: Math.round(metrics.traffic.pageviews30 * (metrics.traffic.conversionRate / 100)),
         quality: "estimated",
         updatedAt: metrics.generatedAt,
         confidence: 0.65,

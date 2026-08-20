@@ -55,7 +55,7 @@ export async function getPredictiveInsights(): Promise<PredictiveInsight[]> {
     });
   }
 
-  if (metrics.traffic.conversionRate < 2 && metrics.traffic.visitors30 > 50) {
+  if (metrics.traffic.conversionRate < 2 && metrics.traffic.pageviews30 > 50) {
     insights.push({
       id: "conversion-soft",
       metric: "Conversion rate",

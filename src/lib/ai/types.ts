@@ -366,7 +366,10 @@ export interface AIDailyBriefing {
     bookingsChange: number;
   };
   traffic: {
-    visitors30: number;
+    // Raw pageview count, not a deduped visitor/session count — see analytics-server.ts's
+    // `uniqueSessions` for the one canonical deduped figure. Named accordingly to prevent the
+    // "visitors" mislabel this field used to carry.
+    pageviews30: number;
     conversionRate: number;
     conversionChange: number;
     topPage: string;

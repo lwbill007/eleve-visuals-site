@@ -31,7 +31,7 @@ export async function buildExplainableHealthDomains(): Promise<ExplainableHealth
   const now = metrics.generatedAt;
 
   const websiteScore = Math.min(100, Math.round(metrics.traffic.conversionRate * 8 + 35));
-  const seoScore = Math.min(100, Math.round(45 + metrics.traffic.visitors30 / 25));
+  const seoScore = Math.min(100, Math.round(45 + metrics.traffic.pageviews30 / 25));
   const creativeScore = Math.min(100, Math.round(50 + (analytics30.topPages.filter((p) => p.path.startsWith("/portfolio")).length > 0 ? 20 : 0)));
   const financeScore = Math.min(100, Math.round(40 + (metrics.revenue.thisMonth > 0 ? 30 : 0) + Math.max(0, metrics.revenue.monthChange)));
   const automationScore = execScores.find((s) => s.key === "productivity")?.value ?? 70;
@@ -122,7 +122,7 @@ export async function buildExplainableHealthDomains(): Promise<ExplainableHealth
       trend30: d.id === "revenue" ? metrics.revenue.monthChange : trend30,
       trend90: trend90,
       historicalAvg: Math.round(value * 0.92),
-      whyChanged: exec?.why ?? `Based on ${metrics.traffic.visitors30} visitors, ${metrics.month.bookings} bookings MTD`,
+      whyChanged: exec?.why ?? `Based on ${metrics.traffic.pageviews30} visitors, ${metrics.month.bookings} bookings MTD`,
       improved,
       declined,
       topActions: actions.slice(0, 3),

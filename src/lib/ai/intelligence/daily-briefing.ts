@@ -210,7 +210,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       ? `${operatorMetrics.attention.abandonedInquiries} inquiries need recovery · $${operatorMetrics.revenue.thisMonth.toLocaleString()} MTD pipeline`
       : operatorMetrics.attention.followUpClients > 0
         ? `$${operatorMetrics.attention.followUpValue.toLocaleString()} in inactive client value · ${operatorMetrics.month.bookings} bookings this month`
-        : `${operatorMetrics.month.bookings} bookings · ${operatorMetrics.traffic.visitors30} visitors · ${operatorMetrics.traffic.conversionRate}% conversion`;
+        : `${operatorMetrics.month.bookings} bookings · ${operatorMetrics.traffic.pageviews30} pageviews · ${operatorMetrics.traffic.conversionRate}% conversion`;
 
   const commandRecommendations = opportunities.slice(0, 5).map((o) => {
     const prioritized: PrioritizedRecommendation = {
@@ -252,8 +252,8 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
         evidence: [`${operatorMetrics.month.bookingsChange}% vs prior month (Measured)`],
       },
       {
-        label: "Visitors (30d)",
-        value: String(operatorMetrics.traffic.visitors30),
+        label: "Pageviews (30d)",
+        value: String(operatorMetrics.traffic.pageviews30),
         evidence: [`Owned by Analytics · top page ${operatorMetrics.traffic.topPage}`],
       },
       {
@@ -271,10 +271,10 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       {
         label: "Traffic",
         detail:
-          operatorMetrics.traffic.visitors7 === 0
+          operatorMetrics.traffic.pageviews7 === 0
             ? "No weekly traffic signal yet — change explanation unavailable."
             : `Traffic ${operatorMetrics.traffic.trafficChange >= 0 ? "up" : "down"} ${Math.abs(operatorMetrics.traffic.trafficChange)}% week-over-week.`,
-        evidence: [`${operatorMetrics.traffic.visitors7} visitors this week`],
+        evidence: [`${operatorMetrics.traffic.pageviews7} pageviews this week`],
       },
     ],
     why: [
@@ -354,7 +354,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       bookingsChange: operatorMetrics.month.bookingsChange,
     },
     traffic: {
-      visitors30: operatorMetrics.traffic.visitors30,
+      pageviews30: operatorMetrics.traffic.pageviews30,
       conversionRate: operatorMetrics.traffic.conversionRate,
       conversionChange: operatorMetrics.traffic.conversionChange,
       topPage: operatorMetrics.traffic.topPage,
@@ -409,7 +409,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
         .map((i) => i.title),
       recentLearnings: learnings.map((l) => l.outcome),
       websitePerformance: {
-        summary: `${operatorMetrics.traffic.visitors30} visitors (30d), ${operatorMetrics.traffic.conversionRate}% conversion (${operatorMetrics.traffic.conversionChange >= 0 ? "+" : ""}${operatorMetrics.traffic.conversionChange}%)`,
+        summary: `${operatorMetrics.traffic.pageviews30} pageviews (30d), ${operatorMetrics.traffic.conversionRate}% conversion (${operatorMetrics.traffic.conversionChange >= 0 ? "+" : ""}${operatorMetrics.traffic.conversionChange}%)`,
         conversionRate: operatorMetrics.traffic.conversionRate,
         topPage: operatorMetrics.traffic.topPage,
       },
@@ -434,7 +434,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
       highestRoiAction,
       projectedMonthlyRevenue,
       potentialLostRevenue,
-      pipelineValue: pipeline.totalValue,
+      pipelineValue: pipeline.openPipelineValue,
     },
     recommendedActions: proactiveInsights.slice(0, 8).map((i) => ({
       id: i.id,
@@ -454,7 +454,7 @@ export async function getAIDailyBriefing(force = false): Promise<AIDailyBriefing
     aiRecommendations,
     forecast: {
       bookings: operatorMetrics.month.bookingsChange >= 0 ? "stable to growing" : "needs attention",
-      revenue: pipeline.totalValue,
+      revenue: pipeline.openPipelineValue,
       weekStart: weekStart.toISOString(),
     },
     cmo: cmoBriefing,

@@ -214,8 +214,8 @@ export function AnalyticsClient() {
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {(
                 [
-                  ["Visitors", exec.traffic.visitors],
-                  ["Sessions", exec.traffic.sessions],
+                  ["Site Sessions", exec.traffic.sessions],
+                  ["Pageviews", exec.traffic.pageviews],
                   ["Returning Visitors", exec.traffic.returningVisitors],
                   ["Average Engagement", exec.traffic.avgEngagement],
                 ] as const

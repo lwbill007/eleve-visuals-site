@@ -40,7 +40,7 @@ export async function buildCEOBrief(): Promise<ExecutiveRoleBrief> {
       {
         text: `${metrics.month.bookings} bookings this month · ${metrics.traffic.conversionRate}% conversion`,
         kind: "fact",
-        evidence: [`${metrics.traffic.visitors30} visitors (30d)`],
+        evidence: [`${metrics.traffic.pageviews30} visitors (30d)`],
       },
       topRisk
         ? { text: `Risk: ${topRisk.title}`, kind: "inference", evidence: topRisk.evidence }

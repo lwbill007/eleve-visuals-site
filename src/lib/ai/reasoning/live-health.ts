@@ -48,9 +48,9 @@ export async function buildLiveBusinessHealth(
       id: "marketing",
       label: "Marketing",
       score: byKey("marketing"),
-      explain: `${metrics.traffic.visitors30} visitors · ${metrics.traffic.conversionRate}% conversion (30d)`,
+      explain: `${metrics.traffic.pageviews30} visitors · ${metrics.traffic.conversionRate}% conversion (30d)`,
       trend: metrics.traffic.trafficChange > 0 ? "up" : metrics.traffic.trafficChange < 0 ? "down" : "flat",
-      truthKind: metrics.traffic.visitors30 > 0 ? "Measured Data" : "Unknown (More Data Required)",
+      truthKind: metrics.traffic.pageviews30 > 0 ? "Measured Data" : "Unknown (More Data Required)",
       priority: "medium",
     },
     {
@@ -97,7 +97,7 @@ export async function buildLiveBusinessHealth(
       label: "Knowledge",
       score: null,
       explain:
-        metrics.traffic.visitors30 > 0
+        metrics.traffic.pageviews30 > 0
           ? "Analytics present; knowledge coverage score Unknown until verification rollup"
           : "Insufficient analytics + booking coverage for a knowledge score",
       trend: "flat",
@@ -256,7 +256,7 @@ export async function buildExecutiveOvernightBrief(): Promise<ExecutiveOvernight
   }
 
   const opportunitiesAppeared: string[] = [];
-  if (metrics.traffic.visitors30 > 50 && metrics.traffic.conversionRate < 2) {
+  if (metrics.traffic.pageviews30 > 50 && metrics.traffic.conversionRate < 2) {
     opportunitiesAppeared.push("Soft conversion with present traffic — CTA/trust audit candidate");
   }
   if (metrics.attention.abandonedInquiries > 0) {

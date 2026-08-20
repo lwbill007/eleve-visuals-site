@@ -39,11 +39,11 @@ export async function getWebsiteOpportunities(): Promise<ExecutiveOpportunity[]>
     });
   }
 
-  if (metrics.traffic.conversionRate < 2.5 && metrics.traffic.visitors30 > 50) {
+  if (metrics.traffic.conversionRate < 2.5 && metrics.traffic.pageviews30 > 50) {
     opportunities.push({
       id: "conversion-bottleneck",
       title: "Fix conversion bottleneck on top landing pages",
-      detail: `${metrics.traffic.visitors30} visitors / 30d at ${metrics.traffic.conversionRate}% conversion (Measured). External “luxury benchmark” ranges are not verified for ÉLEVÉ and are not used as $ math.`,
+      detail: `${metrics.traffic.pageviews30} visitors / 30d at ${metrics.traffic.conversionRate}% conversion (Measured). External “luxury benchmark” ranges are not verified for ÉLEVÉ and are not used as $ math.`,
       why: "High traffic without proportional inquiries may indicate CTA, page speed, or messaging friction (AI Analysis).",
       category: "marketing",
       expectedRevenue: 0,

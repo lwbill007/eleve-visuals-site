@@ -202,13 +202,13 @@ export async function buildUnknowns(): Promise<UnknownItem[]> {
   }
 
   // Conversion tracking — only when traffic exists but conversion is zero (measured anomaly)
-  if (metrics.traffic.conversionRate === 0 && metrics.traffic.visitors30 > 50) {
+  if (metrics.traffic.conversionRate === 0 && metrics.traffic.pageviews30 > 50) {
     unknowns.push({
       id: "conversion-tracking",
       category: "analytics",
       title: "Conversion events may be under-tracked",
       status: "Anomaly detected",
-      detail: `${metrics.traffic.visitors30} visitors / 30d with 0% conversion — verify booking funnel events.`,
+      detail: `${metrics.traffic.pageviews30} visitors / 30d with 0% conversion — verify booking funnel events.`,
       whyItMatters: "Funnel optimization requires trustworthy conversion measurement.",
       businessImpact: "Page conversion scores and A/B decisions are unreliable.",
       estimatedImprovement: "+22% funnel diagnosis confidence",

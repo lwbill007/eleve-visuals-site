@@ -113,8 +113,8 @@ export interface ExecutiveAnalyticsPayload {
   };
   revenueFunnel: RevenueFunnelStage[];
   traffic: {
-    visitors: MetricDelta;
     sessions: MetricDelta;
+    pageviews: MetricDelta;
     returningVisitors: MetricDelta;
     avgEngagement: MetricDelta;
     topSources: SourceIntelligence[];
@@ -327,8 +327,19 @@ export async function getExecutiveAnalytics(days = 30): Promise<ExecutiveAnalyti
 
   const revenueCurrent = dollarsFromCents(revenueCurrentCents);
   const revenuePrev = dollarsFromCents(revenuePrevCents);
-  const conversionCurrent = conversion.inquiryCompletionRate;
-  const conversionPrev = analyticsPrev.totals.conversionRate - analytics.totals.conversionRate;
+  // Canonical conversion rate (conversions / inquiry-page pageviews), matching the definition
+  // used everywhere else (analytics-server.ts, truth-resolver.ts) — this used to show
+  // conversion.bookingFunnelCompletionRate instead, a narrower "booking form completion" metric
+  // mislabeled as the site-wide conversion rate.
+  const conversionCurrent = analytics.totals.conversionRate;
+  // Isolate the prior period's own rate from the two cumulative windows (days vs. 2×days)
+  // rather than subtracting two already-divided rates, which doesn't isolate anything.
+  const priorPeriodConversions = Math.max(0, analyticsPrev.totals.conversions - analytics.totals.conversions);
+  const priorPeriodInquiryViews = Math.max(0, analyticsPrev.totals.inquiryViews - analytics.totals.inquiryViews);
+  const conversionPrev =
+    priorPeriodInquiryViews > 0
+      ? Math.round((priorPeriodConversions / priorPeriodInquiryViews) * 1000) / 10
+      : 0;
   const pipelineValue = metrics.revenue.pipeline;
 
   const summary: ExecutiveSummaryMetric[] = [
@@ -355,7 +366,7 @@ export async function getExecutiveAnalytics(days = 30): Promise<ExecutiveAnalyti
       key: "conversion",
       label: "Conversion Rate",
       value: `${conversionCurrent}%`,
-      delta: pctChange(conversionCurrent, Math.max(0, conversionPrev)),
+      delta: pctChange(conversionCurrent, conversionPrev),
     },
     {
       key: "pipeline",
@@ -377,8 +388,8 @@ export async function getExecutiveAnalytics(days = 30): Promise<ExecutiveAnalyti
   const topOpportunity = opportunities[0];
   const narrative =
     topInsight?.detail ??
-    (conversion.bookingStarts > 0 && conversion.inquiryCompletionRate < 25
-      ? `Visitors continue to start the booking flow, but only ${conversion.inquiryCompletionRate}% complete an inquiry. Improving the booking experience represents the largest measurable opportunity in this window.`
+    (conversion.bookingStarts > 0 && conversion.bookingFunnelCompletionRate < 25
+      ? `Visitors continue to start the booking flow, but only ${conversion.bookingFunnelCompletionRate}% complete an inquiry. Improving the booking experience represents the largest measurable opportunity in this window.`
       : analytics.totals.uniqueSessions > 0
         ? `${analytics.totals.uniqueSessions.toLocaleString()} visitors over the last ${days} days. Traffic is ${analytics.totals.conversions > 0 ? "converting into inquiries" : "not yet converting into inquiries"} — focus on the booking funnel and highest-intent pages.`
         : "Analytics is collecting first-party traffic. Executive signals will sharpen as visitors interact with the site.");
@@ -482,7 +493,7 @@ export async function getExecutiveAnalytics(days = 30): Promise<ExecutiveAnalyti
   const booking: BookingIntel = {
     started: conversion.bookingStarts,
     completed: conversion.bookingCompletions,
-    completionRate: conversion.inquiryCompletionRate,
+    completionRate: conversion.bookingFunnelCompletionRate,
     avgMinutes: conversion.avgCompletionMinutes,
     abandonmentRate:
       conversion.bookingStarts > 0
@@ -522,12 +533,16 @@ export async function getExecutiveAnalytics(days = 30): Promise<ExecutiveAnalyti
     brief: { narrative, priority },
     revenueFunnel,
     traffic: {
-      visitors: {
-        value: conversion.visitors.toLocaleString(),
-        delta: pctChange(analytics.totals.uniqueSessions, Math.max(0, analyticsPrev.totals.uniqueSessions - analytics.totals.uniqueSessions)),
-      },
+      // "Sessions" (deduped by sessionId) and the old "Visitors" card used to show the same
+      // count computed by two independent queries (analytics-funnel.ts's `conversion.visitors`
+      // and analytics-server.ts's `uniqueSessions`) — collapsed to one card; pageviews (raw page
+      // loads, a genuinely different number) fills the second slot instead.
       sessions: {
         value: analytics.totals.uniqueSessions.toLocaleString(),
+        delta: pctChange(analytics.totals.uniqueSessions, Math.max(0, analyticsPrev.totals.uniqueSessions - analytics.totals.uniqueSessions)),
+      },
+      pageviews: {
+        value: analytics.totals.pageviews.toLocaleString(),
         delta: pctChange(analytics.totals.pageviews, Math.max(0, analyticsPrev.totals.pageviews - analytics.totals.pageviews)),
       },
       returningVisitors: {

@@ -247,10 +247,23 @@ async function computeOperatorMetrics() {
   );
   const trafficChange = pctChange(visitorsThisWeek, visitorsLastWeek);
 
-  const conversionChange = pctChange(
-    analytics7.totals.conversionRate,
-    analytics30.totals.conversionRate
+  // Was comparing a 7-day rate against a 30-day rate — not a real period-over-period change.
+  // Isolate the prior week's rate the same way trafficChange isolates prior-week pageviews
+  // above: subtract this week's counts from the cumulative 14-day window, then divide —
+  // subtracting two already-divided percentages doesn't isolate anything meaningful.
+  const priorWeekConversions = Math.max(
+    0,
+    analyticsPrev7.totals.conversions - analytics7.totals.conversions
   );
+  const priorWeekInquiryViews = Math.max(
+    0,
+    analyticsPrev7.totals.inquiryViews - analytics7.totals.inquiryViews
+  );
+  const priorWeekConversionRate =
+    priorWeekInquiryViews > 0
+      ? Math.round((priorWeekConversions / priorWeekInquiryViews) * 1000) / 10
+      : 0;
+  const conversionChange = pctChange(analytics7.totals.conversionRate, priorWeekConversionRate);
 
   const instagramReferrals = analytics30.topSources.find((s) =>
     s.source.toLowerCase().includes("instagram")
@@ -266,7 +279,11 @@ async function computeOperatorMetrics() {
       thisMonth: revenueThisMonth,
       lastMonth: revenueLastMonth,
       monthChange: pctChange(revenueThisMonth, revenueLastMonth),
-      pipeline: pipeline.totalValue,
+      // Open-stage-only (lead/qualified/discovery/proposal), NOT every stage — see
+      // isOpenPipelineValueStatus() in booking-pipeline.ts. Using pipeline.allStagesValue here
+      // was the bug: every "Pipeline Value" / "Open Pipeline Value" card in the app read this
+      // field and was silently summing delivered/follow_up/archived deals too.
+      pipeline: pipeline.openPipelineValue,
       verified: useVerifiedRevenue,
       paymentCount: payments.count,
     },
@@ -291,8 +308,13 @@ async function computeOperatorMetrics() {
       abandonedInquiries: staleBookings,
     },
     traffic: {
-      visitors30: analytics30.totals.pageviews,
-      visitors7: visitorsThisWeek,
+      // Raw pageview counts, not deduped visitor/session counts — renamed from
+      // visitors30/visitors7 (the field name was the bug: every consumer that said "X
+      // visitors" was actually reporting a pageview count). uniqueSessions
+      // (analytics-server.ts) is the one canonical deduped figure if a real "how many
+      // distinct sessions" number is needed instead.
+      pageviews30: analytics30.totals.pageviews,
+      pageviews7: visitorsThisWeek,
       trafficChange,
       conversionRate: analytics30.totals.conversionRate,
       conversionChange,
@@ -678,7 +700,7 @@ export async function getMarketingRecommendations(): Promise<MarketingRecommenda
       id: "sponsor-pitch",
       channel: "sponsor",
       title: "Sponsor pitch deck narrative",
-      reason: `${metrics.traffic.visitors30} site visitors this month · ${metrics.traffic.conversionRate}% conversion`,
+      reason: `${metrics.traffic.pageviews30} site visitors this month · ${metrics.traffic.conversionRate}% conversion`,
       priority: "low",
       actions: [
         action("sponsor", "Create Sponsor PDF", "sponsor_pdf", "/admin/reports?type=sponsor"),
@@ -1129,7 +1151,7 @@ export async function getCommandCenterHub(keyword: string): Promise<CommandCente
   }
 
   if (key === "marketing") {
-    hub.summary = `${marketing.length} active recommendations · ${metrics.traffic.visitors30} visitors / 30d`;
+    hub.summary = `${marketing.length} active recommendations · ${metrics.traffic.pageviews30} visitors / 30d`;
     hub.actions = marketing.slice(0, 4).flatMap((m) => m.actions.slice(0, 1));
   }
 
@@ -1166,7 +1188,7 @@ export async function getCommandCenterHub(keyword: string): Promise<CommandCente
   }
 
   if (key === "sponsors") {
-    hub.summary = `${metrics.traffic.visitors30} monthly visitors · ${metrics.traffic.conversionRate}% conversion · ${metrics.month.bookings} bookings`;
+    hub.summary = `${metrics.traffic.pageviews30} monthly visitors · ${metrics.traffic.conversionRate}% conversion · ${metrics.month.bookings} bookings`;
     hub.actions = [
       action("sponsor-report", "Create Sponsor PDF", "sponsor_pdf", "/admin/reports?type=sponsor"),
       action("sponsor-hub", "Sponsorship Hub", "navigate", "/admin/sponsorship"),

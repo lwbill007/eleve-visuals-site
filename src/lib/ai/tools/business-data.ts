@@ -100,7 +100,8 @@ export async function executeBusinessTool(
     case "get_pipeline": {
       const pipeline = await getAdminPipeline();
       return JSON.stringify({
-        totalValue: pipeline.totalValue,
+        openPipelineValue: pipeline.openPipelineValue,
+        allStagesValue: pipeline.allStagesValue,
         columns: pipeline.columns.map((c) => ({
           stage: c.label,
           count: c.items.length,

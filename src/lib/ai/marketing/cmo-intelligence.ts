@@ -79,7 +79,7 @@ export async function getCMOIntelligence(forceRefresh = false): Promise<CMOIntel
         kind: "fact",
         confidence: 0.82,
         historicalEvidence: patterns.slice(0, 2).map((p) => p.pattern),
-        supportingMetrics: [`${metrics.traffic.visitors30} visitors/30d`, `${metrics.traffic.conversionRate}% conversion`],
+        supportingMetrics: [`${metrics.traffic.pageviews30} visitors/30d`, `${metrics.traffic.conversionRate}% conversion`],
         expectedImpact: rec.priority === "high" ? "High" : "Medium",
         priority: rec.priority === "high" ? 85 : rec.priority === "medium" ? 65 : 45,
         actions: rec.actions,
@@ -203,7 +203,7 @@ export async function getCMOIntelligence(forceRefresh = false): Promise<CMOIntel
         "Competitive profiles (admin-maintained)",
       ],
       facts: [
-        `${metrics.traffic.visitors30} visitors in 30 days`,
+        `${metrics.traffic.pageviews30} visitors in 30 days`,
         `${metrics.traffic.conversionRate}% conversion rate`,
         `${campaigns.length} campaign case studies on record`,
         `${patterns.length} discovered patterns`,
