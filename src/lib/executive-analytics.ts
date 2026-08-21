@@ -10,7 +10,7 @@ import { getOperatorMetrics } from "@/lib/ai/intelligence/business-operator";
 import { getExecutiveOpportunities } from "@/lib/ai/intelligence/opportunity-engine";
 import { getProactiveBusinessInsights } from "@/lib/ai/intelligence/business-operator";
 import { getWebsiteIntelligence } from "@/lib/ai/intelligence/website-intelligence";
-import { dollarsFromCents, getPaymentRevenueSummary } from "@/lib/payments";
+import { dollarsFromCents, getPaymentRevenueSummary, VERIFIED_SETTLED_PAYMENT_WHERE } from "@/lib/payments";
 import { CLOSED_WON_STORED_STATUSES } from "@/lib/booking-pipeline";
 
 export interface MetricDelta {
@@ -157,24 +157,38 @@ function impactLevel(
   return "low";
 }
 
+/**
+ * GROW's 7/30/90-day selector needs revenue/booking/inquiry counts over an arbitrary trailing
+ * window that the canonical calendar-day/month functions (getPaymentRevenueSummary(),
+ * getAdminDashboardOS()) can't serve directly. These four helpers exist for that reason — they
+ * are NOT separate canonical metrics, just the canonical predicate for each concept
+ * (see metric-definitions.ts) applied over a caller-supplied window instead of a fixed one.
+ * Each duplicates only the WHERE clause, not the concept — reuse the shared predicate constant
+ * where one exists (revenue) so the two can't drift apart.
+ */
 async function periodRevenueCents(since: Date, until: Date) {
   const row = await prisma.payment.aggregate({
-    where: {
-      status: "succeeded",
-      verificationStatus: "verified",
-      paidAt: { gte: since, lt: until },
-    },
+    where: { ...VERIFIED_SETTLED_PAYMENT_WHERE, paidAt: { gte: since, lt: until } },
     _sum: { amountCents: true },
   });
   return row._sum.amountCents ?? 0;
 }
 
+/** Canonical `booking` predicate (metric-definitions.ts), windowed. */
 async function periodBookings(since: Date, until: Date) {
   return prisma.submission.count({
     where: { type: "booking", createdAt: { gte: since, lt: until } },
   });
 }
 
+/**
+ * Canonical `inquiry`/`lead` predicate (metric-definitions.ts), windowed — booking + contact
+ * submissions, no pipeline-stage filter. Despite the UI label this reads ("Qualified
+ * Inquiries"), there is no `status` filter here: it counts every inquiry regardless of stage,
+ * identical in scope to `admin-os-server.ts`'s `leads` field. The label was renamed to
+ * "Inquiries" to match what this actually computes rather than adding an unrequested
+ * qualified-or-later stage filter that would change the displayed number.
+ */
 async function periodQualifiedInquiries(since: Date, until: Date) {
   return prisma.submission.count({
     where: {
@@ -184,6 +198,7 @@ async function periodQualifiedInquiries(since: Date, until: Date) {
   });
 }
 
+/** Already-canonical: reuses CLOSED_WON_STORED_STATUSES (booking-pipeline.ts) by reference. */
 async function periodConfirmedBookings(since: Date, until: Date) {
   return prisma.submission.count({
     where: {
@@ -358,7 +373,7 @@ export async function getExecutiveAnalytics(days = 30): Promise<ExecutiveAnalyti
     },
     {
       key: "inquiries",
-      label: "Qualified Inquiries",
+      label: "Inquiries",
       value: String(inquiriesCurrent),
       delta: pctChange(inquiriesCurrent, inquiriesPrev),
     },

@@ -660,7 +660,7 @@ export async function getMarketingRecommendations(): Promise<MarketingRecommenda
       id: "newsletter-monthly",
       channel: "newsletter",
       title: "Monthly newsletter — studio update + booking CTA",
-      reason: `${dashboard.metrics.subscribers.value} unique contacts in CRM`,
+      reason: `${dashboard.metrics.subscribers.value} unique booking emails`,
       priority: "medium",
       actions: [
         action("newsletter", "Newsletter Draft", "create_campaign", "/admin/marketing?focus=newsletter", {

@@ -154,7 +154,7 @@ async function computeWeeklyExecutiveReport(
     : `Projected ~$${Math.round(metrics.revenue.thisMonth * (1 + metrics.revenue.monthChange / 100)).toLocaleString()} based on current trend`;
 
   const northStarSummary = [
-    `${northStar.qualifiedInquiries} qualified inquiries MTD`,
+    `${northStar.inquiries} inquiries MTD`,
     `${northStar.bookingFormCompletionRate}% booking completion`,
     `$${northStar.averageProjectValue.toLocaleString()} APV`,
     `$${northStar.revenuePerVisitor} revenue/visitor`,

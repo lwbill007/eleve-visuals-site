@@ -295,6 +295,12 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
       timestamp: m.generatedAt,
       displayLabel: "Returning Clients",
     }),
+    // Deliberately NOT labeled "Contacts" or "Clients" — this is neither the CRM's cross-type
+    // Client entity (getAdminCRMContacts(), unique email across booking+contact+session, already
+    // correctly labeled "Clients" on /admin/crm) nor a count of Submission.type='contact' form
+    // fills (folded into `leads` elsewhere). It's a narrower, booking-only unique-email count.
+    // Reusing "Contacts" here previously collided with both of those meanings — see
+    // metric-definitions.ts's "client / contact" entry.
     "crm.contacts": buildTruthValue({
       value: dashboard.metrics.subscribers.value,
       label: "verified",
@@ -304,7 +310,7 @@ async function resolveMetricsUncached(): Promise<ResolvedMetrics> {
       evidence: [dashboard.metrics.subscribers.label],
       verificationStatus: "verified",
       timestamp: m.generatedAt,
-      displayLabel: "Contacts",
+      displayLabel: "Unique Booking Emails",
     }),
     "sessions.applications": buildTruthValue({
       value: dashboard.metrics.applications.value,

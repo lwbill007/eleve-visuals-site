@@ -69,6 +69,18 @@ export const METRIC_DEFINITIONS = {
     policy:
       "`uniqueSessions` is the one canonical figure for this concept. UI copy should say 'Site Sessions' or 'Web Sessions,' never bare 'Sessions' — ÉLEVÉ's own 'Sessions' product line (SessionVolume, casting/creative program) is a completely unrelated use of the same word. Fields literally named `visitors30`/`visitors7` used to hold RAW PAGEVIEW COUNTS (not deduped) in business-operator.ts, admin-os-server.ts, and types.ts — the name was the bug. Those fields are now `pageviews30`/`pageviews7`; a raw pageview count must never be presented as 'visitors.' Don't compute this with a second independent query when `uniqueSessions` is already available — GROW Analytics used to show 'Visitors' and 'Sessions' as two separate stat cards for what was, for a given window, the identical count computed twice.",
   },
+  client: {
+    concept: "client / contact",
+    definition:
+      "Three genuinely different things share the word 'contact' in this codebase — keep them apart: " +
+      "(1) Client — a person, deduped by email, aggregated across EVERY submission type (booking + contact + session). " +
+      "(2) contact submission — a single Submission row WHERE type='contact' (someone filled out the general contact form; an event, not a person). " +
+      "(3) 'unique booking emails' — deduped by email but ONLY from booking submissions; narrower than (1), unrelated to (2).",
+    canonicalWhere: "Client: no type filter, prisma.submission.findMany() grouped by contactEmail",
+    canonicalFn: "getAdminCRMContacts() / buildCrmAggregates() (src/lib/admin-os-server.ts) — the /admin/crm page's own definition",
+    policy:
+      "The CRM page already gets this right and calls the cross-type person entity 'Clients,' never 'Contacts' — that's the terminology to extend elsewhere, not reinvent. `dashboard.metrics.subscribers` (booking-only unique emails) is a real, narrower, legitimately-scoped metric used for a couple of AI narrative lines (newsletter reach, sponsor-deck email growth) — it must never be labeled 'Contacts' or 'Clients,' since both of those already mean the broader cross-type entity. It was previously mislabeled 'Contacts' on the AI Operations Truth Registry (now 'Unique Booking Emails') and 'unique contacts in CRM' in a newsletter-recommendation narrative (now 'unique booking emails'). Note: reusing the narrower booking-only figure for 'newsletter reach' or 'email growth' likely undercounts real audience size (misses contact-form-only and session-only emails) — flagged as a separate, deliberately-not-fixed finding, not part of the terminology fix itself.",
+  },
 } as const;
 
 export type MetricConceptId = keyof typeof METRIC_DEFINITIONS;

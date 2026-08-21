@@ -26,7 +26,7 @@ export const EXECUTIVE_OUTCOMES = [
 ] as const;
 
 export const NORTH_STAR_METRICS = [
-  "qualifiedInquiries",
+  "inquiries",
   "bookingFormCompletionRate",
   "consultationCloseRate",
   "averageProjectValue",

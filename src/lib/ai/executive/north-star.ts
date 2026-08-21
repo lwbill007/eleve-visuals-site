@@ -6,8 +6,8 @@ import { prisma } from "@/lib/db";
 export interface NorthStarMetrics {
   generatedAt: string;
   confidence: number;
-  qualifiedInquiries: number;
-  qualifiedInquiriesChange: number;
+  inquiries: number;
+  inquiriesChange: number;
   bookingFormCompletionRate: number;
   consultationCloseRate: number;
   averageProjectValue: number;
@@ -38,10 +38,15 @@ export async function computeNorthStarMetrics(): Promise<NorthStarMetrics> {
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const [qualifiedLeads, bookings, portfolioViews] = await Promise.all([
+  // Canonical `inquiry`/`lead` predicate (metric-definitions.ts), calendar-MTD — no pipeline-
+  // stage filter, despite this variable's old name. "contact" here is Submission.type='contact'
+  // (a contact-form fill), unrelated to the "inquiry" type value below it used to include —
+  // that value is never actually written to Submission.type anywhere in the app; removed as
+  // dead code rather than left implying a third, nonexistent submission type.
+  const [inquiriesThisMonth, bookings, portfolioViews] = await Promise.all([
     prisma.submission.count({
       where: {
-        type: { in: ["booking", "contact", "inquiry"] },
+        type: { in: ["booking", "contact"] },
         createdAt: { gte: monthStart },
       },
     }),
@@ -106,7 +111,7 @@ export async function computeNorthStarMetrics(): Promise<NorthStarMetrics> {
   }).catch(() => bookings);
 
   const bookingFormCompletionRate =
-    qualifiedLeads > 0 ? Math.round((bookingStarts / qualifiedLeads) * 100) : metrics.traffic.conversionRate;
+    inquiriesThisMonth > 0 ? Math.round((bookingStarts / inquiriesThisMonth) * 100) : metrics.traffic.conversionRate;
 
   const dataPoints = [
     metrics.revenue.thisMonth > 0,
@@ -118,8 +123,8 @@ export async function computeNorthStarMetrics(): Promise<NorthStarMetrics> {
   return {
     generatedAt: new Date().toISOString(),
     confidence: Math.round((dataPoints / 4) * 100) / 100,
-    qualifiedInquiries: qualifiedLeads,
-    qualifiedInquiriesChange: metrics.month.bookingsChange,
+    inquiries: inquiriesThisMonth,
+    inquiriesChange: metrics.month.bookingsChange,
     bookingFormCompletionRate,
     consultationCloseRate,
     averageProjectValue: avgProjectValue,
@@ -142,7 +147,7 @@ export async function computeNorthStarMetrics(): Promise<NorthStarMetrics> {
 export function formatNorthStarForPrompt(ns: NorthStarMetrics): string {
   return [
     "NORTH STAR METRICS (optimize all recommendations around these):",
-    `• Qualified inquiries (MTD): ${ns.qualifiedInquiries} (${ns.qualifiedInquiriesChange >= 0 ? "+" : ""}${ns.qualifiedInquiriesChange}%)`,
+    `• Inquiries (MTD): ${ns.inquiries} (${ns.inquiriesChange >= 0 ? "+" : ""}${ns.inquiriesChange}%)`,
     `• Booking form completion: ${ns.bookingFormCompletionRate}%`,
     `• Consultation close rate: ${ns.consultationCloseRate}%`,
     `• Average project value: $${ns.averageProjectValue.toLocaleString()}`,

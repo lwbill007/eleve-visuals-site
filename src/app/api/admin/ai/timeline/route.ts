@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getBusinessTimeline } from "@/lib/ai/intelligence/business-timeline";
 import { getRecentBusinessEvents } from "@/lib/ai/platform/business-events";
 import { prisma } from "@/lib/db";
-import { dollarsFromCents } from "@/lib/payments";
+import { dollarsFromCents, VERIFIED_SETTLED_PAYMENT_WHERE } from "@/lib/payments";
 
 export async function GET(request: Request) {
   try {
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     getBusinessTimeline(limit),
     getRecentBusinessEvents(limit),
     prisma.payment.findMany({
-      where: { status: "succeeded", verificationStatus: "verified" },
+      where: VERIFIED_SETTLED_PAYMENT_WHERE,
       orderBy: { paidAt: "desc" },
       take: 15,
     }),
