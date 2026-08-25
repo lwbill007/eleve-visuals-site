@@ -42,6 +42,30 @@ export default function PhotoLightbox({
   const closeRef = useRef<HTMLButtonElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [downloading, setDownloading] = useState(false);
+  // photoId -> signed display URL. Cached so paging back to a photo does not
+  // re-sign it, and so the neighbour prefetch below is not wasted.
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const pending = useRef<Set<string>>(new Set());
+
+  const resolve = useCallback(
+    async (target: ClientPhoto | undefined) => {
+      if (!target || urls[target.id] || pending.current.has(target.id)) return;
+      pending.current.add(target.id);
+      try {
+        const res = await fetch(
+          `/api/gallery/${encodeURIComponent(slug)}/photo/${target.id}/view`
+        );
+        if (!res.ok) throw new Error("unavailable");
+        const body = (await res.json()) as { url: string };
+        setUrls((current) => ({ ...current, [target.id]: body.url }));
+      } catch {
+        // Leave it unresolved; the thumbnail stays on screen rather than the
+        // frame going blank, and paging away and back retries.
+        pending.current.delete(target.id);
+      }
+    },
+    [slug, urls]
+  );
 
   const go = useCallback(
     (delta: number) => {
@@ -56,6 +80,12 @@ export default function PhotoLightbox({
   }, []);
 
   useEffect(() => {
+    void resolve(photos[index]);
+    void resolve(photos[index - 1]);
+    void resolve(photos[index + 1]);
+  }, [index, photos, resolve]);
+
+  useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
       else if (event.key === "ArrowRight") go(1);
@@ -66,9 +96,6 @@ export default function PhotoLightbox({
   }, [go, onClose]);
 
   if (!photo) return null;
-
-  // The neighbours are prefetched so paging feels instant rather than staged.
-  const neighbours = [photos[index - 1], photos[index + 1]].filter(Boolean) as ClientPhoto[];
 
   const downloadTier = allowOriginals
     ? "original"
@@ -119,7 +146,7 @@ export default function PhotoLightbox({
 
         <Image
           key={photo.id}
-          src={photo.displayUrl}
+          src={urls[photo.id] || photo.thumbnailUrl}
           alt={photo.caption || ""}
           width={photo.width || 1800}
           height={photo.height || 1200}
@@ -133,13 +160,6 @@ export default function PhotoLightbox({
         {index < photos.length - 1 ? (
           <NavArrow direction="next" onClick={() => go(1)} />
         ) : null}
-      </div>
-
-      {/* Off-screen prefetch of the adjacent frames. */}
-      <div className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0">
-        {neighbours.map((n) => (
-          <Image key={n.id} src={n.displayUrl} alt="" width={16} height={16} unoptimized aria-hidden="true" />
-        ))}
       </div>
 
       <div className="flex items-center justify-center gap-5 px-6 py-7">

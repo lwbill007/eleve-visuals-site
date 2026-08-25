@@ -91,7 +91,10 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const { gallery, stats } = data;
-  const failed = gallery.photos.filter((p) => p.status === "failed");
+  // Everything that is not ready, not just "failed": a browser closed mid-batch
+  // leaves a row at "uploading" that the client never sees, and the admin could
+  // not see it either until the cleanup cron relabelled it hours later.
+  const unfinished = gallery.photos.filter((p) => p.status !== "ready");
   const url = typeof window !== "undefined" ? `${window.location.origin}/gallery/${gallery.slug}` : "";
 
   return (
@@ -212,16 +215,18 @@ export default function GalleryDetailPage({ params }: { params: Promise<{ id: st
           <GalleryUploader galleryId={gallery.id} />
         </section>
 
-        {failed.length > 0 ? (
+        {unfinished.length > 0 ? (
           <section>
             <h2 className="mb-4 font-body text-[0.58rem] uppercase tracking-[0.28em] text-accent">
-              {failed.length} failed to process
+              {unfinished.length} not delivered
             </h2>
             <ul className="space-y-2">
-              {failed.map((photo) => (
+              {unfinished.map((photo) => (
                 <li key={photo.id} className="border border-stone/50 px-4 py-3">
                   <p className="font-body text-xs text-cream">{photo.filename}</p>
-                  <p className="mt-1 font-body text-xs text-muted">{photo.processingError}</p>
+                  <p className="mt-1 font-body text-xs text-muted">
+                    {photo.processingError || `Stuck at "${photo.status}".`}
+                  </p>
                 </li>
               ))}
             </ul>

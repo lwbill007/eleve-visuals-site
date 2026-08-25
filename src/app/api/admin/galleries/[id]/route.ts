@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireMinimumRole } from "@/lib/auth";
+import { rejectIfCrossOrigin } from "@/lib/admin-request-guard";
 import { prisma } from "@/lib/db";
 import { generateAccessCode, hashAccessCode } from "@/lib/gallery/codes";
 import { deletePrefix, galleryPrefix, galleryStorageUsage } from "@/lib/storage/r2";
@@ -83,6 +84,12 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // The admin cookie is SameSite=Lax, which already blocks cross-site POST,
+  // but this codebase applies an explicit origin check to high-risk mutating
+  // admin routes, and permanently destroying a gallery qualifies.
+  const crossOrigin = rejectIfCrossOrigin(request);
+  if (crossOrigin) return crossOrigin;
+
   try {
     await requireMinimumRole("editor");
   } catch {
@@ -151,9 +158,15 @@ export async function PATCH(
  * bucket full of files nothing references.
  */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // The admin cookie is SameSite=Lax, which already blocks cross-site POST,
+  // but this codebase applies an explicit origin check to high-risk mutating
+  // admin routes, and permanently destroying a gallery qualifies.
+  const crossOrigin = rejectIfCrossOrigin(request);
+  if (crossOrigin) return crossOrigin;
+
   try {
     await requireMinimumRole("owner");
   } catch {

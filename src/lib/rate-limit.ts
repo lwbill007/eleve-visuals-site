@@ -27,8 +27,12 @@ const LIMITS: Record<string, number> = {
   // Client galleries. The code bucket is deliberately tight: an 8-character
   // code from a 31-character alphabet is strong, but only if guessing is slow.
   "gallery:code": 8,
-  "gallery:asset": 600,
-  "gallery:download": 60,
+  // A wedding gallery is routinely 400+ photographs and a client saving them
+  // one at a time is the normal case, not abuse. 60/hour meant a paying client
+  // hit "Too many downloads" partway through their own delivery.
+  "gallery:download": 800,
+  // Signing a display URL when the lightbox opens. One per photo viewed.
+  "gallery:asset": 1200,
   "gallery:archive": 6,
   "gallery:favorite": 300,
   "gallery:comment": 60,

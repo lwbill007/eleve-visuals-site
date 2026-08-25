@@ -220,6 +220,135 @@ async function main() {
     assert.deepEqual(leaks, [], `S3 SDK imported outside src/lib/storage: ${leaks.join(", ")}`);
   });
 
+  console.log("\nProduction-readiness audit regressions");
+
+  const { safeExtension } = await import("../src/lib/storage/r2-keys");
+
+  await check("a filename cannot put slashes or control characters in an object key", () => {
+    for (const hostile of [
+      "/secret",
+      "jpg;rm -rf /",
+      "b?x=1&y=2",
+      "jpg\r\nX-Injected: 1",
+      "<script>",
+      "../../etc/passwd",
+    ]) {
+      const ext = safeExtension(hostile);
+      assert.match(ext, /^[a-z0-9]{1,12}$/, `${JSON.stringify(hostile)} -> ${JSON.stringify(ext)}`);
+    }
+    assert.equal(safeExtension(""), "bin", "an empty extension must still be a valid key");
+    assert.equal(safeExtension("JPG"), "jpg");
+    assert.equal(safeExtension("a".repeat(500)).length, 12, "must be length-bounded");
+  });
+
+  const limits = readFileSync(join(root, "src/lib/rate-limit.ts"), "utf8");
+  await check("a client can download a whole gallery without hitting the limit", () => {
+    const match = limits.match(/"gallery:download":\s*(\d+)/);
+    assert.ok(match, "gallery:download bucket must exist");
+    // A wedding gallery is routinely 400+ photographs saved one at a time.
+    assert.ok(
+      Number(match![1]) >= 500,
+      `gallery:download is ${match![1]}/hour — a client would be blocked mid-gallery`
+    );
+  });
+
+  const adminRoute = readFileSync(
+    join(root, "src/app/api/admin/galleries/[id]/route.ts"),
+    "utf8"
+  );
+  await check("destructive admin routes carry the origin check", () => {
+    for (const verb of ["PATCH", "DELETE"]) {
+      const start = adminRoute.indexOf(`export async function ${verb}(`);
+      assert.ok(start > 0, `${verb} handler must exist`);
+      const body = adminRoute.slice(start, start + 900);
+      assert.ok(
+        body.includes("rejectIfCrossOrigin"),
+        `${verb} must reject cross-origin requests`
+      );
+    }
+  });
+
+  const list = readFileSync(join(root, "src/app/api/admin/galleries/route.ts"), "utf8");
+  await check("the expired filter resolves against the clock, not a phantom status", () => {
+    // Nothing ever writes status="expired", so filtering on the literal
+    // returned an empty list forever and read as "no expired galleries".
+    assert.ok(
+      /status === "expired"/.test(list) && /expiresAt: \{ lt: now \}/.test(list),
+      "expired must be computed from expiresAt"
+    );
+  });
+
+  const svc = readFileSync(join(root, "src/lib/gallery/service.ts"), "utf8");
+  await check("display URLs are not pre-signed into the page payload", () => {
+    assert.ok(
+      !/displayUrl/.test(svc),
+      "pre-signing display URLs put 496KB of live credentials in a 500-photo page"
+    );
+  });
+
+  console.log("\nImage pipeline (real Sharp, real bytes)");
+
+  const sharp = (await import("sharp")).default;
+  const good = await sharp({
+    create: { width: 2400, height: 1600, channels: 3, background: { r: 90, g: 130, b: 70 } },
+  })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+
+  await check("a truncated upload is rejected, not stored as a half image", async () => {
+    const pipeline = readFileSync(join(root, "src/lib/storage/image-pipeline.ts"), "utf8");
+    assert.ok(
+      !/failOn: "none"/.test(pipeline),
+      'failOn:"none" silently accepts a partially-uploaded JPEG'
+    );
+    const truncated = good.subarray(0, Math.floor(good.length * 0.4));
+    await assert.rejects(
+      sharp(truncated, { failOn: "truncated" }).rotate().resize({ width: 640 }).webp().toBuffer(),
+      "a truncated JPEG must throw so the photo is marked failed"
+    );
+  });
+
+  await check("a valid JPEG still passes at that strictness", async () => {
+    const out = await sharp(good, { failOn: "truncated" })
+      .rotate()
+      .resize({ width: 640, withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toBuffer();
+    const meta = await sharp(out).metadata();
+    assert.equal(meta.width, 640);
+    assert.equal(meta.format, "webp");
+  });
+
+  await check("EXIF orientation is reflected in the stored dimensions", async () => {
+    const rotated = await sharp({
+      create: { width: 3000, height: 2000, channels: 3, background: { r: 20, g: 20, b: 20 } },
+    })
+      .withMetadata({ orientation: 6 })
+      .jpeg()
+      .toBuffer();
+    const meta = await sharp(rotated).metadata();
+    const turned = (meta.orientation ?? 1) >= 5;
+    const width = (turned ? meta.height : meta.width) ?? 0;
+    const height = (turned ? meta.width : meta.height) ?? 0;
+    // The grid reserves this ratio; if it disagreed with the rotated pixels
+    // every quarter-turned photo would shift the layout on load.
+    assert.equal(width, 2000, "a quarter-turned photo must report its rotated width");
+    assert.equal(height, 3000);
+    const out = await sharp(rotated).rotate().resize({ width: 640 }).webp().toBuffer();
+    const actual = await sharp(out).metadata();
+    assert.equal(actual.width! < actual.height!, true, "rendered pixels must match");
+  });
+
+  await check("a small original is never upscaled into a bigger, softer file", async () => {
+    const small = await sharp({
+      create: { width: 400, height: 300, channels: 3, background: { r: 5, g: 5, b: 5 } },
+    })
+      .jpeg()
+      .toBuffer();
+    const out = await sharp(small).resize({ width: 3200, withoutEnlargement: true }).webp().toBuffer();
+    assert.equal((await sharp(out).metadata()).width, 400);
+  });
+
   console.log(`\n${checks} checks passed\n`);
 }
 

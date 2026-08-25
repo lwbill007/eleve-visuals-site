@@ -8,6 +8,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { safeExtension } from "@/lib/storage/r2-keys";
 
 /**
  * Cloudflare R2, S3-compatible.
@@ -54,6 +55,8 @@ function r2(): S3Client {
   return client;
 }
 
+export { safeExtension };
+
 export type PhotoVariant = "originals" | "large" | "display" | "thumbnails";
 
 /**
@@ -68,8 +71,7 @@ export function photoKey(
   photoId: string,
   ext: string
 ): string {
-  const clean = ext.replace(/^\.+/, "").toLowerCase();
-  return `gallery/${galleryId}/${variant}/${photoId}.${clean}`;
+  return `gallery/${galleryId}/${variant}/${photoId}.${safeExtension(ext)}`;
 }
 
 export function archiveKey(galleryId: string, archiveId: string): string {

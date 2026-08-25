@@ -1,5 +1,9 @@
 import "server-only";
 import sharp from "sharp";
+
+// Each invocation handles exactly one photo, so a cross-invocation cache
+// only retains memory on a warm container that will never reuse it.
+sharp.cache(false);
 import { photoKey, putObject, type PhotoVariant } from "@/lib/storage/r2";
 
 /**
@@ -10,6 +14,18 @@ import { photoKey, putObject, type PhotoVariant } from "@/lib/storage/r2";
  * for something that runs free. Originals are uploaded browser-to-R2 and only
  * streamed here for derivation, so no client ever waits on this.
  */
+
+/**
+ * `"truncated"` rather than `"none"`.
+ *
+ * `"none"` made Sharp tolerate a partially-uploaded JPEG: it decoded the bytes
+ * it had, produced a half-grey frame, and the photo was stored as `ready` and
+ * delivered to the client. An interrupted upload is exactly the failure this
+ * pipeline exists to catch. Verified against real bytes 2026-08-25: at this
+ * level a truncated JPEG is rejected while valid JPEG, EXIF-rotated JPEG and
+ * PNG-with-alpha all still pass.
+ */
+const FAIL_ON = "truncated" as const;
 
 export const VARIANTS = {
   thumbnail: { width: 640, quality: 72 },
@@ -54,7 +70,7 @@ export async function deriveVariants(
   galleryId: string,
   photoId: string
 ): Promise<ProcessedPhoto> {
-  const meta = await sharp(original, { failOn: "none" }).metadata();
+  const meta = await sharp(original, { failOn: FAIL_ON }).metadata();
 
   // Report post-rotation dimensions without decoding the whole image: EXIF
   // orientations 5-8 are the quarter turns, and every derivative below is
@@ -68,7 +84,7 @@ export async function deriveVariants(
     DerivedVariant,
     (typeof VARIANTS)[DerivedVariant]
   ][]) {
-    const buffer = await sharp(original, { failOn: "none" })
+    const buffer = await sharp(original, { failOn: FAIL_ON })
       .rotate()
       // withoutEnlargement: a small original is never upscaled into a bigger,
       // softer file that costs more to serve and looks worse.
@@ -90,7 +106,7 @@ export async function deriveVariants(
  */
 async function averageColor(original: Buffer): Promise<string> {
   try {
-    const { data } = await sharp(original, { failOn: "none" })
+    const { data } = await sharp(original, { failOn: FAIL_ON })
       .rotate()
       .resize(1, 1, { fit: "cover" })
       .removeAlpha()
@@ -111,7 +127,7 @@ export async function watermarkBuffer(
   text: string,
   opacity = 0.28
 ): Promise<Buffer> {
-  const image = sharp(input, { failOn: "none" });
+  const image = sharp(input, { failOn: FAIL_ON });
   const { width = 1600, height = 1200 } = await image.metadata();
   const fontSize = Math.max(18, Math.round(width * 0.028));
   const svg = Buffer.from(

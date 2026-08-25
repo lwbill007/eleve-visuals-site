@@ -37,8 +37,22 @@ export async function GET(request: Request) {
   const page = Math.max(1, Number(url.searchParams.get("page") ?? 1) || 1);
   const perPage = 25;
 
+  // "expired" is not a stored status — expiry is a fact about expiresAt, and
+  // nothing writes status="expired". Filtering on it as a literal returned an
+  // empty list forever, which reads as "no expired galleries" rather than
+  // "this filter does not work". Resolve it against the clock instead.
+  const now = new Date();
+  const statusWhere =
+    status === "expired"
+      ? { status: "published", expiresAt: { lt: now } }
+      : status === "published"
+        ? { status: "published", OR: [{ expiresAt: null }, { expiresAt: { gte: now } }] }
+        : status
+          ? { status }
+          : {};
+
   const where = {
-    ...(status ? { status } : {}),
+    ...statusWhere,
     ...(search
       ? {
           OR: [
@@ -70,7 +84,8 @@ export async function GET(request: Request) {
       title: g.title,
       clientName: g.clientName,
       sessionType: g.sessionType,
-      status: g.status,
+      status:
+        g.status === "published" && g.expiresAt && g.expiresAt < now ? "expired" : g.status,
       photoCount: g._count.photos,
       favoriteCount: g._count.favorites,
       expiresAt: g.expiresAt,

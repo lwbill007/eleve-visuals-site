@@ -148,6 +148,31 @@ versions can eventually be expired while originals are kept.
 | Storage shows "Unknown" | The bucket could not be read. Not zero — unknown. Check credentials. |
 | Gallery 404s for the client | It is a draft, expired, or archived. That is deliberate: a client is never told which. |
 
+## Production-readiness audit, 2026-08-25
+
+Seven defects found and fixed; each has a regression test confirmed to fail
+against the pre-audit code.
+
+| Severity | Defect | Fix |
+|---|---|---|
+| High | `gallery:download` was 60/hour, so a client saving a 400-photo wedding gallery hit "Too many downloads" partway through their own delivery | raised to 800 |
+| High | `failOn: "none"` let Sharp accept a **truncated** upload, decode the bytes it had, and store the half-image as `ready` | `failOn: "truncated"` |
+| Medium | Nothing ever wrote `status="expired"`, so the admin's expired filter returned an empty list forever — reading as "none expired" rather than "broken filter" | resolved against `expiresAt`, plus a cron that persists the status |
+| Medium | Abandoned uploads left rows stuck at `uploading` invisible to client *and* admin, with no cleanup | `/api/cron/gallery-cleanup`, and the detail page now lists everything not `ready` |
+| Medium | Destructive admin routes lacked the origin check this codebase applies to high-risk mutations | `rejectIfCrossOrigin` on PATCH and DELETE |
+| Medium | Pre-signing display URLs put **496 KB** of live signed credentials into a 500-photo page for images the client may never open | display URLs minted on demand via `/photo/[id]/view` |
+| Low | An extension taken from a filename could put slashes and CRLF into object keys | `safeExtension()` |
+
+**Measured, not assumed:**
+
+- presigned R2 URL: **508 chars**, 0.15 ms to sign
+- Sharp: **279–847 ms** per photo, RSS **+34–85 MB** for 24–61 MP
+- EXIF orientation 6 correctly reported as rotated; small originals never upscaled
+
+**Not exploitable, verified rather than assumed:** a filename cannot escape the
+gallery prefix. S3 and R2 keys are opaque strings and never resolve `..`, so
+`deletePrefix` still reclaims everything. The fix is hygiene, not a breach.
+
 ## Not yet built
 
 - ZIP "download everything" — `GalleryArchive` model and rate-limit bucket
