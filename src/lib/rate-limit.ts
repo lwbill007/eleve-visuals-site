@@ -24,6 +24,15 @@ const LIMITS: Record<string, number> = {
   "admin-ai:cognitive": 40,
   "admin-ai:sessions-rank": 20,
   "admin-ai:notifications": 60,
+  // Client galleries. The code bucket is deliberately tight: an 8-character
+  // code from a 31-character alphabet is strong, but only if guessing is slow.
+  "gallery:code": 8,
+  "gallery:asset": 600,
+  "gallery:download": 60,
+  "gallery:archive": 6,
+  "gallery:favorite": 300,
+  "gallery:comment": 60,
+  "gallery:upload-url": 400,
 };
 
 /**

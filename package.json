@@ -18,19 +18,22 @@
     "verify:audit": "tsx scripts/stabilization-audit.ts",
     "audit:enterprise": "tsx scripts/enterprise-audit.ts",
     "audit:os": "tsx scripts/admin-os-audit.ts",
-    "verify": "tsc --noEmit && next lint && tsx scripts/verify-truth-layer.ts && tsx scripts/ai-regression-smoke.ts",
+    "verify": "tsc --noEmit && next lint && tsx scripts/verify-truth-layer.ts && tsx scripts/ai-regression-smoke.ts && tsx scripts/gallery-security.test.ts",
     "test:ai": "tsx scripts/ai-regression-smoke.ts",
     "test:admin-truth-security": "tsx scripts/admin-truth-security.test.ts",
     "db:audit:production": "tsx scripts/production-api-audit.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:smoke": "playwright test e2e/manual-smoke.spec.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:galleries": "tsx scripts/gallery-security.test.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1117.0",
+    "@aws-sdk/s3-request-presigner": "^3.1117.0",
     "@google-analytics/data": "^7.0.0",
     "@prisma/client": "^6.9.0",
     "@react-pdf/renderer": "^4.6.1",
@@ -44,6 +47,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.34.5",
     "stripe": "^22.5.0",
     "web-push": "^3.6.7",
     "zod": "^3.25.51"

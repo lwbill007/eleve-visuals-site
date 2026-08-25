@@ -9,7 +9,10 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin/", "/api/", "/login"],
+        // /gallery/ and /b/ are private client deliveries. The pages are also
+        // noindex at the document level; this is the belt to that's braces, and
+        // it keeps client names out of crawl logs entirely.
+        disallow: ["/admin/", "/api/", "/login", "/gallery/", "/b/"],
       },
     ],
     sitemap: `${base}/sitemap.xml`,

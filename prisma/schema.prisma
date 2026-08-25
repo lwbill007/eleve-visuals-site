@@ -84,22 +84,22 @@ model SiteContent {
 }
 
 model Submission {
-  id               String   @id @default(cuid())
-  idempotencyKey   String?  @unique
-  type             String
-  data             String
-  status           String   @default("new")
-  notes            String   @default("")
-  read             Boolean  @default(false)
-  starred          Boolean  @default(false)
-  sessionVolumeId  String?
-  ipAddress        String   @default("")
-  userAgent        String   @default("")
-  contactEmail     String   @default("")
-  readAt           DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  aiEvaluation     ApplicationEvaluation?
+  id              String                 @id @default(cuid())
+  idempotencyKey  String?                @unique
+  type            String
+  data            String
+  status          String                 @default("new")
+  notes           String                 @default("")
+  read            Boolean                @default(false)
+  starred         Boolean                @default(false)
+  sessionVolumeId String?
+  ipAddress       String                 @default("")
+  userAgent       String                 @default("")
+  contactEmail    String                 @default("")
+  readAt          DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  aiEvaluation    ApplicationEvaluation?
 
   @@index([type, status])
   @@index([type, createdAt])
@@ -114,31 +114,31 @@ model Submission {
 /// Persisted, auditable AI evaluation for a session application.
 /// Re-rank replaces these values only after a complete cohort evaluation succeeds.
 model ApplicationEvaluation {
-  id            String   @id @default(cuid())
-  submissionId  String   @unique
-  volumeId      String?
-  overallScore  Float    @map("score")
-  confidence    Int
-  rank          Int
-  version       String
-  provider      String
-  inputHash     String
-  aiEvaluation  String   @map("result")
-  portfolioScore Float?
-  brandAlignment Float?
-  businessValue Float?
-  professionalism Float?
-  versatility Float?
-  experience Float?
-  marketingImpact Float?
+  id                 String   @id @default(cuid())
+  submissionId       String   @unique
+  volumeId           String?
+  overallScore       Float    @map("score")
+  confidence         Int
+  rank               Int
+  version            String
+  provider           String
+  inputHash          String
+  aiEvaluation       String   @map("result")
+  portfolioScore     Float?
+  brandAlignment     Float?
+  businessValue      Float?
+  professionalism    Float?
+  versatility        Float?
+  experience         Float?
+  marketingImpact    Float?
   applicationQuality Float?
-  riskLevel     String   @default("medium")
-  strengths     String   @default("[]")
-  weaknesses    String   @default("[]")
-  reasoning     String   @default("")
-  lastEvaluatedAt DateTime @default(now()) @map("evaluatedAt")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  riskLevel          String   @default("medium")
+  strengths          String   @default("[]")
+  weaknesses         String   @default("[]")
+  reasoning          String   @default("")
+  lastEvaluatedAt    DateTime @default(now()) @map("evaluatedAt")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
@@ -149,23 +149,23 @@ model ApplicationEvaluation {
 /// Payment evidence from Stripe webhooks or manual admin entry.
 /// Only succeeded + verified rows count as settled revenue.
 model Payment {
-  id               String   @id @default(cuid())
-  stripeEventId    String   @unique
-  stripePaymentId  String   @default("")
-  amountCents      Int
-  currency         String   @default("usd")
-  status           String   @default("succeeded")
-  customerEmail    String   @default("")
-  description      String   @default("")
-  submissionId     String?
-  source           String   @default("stripe")
-  verificationStatus String @default("pending")
-  reconciledAt     DateTime?
-  reconciledBy     String   @default("")
-  paidAt           DateTime
-  raw              String   @default("{}")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  stripeEventId      String    @unique
+  stripePaymentId    String    @default("")
+  amountCents        Int
+  currency           String    @default("usd")
+  status             String    @default("succeeded")
+  customerEmail      String    @default("")
+  description        String    @default("")
+  submissionId       String?
+  source             String    @default("stripe")
+  verificationStatus String    @default("pending")
+  reconciledAt       DateTime?
+  reconciledBy       String    @default("")
+  paidAt             DateTime
+  raw                String    @default("{}")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([paidAt])
   @@index([status, paidAt])
@@ -338,7 +338,7 @@ model SessionVolume {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  cast                CastMember[]
+  cast CastMember[]
 
   @@index([published, status])
   @@index([featured])
@@ -346,27 +346,27 @@ model SessionVolume {
 }
 
 model AIMemory {
-  id          String   @id @default(cuid())
-  workspaceId String   @default("default")
-  layer       String   @default("operational")
-  category    String
-  key         String
-  title       String   @default("")
-  summary     String   @default("")
-  value       String   @default("{}")
-  confidence  Float    @default(0.7)
-  importance  Int      @default(50)
-  source      String   @default("system")
-  sourceRef   String   @default("")
-  verified    Boolean  @default(false)
-  verificationStatus String @default("pending")
-  verifiedAt  DateTime?
-  verifiedBy  String   @default("")
-  pinned      Boolean  @default(false)
-  archived    Boolean  @default(false)
-  tags        String   @default("[]")
-  updatedAt   DateTime @updatedAt
-  createdAt   DateTime @default(now())
+  id                 String    @id @default(cuid())
+  workspaceId        String    @default("default")
+  layer              String    @default("operational")
+  category           String
+  key                String
+  title              String    @default("")
+  summary            String    @default("")
+  value              String    @default("{}")
+  confidence         Float     @default(0.7)
+  importance         Int       @default(50)
+  source             String    @default("system")
+  sourceRef          String    @default("")
+  verified           Boolean   @default(false)
+  verificationStatus String    @default("pending")
+  verifiedAt         DateTime?
+  verifiedBy         String    @default("")
+  pinned             Boolean   @default(false)
+  archived           Boolean   @default(false)
+  tags               String    @default("[]")
+  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime  @default(now())
 
   relationsFrom AIMemoryRelation[] @relation("MemoryFrom")
   relationsTo   AIMemoryRelation[] @relation("MemoryTo")
@@ -496,34 +496,258 @@ model AICache {
 }
 
 model CastMember {
-  id                   String   @id @default(cuid())
+  id                   String        @id @default(cuid())
   volumeId             String
   volume               SessionVolume @relation(fields: [volumeId], references: [id], onDelete: Cascade)
   fullName             String
-  stageName            String   @default("")
-  slug                 String   @default("")
-  role                 String   @default("model")
+  stageName            String        @default("")
+  slug                 String        @default("")
+  role                 String        @default("model")
   profilePhoto         String?
-  additionalPhotos     String   @default("[]")
-  bio                  String   @default("")
-  instagram            String   @default("")
-  tiktok               String   @default("")
-  website              String   @default("")
-  portfolioLink        String   @default("")
-  city                 String   @default("")
-  status               String   @default("confirmed")
-  featured             Boolean  @default(false)
-  isAlumni             Boolean  @default(false)
-  featuredAlumni       Boolean  @default(false)
-  notes                String   @default("")
-  futureCollaborations String   @default("")
-  enableProfile        Boolean  @default(false)
-  awards               String   @default("[]")
-  sortOrder            Int      @default(0)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  additionalPhotos     String        @default("[]")
+  bio                  String        @default("")
+  instagram            String        @default("")
+  tiktok               String        @default("")
+  website              String        @default("")
+  portfolioLink        String        @default("")
+  city                 String        @default("")
+  status               String        @default("confirmed")
+  featured             Boolean       @default(false)
+  isAlumni             Boolean       @default(false)
+  featuredAlumni       Boolean       @default(false)
+  notes                String        @default("")
+  futureCollaborations String        @default("")
+  enableProfile        Boolean       @default(false)
+  awards               String        @default("[]")
+  sortOrder            Int           @default(0)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@index([volumeId, sortOrder])
   @@index([slug])
   @@index([featuredAlumni])
+}
+
+// ---------------------------------------------------------------------------
+// Client galleries — private photography delivery.
+//
+// Storage rule: rows here hold object KEYS, never binaries and never full URLs.
+// The bucket host can change without a migration, and a key alone grants no
+// access — every client-facing byte is served through a short-lived signed URL
+// minted after a session check. See src/lib/storage/r2.ts.
+// ---------------------------------------------------------------------------
+
+/// A delivered gallery. Links to the booking it came from when there is one;
+/// stands alone when there isn't, so work outside the pipeline is deliverable.
+model Gallery {
+  id          String @id @default(cuid())
+  slug        String @unique
+  title       String
+  description String @default("")
+  sessionType String @default("")
+
+  /// Nullable on purpose: not every gallery originates in the booking pipeline.
+  submissionId String?
+  /// Denormalised so a gallery still addresses its client after a Submission is
+  /// archived, and so the delivery payload never needs to parse Submission.data.
+  clientName   String  @default("")
+  clientEmail  String  @default("")
+
+  /// draft | published | expired | archived
+  status String @default("draft")
+
+  /// code = access code required. link = anyone with the URL (still noindex,
+  /// still signed URLs, still revocable) for the rare "just send it" delivery.
+  accessMode     String @default("code")
+  /// bcrypt. The plaintext code is shown to the admin once, at generation.
+  accessCodeHash String @default("")
+  /// Bumped on regenerate/revoke; older sessions carrying a lower epoch die
+  /// instantly without a table scan or a session-row write.
+  accessEpoch    Int    @default(1)
+
+  downloadEnabled        Boolean @default(true)
+  /// web | high — the ceiling for normal downloads. Originals are separate.
+  downloadQuality        String  @default("high")
+  /// Off unless deliberately enabled: an original is the one asset that cannot
+  /// be re-derived, so it is never delivered by forgetting a setting.
+  allowDownloadOriginals Boolean @default(false)
+  favoriteEnabled        Boolean @default(true)
+  commentsEnabled        Boolean @default(false)
+  watermarkEnabled       Boolean @default(false)
+
+  expiresAt   DateTime?
+  publishedAt DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sections  GallerySection[]
+  photos    GalleryPhoto[]
+  sessions  GalleryAccessSession[]
+  favorites GalleryFavorite[]
+  comments  GalleryComment[]
+  events    GalleryEvent[]
+  archives  GalleryArchive[]
+
+  @@index([status, createdAt])
+  @@index([submissionId])
+  @@index([clientEmail])
+  @@index([expiresAt])
+}
+
+/// Highlights / Ceremony / Reception. Every gallery has at least one.
+model GallerySection {
+  id        String   @id @default(cuid())
+  galleryId String
+  title     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gallery Gallery        @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  photos  GalleryPhoto[]
+
+  @@index([galleryId, sortOrder])
+}
+
+model GalleryPhoto {
+  id        String  @id @default(cuid())
+  galleryId String
+  sectionId String?
+
+  /// Object keys, not URLs. Derivatives are null until processing completes.
+  storageKeyOriginal  String
+  storageKeyLarge     String?
+  storageKeyDisplay   String?
+  storageKeyThumbnail String?
+
+  filename  String
+  mimeType  String @default("image/jpeg")
+  size      Int    @default(0)
+  width     Int    @default(0)
+  height    Int    @default(0)
+  /// Averaged corner colour, used as the placeholder so the grid never flashes
+  /// white and never shifts layout.
+  blurColor String @default("#1a1a1a")
+  caption   String @default("")
+  sortOrder Int    @default(0)
+
+  /// uploading | processing | ready | failed
+  status          String    @default("uploading")
+  processingError String    @default("")
+  processedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gallery   Gallery           @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  section   GallerySection?   @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  favorites GalleryFavorite[]
+  comments  GalleryComment[]
+
+  @@index([galleryId, sortOrder])
+  @@index([galleryId, status])
+  @@index([sectionId, sortOrder])
+}
+
+/// One client browser that cleared the access gate. The cookie carries a signed
+/// JWT; this row is what makes revocation real rather than advisory.
+model GalleryAccessSession {
+  id         String    @id @default(cuid())
+  galleryId  String
+  /// SHA-256 of the session token. The raw token is never stored, so a database
+  /// leak cannot be replayed against a live gallery.
+  tokenHash  String    @unique
+  epoch      Int       @default(1)
+  ipHash     String    @default("")
+  userAgent  String    @default("")
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  gallery   Gallery           @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  favorites GalleryFavorite[]
+  comments  GalleryComment[]
+
+  @@index([galleryId, revokedAt])
+  @@index([expiresAt])
+}
+
+model GalleryFavorite {
+  id        String   @id @default(cuid())
+  galleryId String
+  photoId   String
+  sessionId String
+  createdAt DateTime @default(now())
+
+  gallery Gallery              @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  photo   GalleryPhoto         @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  session GalleryAccessSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  /// One favourite per photo per client session — makes the toggle idempotent
+  /// under a double-tap or a retried request.
+  @@unique([photoId, sessionId])
+  @@index([galleryId, createdAt])
+}
+
+model GalleryComment {
+  id        String   @id @default(cuid())
+  galleryId String
+  photoId   String
+  sessionId String
+  body      String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  gallery Gallery              @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  photo   GalleryPhoto         @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  session GalleryAccessSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([galleryId, createdAt])
+  @@index([photoId])
+}
+
+/// Asynchronous "download everything" archives.
+model GalleryArchive {
+  id         String @id @default(cuid())
+  galleryId  String
+  /// web | high | original — an archive built for one tier is never served for another.
+  quality    String @default("high")
+  /// pending | building | ready | failed | expired
+  status     String @default("pending")
+  storageKey String @default("")
+  size       Int    @default(0)
+  photoCount Int    @default(0)
+  error      String @default("")
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  /// Temporary by construction; a cron sweeps these and frees the storage.
+  expiresAt   DateTime
+
+  gallery Gallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+
+  @@index([galleryId, quality, status])
+  @@index([expiresAt])
+}
+
+/// Gallery activity. Deliberately holds no raw IP and no client identity beyond
+/// the session row — enough to answer "did they open it", never a tracking log.
+model GalleryEvent {
+  id        String   @id @default(cuid())
+  galleryId String
+  sessionId String?
+  /// access_granted | access_denied | gallery_opened | photo_viewed |
+  /// favorite_added | favorite_removed | download_started | download_completed |
+  /// archive_requested | access_revoked | code_regenerated | gallery_expired
+  type      String
+  photoId   String?
+  meta      String   @default("{}")
+  createdAt DateTime @default(now())
+
+  gallery Gallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+
+  @@index([galleryId, type, createdAt])
+  @@index([galleryId, createdAt])
 }

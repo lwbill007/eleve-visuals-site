@@ -159,6 +159,14 @@ export const OS_PAGES: OsPageSpec[] = [
     question: "Where is the asset?",
     purpose: "Professional DAM — search, versions, Cloudinary.",
   },
+  {
+    id: "galleries",
+    system: "create",
+    label: "Galleries",
+    href: "/admin/galleries",
+    question: "What did the client receive?",
+    purpose: "Private client delivery — upload, access codes, downloads, favourites.",
+  },
   // Grow
   {
     id: "marketing",
