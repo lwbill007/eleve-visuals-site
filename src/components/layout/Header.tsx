@@ -80,11 +80,11 @@ export function Header({ navLinks = [...NAVIGATION] }: HeaderProps) {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8 lg:px-12">
           <Link
             href="/"
-            className="font-display text-xl tracking-wide text-cream md:text-2xl"
+            className="font-display text-xl tracking-[0.16em] text-cream md:text-2xl"
             aria-label="ÉLEVÉVISUALS home"
           >
             ÉLEVÉ
-            <span className="ml-1 text-xs font-body tracking-[0.3em] text-fog uppercase">
+            <span className="ml-2 text-[0.58rem] font-body tracking-[0.32em] text-fog uppercase">
               Visuals
             </span>
           </Link>
@@ -101,18 +101,18 @@ export function Header({ navLinks = [...NAVIGATION] }: HeaderProps) {
                     : "text-fog hover:text-cream"
                 )}
               >
-                {item.label}
+                {item.href === "/portfolio" ? "Work" : item.label}
               </Link>
             ))}
             <Button
-              variant="primary"
+              variant="outline"
               size="sm"
               href="/book"
               onClick={() =>
                 trackEngagement({ event: "cta_click", path: pathname, label: "nav_book" })
               }
             >
-              Book
+              Start a Project
             </Button>
           </nav>
 
@@ -160,7 +160,7 @@ export function Header({ navLinks = [...NAVIGATION] }: HeaderProps) {
                 pathname === item.href ? "text-cream" : "text-fog"
               )}
             >
-              {item.label}
+              {item.href === "/portfolio" ? "Work" : item.label}
             </Link>
           ))}
           <Button
@@ -171,7 +171,7 @@ export function Header({ navLinks = [...NAVIGATION] }: HeaderProps) {
               trackEngagement({ event: "cta_click", path: pathname, label: "mobile_nav_book" })
             }
           >
-            Book Your Experience
+            Start a Project
           </Button>
           </nav>
         </div>

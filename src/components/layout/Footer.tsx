@@ -20,6 +20,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
   const footerText = navigation?.footerText || siteConfig.tagline;
   const copyright =
     siteConfig.copyrightText || `© ${year} ${siteConfig.name}. All rights reserved.`;
+  const hasVerifiedEmail = Boolean(siteConfig.email.trim());
 
   return (
     <footer className="border-t border-stone/30 bg-ink-soft">
@@ -62,14 +63,14 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
             <div className="md:col-span-4">
               <p className="label-caps mb-4">Connect</p>
               <ul className="space-y-1">
-                <li>
+                {hasVerifiedEmail ? <li>
                   <a
                     href={`mailto:${siteConfig.email}`}
                     className="inline-flex min-h-11 items-center text-sm text-fog transition-colors hover:text-cream break-all"
                   >
                     {siteConfig.email}
                   </a>
-                </li>
+                </li> : null}
                 <li>
                   <a
                     href={siteConfig.instagramUrl}
@@ -85,13 +86,13 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                     href="/contact"
                     className="inline-flex min-h-11 items-center text-sm text-fog transition-colors hover:text-cream"
                   >
-                    Contact / Newsletter
+                    Contact ÉLEVÉ
                   </Link>
                 </li>
               </ul>
 
-              <div className="mt-8 border border-stone/40 p-5">
-                <p className="text-sm text-cream-dim">Ready to create?</p>
+              <div className="mt-8 border-t border-stone/50 pt-5">
+                <p className="text-sm text-cream-dim">Have a project worth building around?</p>
                 <p className="mt-1 text-xs text-muted">
                   Share your vision — we reply {siteConfig.responseTime || "within 1–2 business days"}.
                 </p>
@@ -99,7 +100,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
                   href="/book"
                   className="mt-3 inline-flex min-h-11 items-center text-xs tracking-[0.2em] text-accent uppercase link-underline"
                 >
-                  Book Your Experience →
+                  Start a Project →
                 </Link>
               </div>
             </div>

@@ -6,9 +6,18 @@ import type { HomepageCtaCopy } from "@/lib/types";
 import { trackEngagement } from "@/lib/analytics-client";
 
 export function HomeFinalCta({ copy }: { copy: HomepageCtaCopy }) {
+  const headline =
+    copy.headline === "Ready to create something unforgettable?"
+      ? "Have a release, fight, drop, or story worth building around?"
+      : copy.headline;
+  const subheadline =
+    copy.subheadline === "Limited availability. Exceptional projects only."
+      ? "Tell us what is moving, when it launches, and what the work needs to make people feel."
+      : copy.subheadline;
+
   return (
     <section
-      className="relative flex min-h-[70dvh] items-end overflow-hidden"
+      className="relative flex min-h-[58svh] items-center overflow-hidden bg-ink"
       data-experiment-slot="final_cta"
     >
       {copy.videoUrl ? (
@@ -32,24 +41,24 @@ export function HomeFinalCta({ copy }: { copy: HomepageCtaCopy }) {
           sizes="100vw"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-ink to-ink-soft" />
+        <div className="absolute inset-0 bg-ink" />
       )}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(10,10,10,0.98)_0%,rgba(10,10,10,0.84)_48%,rgba(10,10,10,0.35)_100%)]" />
+      {(copy.videoUrl || copy.backgroundImage) && <div className="absolute inset-0 bg-ink/65" />}
       <div className="grain absolute inset-0" />
 
-      <div className="relative z-10 w-full section-padding py-24 md:py-32">
+      <div className="relative z-10 w-full section-padding py-20 md:py-28">
         <div className="container-wide">
-          <div className="max-w-4xl border-t border-cream/30 pt-6">
-          {copy.eyebrow && <p className="label-caps mb-4 text-accent">{copy.eyebrow}</p>}
-          <h2 className="max-w-4xl font-display text-[clamp(3.2rem,7vw,7.5rem)] leading-[0.9] tracking-[-0.045em] text-balance">
-            {copy.headline}
+          <div className="mx-auto max-w-6xl border-y border-accent/60 py-10 text-center md:py-14">
+          {copy.eyebrow && <p className="label-caps mb-5 text-accent">{copy.eyebrow}</p>}
+          <h2 className="mx-auto max-w-5xl font-display text-[clamp(3rem,6vw,6.5rem)] leading-[0.9] tracking-[-0.045em] text-balance">
+            {headline}
           </h2>
-          {copy.subheadline && (
-            <p className="mt-7 max-w-xl text-base leading-relaxed text-fog md:text-lg">
-              {copy.subheadline}
+          {subheadline && (
+            <p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed text-fog md:text-lg">
+              {subheadline}
             </p>
           )}
-          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
             <Button
               variant="primary"
               size="lg"
@@ -58,7 +67,7 @@ export function HomeFinalCta({ copy }: { copy: HomepageCtaCopy }) {
                 trackEngagement({ event: "cta_click", path: "/", label: "final_cta_primary" })
               }
             >
-              {copy.primaryLabel}
+              {copy.primaryLabel === "Book Your Experience" ? "Start a Project" : copy.primaryLabel}
             </Button>
             {copy.secondaryLabel && copy.secondaryHref && (
               <Button
@@ -77,6 +86,9 @@ export function HomeFinalCta({ copy }: { copy: HomepageCtaCopy }) {
               </Button>
             )}
           </div>
+          <p className="mt-9 text-[0.6rem] font-medium uppercase tracking-[0.22em] text-cream/55">
+            Sacramento ↔ Bay Area · Reply within 1–2 business days
+          </p>
           </div>
         </div>
       </div>

@@ -38,8 +38,10 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   tagline: "Cinematic visual storytelling for brands, artists, and athletes.",
   description:
     "Premium photography, videography, and creative direction based in Sacramento and the Bay Area. Intentional visuals for people who refuse to look ordinary.",
-  url: "https://elevevisuals.com",
-  email: "hello@elevevisuals.com",
+  url: "https://www.eleve-visuals.com",
+  // Intentionally blank until an inbox on a domain ÉLEVÉ controls is verified.
+  // The previous elevevisuals.com address belongs to another company.
+  email: "",
   phone: "",
   instagram: "elevevisuals",
   instagramUrl: "https://instagram.com/elevevisuals",
@@ -62,14 +64,14 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
 
 export const DEFAULT_NAVIGATION: NavigationConfig = {
   navLinks: [
-    { label: "Portfolio", href: "/portfolio" },
+    { label: "Work", href: "/portfolio" },
     { label: "Sessions", href: "/sessions" },
     { label: "Services", href: "/services" },
     { label: "Experience", href: "/experience" },
     { label: "About", href: "/about" },
   ],
   footerLinks: [
-    { label: "Portfolio", href: "/portfolio" },
+    { label: "Work", href: "/portfolio" },
     { label: "Sessions", href: "/sessions" },
     { label: "Services", href: "/services" },
     { label: "Experience", href: "/experience" },
@@ -83,14 +85,14 @@ export const DEFAULT_NAVIGATION: NavigationConfig = {
 
 export const DEFAULT_HOMEPAGE: HomepageContent = {
   sections: [
-    { id: "stats", label: "Signature Stats", enabled: true },
     { id: "featured-work", label: "Featured Work", enabled: true },
-    { id: "services", label: "Services", enabled: true },
+    { id: "brand-story", label: "The ÉLEVÉ Method", enabled: true },
     { id: "sessions", label: "ÉLEVÉ Sessions", enabled: true },
     { id: "founder", label: "Meet the Founder", enabled: true },
-    { id: "process", label: "Client Experience", enabled: true },
-    { id: "brand-story", label: "Why ÉLEVÉ", enabled: true },
-    { id: "testimonials", label: "Testimonials", enabled: true },
+    { id: "services", label: "Services", enabled: true },
+    { id: "process", label: "Client Experience", enabled: false },
+    { id: "stats", label: "Signature Stats", enabled: false },
+    { id: "testimonials", label: "Testimonials", enabled: false },
     { id: "cta", label: "Final CTA", enabled: true },
   ],
   featuredSessionVolumeId: null,
@@ -98,8 +100,8 @@ export const DEFAULT_HOMEPAGE: HomepageContent = {
   banner: null,
   trustBar: {
     enabled: true,
-    eyebrow: "Trusted experience",
-    headline: "Confidence before the first frame.",
+    eyebrow: "ÉLEVÉ standard",
+    headline: "One creative lead. One cinematic standard.",
     stats: [
       { label: "Typical reply", value: "1–2 days" },
       { label: "Inquiry-first", value: "No public checkout" },
@@ -129,9 +131,9 @@ export const DEFAULT_HOMEPAGE: HomepageContent = {
   workFilters: ["Portraits", "Brands", "Athletes", "Events", "Motion", "Creative Direction"],
   copy: {
     featuredWork: {
-      eyebrow: "Selected Work",
-      headline: "Craft built to outlast the moment.",
-      subheadline: "Editorial projects across portrait, brand, athlete, and motion — each frame intentional.",
+      eyebrow: "Selected Stories",
+      headline: "Built for the world you want to enter.",
+      subheadline: "Different disciplines. One cinematic standard.",
     },
     services: {
       eyebrow: "Capabilities",
@@ -140,13 +142,13 @@ export const DEFAULT_HOMEPAGE: HomepageContent = {
     },
     sessions: {
       eyebrow: "ÉLEVÉ Sessions",
-      headline: "Limited volumes. Cinematic standards.",
-      subheadline: "Curated creative productions — part editorial, part experience.",
+      headline: "The experimental ten percent.",
+      subheadline: "Limited-volume productions where portraiture, film, and performance become one visual world.",
     },
     whyEleve: {
-      eyebrow: "Why ÉLEVÉ",
-      headline: "Direction before execution. Always.",
-      subheadline: "We build visual identities — not just images.",
+      eyebrow: "The ÉLEVÉ Method",
+      headline: "The image starts before the camera.",
+      subheadline: "Concept, light, movement, and finish — designed as one visual system.",
     },
     process: {
       eyebrow: "The Experience",
@@ -159,10 +161,10 @@ export const DEFAULT_HOMEPAGE: HomepageContent = {
       subheadline: "Partners who expect editorial quality and cinematic craft.",
     },
     cta: {
-      eyebrow: "Begin",
-      headline: "Ready to create something unforgettable?",
-      subheadline: "Limited availability. Exceptional projects only.",
-      primaryLabel: "Book Your Experience",
+      eyebrow: "Start with the story",
+      headline: "Have a release, fight, drop, or story worth building around?",
+      subheadline: "Tell us what is moving, when it launches, and what the work needs to make people feel.",
+      primaryLabel: "Start a Project",
       primaryHref: "/book",
       secondaryLabel: "Explore Portfolio",
       secondaryHref: "/portfolio",
@@ -207,12 +209,11 @@ export const DEFAULT_HOMEPAGE: HomepageContent = {
 };
 
 export const DEFAULT_HERO: HeroContent = {
-  headline: "Stories worth remembering deserve visuals worth obsessing over.",
-  subheadline:
-    "Photography. Motion. Creative direction. Crafted for brands, athletes, artists, and visionaries.",
+  headline: "One visual language. Stills and motion.",
+  subheadline: "For athletes, fashion, artists, and brands ready to look established.",
   description: "",
-  primaryCta: { label: "Book Your Experience", href: "/book" },
-  secondaryCta: { label: "Explore Portfolio", href: "/portfolio" },
+  primaryCta: { label: "View the Work", href: "/portfolio" },
+  secondaryCta: { label: "Start a Project", href: "/book" },
   image: null,
   imageAlt: "ÉLEVÉ Visuals cinematic hero",
   videoUrl: null,

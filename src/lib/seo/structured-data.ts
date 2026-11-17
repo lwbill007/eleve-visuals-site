@@ -35,7 +35,7 @@ export function buildOrganizationSchema(site: SiteConfig) {
     name: site.name,
     url,
     description: site.description || site.seoDescription,
-    email: site.email,
+    email: site.email || undefined,
     telephone: site.phone || undefined,
     image: absoluteUrl(url, site.ogImage),
     logo: `${url}/icon.svg`,

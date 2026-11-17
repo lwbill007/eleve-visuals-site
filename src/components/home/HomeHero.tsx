@@ -14,15 +14,22 @@ export function HomeHero({
 }) {
   const primaryLabel = hero.primaryCta.label || "Book Your Experience";
   const secondaryLabel = hero.secondaryCta.label || "Explore Portfolio";
+  const hasMedia = Boolean(hero.videoUrl || hero.image);
 
   return (
     <section
-      className="relative min-h-[100dvh] overflow-hidden bg-ink"
+      className="relative min-h-[100svh] overflow-hidden bg-ink"
       aria-label="Hero"
       data-experiment-slot="hero"
       data-experiment-id={experimentId || undefined}
     >
-      <div className="absolute inset-x-0 top-0 h-[64dvh] overflow-hidden lg:inset-y-0 lg:left-[42%] lg:h-auto">
+      <div
+        className={
+          hasMedia
+            ? "absolute inset-x-0 top-0 h-[58svh] overflow-hidden lg:inset-y-0 lg:left-[43%] lg:h-auto"
+            : "hidden"
+        }
+      >
         {hero.videoUrl ? (
           <video
             src={hero.videoUrl}
@@ -32,7 +39,7 @@ export function HomeHero({
             playsInline
             preload="metadata"
             poster={hero.image || undefined}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover object-center saturate-[0.78]"
             aria-hidden
           />
         ) : hero.image ? (
@@ -41,28 +48,43 @@ export function HomeHero({
             alt={hero.imageAlt || "ÉLEVÉ Visuals"}
             fill
             priority
-            className="object-cover"
+            className="object-cover object-center saturate-[0.78]"
             sizes="100vw"
           />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-ink to-ink-soft" />
-        )}
+        ) : null}
       </div>
 
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(10,10,10,0.05)_0%,rgba(10,10,10,0.12)_42%,#0a0a0a_67%,#0a0a0a_100%)] lg:bg-[linear-gradient(90deg,#0a0a0a_0%,#0a0a0a_34%,rgba(10,10,10,0.92)_47%,rgba(10,10,10,0.12)_74%,rgba(10,10,10,0.28)_100%)]" />
+      {hasMedia ? (
+        <>
+          <div className="absolute inset-x-0 top-[50svh] h-24 bg-ink lg:inset-y-0 lg:left-[43%] lg:top-0 lg:h-auto lg:w-24" />
+          <div className="absolute inset-y-0 right-0 hidden w-[57%] bg-ink/15 lg:block" />
+        </>
+      ) : null}
       <div className="grain absolute inset-0" />
 
-      <div className="relative z-10 flex min-h-[100dvh] w-full items-end px-5 pb-12 pt-[54dvh] sm:px-8 sm:pb-16 lg:items-center lg:px-12 lg:py-32">
+      <div
+        className={
+          hasMedia
+            ? "relative z-10 flex min-h-[100svh] w-full items-end px-5 pb-10 pt-[54svh] sm:px-8 sm:pb-14 lg:items-center lg:px-12 lg:py-32"
+            : "relative z-10 flex min-h-[100svh] w-full items-center px-5 py-28 sm:px-8 lg:px-12"
+        }
+      >
         <div className="mx-auto w-full max-w-7xl">
-          <div className="max-w-2xl lg:w-[52%] lg:max-w-none lg:pr-10">
+          <div
+            className={
+              hasMedia
+                ? "max-w-2xl lg:w-[52%] lg:max-w-none lg:pr-12"
+                : "max-w-3xl lg:w-[72%] lg:max-w-none"
+            }
+          >
             <div className="mb-5 flex items-center gap-4">
               <span className="h-px w-10 bg-accent/70" aria-hidden />
-              <p className="label-caps text-accent">ÉLEVÉ Visuals · Editorial production</p>
+              <p className="label-caps text-cream/75">Photography · Film · Creative Direction</p>
             </div>
-            <h1 className="font-display text-[clamp(3.25rem,7.3vw,7.6rem)] leading-[0.88] tracking-[-0.045em] text-balance text-cream">
+            <h1 className="font-display text-[clamp(3.15rem,6.4vw,6.85rem)] leading-[0.9] tracking-[-0.045em] text-balance text-cream">
               {hero.headline}
             </h1>
-            <div className="mt-7 max-w-xl border-l border-accent/40 pl-5 sm:mt-9 sm:pl-6">
+            <div className="mt-6 max-w-xl border-l border-accent/50 pl-5 sm:mt-8 sm:pl-6">
               <p className="text-base leading-relaxed text-cream-dim sm:text-lg">
                 {hero.subheadline}
               </p>
@@ -72,7 +94,7 @@ export function HomeHero({
                 </p>
               ) : null}
             </div>
-            <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap">
+            <div className="mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:flex-wrap">
             <Button
               variant="primary"
               size="lg"
@@ -109,11 +131,11 @@ export function HomeHero({
       </div>
 
       <div
-        className="absolute bottom-10 right-10 z-10 hidden items-center gap-4 lg:flex"
+        className="absolute bottom-10 left-12 z-10 hidden items-center gap-4 lg:flex"
         aria-hidden
       >
-        <span className="label-caps text-[0.55rem] text-cream/70">Selected work below</span>
-        <span className="h-px w-14 bg-cream/35" />
+        <span className="label-caps text-[0.55rem] text-cream/60">Selected stories below</span>
+        <span className="h-px w-14 bg-accent/60" />
       </div>
     </section>
   );

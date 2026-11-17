@@ -137,7 +137,7 @@ export async function POST(request: Request) {
           to: parsed.data.email,
           subject: confirmMail.subject,
           html: confirmMail.html,
-          replyTo: siteConfig.email,
+          replyTo: siteConfig.email || undefined,
         });
       })(),
       (async () => {

@@ -249,7 +249,7 @@ export async function POST(request: Request) {
             to: parsed.data.email,
             subject: mail.subject,
             html: mail.html,
-            replyTo: siteConfig.email,
+            replyTo: siteConfig.email || undefined,
           });
         })(),
         maybeAutoCloseVolume(volumeId, settings, volume.applicationDeadline),

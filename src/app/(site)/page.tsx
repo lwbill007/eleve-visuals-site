@@ -138,7 +138,7 @@ export default async function HomePage() {
       <HomeProcessTimeline
         key="process"
         copy={homepage.copy.process}
-        steps={homepage.processSteps.slice(0, 3)}
+        steps={homepage.processSteps.slice(0, 4)}
         moreHref="/experience"
         moreLabel="See the full experience →"
       />

@@ -212,7 +212,7 @@ function mapTestimonial(item: {
 // Public getters
 export async function getSiteConfig(): Promise<SiteConfig> {
   const stored = await getJsonContent(CONTENT_KEYS.siteConfig, DEFAULT_SITE_CONFIG);
-  return {
+  const merged = {
     ...DEFAULT_SITE_CONFIG,
     ...stored,
     brandColors: {
@@ -220,11 +220,34 @@ export async function getSiteConfig(): Promise<SiteConfig> {
       ...(stored.brandColors ?? {}),
     },
   };
+
+  // elevevisuals.com belongs to a different company. Never expose or use a
+  // legacy address on that domain; keep contact email unknown until Bill
+  // verifies an inbox he controls.
+  if (/@elevevisuals\.com$/i.test(merged.email.trim())) {
+    merged.email = "";
+  }
+
+  return merged;
 }
 
 export async function getHeroContent(): Promise<HeroContent> {
   const stored = await getJsonContent(CONTENT_KEYS.hero, DEFAULT_HERO);
-  return { ...DEFAULT_HERO, ...stored };
+  const merged = { ...DEFAULT_HERO, ...stored };
+  const legacyHeadlines = new Set([
+    "Visuals that move with intention.",
+    "Stories worth remembering deserve visuals worth obsessing over.",
+  ]);
+  if (legacyHeadlines.has(merged.headline.trim())) {
+    return {
+      ...merged,
+      headline: DEFAULT_HERO.headline,
+      subheadline: DEFAULT_HERO.subheadline,
+      primaryCta: DEFAULT_HERO.primaryCta,
+      secondaryCta: DEFAULT_HERO.secondaryCta,
+    };
+  }
+  return merged;
 }
 
 export async function getHomepageContent(): Promise<HomepageContent> {

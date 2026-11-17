@@ -68,7 +68,7 @@ export async function notifyApplicationStatusChange(
     to: email,
     subject: mail.subject,
     html: mail.html,
-    replyTo: siteConfig.email,
+    replyTo: siteConfig.email || undefined,
   });
 }
 

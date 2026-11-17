@@ -2,7 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
   const base =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://elevevisuals.com";
+    process.env.CANONICAL_SITE_URL?.replace(/\/$/, "") ??
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
+    "https://www.eleve-visuals.com";
 
   return {
     rules: [

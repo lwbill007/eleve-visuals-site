@@ -52,7 +52,7 @@ export default async function ContactPage() {
           <div className="grid gap-16 lg:grid-cols-12">
             <div className="lg:col-span-5">
               <div className="space-y-8 lg:sticky lg:top-28">
-                <div>
+                {siteConfig.email ? <div>
                   <p className="label-caps mb-3">Email</p>
                   <a
                     href={`mailto:${siteConfig.email}`}
@@ -60,7 +60,7 @@ export default async function ContactPage() {
                   >
                     {siteConfig.email}
                   </a>
-                </div>
+                </div> : null}
 
                 <div>
                   <p className="label-caps mb-3">Instagram</p>

@@ -661,7 +661,7 @@ export async function sendVisitorConfirmation(args: {
       to: args.to,
       subject: "We received your message — ÉLEVÉ Visuals",
       html,
-      replyTo: siteConfig.email,
+      replyTo: siteConfig.email || undefined,
     });
   } catch (error) {
     console.error("[notifications] sendVisitorConfirmation failed:", error);
