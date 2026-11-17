@@ -68,4 +68,14 @@ check("opening a volume closes any other open volume atomically", () => {
   }
 });
 
+check("deployment normalizes any pre-existing duplicate open volumes", () => {
+  const migration = readFileSync(
+    join(root, "prisma/migrations/20261116235900_single_open_session_volume/migration.sql"),
+    "utf8"
+  );
+  assert.match(migration, /ROW_NUMBER\(\) OVER/);
+  assert.match(migration, /"openRank" > 1/);
+  assert.match(migration, /'applications_closed'/);
+});
+
 console.log(`\n${checks} booking/application lifecycle checks passed\n`);
