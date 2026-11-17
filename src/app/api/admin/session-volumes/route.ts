@@ -46,17 +46,35 @@ export async function POST(request: Request) {
   if (!data.title || !data.slug) {
     return NextResponse.json({ error: "Title and slug are required" }, { status: 400 });
   }
+  if (
+    data.status === "applications_open" &&
+    data.applicationDeadline &&
+    data.applicationDeadline.getTime() <= Date.now()
+  ) {
+    return NextResponse.json({ error: "Application deadline must be in the future" }, { status: 400 });
+  }
 
   if (data.featured) {
     await prisma.sessionVolume.updateMany({ data: { featured: false } });
   }
 
-  const item = await prisma.sessionVolume.create({
-    data: {
-      ...data,
-      applicationDeadline:
-        data.applicationDeadline === undefined ? null : data.applicationDeadline,
-    },
+  const item = await prisma.$transaction(async (tx) => {
+    if (data.status === "applications_open") {
+      await tx.sessionVolume.updateMany({
+        where: { status: "applications_open" },
+        data: { status: "applications_closed" },
+      });
+    }
+    return tx.sessionVolume.create({
+      data: {
+        ...data,
+        ...(data.status === "applications_open"
+          ? { published: true, showApplyButton: true, archived: false }
+          : {}),
+        applicationDeadline:
+          data.applicationDeadline === undefined ? null : data.applicationDeadline,
+      },
+    });
   });
 
   revalidateSessionPages(data.slug);

@@ -13,6 +13,10 @@ import { notifyApplicationStatusChange } from "@/lib/application-notifications";
 import { maybeAutoCloseVolumeAfterAccept } from "@/lib/session-application-server";
 import { parseApplicationSettings } from "@/lib/session-application";
 import { invalidateIntelligenceCaches } from "@/lib/ai/cognitive/cache";
+import {
+  bookingLeadDaysRemaining,
+  bookingLeadExpiresAt,
+} from "@/lib/booking-expiration";
 
 function parseSubmissionData(raw: string) {
   try {
@@ -122,6 +126,7 @@ export async function GET(request: Request) {
   return NextResponse.json(
     submissions.map((s) => {
       const totalFromContact = s.contactEmail ? contactCounts.get(s.contactEmail) ?? 1 : 1;
+      const expiresAt = s.type === "booking" ? bookingLeadExpiresAt(s.createdAt, s.status) : null;
       return {
         id: s.id,
         type: s.type,
@@ -135,6 +140,9 @@ export async function GET(request: Request) {
         userAgent: s.userAgent,
         returningContact: totalFromContact > 1,
         contactSubmissionCount: totalFromContact,
+        expiresAt: expiresAt?.toISOString() ?? null,
+        daysUntilExpiry:
+          s.type === "booking" ? bookingLeadDaysRemaining(s.createdAt, s.status) : null,
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),
       };

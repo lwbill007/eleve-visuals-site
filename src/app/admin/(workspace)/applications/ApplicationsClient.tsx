@@ -63,6 +63,7 @@ function getRoles(data: Record<string, unknown>): string[] {
 
 export default function ApplicationsClient() {
   const searchParams = useSearchParams();
+  const requestedVolumeId = searchParams.get("volumeId") || "";
   const { toast } = useAdminToast();
   const [items, setItems] = useState<ApplicationRow[]>([]);
   const [volumes, setVolumes] = useState<SessionVolumeDTO[]>([]);
@@ -71,7 +72,7 @@ export default function ApplicationsClient() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
-  const [volumeFilter, setVolumeFilter] = useState(searchParams.get("volumeId") || "");
+  const [volumeFilter, setVolumeFilter] = useState(requestedVolumeId);
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
   const [roleFilter, setRoleFilter] = useState("");
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
@@ -104,8 +105,19 @@ export default function ApplicationsClient() {
   useEffect(() => {
     adminFetch("/api/admin/session-volumes")
       .then((r) => (r.ok ? r.json() : []))
-      .then(setVolumes);
-  }, []);
+      .then((items: SessionVolumeDTO[]) => {
+        setVolumes(items);
+        if (!requestedVolumeId) {
+          const open = items.find(
+            (volume) =>
+              volume.status === "applications_open" &&
+              volume.published &&
+              volume.showApplyButton
+          );
+          if (open) setVolumeFilter((current) => current || open.id);
+        }
+      });
+  }, [requestedVolumeId]);
 
   useEffect(() => {
     const timer = setTimeout(() => void load(), search ? 300 : 0);
@@ -322,6 +334,7 @@ export default function ApplicationsClient() {
           {volumes.map((v) => (
             <option key={v.id} value={v.id}>
               Vol. {v.volumeNumber} — {v.title}
+              {v.status === "applications_open" ? " (Open now)" : ""}
             </option>
           ))}
         </select>

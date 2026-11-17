@@ -53,6 +53,13 @@ export async function PUT(
   if (!data.title || !data.slug) {
     return NextResponse.json({ error: "Title and slug are required" }, { status: 400 });
   }
+  if (
+    data.status === "applications_open" &&
+    data.applicationDeadline &&
+    data.applicationDeadline.getTime() <= Date.now()
+  ) {
+    return NextResponse.json({ error: "Application deadline must be in the future" }, { status: 400 });
+  }
 
   try {
     if (data.featured) {
@@ -62,13 +69,24 @@ export async function PUT(
       });
     }
 
-    const item = await prisma.sessionVolume.update({
-      where: { id },
-      data: {
-        ...data,
-        applicationDeadline:
-          data.applicationDeadline === undefined ? undefined : data.applicationDeadline,
-      },
+    const item = await prisma.$transaction(async (tx) => {
+      if (data.status === "applications_open") {
+        await tx.sessionVolume.updateMany({
+          where: { id: { not: id }, status: "applications_open" },
+          data: { status: "applications_closed" },
+        });
+      }
+      return tx.sessionVolume.update({
+        where: { id },
+        data: {
+          ...data,
+          ...(data.status === "applications_open"
+            ? { published: true, showApplyButton: true, archived: false }
+            : {}),
+          applicationDeadline:
+            data.applicationDeadline === undefined ? undefined : data.applicationDeadline,
+        },
+      });
     });
 
     revalidateSessionPages(data.slug);

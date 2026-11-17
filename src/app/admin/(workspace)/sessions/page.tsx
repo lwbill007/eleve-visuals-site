@@ -474,7 +474,10 @@ export default function AdminSessionsPage() {
                 />
               </AdminField>
             </div>
-            <AdminField label="Status">
+            <AdminField
+              label="Status"
+              hint="Only one volume can accept applications. Opening this volume closes the currently open volume."
+            >
               <select
                 className="w-full"
                 value={editing.status || "draft"}
@@ -487,7 +490,10 @@ export default function AdminSessionsPage() {
                 ))}
               </select>
             </AdminField>
-            <AdminField label="Application Deadline" hint="ISO datetime for countdown">
+            <AdminField
+              label="Application Deadline"
+              hint="Required timing for the application window. A past deadline cannot be opened."
+            >
               <AdminInput
                 type="datetime-local"
                 value={

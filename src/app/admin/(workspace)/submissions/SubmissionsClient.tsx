@@ -30,6 +30,10 @@ import { formatInquiryId } from "@/lib/booking";
 import { BookingCommandCenter } from "@/components/admin/booking/BookingCommandCenter";
 import { METRIC_OWNERS, type MissingMetric } from "@/lib/ai/platform/metric-owners";
 import { osEyebrow, osPage } from "@/lib/ai/platform/os-systems";
+import {
+  BOOKING_OUTREACH_SCHEDULE_DAYS,
+  UNREACHED_BOOKING_EXPIRY_DAYS,
+} from "@/lib/booking-expiration";
 
 interface Submission {
   id: string;
@@ -42,6 +46,8 @@ interface Submission {
   userAgent?: string;
   returningContact?: boolean;
   contactSubmissionCount?: number;
+  expiresAt?: string | null;
+  daysUntilExpiry?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -465,12 +471,21 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
       />
 
       {isBookingMode ? (
-        <OsCapabilityGrid
-          className="mb-8"
-          title="Booking record"
-          subtitle="One booking answers: what does this need next? Open a row for the full capability map."
-          capabilities={bookingListCapabilities}
-        />
+        <>
+          <div className="mb-6 border border-accent/35 bg-accent/[0.04] px-4 py-3 text-sm text-fog">
+            <span className="font-medium text-cream">Unreached lead policy:</span> contact by day{" "}
+            {BOOKING_OUTREACH_SCHEDULE_DAYS[0]}, follow up around days{" "}
+            {BOOKING_OUTREACH_SCHEDULE_DAYS.slice(1).join(" and ")}, then automatically archive after{" "}
+            {UNREACHED_BOOKING_EXPIRY_DAYS} days. Move a lead to Qualified as soon as you connect.
+            Archived leads remain searchable and recoverable.
+          </div>
+          <OsCapabilityGrid
+            className="mb-8"
+            title="Booking record"
+            subtitle="One booking answers: what does this need next? Open a row for the full capability map."
+            capabilities={bookingListCapabilities}
+          />
+        </>
       ) : (
         <OsCapabilityGrid
           className="mb-8"
@@ -604,6 +619,21 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
                   {item.returningContact && (
                     <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[0.65rem] text-amber-300">
                       Returning{item.contactSubmissionCount ? ` ×${item.contactSubmissionCount}` : ""}
+                    </span>
+                  )}
+                  {item.type === "booking" && item.expiresAt && (
+                    <span
+                      className={cn(
+                        "rounded border px-2 py-0.5 text-[0.65rem]",
+                        (item.daysUntilExpiry ?? 0) <= 3
+                          ? "border-amber-400/40 text-amber-200"
+                          : "border-stone/40 text-fog"
+                      )}
+                      title={`Archives ${new Date(item.expiresAt).toLocaleDateString()}`}
+                    >
+                      {(item.daysUntilExpiry ?? 0) === 0
+                        ? "Archives today"
+                        : `Archives in ${item.daysUntilExpiry}d`}
                     </span>
                   )}
                   {!item.read && <span className="text-accent">· Unread</span>}

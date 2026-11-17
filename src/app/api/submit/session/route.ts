@@ -120,6 +120,7 @@ export async function POST(request: Request) {
     ...parsed.data,
     portfolioImages: cleanPortfolioImages,
     ...legacy,
+    sessionVolumeNumber: volume.volumeNumber,
     sessionVolumeSlug: volume.slug,
     sessionVolumeTitle: volume.title,
   };
