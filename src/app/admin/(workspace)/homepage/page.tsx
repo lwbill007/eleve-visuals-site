@@ -27,6 +27,7 @@ export default function AdminHomepagePage() {
   const [homepage, setHomepage] = useState<HomepageContent>(DEFAULT_HOMEPAGE);
   const [sessions, setSessions] = useState<SessionVolumeDTO[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioItemDTO[]>([]);
+  const [portfolioStatus, setPortfolioStatus] = useState<"loading" | "ready" | "unavailable">("loading");
   const [testimonials, setTestimonials] = useState<TestimonialDTO[]>([]);
   const [message, setMessage] = useState("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -74,8 +75,15 @@ export default function AdminHomepagePage() {
       .then((r) => (r.ok ? r.json() : []))
       .then(setSessions);
     adminFetch("/api/admin/portfolio")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((items: PortfolioItemDTO[]) => setPortfolio(Array.isArray(items) ? items : []));
+      .then((r) => {
+        if (!r.ok) throw new Error("Portfolio unavailable");
+        return r.json();
+      })
+      .then((items: PortfolioItemDTO[]) => {
+        setPortfolio(Array.isArray(items) ? items : []);
+        setPortfolioStatus("ready");
+      })
+      .catch(() => setPortfolioStatus("unavailable"));
     adminFetch("/api/admin/testimonials")
       .then((r) => (r.ok ? r.json() : []))
       .then((items: TestimonialDTO[]) => setTestimonials(Array.isArray(items) ? items : []));
@@ -115,6 +123,54 @@ export default function AdminHomepagePage() {
       },
     });
   }
+
+  function applyRulebookDefaults() {
+    setHero({
+      ...DEFAULT_HERO,
+      image: hero.image,
+      imageAlt: hero.imageAlt || DEFAULT_HERO.imageAlt,
+      videoUrl: hero.videoUrl,
+    });
+    setHomepage({
+      ...homepage,
+      sections: DEFAULT_HOMEPAGE.sections.map((section) => ({ ...section })),
+      workFilters: [],
+      copy: {
+        ...DEFAULT_HOMEPAGE.copy,
+        cta: {
+          ...DEFAULT_HOMEPAGE.copy.cta,
+          backgroundImage: homepage.copy.cta.backgroundImage,
+          videoUrl: homepage.copy.cta.videoUrl,
+        },
+      },
+      trustBar: {
+        ...DEFAULT_HOMEPAGE.trustBar,
+        featuredTestimonialIds: homepage.trustBar.featuredTestimonialIds,
+      },
+      whyPillars: DEFAULT_HOMEPAGE.whyPillars.map((pillar) => ({ ...pillar })),
+      processSteps: DEFAULT_HOMEPAGE.processSteps.map((step) => ({ ...step })),
+    });
+    setMessage("Rulebook defaults applied locally. Review the page, then save when ready.");
+  }
+
+  const featuredStories = useMemo(
+    () => portfolio.filter((item) => item.published && !item.archived && item.featured),
+    [portfolio]
+  );
+  const featuredCategories = useMemo(
+    () => new Set(featuredStories.map((item) => item.category).filter(Boolean)).size,
+    [featuredStories]
+  );
+  const proofReady =
+    portfolioStatus === "ready" && featuredStories.length >= 3 && featuredCategories >= 3;
+  const proofStatus =
+    portfolioStatus === "loading"
+      ? "Checking"
+      : portfolioStatus === "unavailable"
+        ? "Unavailable"
+        : proofReady
+          ? "Ready"
+          : "Needs proof";
 
   const analytics = METRIC_OWNERS.analytics;
   const homepageCapabilities: OsCapability[] = useMemo(
@@ -227,6 +283,30 @@ export default function AdminHomepagePage() {
         subtitle="Never invent CTR, scroll, or heatmap numbers on the CMS page."
         capabilities={homepageCapabilities}
       />
+      <section className="mb-10 border border-accent/35 bg-accent/[0.04] p-6 md:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-[0.65rem] font-medium uppercase tracking-[0.2em] text-accent">
+              ÉLEVÉ rulebook alignment
+            </p>
+            <h2 className="mt-3 font-display text-2xl text-cream md:text-3xl">
+              Keep the CMS in step with the public experience.
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-fog">
+              Restores the approved section order, hero, trust language, method principles, and CTA
+              copy. Uploaded hero and CTA media, the announcement, experiments, featured selections,
+              testimonials, and stats stay intact. Nothing is published until you save.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={applyRulebookDefaults}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center border border-accent px-5 text-xs font-medium uppercase tracking-[0.16em] text-cream transition-colors hover:bg-accent hover:text-ink"
+          >
+            Apply rulebook defaults
+          </button>
+        </div>
+      </section>
       <div className="space-y-10">
         <section className="border border-stone/30 p-6">
           <h2 className="mb-6 font-display text-xl">Hero</h2>
@@ -675,27 +755,58 @@ export default function AdminHomepagePage() {
         </section>
 
         <section className="border border-stone/30 p-6">
-          <h2 className="mb-6 font-display text-xl">Featured Work Filters</h2>
-          <StringListEditor
-            label="Category filter chips (one per line)"
-            items={homepage.workFilters}
-            onChange={(workFilters) => setHomepage({ ...homepage, workFilters })}
-          />
-          <p className="mt-3 text-xs text-muted">
-            Projects managed in{" "}
-            <Link href="/admin/portfolio" className="text-accent">
-              Portfolio
-            </Link>
-            . Use Featured on homepage toggle per project.
-          </p>
+          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-[0.65rem] font-medium uppercase tracking-[0.18em] text-accent">
+                Homepage proof
+              </p>
+              <h2 className="mt-2 font-display text-xl">Selected Stories Readiness</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-fog">
+                The public homepage shows up to three published projects marked Featured. It does
+                not create empty category lanes or fabricate proof when the portfolio is thin.
+              </p>
+            </div>
+            <span
+              className={cn(
+                "w-fit border px-3 py-1 text-[0.65rem] font-medium uppercase tracking-[0.16em]",
+                proofReady
+                  ? "border-emerald-400/40 text-emerald-300"
+                  : portfolioStatus === "unavailable"
+                    ? "border-stone/40 text-fog"
+                    : "border-amber-400/40 text-amber-200"
+              )}
+            >
+              {proofStatus}
+            </span>
+          </div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="border border-stone/25 p-4">
+              <p className="text-3xl font-display text-cream">
+                {portfolioStatus === "ready" ? featuredStories.length : "—"}
+              </p>
+              <p className="mt-1 text-xs text-muted">Published featured stories · target 3</p>
+            </div>
+            <div className="border border-stone/25 p-4">
+              <p className="text-3xl font-display text-cream">
+                {portfolioStatus === "ready" ? featuredCategories : "—"}
+              </p>
+              <p className="mt-1 text-xs text-muted">Distinct disciplines · target 3</p>
+            </div>
+          </div>
+          <Link
+            href="/admin/portfolio"
+            className="mt-5 inline-flex min-h-11 items-center text-xs font-medium uppercase tracking-[0.16em] text-accent"
+          >
+            Curate featured work →
+          </Link>
         </section>
 
         {(
           [
-            ["featuredWork", "Featured Work"],
-            ["services", "Services Preview"],
+            ["featuredWork", "Selected Stories"],
+            ["services", "Capabilities"],
             ["sessions", "ÉLEVÉ Sessions"],
-            ["whyEleve", "Why ÉLEVÉ"],
+            ["whyEleve", "The ÉLEVÉ Method"],
             ["process", "Client Experience"],
             ["testimonials", "Testimonials"],
           ] as const
@@ -729,7 +840,11 @@ export default function AdminHomepagePage() {
         ))}
 
         <section className="border border-stone/30 p-6">
-          <h2 className="mb-6 font-display text-xl">Why ÉLEVÉ Pillars</h2>
+          <h2 className="mb-2 font-display text-xl">ÉLEVÉ Method Principles</h2>
+          <p className="mb-6 text-xs leading-relaxed text-muted">
+            The public method section uses the first four principles. Keep them specific, defensible,
+            and free of unverified claims.
+          </p>
           <StringListEditor
             label="Pillars (title|description per line)"
             items={homepage.whyPillars.map((p) => `${p.title}|${p.description}`)}

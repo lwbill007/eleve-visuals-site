@@ -277,12 +277,21 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setSiteConfig({ ...siteConfig, creator: e.target.value })}
                 />
               </AdminField>
-              <AdminField label="Email">
-                <AdminInput
-                  value={siteConfig.email}
-                  onChange={(e) => setSiteConfig({ ...siteConfig, email: e.target.value })}
-                />
-              </AdminField>
+              <div>
+                <AdminField label="Verified Public Email">
+                  <AdminInput
+                    type="email"
+                    value={siteConfig.email}
+                    onChange={(e) => setSiteConfig({ ...siteConfig, email: e.target.value })}
+                    placeholder="hello@your-controlled-domain.com"
+                  />
+                </AdminField>
+                <p className="mt-2 text-xs leading-relaxed text-muted">
+                  Use only an inbox and domain ÉLEVÉ controls. Leave blank to hide the address and
+                  route inquiries through the contact forms. The legacy elevevisuals.com domain is
+                  intentionally blocked because it belongs to another company.
+                </p>
+              </div>
               <AdminField label="Phone">
                 <AdminInput
                   value={siteConfig.phone}

@@ -128,7 +128,8 @@ export const DEFAULT_HOMEPAGE: HomepageContent = {
       { label: "Cities Served", value: "", enabled: true },
     ],
   },
-  workFilters: ["Portraits", "Brands", "Athletes", "Events", "Motion", "Creative Direction"],
+  // Retained in the content schema for backwards compatibility; the editorial homepage has no filters.
+  workFilters: [],
   copy: {
     featuredWork: {
       eyebrow: "Selected Stories",
