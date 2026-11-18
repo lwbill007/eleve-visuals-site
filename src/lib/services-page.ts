@@ -6,10 +6,12 @@ import type {
   ServicesPageContent,
 } from "./types";
 import { resolvePortfolioCoverImage } from "./portfolio-utils";
+import { SERVICE_STARTING_PRICE_TEXT } from "./pricing-config";
 
 const PORTFOLIO_MATCH: Record<string, PortfolioCategory[]> = {
   photography: ["Portraits", "Brands", "Athletes", "Events"],
   videography: ["Video", "BTS"],
+  "monthly-partnerships": ["Brands", "Video", "BTS"],
   "creative-direction": ["Creative Direction", "Brands"],
 };
 
@@ -38,7 +40,7 @@ export function mergeServiceSection(
     description: cmsService?.description || editorial.description,
     image: cmsService?.image ?? null,
     imageAlt: cmsService?.imageAlt || `${editorial.eyebrow} by ÉLEVÉ Visuals`,
-    startingPrice: cmsService?.startingPrice ?? null,
+    startingPrice: SERVICE_STARTING_PRICE_TEXT[editorial.slug] ?? null,
   };
 }
 

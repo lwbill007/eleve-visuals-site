@@ -6,7 +6,7 @@ import {
   getPackageById,
 } from "./booking-packages";
 
-export const BOOKING_AUTOSAVE_KEY = "eleve-booking-draft-v4";
+export const BOOKING_AUTOSAVE_KEY = "eleve-booking-draft-v5";
 
 /** Smart inquiry — 4 steps, CRM fields preserved via defaults */
 export const BOOKING_STEPS = [
@@ -16,55 +16,34 @@ export const BOOKING_STEPS = [
   { id: 4, label: "Contact" },
 ] as const;
 
-/** Public service intents shown in Step 1 — map to packages for CRM. */
+/**
+ * Service intents retained for CRM and legacy draft normalization.
+ * The public form now selects an explicit package instead of silently mapping these labels.
+ */
 export const INQUIRY_SERVICES = [
   {
     id: "portrait",
-    label: "Portrait",
-    description: "Editorial portraits, personal brand, lifestyle",
-    packageId: "signature",
+    label: "Photography",
+    description: "Portrait and editorial photography",
+    packageId: "photo-signature",
     projectCategory: "Portrait",
     isSessionVolume: false,
   },
   {
-    id: "fashion",
-    label: "Fashion",
-    description: "Lookbooks, editorial fashion, creative campaigns",
-    packageId: "prestige",
-    projectCategory: "Portrait",
+    id: "motion",
+    label: "Video",
+    description: "Short-form and promotional film",
+    packageId: "video-signature",
+    projectCategory: "Video",
     isSessionVolume: false,
   },
   {
-    id: "branding",
-    label: "Branding",
-    description: "Brand systems, founders, visual identity",
-    packageId: "ascend",
+    id: "partnership",
+    label: "Monthly Partnership",
+    description: "Recurring photo and motion production",
+    packageId: "monthly-signature",
     projectCategory: "Business Branding",
     isSessionVolume: false,
-  },
-  {
-    id: "commercial",
-    label: "Commercial",
-    description: "Campaigns, product, and commercial production",
-    packageId: "apex",
-    projectCategory: "Business Branding",
-    isSessionVolume: false,
-  },
-  {
-    id: "event",
-    label: "Event",
-    description: "Experiences, launches, and live coverage",
-    packageId: "fusion",
-    projectCategory: "Event",
-    isSessionVolume: false,
-  },
-  {
-    id: "session",
-    label: "Session Volume",
-    description: "Apply to a curated ÉLEVÉ Sessions production",
-    packageId: "prestige",
-    projectCategory: "Portrait",
-    isSessionVolume: true,
   },
 ] as const;
 
@@ -196,13 +175,18 @@ export function serviceTypesFromCategory(category: string, options: string[]): s
 }
 
 function suggestedDuration(packageId: string): string {
-  const pkg = getPackageById(packageId);
-  if (!pkg) return "1 Hour";
-  if (pkg.family === "partnership") return "Full Day";
-  if (pkg.startingPrice >= 900) return "Full Day";
-  if (pkg.startingPrice >= 500) return "Half Day";
-  if (pkg.startingPrice >= 300) return "2 Hours";
-  return "1 Hour";
+  const durations: Record<string, string> = {
+    "photo-entry": "30 Minutes",
+    "photo-signature": "1 Hour",
+    "photo-premium": "2 Hours",
+    "video-entry": "30 Minutes",
+    "video-signature": "1 Hour",
+    "video-premium": "Half Day",
+    "monthly-entry": "1 Hour",
+    "monthly-signature": "2 Hours",
+    "monthly-premium": "Half Day",
+  };
+  return durations[packageId] ?? "Unsure";
 }
 
 /** Apply package selection → category, budget, deliverables, duration hints. */

@@ -433,16 +433,18 @@ export function buildOpportunityMetrics(data: Record<string, unknown>) {
   const value = typeof q?.estimatedProjectValue === "number" ? q.estimatedProjectValue : 0;
   const pkg = getPackageById(typeof data.packageId === "string" ? data.packageId : "");
   const complexity =
-    pkg?.family === "partnership" ? 92 : pkg?.family === "hybrid" ? 78 : pkg?.family === "motion" ? 70 : 55;
+    pkg?.family === "partnership" ? 92 : pkg?.family === "motion" ? 70 : 55;
   const scheduling =
     typeof data.preferredDate === "string" && data.preferredDate ? 40 : 75;
   const risk = Array.isArray(q?.risks) ? Math.min(90, 30 + (q.risks as unknown[]).length * 12) : 35;
   const hours =
     typeof (data as { qualification?: { estimatedProjectValue?: number } }).qualification === "object"
       ? pkg?.family === "partnership"
-        ? pkg.id === "legacy"
-          ? 40
-          : 12
+        ? pkg.level === "premium"
+          ? 28
+          : pkg.level === "signature"
+            ? 12
+            : 7
         : pkg?.startingPrice && pkg.startingPrice >= 900
           ? 10
           : pkg?.startingPrice && pkg.startingPrice >= 500
@@ -472,7 +474,7 @@ export function buildOpportunityMetrics(data: Record<string, unknown>) {
     {
       key: "brand",
       label: "Brand Potential",
-      value: pkg?.family === "partnership" || pkg?.family === "hybrid" ? "High" : "Medium",
+      value: pkg?.family === "partnership" ? "High" : "Medium",
       explain: "Fit for ongoing brand / partnership work.",
     },
     {

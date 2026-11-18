@@ -82,7 +82,7 @@ function segmentFromPackage(
   const blob = `${pkg?.id || ""} ${pkg?.projectCategory || ""} ${category || ""} ${visionBlob || ""}`;
   if (pkg?.family === "partnership") return "Creative Partner";
   if (/event|wedding|gala|conference|launch party/i.test(blob)) return "Event";
-  if (pkg?.family === "hybrid" || /brand|business/i.test(pkg?.projectCategory || category || "")) {
+  if (/brand|business/i.test(pkg?.projectCategory || category || "")) {
     if (/business|ascend|apex|brand/i.test(`${pkg?.id || ""} ${category || ""}`)) return "Business";
     return "Brand";
   }
@@ -90,8 +90,8 @@ function segmentFromPackage(
   return "Portrait";
 }
 
-function lifetimeMultiplier(segment: CrmSegment, pkg?: BookingPackage): number {
-  if (segment === "Creative Partner") return pkg?.id === "legacy" ? 1.4 : 2.2;
+function lifetimeMultiplier(segment: CrmSegment): number {
+  if (segment === "Creative Partner") return 2.2;
   if (segment === "Business" || segment === "Brand") return 2.5;
   if (segment === "Event") return 1.6;
   return 1.8;
@@ -153,12 +153,10 @@ export function qualifyInquiry(input: QualificationInput): InquiryQualification 
     .filter((n): n is string => Boolean(n));
 
   const upsells: string[] = [];
-  if (pkg?.id === "foundations") upsells.push("Present Signature — creative planning + more images");
-  if (pkg?.id === "signature") upsells.push("Present Prestige — multi-location editorial");
-  if (pkg?.id === "motion") upsells.push("Upgrade to Cinema for hero film + sound design");
-  if (pkg?.id === "fusion") upsells.push("Ascend brand day if they need a content library");
+  if (pkg?.level === "entry") upsells.push("Compare Signature for more direction and scope");
+  if (pkg?.level === "signature") upsells.push("Compare Premium when production depth is required");
   if (pkg && pkg.family !== "partnership" && value < 5000) {
-    upsells.push("Introduce Reserve if they need ongoing creative access");
+    upsells.push("Introduce a monthly partnership if they need ongoing creative access");
   }
   for (const id of pkg?.recommendedAddOnIds || []) {
     if (!addOnIds.includes(id)) {
@@ -191,10 +189,18 @@ export function qualifyInquiry(input: QualificationInput): InquiryQualification 
   }
 
   const recommendedPackage =
-    pkg?.id === "foundations" && score >= 60
-      ? "ÉLEVÉ Signature"
-      : pkg?.id === "signature" && score >= 75
-        ? "ÉLEVÉ Prestige"
+    pkg?.level === "entry" && score >= 60
+      ? pkg.family === "portrait"
+        ? "Signature Portrait"
+        : pkg.family === "motion"
+          ? "Motion Signature"
+          : "Monthly Signature"
+      : pkg?.level === "signature" && score >= 75
+        ? pkg.family === "portrait"
+          ? "Editorial Production"
+          : pkg.family === "motion"
+            ? "Motion Production"
+            : "Monthly Production Partner"
         : pkg?.name || "Discovery call to recommend";
 
   const recommendedAddOns = (pkg?.recommendedAddOnIds || [])
@@ -203,7 +209,7 @@ export function qualifyInquiry(input: QualificationInput): InquiryQualification 
     .map((id) => getAddOnById(id)?.name)
     .filter((n): n is string => Boolean(n));
 
-  const ltv = Math.round(value * lifetimeMultiplier(segment, pkg));
+  const ltv = Math.round(value * lifetimeMultiplier(segment));
 
   const hasRefs = Boolean(input.moodBoardUrl || input.pinterestLink || input.driveLink);
   const aiSummaryParts: string[] = [];

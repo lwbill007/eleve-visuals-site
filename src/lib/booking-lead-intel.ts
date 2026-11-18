@@ -295,11 +295,11 @@ export function buildLeadIntel(data: Record<string, unknown>): LeadIntelView {
         ? "Very high — multi-campaign capacity"
         : "Moderate to high with strong delivery",
     estimatedLifetimeValue: ltvNum,
-    profitMargin: `${Math.round(72)}% contribution model (estimated)`,
+    profitMargin: "Not calculated — verify labor and direct costs before quoting",
     creativeComplexity:
       pkg?.family === "partnership"
         ? "High — multi-touch creative system"
-        : pkg?.family === "hybrid" || pkg?.family === "motion"
+        : pkg?.family === "motion"
           ? "Elevated — photo + motion coordination"
           : "Moderate — directed stills production",
     schedulingDifficulty: str(data, "preferredDate")
@@ -540,7 +540,7 @@ function buildQuestions(
   } else if (pkg?.family === "motion") {
     qs.push("What is the primary platform and aspect ratio for the hero piece?");
     qs.push("Do you need a narrative film, social system, or both from this production?");
-  } else if (pkg?.family === "hybrid" || /business|brand/i.test(pkg?.projectCategory || "")) {
+  } else if (/business|brand/i.test(pkg?.projectCategory || "")) {
     qs.push("Where will these assets live first — website, paid, organic, or press?");
     qs.push("Who is the final creative approver on your side?");
   } else {
@@ -590,7 +590,7 @@ function buildCreativeRecs(
 ): CreativeRecommendations {
   const outdoor = /outdoor|location|on.?location/i.test(sessionSetting);
   const studio = /studio|indoor/i.test(sessionSetting);
-  const motion = pkg?.family === "motion" || pkg?.family === "hybrid";
+  const motion = pkg?.family === "motion";
   return {
     photographyStyle:
       pkg?.family === "partnership"
@@ -599,9 +599,9 @@ function buildCreativeRecs(
           ? "Directed editorial portraiture with emotional clarity"
           : "Clean editorial portraiture with intentional posing",
     videoStyle: motion
-      ? pkg?.id === "films" || pkg?.id === "cinema"
-        ? "Story-driven cinematic production with hero + vertical cuts"
-        : "Short-form cinematic social with graded finish"
+      ? pkg?.level === "premium"
+        ? "Story-driven promotional production with hero + platform cuts"
+        : "Defined short-form motion with a graded finish"
       : "Optional BTS / social accents if upsold",
     colorPalette: motion
       ? "Restrained cinematic grade — rich midtones, controlled contrast"
@@ -736,25 +736,27 @@ function buildUpsells(
       priority: "High",
       reason: "Ensures weather consistency and complete lighting control.",
       impact: "Higher production quality and fewer scheduling risks.",
-      estimatedValue: getAddOnById("studio-rental")?.startingPrice || 250,
+      estimatedValue: getAddOnById("studio-rental")?.startingPrice ?? 0,
     });
   }
-  if (pkg?.id === "foundations") {
+  if (pkg?.level === "entry") {
+    const signaturePackage = getPackageById(`${pkg.family === "portrait" ? "photo" : pkg.family === "motion" ? "video" : "monthly"}-signature`);
     out.unshift({
-      name: "Upgrade to ÉLEVÉ Signature",
+      name: "Compare Signature scope",
       priority: "High",
       reason: "Adds creative consultation, moodboard, and more usable selects.",
       impact: "Higher AOV and stronger portfolio outcome.",
-      estimatedValue: 150,
+      estimatedValue: Math.max(0, (signaturePackage?.startingPrice ?? pkg.startingPrice) - pkg.startingPrice),
     });
   }
-  if (pkg && pkg.family !== "partnership" && (pkg.startingPrice || 0) >= 650) {
+  if (pkg && pkg.family !== "partnership") {
+    const monthlyEntry = getPackageById("monthly-entry");
     out.push({
-      name: "Introduce ÉLEVÉ Reserve",
+      name: "Introduce Monthly Essential",
       priority: "Medium",
       reason: "Client may need ongoing creative access beyond a single day.",
       impact: "Converts one-off into partnership revenue.",
-      estimatedValue: 5000,
+      estimatedValue: monthlyEntry?.startingPrice ?? 0,
     });
   }
   // Dedupe by name

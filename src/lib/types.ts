@@ -622,6 +622,7 @@ export const NAVIGATION = [
   { label: "Portfolio", href: "/portfolio" },
   { label: "Sessions", href: "/sessions" },
   { label: "Services", href: "/services" },
+  { label: "Pricing", href: "/pricing" },
   { label: "About", href: "/about" },
 ] as const;
 

@@ -582,8 +582,12 @@ export default function AdminServicesPage() {
               <AdminField label="Starting Price">
                 <AdminInput
                   value={editing.startingPrice || ""}
-                  onChange={(e) => setEditing({ ...editing, startingPrice: e.target.value })}
+                  readOnly
+                  aria-readonly="true"
                 />
+                <p className="mt-2 text-xs text-muted">
+                  Managed by the approved pricing catalog to prevent conflicting public amounts.
+                </p>
               </AdminField>
               <AdminField label="Turnaround">
                 <AdminInput

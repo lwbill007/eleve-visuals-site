@@ -276,11 +276,13 @@ export default function AdminContentPage() {
               items={bookingOptions.durations}
               onChange={(durations) => setBookingOptions({ ...bookingOptions, durations })}
             />
-            <StringListEditor
-              label="Budget ranges"
-              items={bookingOptions.budgetRanges}
-              onChange={(budgetRanges) => setBookingOptions({ ...bookingOptions, budgetRanges })}
-            />
+            <div>
+              <p className="text-sm text-cream">Budget ranges</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Derived from the approved pricing catalog so public and admin pricing stay aligned.
+              </p>
+              <p className="mt-3 text-sm text-fog">{bookingOptions.budgetRanges.join(" · ")}</p>
+            </div>
             <StringListEditor
               label="Deliverables"
               items={bookingOptions.deliverables}

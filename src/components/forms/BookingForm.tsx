@@ -14,19 +14,18 @@ import { SubmitButton } from "@/components/ui/Button";
 import { FormSpamFields, useFormSpam } from "@/components/forms/FormSpamFields";
 import { BookingProgress } from "@/components/booking/BookingProgress";
 import { BookingSuccess } from "@/components/booking/BookingSuccess";
+import { PackageShowcase } from "@/components/booking/PackageShowcase";
 import { trackConversion, trackEngagement, trackFunnel } from "@/lib/analytics-client";
 import {
   BOOKING_AUTOSAVE_KEY,
   BOOKING_STEPS,
-  INQUIRY_SERVICES,
-  applyInquiryService,
+  applyPackageSelection,
   composeProjectVision,
-  getInquiryService,
   initialBookingData,
   normalizeBookingPayload,
   type BookingFormData,
 } from "@/lib/booking";
-import { formatPackagePrice, getPackageById } from "@/lib/booking-packages";
+import { formatPackageRate, getPackageById } from "@/lib/booking-packages";
 import { cn } from "@/lib/utils";
 import {
   isValidEmail,
@@ -75,10 +74,12 @@ export function BookingForm({
   bookingOptions,
   bookPage,
   responseTime = "Within 24–48 hours on business days",
+  initialPackageId = "",
 }: {
   bookingOptions: BookingOptions;
   bookPage: PageCopy["bookPage"];
   responseTime?: string;
+  initialPackageId?: string;
 }) {
   const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(1);
@@ -93,46 +94,61 @@ export function BookingForm({
   const spam = useFormSpam();
   const [minDate, setMinDate] = useState("");
   const idempotencyKeyRef = useRef("");
+  const initialSelectionHandledRef = useRef(false);
 
   const selectedPackage = useMemo(() => getPackageById(data.packageId), [data.packageId]);
-  const selectedService = useMemo(
-    () => getInquiryService(data.inquiryServiceId),
-    [data.inquiryServiceId]
-  );
 
   useEffect(() => {
     setMinDate(getTodayDateString());
   }, []);
 
   useEffect(() => {
+    if (initialSelectionHandledRef.current) return;
+    initialSelectionHandledRef.current = true;
+    let restored = false;
     try {
       const raw = sessionStorage.getItem(BOOKING_AUTOSAVE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        savedAt?: number;
-        data?: Pick<
-          BookingFormData,
-          | "inquiryServiceId"
-          | "packageId"
-          | "projectCategory"
-          | "serviceTypes"
-          | "deliverables"
-          | "budgetRange"
-          | "preferredDate"
-          | "flexibleDate"
-        >;
-      };
-      if (!parsed.savedAt || Date.now() - parsed.savedAt > BOOKING_DRAFT_TTL_MS) {
-        sessionStorage.removeItem(BOOKING_AUTOSAVE_KEY);
-        return;
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          savedAt?: number;
+          data?: Pick<
+            BookingFormData,
+            | "inquiryServiceId"
+            | "packageId"
+            | "projectCategory"
+            | "serviceTypes"
+            | "deliverables"
+            | "budgetRange"
+            | "preferredDate"
+            | "flexibleDate"
+          >;
+        };
+        if (!parsed.savedAt || Date.now() - parsed.savedAt > BOOKING_DRAFT_TTL_MS) {
+          sessionStorage.removeItem(BOOKING_AUTOSAVE_KEY);
+        } else if (parsed.data?.packageId && getPackageById(parsed.data.packageId)) {
+          setData((prev) => ({ ...prev, ...parsed.data }));
+          setStep(parsed.data.budgetRange ? 3 : 2);
+          setDraftRestored(true);
+          restored = true;
+        }
       }
-      setData((prev) => ({ ...prev, ...(parsed.data ?? {}) }));
-      setStep(parsed.data?.budgetRange ? 3 : parsed.data?.inquiryServiceId ? 2 : 1);
-      setDraftRestored(true);
     } catch {
       /* ignore */
     }
-  }, []);
+
+    const requestedPackage = getPackageById(initialPackageId);
+    if (!restored && requestedPackage) {
+      setData((prev) => ({
+        ...applyPackageSelection(prev, requestedPackage.id, {
+          serviceTypes: bookingOptions.serviceTypes,
+          deliverables: bookingOptions.deliverables,
+          budgetRanges: bookingOptions.budgetRanges,
+          durations: bookingOptions.durations,
+        }),
+        inquiryServiceId: requestedPackage.family,
+      }));
+    }
+  }, [bookingOptions, initialPackageId]);
 
   useEffect(() => {
     try {
@@ -209,8 +225,8 @@ export function BookingForm({
   const getStepErrors = (s: number): FormErrors<BookingFormData> => {
     const e: FormErrors<BookingFormData> = {};
     if (s === 1) {
-      if (!data.inquiryServiceId || !data.packageId) {
-        e.inquiryServiceId = "Select a service to continue";
+      if (!data.packageId) {
+        e.packageId = "Select an experience to continue";
       }
     }
     if (s === 2) {
@@ -362,7 +378,7 @@ export function BookingForm({
         nextSteps={bookPage.nextSteps}
         inquiryId={inquiryId}
         status="lead"
-        packageName={selectedService?.label || selectedPackage?.name}
+        packageName={selectedPackage?.name}
         responseTime={responseTime}
       />
     );
@@ -394,80 +410,39 @@ export function BookingForm({
         >
           {step === 1 && (
             <section className="space-y-6">
-              <div>
-                <p className="label-caps text-accent">Step 1</p>
-                <h2 className="font-display mt-2 text-3xl text-cream md:text-4xl">
-                  What are we creating?
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm text-fog md:text-base">
-                  Choose the closest fit. Exact package and deliverables are confirmed in consultation.
-                </p>
-              </div>
-              <div
-                className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-                role="radiogroup"
-                aria-label="Service type"
-              >
-                {INQUIRY_SERVICES.map((service) => {
-                  const selected = data.inquiryServiceId === service.id;
-                  return (
-                    <button
-                      key={service.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => {
-                        setData((prev) =>
-                          applyInquiryService(prev, service.id, {
-                            serviceTypes: bookingOptions.serviceTypes,
-                            deliverables: bookingOptions.deliverables,
-                            budgetRanges: bookingOptions.budgetRanges,
-                            durations: bookingOptions.durations,
-                          })
-                        );
-                        setErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.inquiryServiceId;
-                          delete next.packageId;
-                          return next;
-                        });
-                        trackEngagement({
-                          event: "cta_click",
-                          path: "/book",
-                          label: `service_${service.id}`,
-                        });
-                      }}
-                      className={cn(
-                        "min-h-[7.5rem] border p-5 text-left transition-all duration-300",
-                        selected
-                          ? "border-accent bg-accent/10"
-                          : "border-stone/35 bg-charcoal/20 hover:border-cream/30"
-                      )}
-                    >
-                      <p className="font-display text-xl text-cream">{service.label}</p>
-                      <p className="mt-2 text-sm text-fog">{service.description}</p>
-                      {"isSessionVolume" in service && service.isSessionVolume && (
-                        <p className="mt-3 text-[0.65rem] tracking-wide text-accent uppercase">
-                          Also see /sessions
-                        </p>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              {errors.inquiryServiceId && (
-                <p className="text-sm text-red-300" role="alert">
-                  {errors.inquiryServiceId}
-                </p>
-              )}
-              {selectedService?.isSessionVolume && (
-                <p className="text-sm text-fog">
-                  Prefer the full Sessions application?{" "}
-                  <Link href="/sessions" className="text-accent link-underline">
-                    Browse open volumes
-                  </Link>
-                </p>
-              )}
+              <PackageShowcase
+                selectedId={data.packageId}
+                error={errors.packageId}
+                onSelect={(pkg) => {
+                  setData((prev) => ({
+                    ...applyPackageSelection(prev, pkg.id, {
+                      serviceTypes: bookingOptions.serviceTypes,
+                      deliverables: bookingOptions.deliverables,
+                      budgetRanges: bookingOptions.budgetRanges,
+                      durations: bookingOptions.durations,
+                    }),
+                    inquiryServiceId: pkg.family,
+                  }));
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.inquiryServiceId;
+                    delete next.packageId;
+                    return next;
+                  });
+                  trackEngagement({
+                    event: "cta_click",
+                    path: "/book",
+                    label: `package_${pkg.id}`,
+                  });
+                }}
+              />
+              <p className="border-l border-accent/40 pl-4 text-sm leading-relaxed text-fog">
+                ÉLEVÉ Sessions is a separate casting experience, not a client package.{" "}
+                <Link href="/sessions" className="text-accent link-underline">
+                  Browse the currently open volume
+                </Link>
+                .
+              </p>
             </section>
           )}
 
@@ -555,7 +530,7 @@ export function BookingForm({
               {selectedPackage && (
                 <p className="text-xs text-muted">
                   Starting reference for {selectedPackage.name}:{" "}
-                  {formatPackagePrice(selectedPackage.startingPrice)} — final investment confirmed
+                  {formatPackageRate(selectedPackage)} — final investment confirmed
                   after consultation.
                 </p>
               )}
@@ -709,12 +684,11 @@ export function BookingForm({
                 onTurnstileExpire={() => spam.setTurnstileToken("")}
               />
 
-              {(selectedService || selectedPackage) && (
+              {selectedPackage && (
                 <div className="border border-stone/30 bg-charcoal/25 p-5 text-sm text-fog">
                   <p className="label-caps text-muted">Your inquiry</p>
                   <p className="mt-2 text-cream">
-                    {selectedService?.label}
-                    {selectedPackage ? ` · ${selectedPackage.name}` : ""}
+                    {selectedPackage.name} · {formatPackageRate(selectedPackage)}
                   </p>
                   {data.budgetRange && <p className="mt-1">Budget: {data.budgetRange}</p>}
                 </div>

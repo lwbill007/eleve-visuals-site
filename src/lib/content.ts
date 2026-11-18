@@ -21,6 +21,7 @@ import {
   DEFAULT_SESSIONS_APPLICATION,
   DEFAULT_SITE_CONFIG,
 } from "./defaults";
+import { SERVICE_STARTING_PRICE_TEXT } from "./pricing-config";
 import { mapPortfolioCredits, normalizePortfolioGallery } from "./portfolio-utils";
 import type {
   AboutContent,
@@ -172,7 +173,9 @@ function mapService(item: {
     includes: parseJsonArray(item.includes),
     deliverables: parseJsonArray(item.deliverables ?? "[]"),
     faqs: parseJsonArray(item.faqs ?? "[]"),
-    startingPrice: item.startingPrice,
+    // Retired CMS amounts must not re-enter admin intelligence or the public
+    // site. Service-family prices come from the approved catalog.
+    startingPrice: SERVICE_STARTING_PRICE_TEXT[item.slug] ?? "Custom proposal",
     turnaround: item.turnaround ?? "",
     image: item.image,
     imageAlt: item.imageAlt,
@@ -296,13 +299,19 @@ export async function getHomepageContent(): Promise<HomepageContent> {
 
 export async function getNavigationConfig(): Promise<NavigationConfig> {
   const stored = await getJsonContent(CONTENT_KEYS.navigation, DEFAULT_NAVIGATION);
+  const ensurePricingLink = (links: NavigationConfig["navLinks"]) =>
+    links.some((link) => link.href === "/pricing")
+      ? links
+      : [...links, { label: "Pricing", href: "/pricing" }];
+  const navLinks = stored.navLinks?.length ? stored.navLinks : DEFAULT_NAVIGATION.navLinks;
+  const footerLinks = stored.footerLinks?.length
+    ? stored.footerLinks
+    : DEFAULT_NAVIGATION.footerLinks;
   return {
     ...DEFAULT_NAVIGATION,
     ...stored,
-    navLinks: stored.navLinks?.length ? stored.navLinks : DEFAULT_NAVIGATION.navLinks,
-    footerLinks: stored.footerLinks?.length
-      ? stored.footerLinks
-      : DEFAULT_NAVIGATION.footerLinks,
+    navLinks: ensurePricingLink(navLinks),
+    footerLinks: ensurePricingLink(footerLinks),
   };
 }
 
@@ -343,6 +352,13 @@ export async function getServicesPageContent(): Promise<ServicesPageContent> {
   const intro = await getServicesIntro();
   return {
     ...content,
+    // Public service architecture follows the approved catalog. CMS content may
+    // refine copy and media, but cannot remove a priced service family.
+    sections: DEFAULT_SERVICES_PAGE.sections.map((fallback) => ({
+      ...fallback,
+      ...(content.sections.find((section) => section.slug === fallback.slug) ?? {}),
+      ctaHref: fallback.ctaHref,
+    })),
     hero: {
       ...content.hero,
       headline: intro.headline || content.hero.headline,
@@ -363,9 +379,9 @@ export async function getBookingOptions(): Promise<BookingOptions> {
       ? stored.sessionSettings
       : DEFAULT_BOOKING_OPTIONS.sessionSettings,
     durations: stored.durations?.length ? stored.durations : DEFAULT_BOOKING_OPTIONS.durations,
-    budgetRanges: stored.budgetRanges?.length
-      ? stored.budgetRanges
-      : DEFAULT_BOOKING_OPTIONS.budgetRanges,
+    // Budget bands are derived from the approved pricing catalog so CMS content
+    // cannot silently contradict the package selected in the inquiry flow.
+    budgetRanges: DEFAULT_BOOKING_OPTIONS.budgetRanges,
     deliverables: stored.deliverables?.length
       ? stored.deliverables
       : DEFAULT_BOOKING_OPTIONS.deliverables,

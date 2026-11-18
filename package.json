@@ -18,7 +18,7 @@
     "verify:audit": "tsx scripts/stabilization-audit.ts",
     "audit:enterprise": "tsx scripts/enterprise-audit.ts",
     "audit:os": "tsx scripts/admin-os-audit.ts",
-    "verify": "tsc --noEmit && next lint && tsx scripts/verify-truth-layer.ts && tsx scripts/ai-regression-smoke.ts && tsx scripts/gallery-security.test.ts && tsx scripts/booking-lifecycle.test.ts",
+    "verify": "tsc --noEmit && next lint && tsx scripts/verify-truth-layer.ts && tsx scripts/ai-regression-smoke.ts && tsx scripts/gallery-security.test.ts && tsx scripts/booking-lifecycle.test.ts && tsx scripts/pricing-consistency.test.ts",
     "test:ai": "tsx scripts/ai-regression-smoke.ts",
     "test:ai:live": "tsx scripts/ai-live-smoke.ts",
     "test:admin-truth-security": "tsx scripts/admin-truth-security.test.ts",
@@ -28,7 +28,8 @@
     "test:smoke": "playwright test e2e/manual-smoke.spec.ts",
     "postinstall": "prisma generate",
     "test:galleries": "tsx scripts/gallery-security.test.ts",
-    "test:booking-lifecycle": "tsx scripts/booking-lifecycle.test.ts"
+    "test:booking-lifecycle": "tsx scripts/booking-lifecycle.test.ts",
+    "test:pricing": "tsx scripts/pricing-consistency.test.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

@@ -15,7 +15,12 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default async function BookPage() {
+export default async function BookPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ package?: string }>;
+}) {
+  const requestedPackageId = (await searchParams).package ?? "";
   const [bookingOptions, pageCopy, site, testimonials] = await Promise.all([
     getBookingOptions(),
     getPageCopy(),
@@ -51,6 +56,7 @@ export default async function BookPage() {
                 bookingOptions={bookingOptions}
                 bookPage={pageCopy.bookPage}
                 responseTime={responseTime}
+                initialPackageId={requestedPackageId}
               />
             </div>
           </div>

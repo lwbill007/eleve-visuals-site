@@ -60,7 +60,7 @@ function inferCrmSegment(data: Record<string, unknown>): string {
   if (/reserve|legacy/i.test(pkg)) return "Creative Partner";
   if (/event/i.test(cat)) return "Event";
   if (/business|ascend|apex|brand/i.test(`${pkg} ${cat}`)) return "Business";
-  if (/hybrid|fusion|video|motion|cinema|films/i.test(`${pkg} ${cat}`)) return "Brand";
+  if (/video-|monthly-|video|motion|film/i.test(`${pkg} ${cat}`)) return "Brand";
   return "Portrait";
 }
 

@@ -5,13 +5,13 @@ import {
   BOOKING_ADDONS,
   BOOKING_PACKAGES,
   PACKAGE_FAMILY_LABELS,
-  formatPackagePrice,
+  formatPackageRate,
   type BookingPackage,
   type PackageFamily,
 } from "@/lib/booking-packages";
 import { cn } from "@/lib/utils";
 
-const FAMILIES: PackageFamily[] = ["portrait", "motion", "hybrid", "partnership"];
+const FAMILIES: PackageFamily[] = ["portrait", "motion", "partnership"];
 
 function PreviewFrame({
   pkg,
@@ -92,8 +92,8 @@ export function PackageShowcase({
           How should we create together?
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-fog md:text-base">
-          Every experience is designed as a creative partnership—not a commodity session.
-          Starting prices guide the conversation; your proposal is tailored after consultation.
+          Compare exact production time and deliverables before you inquire. Starting prices
+          guide the conversation; usage and custom production costs are confirmed in writing.
         </p>
       </div>
 
@@ -123,10 +123,10 @@ export function PackageShowcase({
 
       {family === "partnership" && (
         <div className="border border-accent/30 bg-gradient-to-r from-accent/10 to-transparent px-5 py-4">
-          <p className="font-display text-xl text-cream">Creative access—not hourly bookings.</p>
+          <p className="font-display text-xl text-cream">A defined monthly production system.</p>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fog">
-            Reserve and Legacy sell dedicated creative capacity. You invest in ongoing production
-            whenever your business needs it—strategy, planning, photography, and motion included.
+            Every partnership has a three-month initial term, one scheduled production window,
+            defined deliverables, no rollover, and clear revision limits.
           </p>
         </div>
       )}
@@ -154,12 +154,6 @@ export function PackageShowcase({
               )}
               style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
             >
-              {pkg.popular && (
-                <span className="absolute top-3 left-3 z-10 label-caps bg-ink/80 px-2 py-1 text-[0.6rem] text-accent backdrop-blur-sm">
-                  Most chosen
-                </span>
-              )}
-
               <PreviewFrame pkg={pkg} selected={selected} />
 
               <button
@@ -176,7 +170,7 @@ export function PackageShowcase({
                   <p className="mt-1 text-sm text-accent">{pkg.headline}</p>
                 )}
                 <p className="mt-3 font-display text-2xl text-accent">
-                  From {formatPackagePrice(pkg.startingPrice)}
+                  From {formatPackageRate(pkg)}
                 </p>
                 <p className="mt-3 text-sm leading-relaxed text-fog">{pkg.description}</p>
 
