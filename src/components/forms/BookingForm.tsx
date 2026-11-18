@@ -15,6 +15,7 @@ import { FormSpamFields, useFormSpam } from "@/components/forms/FormSpamFields";
 import { BookingProgress } from "@/components/booking/BookingProgress";
 import { BookingSuccess } from "@/components/booking/BookingSuccess";
 import { PackageShowcase } from "@/components/booking/PackageShowcase";
+import { BookingScopeSummary } from "@/components/booking/BookingScopeSummary";
 import { trackConversion, trackEngagement, trackFunnel } from "@/lib/analytics-client";
 import {
   BOOKING_AUTOSAVE_KEY,
@@ -105,7 +106,7 @@ export function BookingForm({
   useEffect(() => {
     if (initialSelectionHandledRef.current) return;
     initialSelectionHandledRef.current = true;
-    let restored = false;
+    let restoredData: Partial<BookingFormData> | undefined;
     try {
       const raw = sessionStorage.getItem(BOOKING_AUTOSAVE_KEY);
       if (raw) {
@@ -121,15 +122,16 @@ export function BookingForm({
             | "budgetRange"
             | "preferredDate"
             | "flexibleDate"
+            | "location"
+            | "sessionSetting"
+            | "projectTimeline"
           >;
         };
         if (!parsed.savedAt || Date.now() - parsed.savedAt > BOOKING_DRAFT_TTL_MS) {
           sessionStorage.removeItem(BOOKING_AUTOSAVE_KEY);
         } else if (parsed.data?.packageId && getPackageById(parsed.data.packageId)) {
-          setData((prev) => ({ ...prev, ...parsed.data }));
-          setStep(parsed.data.budgetRange ? 3 : 2);
+          restoredData = parsed.data;
           setDraftRestored(true);
-          restored = true;
         }
       }
     } catch {
@@ -137,16 +139,19 @@ export function BookingForm({
     }
 
     const requestedPackage = getPackageById(initialPackageId);
-    if (!restored && requestedPackage) {
+    const restoredPackage = getPackageById(restoredData?.packageId ?? "");
+    const selectedPackage = requestedPackage ?? restoredPackage;
+    if (selectedPackage) {
       setData((prev) => ({
-        ...applyPackageSelection(prev, requestedPackage.id, {
+        ...applyPackageSelection({ ...prev, ...restoredData }, selectedPackage.id, {
           serviceTypes: bookingOptions.serviceTypes,
           deliverables: bookingOptions.deliverables,
           budgetRanges: bookingOptions.budgetRanges,
           durations: bookingOptions.durations,
         }),
-        inquiryServiceId: requestedPackage.family,
+        inquiryServiceId: selectedPackage.family,
       }));
+      setStep(requestedPackage ? 1 : 2);
     }
   }, [bookingOptions, initialPackageId]);
 
@@ -176,6 +181,9 @@ export function BookingForm({
           budgetRange: data.budgetRange,
           preferredDate: data.preferredDate,
           flexibleDate: data.flexibleDate,
+          location: data.location,
+          sessionSetting: data.sessionSetting,
+          projectTimeline: data.projectTimeline,
         };
         sessionStorage.setItem(
           BOOKING_AUTOSAVE_KEY,
@@ -230,12 +238,17 @@ export function BookingForm({
       }
     }
     if (s === 2) {
-      if (!data.budgetRange) e.budgetRange = "Select a budget range";
       if (data.preferredDate && !isFutureDate(data.preferredDate)) {
         e.preferredDate = "Choose today or a future date";
       }
       if (data.flexibleDate && !isFutureDate(data.flexibleDate)) {
         e.flexibleDate = "Invalid date";
+      } else if (
+        data.preferredDate &&
+        data.flexibleDate &&
+        data.flexibleDate < data.preferredDate
+      ) {
+        e.flexibleDate = "Latest workable date must be on or after your preferred date";
       }
     }
     if (s === 3) {
@@ -449,26 +462,44 @@ export function BookingForm({
           {step === 2 && (
             <section className="space-y-6">
               <div>
-                <p className="label-caps text-accent">Step 2</p>
+                <p className="label-caps text-accent">Step 2 · Plan the logistics</p>
                 <h2 className="font-display mt-2 text-3xl text-cream md:text-4xl">
-                  Budget &amp; timing
+                  Where and when should we create?
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm text-fog md:text-base">
-                  Helps us propose the right production scale. Nothing is charged here.
+                  Your package already sets the starting budget. These details help us identify
+                  travel, studio, access, or scheduling needs before we quote anything additional.
                 </p>
               </div>
 
-              <FormField label="Budget range" error={errors.budgetRange} name="budgetRange" required>
-                <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Budget">
-                  {bookingOptions.budgetRanges.map((range) => {
-                    const selected = data.budgetRange === range;
+              {selectedPackage && (
+                <BookingScopeSummary pkg={selectedPackage} onChange={() => setStep(1)} />
+              )}
+
+              <FormField label="City or location (optional)" name="location">
+                <TextInput
+                  id="location"
+                  value={data.location}
+                  onChange={(e) => update("location", e.target.value)}
+                  placeholder="Sacramento, Oakland, a venue, or undecided"
+                />
+              </FormField>
+
+              <FormField label="Preferred setting (optional)" name="sessionSetting">
+                <div
+                  className="grid gap-2 sm:grid-cols-2"
+                  role="radiogroup"
+                  aria-label="Preferred setting"
+                >
+                  {[...bookingOptions.sessionSettings, "Not sure yet"].map((setting) => {
+                    const selected = data.sessionSetting === setting;
                     return (
                       <button
-                        key={range}
+                        key={setting}
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        onClick={() => update("budgetRange", range)}
+                        onClick={() => update("sessionSetting", setting)}
                         className={cn(
                           "min-h-12 border px-4 py-3 text-left text-sm transition-colors",
                           selected
@@ -476,7 +507,7 @@ export function BookingForm({
                             : "border-stone/35 text-fog hover:border-cream/30"
                         )}
                       >
-                        {range}
+                        {setting}
                       </button>
                     );
                   })}
@@ -499,7 +530,7 @@ export function BookingForm({
                   />
                 </FormField>
                 <FormField
-                  label="Flexible until (optional)"
+                  label="Latest workable date (optional)"
                   error={errors.flexibleDate}
                   name="flexibleDate"
                 >
@@ -527,13 +558,10 @@ export function BookingForm({
                 />
               </FormField>
 
-              {selectedPackage && (
-                <p className="text-xs text-muted">
-                  Starting reference for {selectedPackage.name}:{" "}
-                  {formatPackageRate(selectedPackage)} — final investment confirmed
-                  after consultation.
-                </p>
-              )}
+              <p className="border-l border-accent/40 pl-4 text-sm leading-relaxed text-fog">
+                No payment is collected here. If your request adds cost, the amount and reason
+                appear in writing before you decide whether to book.
+              </p>
             </section>
           )}
 
@@ -685,13 +713,7 @@ export function BookingForm({
               />
 
               {selectedPackage && (
-                <div className="border border-stone/30 bg-charcoal/25 p-5 text-sm text-fog">
-                  <p className="label-caps text-muted">Your inquiry</p>
-                  <p className="mt-2 text-cream">
-                    {selectedPackage.name} · {formatPackageRate(selectedPackage)}
-                  </p>
-                  {data.budgetRange && <p className="mt-1">Budget: {data.budgetRange}</p>}
-                </div>
+                <BookingScopeSummary pkg={selectedPackage} heading="Review before submitting" />
               )}
             </section>
           )}
@@ -715,13 +737,21 @@ export function BookingForm({
             Back
           </button>
           {step < BOOKING_STEPS.length ? (
-            <button
-              type="button"
-              onClick={goNext}
-              className="min-h-12 bg-cream px-8 text-xs tracking-[0.15em] text-ink uppercase"
-            >
-              {step === 3 ? "Continue (or skip)" : "Continue"}
-            </button>
+            <div className="flex items-center gap-3">
+              {selectedPackage && (
+                <span className="hidden text-right text-xs text-fog sm:block">
+                  {selectedPackage.name}<br />
+                  <span className="text-cream">{formatPackageRate(selectedPackage)}</span>
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={goNext}
+                className="min-h-12 bg-cream px-6 text-xs tracking-[0.15em] text-ink uppercase sm:px-8"
+              >
+                {step === 3 ? "Review inquiry" : step === 1 ? "Plan this package" : "Continue"}
+              </button>
+            </div>
           ) : (
             <SubmitButton
               type="button"

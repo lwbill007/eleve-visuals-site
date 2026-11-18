@@ -6,12 +6,12 @@ import {
   getPackageById,
 } from "./booking-packages";
 
-export const BOOKING_AUTOSAVE_KEY = "eleve-booking-draft-v5";
+export const BOOKING_AUTOSAVE_KEY = "eleve-booking-draft-v6";
 
 /** Smart inquiry — 4 steps, CRM fields preserved via defaults */
 export const BOOKING_STEPS = [
-  { id: 1, label: "Service" },
-  { id: 2, label: "Budget & Timing" },
+  { id: 1, label: "Package" },
+  { id: 2, label: "Plan & Timing" },
   { id: 3, label: "Vision" },
   { id: 4, label: "Contact" },
 ] as const;

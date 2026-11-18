@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  BOOKING_ADDONS,
   BOOKING_PACKAGES,
   PACKAGE_FAMILY_LABELS,
   formatPackageRate,
@@ -13,55 +12,11 @@ import { cn } from "@/lib/utils";
 
 const FAMILIES: PackageFamily[] = ["portrait", "motion", "partnership"];
 
-function PreviewFrame({
-  pkg,
-  selected,
-}: {
-  pkg: BookingPackage;
-  selected: boolean;
-}) {
-  const isMotion = pkg.family === "motion" || Boolean(pkg.videoPreviewHint);
-  const isPartner = pkg.family === "partnership";
-
-  return (
-    <div
-      className={cn(
-        "relative aspect-[16/10] overflow-hidden border-b",
-        selected ? "border-accent/40" : "border-stone/30"
-      )}
-    >
-      <div
-        className={cn(
-          "absolute inset-0",
-          isPartner
-            ? "bg-[radial-gradient(ellipse_at_center,rgba(184,168,138,0.22)_0%,transparent_65%),linear-gradient(145deg,#1a1a1a,#0a0a0a)]"
-            : isMotion
-              ? "bg-[linear-gradient(135deg,#111_0%,#1a1a1a_40%,#0a0a0a_100%)]"
-              : "bg-[linear-gradient(160deg,#1a1a1a_0%,#111_50%,#0a0a0a_100%)]"
-        )}
-      />
-      <div className="grain absolute inset-0 opacity-40" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(184,168,138,0.12)_0%,transparent_50%)]" />
-
-      {isMotion && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="flex h-12 w-12 items-center justify-center border border-accent/40 bg-ink/40 text-accent backdrop-blur-sm">
-            ▶
-          </span>
-        </div>
-      )}
-
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink via-ink/70 to-transparent p-4 pt-10">
-        <p className="text-[0.6rem] tracking-[0.14em] text-accent uppercase">
-          {isMotion ? "Video preview" : isPartner ? "Partnership" : "Gallery preview"}
-        </p>
-        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-cream-dim">
-          {pkg.videoPreviewHint || pkg.galleryPreviewHint}
-        </p>
-      </div>
-    </div>
-  );
-}
+const FAMILY_PROMPTS: Record<PackageFamily, string> = {
+  portrait: "Portraits, personal brands, editorials, and campaign stills.",
+  motion: "Reels, launch content, promotional films, and brand stories.",
+  partnership: "A repeatable monthly mix of photography and motion.",
+};
 
 export function PackageShowcase({
   selectedId,
@@ -72,184 +27,209 @@ export function PackageShowcase({
   onSelect: (pkg: BookingPackage) => void;
   error?: string;
 }) {
-  const selectedPkg = BOOKING_PACKAGES.find((p) => p.id === selectedId);
+  const selectedPkg = BOOKING_PACKAGES.find((pkg) => pkg.id === selectedId);
   const [family, setFamily] = useState<PackageFamily>(selectedPkg?.family ?? "portrait");
-  const [expandedId, setExpandedId] = useState<string | null>(selectedId || null);
-  const packages = BOOKING_PACKAGES.filter((p) => p.family === family);
+  const [detailsId, setDetailsId] = useState<string | null>(selectedId || null);
+  const packages = BOOKING_PACKAGES.filter((pkg) => pkg.family === family);
 
   useEffect(() => {
-    if (selectedPkg) {
-      setFamily(selectedPkg.family);
-      setExpandedId(selectedPkg.id);
-    }
+    if (!selectedPkg) return;
+    setFamily(selectedPkg.family);
+    setDetailsId(selectedPkg.id);
   }, [selectedPkg]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <div>
-        <p className="label-caps text-accent">Choose Your Experience</p>
+        <p className="label-caps text-accent">Step 1 · Choose a clear scope</p>
         <h2 className="font-display mt-2 text-3xl text-cream md:text-4xl">
-          How should we create together?
+          What does your budget include?
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-fog md:text-base">
-          Compare exact production time and deliverables before you inquire. Starting prices
-          guide the conversation; usage and custom production costs are confirmed in writing.
+          Pick the kind of work first, then compare three defined starting scopes. The package you
+          choose sets your budget automatically—there is no second, conflicting budget question.
         </p>
       </div>
 
-      <div
-        className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        role="tablist"
-        aria-label="Experience families"
-      >
-        {FAMILIES.map((f) => (
+      <div className="grid gap-2 sm:grid-cols-3" role="tablist" aria-label="Choose a service">
+        {FAMILIES.map((item) => (
           <button
-            key={f}
+            key={item}
             type="button"
             role="tab"
-            aria-selected={family === f}
-            onClick={() => setFamily(f)}
+            aria-selected={family === item}
+            onClick={() => setFamily(item)}
             className={cn(
-              "shrink-0 border px-4 py-2.5 text-xs tracking-[0.14em] uppercase transition-colors",
-              family === f
-                ? "border-accent/60 bg-accent/10 text-accent"
+              "min-h-20 border px-4 py-3 text-left transition-colors",
+              family === item
+                ? "border-accent/70 bg-accent/10 text-cream"
                 : "border-stone/40 text-fog hover:border-stone/70 hover:text-cream"
             )}
           >
-            {PACKAGE_FAMILY_LABELS[f]}
+            <span className="block text-xs tracking-[0.13em] uppercase">
+              {PACKAGE_FAMILY_LABELS[item]}
+            </span>
+            <span className="mt-1.5 block text-xs leading-relaxed text-fog">
+              {FAMILY_PROMPTS[item]}
+            </span>
           </button>
         ))}
       </div>
 
       {family === "partnership" && (
-        <div className="border border-accent/30 bg-gradient-to-r from-accent/10 to-transparent px-5 py-4">
-          <p className="font-display text-xl text-cream">A defined monthly production system.</p>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fog">
-            Every partnership has a three-month initial term, one scheduled production window,
-            defined deliverables, no rollover, and clear revision limits.
+        <div className="border-l-2 border-accent bg-accent/5 px-5 py-4">
+          <p className="text-sm leading-relaxed text-cream-dim">
+            Monthly partnerships reserve one production window per month for an initial three-month
+            term. Unused time and deliverables do not roll over.
           </p>
         </div>
       )}
 
+      <div className="grid gap-px border border-stone/30 bg-stone/30 sm:grid-cols-3">
+        {[
+          ["Entry", "Focused scope and the lowest starting budget."],
+          ["Signature", "More direction and a broader usable asset set."],
+          ["Premium", "Pre-production and a materially deeper production."],
+        ].map(([label, description]) => (
+          <div key={label} className="bg-ink px-4 py-3">
+            <p className="text-xs tracking-[0.12em] text-cream uppercase">{label}</p>
+            <p className="mt-1 text-xs leading-relaxed text-fog">{description}</p>
+          </div>
+        ))}
+      </div>
+
       <div
-        className={cn(
-          "grid gap-5",
-          family === "partnership" ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"
-        )}
+        id="packageId"
+        className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3"
+        role="radiogroup"
+        aria-label="Packages"
       >
         {packages.map((pkg) => {
           const selected = selectedId === pkg.id;
-          const expanded = expandedId === pkg.id || selected;
-          const recAddons = BOOKING_ADDONS.filter((a) => pkg.recommendedAddOnIds.includes(a.id));
+          const detailsOpen = detailsId === pkg.id;
 
           return (
             <article
               key={pkg.id}
               className={cn(
-                "group relative flex flex-col overflow-hidden border bg-charcoal/25 transition-all duration-500",
+                "relative overflow-hidden border bg-charcoal/20",
                 selected
-                  ? "border-accent/70 shadow-[0_0_0_1px_rgba(184,168,138,0.25)]"
-                  : "border-stone/35 hover:border-stone/60",
-                family === "partnership" && "md:min-h-[28rem]"
+                  ? "border-accent shadow-[0_0_0_1px_rgba(184,168,138,0.2)]"
+                  : "border-stone/35"
               )}
-              style={{ transitionTimingFunction: "var(--ease-out-expo)" }}
             >
-              <PreviewFrame pkg={pkg} selected={selected} />
+              {pkg.level === "signature" && (
+                <div className="border-b border-accent/25 bg-accent/10 px-5 py-2 text-[0.62rem] tracking-[0.15em] text-accent uppercase">
+                  More direction and deliverables
+                </div>
+              )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  onSelect(pkg);
-                  setExpandedId(pkg.id);
-                }}
-                className="flex flex-1 flex-col p-5 text-left md:p-6"
-                aria-pressed={selected}
-              >
-                <p className="font-display text-2xl text-cream">{pkg.name}</p>
-                {pkg.headline && (
-                  <p className="mt-1 text-sm text-accent">{pkg.headline}</p>
-                )}
-                <p className="mt-3 font-display text-2xl text-accent">
-                  From {formatPackageRate(pkg)}
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-fog">{pkg.description}</p>
-
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="p-5 md:p-6">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[0.6rem] tracking-[0.12em] text-muted uppercase">Perfect for</p>
-                    <ul className="mt-1.5 space-y-1">
-                      {pkg.perfectFor.map((item) => (
-                        <li key={item} className="text-sm text-cream-dim">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="text-[0.62rem] tracking-[0.16em] text-muted uppercase">
+                      {pkg.level}
+                    </p>
+                    <h3 className="font-display mt-2 text-2xl text-cream">{pkg.name}</h3>
                   </div>
-                  <div>
-                    <p className="text-[0.6rem] tracking-[0.12em] text-muted uppercase">Timeline</p>
-                    <p className="mt-1.5 text-sm text-cream-dim">{pkg.estimatedTimeline}</p>
-                    <p className="mt-3 text-[0.6rem] tracking-[0.12em] text-muted uppercase">
-                      Example deliverables
-                    </p>
-                    <p className="mt-1.5 text-sm text-cream-dim">
-                      {pkg.exampleDeliverables.join(" · ")}
-                    </p>
+                  {selected && (
+                    <span className="border border-accent/50 px-2 py-1 text-[0.6rem] tracking-[0.12em] text-accent uppercase">
+                      Selected
+                    </span>
+                  )}
+                </div>
+
+                <p className="font-display mt-4 text-3xl text-accent">
+                  {formatPackageRate(pkg)}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  Starting scope · additions require written approval
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-fog">{pkg.description}</p>
+
+                <div className="mt-6">
+                  <p className="text-[0.62rem] tracking-[0.15em] text-muted uppercase">
+                    What you receive
+                  </p>
+                  <ul className="mt-3 space-y-2.5">
+                    {pkg.included.map((item) => (
+                      <li key={item} className="flex gap-2.5 text-sm leading-relaxed text-cream-dim">
+                        <span className="text-accent" aria-hidden>✓</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-6 border border-stone/30 bg-ink/40 p-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-[0.6rem] tracking-[0.12em] text-muted uppercase">Delivery</p>
+                      <p className="mt-1 text-cream-dim">{pkg.estimatedTimeline}</p>
+                    </div>
+                    <div>
+                      <p className="text-[0.6rem] tracking-[0.12em] text-muted uppercase">Best for</p>
+                      <p className="mt-1 text-cream-dim">{pkg.perfectFor.slice(0, 2).join(" · ")}</p>
+                    </div>
                   </div>
                 </div>
-              </button>
 
-              <div className="border-t border-stone/30 px-5 py-3 md:px-6">
+                <div className="mt-5">
+                  <p className="text-[0.62rem] tracking-[0.15em] text-muted uppercase">
+                    Quoted separately
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {pkg.notIncluded.map((item) => (
+                      <li key={item} className="flex gap-2 text-xs leading-relaxed text-fog">
+                        <span aria-hidden>—</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
                 <button
                   type="button"
-                  className="text-xs tracking-[0.1em] text-accent uppercase hover:text-cream"
-                  onClick={() => setExpandedId(expanded && !selected ? null : pkg.id)}
-                  aria-expanded={expanded}
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => onSelect(pkg)}
+                  className={cn(
+                    "mt-6 min-h-12 w-full border px-5 text-xs tracking-[0.14em] uppercase transition-colors",
+                    selected
+                      ? "border-accent bg-accent text-ink"
+                      : "border-cream/50 text-cream hover:bg-cream hover:text-ink"
+                  )}
                 >
-                  {expanded ? "Hide full experience" : "Experience · Included · FAQ · Expectations"}
+                  {selected ? `${pkg.name} selected` : `Choose ${pkg.name}`}
                 </button>
 
-                {expanded && (
-                  <div className="mt-4 space-y-5 text-sm text-cream-dim">
+                <button
+                  type="button"
+                  onClick={() => setDetailsId(detailsOpen ? null : pkg.id)}
+                  aria-expanded={detailsOpen}
+                  className="mt-4 min-h-10 w-full text-xs tracking-[0.1em] text-accent uppercase hover:text-cream"
+                >
+                  {detailsOpen ? "Hide planning details" : "Planning details and FAQ"}
+                </button>
+
+                {detailsOpen && (
+                  <div className="mt-4 space-y-5 border-t border-stone/30 pt-5 text-sm leading-relaxed text-fog">
                     <div>
-                      <p className="label-caps text-muted">Experience</p>
-                      <p className="mt-1 leading-relaxed">{pkg.experience}</p>
+                      <p className="text-cream">How the experience works</p>
+                      <p className="mt-1">{pkg.experience}</p>
                     </div>
                     <div>
-                      <p className="label-caps text-muted">Included</p>
+                      <p className="text-cream">What we need from you</p>
                       <ul className="mt-2 space-y-1.5">
-                        {pkg.included.map((item) => (
-                          <li key={item} className="flex gap-2">
-                            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-accent" />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    {recAddons.length > 0 && (
-                      <div>
-                        <p className="label-caps text-muted">Recommended add-ons</p>
-                        <ul className="mt-2 space-y-2">
-                          {recAddons.map((a) => (
-                            <li key={a.id}>
-                              <span className="text-cream">{a.name}</span>
-                              <span className="text-fog"> — {a.whyItMatters}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    <div>
-                      <p className="label-caps text-muted">Client expectations</p>
-                      <ul className="mt-2 space-y-1">
                         {pkg.clientExpectations.map((item) => (
-                          <li key={item}>{item}</li>
+                          <li key={item}>— {item}</li>
                         ))}
                       </ul>
                     </div>
-                    {pkg.faq.map((f) => (
-                      <div key={f.q}>
-                        <p className="text-cream">{f.q}</p>
-                        <p className="mt-1 text-fog">{f.a}</p>
+                    {pkg.faq.map((item) => (
+                      <div key={item.q}>
+                        <p className="text-cream">{item.q}</p>
+                        <p className="mt-1">{item.a}</p>
                       </div>
                     ))}
                   </div>
@@ -260,11 +240,7 @@ export function PackageShowcase({
         })}
       </div>
 
-      {error && (
-        <p className="text-sm text-red-400" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <p className="text-sm text-red-400" role="alert">{error}</p>}
     </div>
   );
 }

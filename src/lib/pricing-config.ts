@@ -12,6 +12,7 @@ export interface ApprovedPricingPackage {
   perfectFor: string[];
   experience: string;
   included: string[];
+  notIncluded: string[];
   estimatedTimeline: string;
   exampleDeliverables: string[];
   clientExpectations: string[];
@@ -63,6 +64,12 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
       "Personal and owned-organic usage",
       "One correction request for an ÉLEVÉ processing error",
     ],
+    notIncluded: [
+      "Custom date or location",
+      "Dedicated travel or studio rental",
+      "Additional people, looks, or images",
+      "Commercial or paid-media usage",
+    ],
     estimatedTimeline: "5 business days",
     exampleDeliverables: ["4 edited JPEGs", "Private proof selection", "Web-ready exports"],
     clientExpectations: [
@@ -99,6 +106,11 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
       "One consolidated retouching request",
       "Personal and owned-organic usage",
     ],
+    notIncluded: [
+      "Studio, permits, travel, or additional locations",
+      "Hair, makeup, styling, or talent",
+      "Paid-media or broad commercial usage",
+    ],
     estimatedTimeline: "7–10 business days",
     exampleDeliverables: ["10 retouched images", "Web and print exports", "Private gallery"],
     clientExpectations: [
@@ -134,6 +146,11 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
       "24 fully retouched images",
       "Two consolidated retouching rounds",
       "Owned-organic usage for one named client",
+    ],
+    notIncluded: [
+      "Studio, permits, travel, crew, talent, or styling",
+      "Paid advertising or third-party licensing",
+      "Scope beyond the approved concept and shot list",
     ],
     estimatedTimeline: "12–15 business days",
     exampleDeliverables: ["24 campaign-ready images", "Web and print exports", "Private gallery"],
@@ -172,6 +189,11 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
       "One consolidated revision",
       "Owned-organic usage",
     ],
+    notIncluded: [
+      "Concept development, scripting, or interviews",
+      "Raw footage or a bundle of individual clips",
+      "Studio, travel, talent, graphics, or paid-media usage",
+    ],
     estimatedTimeline: "7–10 business days",
     exampleDeliverables: ["1 Standard Reel", "Platform-ready master"],
     clientExpectations: [
@@ -209,6 +231,11 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
       "Standard color and audio",
       "One consolidated revision",
       "Owned-organic usage",
+    ],
+    notIncluded: [
+      "Interview capture, scripting, or advanced sound design",
+      "Raw footage or additional edits",
+      "Studio, travel, talent, graphics, or paid-media usage",
     ],
     estimatedTimeline: "10–12 business days",
     exampleDeliverables: ["1 Standard Reel", "1 Lightly Edited Clip"],
@@ -249,6 +276,11 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
       "Two consolidated revision rounds",
       "Owned-organic usage",
     ],
+    notIncluded: [
+      "Crew, studio, talent, travel, permits, or catering",
+      "Raw footage, voice-over, original music, motion graphics, or VFX",
+      "Paid-media licensing unless written into the proposal",
+    ],
     estimatedTimeline: "15–20 business days",
     exampleDeliverables: ["1 Advanced Promotional Film", "3 Standard Reels", "Multi-format masters"],
     clientExpectations: [
@@ -285,6 +317,11 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
       "One batch correction round",
       "One primary location",
       "Owned-organic usage",
+    ],
+    notIncluded: [
+      "Publishing, social management, analytics, or advertising",
+      "Studio, travel, crew, talent, or paid-media usage",
+      "Rollover of unused time or deliverables",
     ],
     estimatedTimeline: "10 business days per batch",
     exampleDeliverables: ["8 edited photos", "2 Lightly Edited Clips"],
@@ -324,6 +361,11 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
       "One primary location",
       "Owned-organic usage",
     ],
+    notIncluded: [
+      "Publishing, social management, analytics, or advertising",
+      "Studio, travel, crew, talent, or paid-media usage",
+      "Rollover of unused time or deliverables",
+    ],
     estimatedTimeline: "10–12 business days per batch",
     exampleDeliverables: ["15 edited photos", "3 Lightly Edited Clips", "1 Standard Reel"],
     clientExpectations: [
@@ -361,6 +403,11 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
       "One 45–60 second Advanced Promotional Film",
       "Two batch revision rounds",
       "Owned-organic usage",
+    ],
+    notIncluded: [
+      "Publishing, social management, analytics, or advertising",
+      "Studio, travel, additional crew, talent, or paid-media usage",
+      "Rollover or production beyond the monthly plan",
     ],
     estimatedTimeline: "15 business days per batch",
     exampleDeliverables: [

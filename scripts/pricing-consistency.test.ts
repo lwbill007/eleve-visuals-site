@@ -48,6 +48,12 @@ assert.ok(
     (pkg) => pkg.billing === "monthly"
   )
 );
+assert.ok(
+  APPROVED_PRICING_PACKAGES.every(
+    (pkg) => pkg.included.length >= 5 && pkg.notIncluded.length >= 3
+  ),
+  "every package must state substantial inclusions and exclusions"
+);
 assert.equal(budgetRangeFromPackage("photo-entry"), "Under $250");
 assert.equal(budgetRangeFromPackage("photo-signature"), "$250–749");
 assert.equal(budgetRangeFromPackage("video-signature"), "$750–1,499");
@@ -68,4 +74,5 @@ assert.doesNotMatch(publicCopy, /most popular|most chosen|unlimited/i);
 
 console.log("  ✓ nine approved packages and exact test prices");
 console.log("  ✓ public services, budget bands, and media definitions agree");
+console.log("  ✓ every client scope states what is included and quoted separately");
 console.log("  ✓ retired add-ons and unsupported popularity claims are absent\n");

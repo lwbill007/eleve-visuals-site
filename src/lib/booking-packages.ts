@@ -25,6 +25,7 @@ export interface BookingPackage {
   perfectFor: string[];
   experience: string;
   included: string[];
+  notIncluded: string[];
   estimatedTimeline: string;
   recommendedAddOnIds: string[];
   exampleDeliverables: string[];
@@ -64,6 +65,7 @@ export const BOOKING_PACKAGES: BookingPackage[] = APPROVED_PRICING_PACKAGES.map(
   perfectFor: pkg.perfectFor,
   experience: pkg.experience,
   included: pkg.included,
+  notIncluded: pkg.notIncluded,
   estimatedTimeline: pkg.estimatedTimeline,
   recommendedAddOnIds: [],
   exampleDeliverables: pkg.exampleDeliverables,

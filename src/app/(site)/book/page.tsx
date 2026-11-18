@@ -42,7 +42,7 @@ export default async function BookPage({
       <section className="section-padding">
         <div className="container-wide">
           <div className="grid gap-16 lg:grid-cols-12">
-            <div className="lg:col-span-5 lg:order-2">
+            <div className="lg:col-span-3 lg:order-2">
               <div className="lg:sticky lg:top-28">
                 <TrustSnippet
                   testimonial={testimonial}
@@ -51,7 +51,7 @@ export default async function BookPage({
                 />
               </div>
             </div>
-            <div className="lg:col-span-7 lg:order-1">
+            <div className="lg:col-span-9 lg:order-1">
               <BookingForm
                 bookingOptions={bookingOptions}
                 bookPage={pageCopy.bookPage}
