@@ -96,6 +96,16 @@ const PAGE_API_MAP: Record<string, string[]> = {
   settings: ["/api/admin/content"],
 };
 
+/**
+ * Mutating/action endpoints are checked statically for route existence + auth,
+ * but never invoked by the production GET probe. Calling them would either
+ * create data or produce a misleading 405.
+ */
+const LIVE_GET_EXCLUDED = new Set([
+  "/api/admin/ai/opportunities/outcome",
+  "/api/admin/ai/reports",
+]);
+
 const FORBIDDEN_CLIENT_IMPORTS = [
   /from\s+["']@\/lib\/db["']/,
   /from\s+["']@prisma\/client["']/,
@@ -128,14 +138,21 @@ function read(f: string) {
 function hrefToPageFile(href: string): string | null {
   const pathOnly = href.split("?")[0].replace(/\/$/, "") || "/admin";
   const withoutAdmin = pathOnly.replace(/^\/admin\/?/, "");
-  if (!withoutAdmin) {
-    const p = join(SRC, "app/admin/page.tsx");
-    return existsSync(p) ? p : null;
-  }
-  const candidates = [
-    join(SRC, "app/admin", withoutAdmin, "page.tsx"),
-    join(SRC, "app/admin", `${withoutAdmin}.tsx`),
+  const adminRoots = [
+    join(SRC, "app/admin"),
+    join(SRC, "app/admin/(workspace)"),
   ];
+  if (!withoutAdmin) {
+    for (const root of adminRoots) {
+      const p = join(root, "page.tsx");
+      if (existsSync(p)) return p;
+    }
+    return null;
+  }
+  const candidates = adminRoots.flatMap((root) => [
+    join(root, withoutAdmin, "page.tsx"),
+    join(root, `${withoutAdmin}.tsx`),
+  ]);
   for (const c of candidates) {
     if (existsSync(c)) return c;
   }
@@ -275,16 +292,20 @@ const adminApiRoutes = allFiles.filter(
 );
 const adminApiWithoutRequireAdmin = adminApiRoutes.filter((f) => {
   const c = read(f);
-  return !c.includes("requireAdmin") && !c.includes("x-vercel-signature");
+  return (
+    !c.includes("requireAdmin") &&
+    !c.includes("requireMinimumRole") &&
+    !c.includes("x-vercel-signature")
+  );
 });
 for (const f of adminApiWithoutRequireAdmin) {
   addFinding({
     id: `auth-${rel(f)}`,
     severity: "P1",
     category: "security",
-    title: "Admin API missing requireAdmin self-check",
+    title: "Admin API missing route-level auth self-check",
     detail:
-      "Middleware still gates /api/admin/**; self-check is defense-in-depth. Add requireAdmin.",
+      "Middleware still gates /api/admin/**; add requireAdmin or requireMinimumRole for defense-in-depth.",
     path: rel(f),
   });
 }
@@ -375,18 +396,18 @@ try {
 
 // ─── Legacy redirects ─────────────────────────────────────────────
 for (const legacy of [
-  { href: "/admin/payments", file: "src/app/admin/payments/page.tsx" },
-  { href: "/admin/ai-health", file: "src/app/admin/ai-health/page.tsx" },
+  { href: "/admin/payments" },
+  { href: "/admin/ai-health" },
 ]) {
-  const abs = join(ROOT, legacy.file);
-  if (!existsSync(abs)) {
+  const abs = hrefToPageFile(legacy.href);
+  if (!abs) {
     addFinding({
       id: `legacy-${legacy.href}`,
       severity: "P2",
       category: "missing",
       title: `Legacy redirect page missing: ${legacy.href}`,
-      detail: legacy.file,
-      path: legacy.file,
+      detail: legacy.href,
+      path: legacy.href,
     });
   } else if (!read(abs).includes("redirect")) {
     addFinding({
@@ -394,8 +415,8 @@ for (const legacy of [
       severity: "P1",
       category: "partial",
       title: `Legacy path should redirect: ${legacy.href}`,
-      detail: legacy.file,
-      path: legacy.file,
+      detail: rel(abs),
+      path: rel(abs),
     });
   }
 }
@@ -448,7 +469,7 @@ async function runLiveProbes() {
 
   const paths = [
     ...OS_PAGES.map((p) => p.href),
-    ...Object.values(PAGE_API_MAP).flat(),
+    ...Object.values(PAGE_API_MAP).flat().filter((path) => !LIVE_GET_EXCLUDED.has(path)),
   ];
   const unique = [...new Set(paths)];
 

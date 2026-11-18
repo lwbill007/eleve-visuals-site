@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-07-20T21:06:10.715Z",
-  "gate": "PASS",
+  "generatedAt": "2026-11-18T05:17:05.249Z",
+  "gate": "FAIL",
   "summary": {
-    "pages": 31,
-    "working": 31,
-    "partial": 0,
+    "pages": 45,
+    "working": 43,
+    "partial": 2,
     "broken": 0,
     "findingsP0": 0,
-    "findingsP1": 0,
-    "findingsTotal": 1,
+    "findingsP1": 2,
+    "findingsTotal": 3,
     "adminApisMissingAuth": 0,
-    "liveProbes": "skipped",
-    "gate": "PASS"
+    "liveProbes": "71/73 ok",
+    "gate": "FAIL"
   },
   "pages": [
     {
@@ -19,7 +19,7 @@
       "system": "command",
       "label": "Home",
       "href": "/admin",
-      "pageFile": "src/app/admin/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -39,7 +39,7 @@
       "system": "command",
       "label": "AI Briefing",
       "href": "/admin/briefing",
-      "pageFile": "src/app/admin/briefing/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/briefing/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -55,7 +55,7 @@
       "system": "command",
       "label": "Opportunities",
       "href": "/admin/opportunities",
-      "pageFile": "src/app/admin/opportunities/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/opportunities/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -75,7 +75,7 @@
       "system": "command",
       "label": "Risks",
       "href": "/admin/risks",
-      "pageFile": "src/app/admin/risks/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/risks/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -91,7 +91,7 @@
       "system": "command",
       "label": "Revenue Leaks",
       "href": "/admin/leaks",
-      "pageFile": "src/app/admin/leaks/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/leaks/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -107,7 +107,7 @@
       "system": "work",
       "label": "Workboard",
       "href": "/admin/workboard",
-      "pageFile": "src/app/admin/workboard/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/workboard/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -123,7 +123,7 @@
       "system": "work",
       "label": "Pipeline",
       "href": "/admin/pipeline",
-      "pageFile": "src/app/admin/pipeline/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/pipeline/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -139,7 +139,7 @@
       "system": "work",
       "label": "Bookings",
       "href": "/admin/submissions?type=booking",
-      "pageFile": "src/app/admin/submissions/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/submissions/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -155,7 +155,7 @@
       "system": "work",
       "label": "Clients",
       "href": "/admin/crm",
-      "pageFile": "src/app/admin/crm/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/crm/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -171,7 +171,7 @@
       "system": "work",
       "label": "Inbox",
       "href": "/admin/submissions",
-      "pageFile": "src/app/admin/submissions/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/submissions/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -187,7 +187,7 @@
       "system": "create",
       "label": "Sessions",
       "href": "/admin/sessions-hub",
-      "pageFile": "src/app/admin/sessions-hub/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/sessions-hub/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -211,7 +211,7 @@
       "system": "create",
       "label": "Volumes",
       "href": "/admin/sessions",
-      "pageFile": "src/app/admin/sessions/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/sessions/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -227,7 +227,7 @@
       "system": "create",
       "label": "Applications",
       "href": "/admin/applications",
-      "pageFile": "src/app/admin/applications/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/applications/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -251,7 +251,7 @@
       "system": "create",
       "label": "Portfolio",
       "href": "/admin/portfolio",
-      "pageFile": "src/app/admin/portfolio/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/portfolio/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -267,7 +267,7 @@
       "system": "create",
       "label": "Media",
       "href": "/admin/media",
-      "pageFile": "src/app/admin/media/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/media/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -279,11 +279,22 @@
       "notes": []
     },
     {
+      "id": "galleries",
+      "system": "create",
+      "label": "Galleries",
+      "href": "/admin/galleries",
+      "pageFile": "src/app/admin/(workspace)/galleries/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "partial",
+      "notes": []
+    },
+    {
       "id": "marketing",
       "system": "grow",
       "label": "Marketing",
       "href": "/admin/marketing",
-      "pageFile": "src/app/admin/marketing/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/marketing/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -299,7 +310,7 @@
       "system": "grow",
       "label": "Email",
       "href": "/admin/email",
-      "pageFile": "src/app/admin/email/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/email/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -315,7 +326,7 @@
       "system": "grow",
       "label": "Analytics",
       "href": "/admin/analytics",
-      "pageFile": "src/app/admin/analytics/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/analytics/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -331,7 +342,7 @@
       "system": "grow",
       "label": "Website Intelligence",
       "href": "/admin/website",
-      "pageFile": "src/app/admin/website/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/website/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -347,7 +358,7 @@
       "system": "grow",
       "label": "Homepage Intelligence",
       "href": "/admin/homepage",
-      "pageFile": "src/app/admin/homepage/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/homepage/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -363,7 +374,7 @@
       "system": "grow",
       "label": "Reports",
       "href": "/admin/reports",
-      "pageFile": "src/app/admin/reports/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/reports/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -379,7 +390,7 @@
       "system": "brain",
       "label": "Business Brain",
       "href": "/admin/memory",
-      "pageFile": "src/app/admin/memory/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/memory/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -395,7 +406,7 @@
       "system": "brain",
       "label": "Web Research",
       "href": "/admin/research",
-      "pageFile": "src/app/admin/research/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/research/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -411,7 +422,7 @@
       "system": "brain",
       "label": "Timeline",
       "href": "/admin/timeline",
-      "pageFile": "src/app/admin/timeline/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/timeline/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -427,7 +438,7 @@
       "system": "brain",
       "label": "Booking Intelligence",
       "href": "/admin/bookings-ai",
-      "pageFile": "src/app/admin/bookings-ai/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/bookings-ai/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -443,7 +454,7 @@
       "system": "trust",
       "label": "Executive QA",
       "href": "/admin/qa",
-      "pageFile": "src/app/admin/qa/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/qa/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -459,7 +470,7 @@
       "system": "trust",
       "label": "Financial Center",
       "href": "/admin/financial",
-      "pageFile": "src/app/admin/financial/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/financial/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -475,7 +486,7 @@
       "system": "trust",
       "label": "Automation Center",
       "href": "/admin/automations",
-      "pageFile": "src/app/admin/automations/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/automations/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -491,7 +502,7 @@
       "system": "trust",
       "label": "AI Operations",
       "href": "/admin/ai-operations",
-      "pageFile": "src/app/admin/ai-operations/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/ai-operations/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -507,7 +518,7 @@
       "system": "trust",
       "label": "Notifications",
       "href": "/admin/notifications",
-      "pageFile": "src/app/admin/notifications/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/notifications/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -527,7 +538,7 @@
       "system": "trust",
       "label": "Settings",
       "href": "/admin/settings",
-      "pageFile": "src/app/admin/settings/page.tsx",
+      "pageFile": "src/app/admin/(workspace)/settings/page.tsx",
       "pageExists": true,
       "apis": [
         {
@@ -537,20 +548,619 @@
       ],
       "status": "working",
       "notes": []
+    },
+    {
+      "id": "services",
+      "system": "create",
+      "label": "Services",
+      "href": "/admin/services",
+      "pageFile": "src/app/admin/(workspace)/services/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "testimonials",
+      "system": "create",
+      "label": "Testimonials",
+      "href": "/admin/testimonials",
+      "pageFile": "src/app/admin/(workspace)/testimonials/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "content",
+      "system": "create",
+      "label": "Page Copy",
+      "href": "/admin/content",
+      "pageFile": "src/app/admin/(workspace)/content/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "about",
+      "system": "create",
+      "label": "About",
+      "href": "/admin/about",
+      "pageFile": "src/app/admin/(workspace)/about/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "experience",
+      "system": "create",
+      "label": "Experience",
+      "href": "/admin/experience",
+      "pageFile": "src/app/admin/(workspace)/experience/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "partial",
+      "notes": []
+    },
+    {
+      "id": "contact",
+      "system": "create",
+      "label": "Contact",
+      "href": "/admin/contact",
+      "pageFile": "src/app/admin/(workspace)/contact/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "booking-form",
+      "system": "create",
+      "label": "Booking form",
+      "href": "/admin/booking",
+      "pageFile": "src/app/admin/(workspace)/booking/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "forms",
+      "system": "work",
+      "label": "Forms hub",
+      "href": "/admin/forms",
+      "pageFile": "src/app/admin/(workspace)/forms/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "sponsorship",
+      "system": "grow",
+      "label": "Sponsorship",
+      "href": "/admin/sponsorship",
+      "pageFile": "src/app/admin/(workspace)/sponsorship/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "referrals",
+      "system": "grow",
+      "label": "Lead sources",
+      "href": "/admin/referrals",
+      "pageFile": "src/app/admin/(workspace)/referrals/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "content-hub",
+      "system": "grow",
+      "label": "Content studio",
+      "href": "/admin/content-hub",
+      "pageFile": "src/app/admin/(workspace)/content-hub/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "payments-legacy",
+      "system": "trust",
+      "label": "Payments (legacy)",
+      "href": "/admin/payments",
+      "pageFile": "src/app/admin/(workspace)/payments/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
+    },
+    {
+      "id": "ai-health-legacy",
+      "system": "trust",
+      "label": "AI Health (legacy)",
+      "href": "/admin/ai-health",
+      "pageFile": "src/app/admin/(workspace)/ai-health/page.tsx",
+      "pageExists": true,
+      "apis": [],
+      "status": "working",
+      "notes": []
     }
   ],
   "findings": [
     {
-      "id": "live-probes-skipped",
-      "severity": "P3",
-      "category": "missing",
-      "title": "Live HTTP probes skipped",
-      "detail": "Set AUDIT_BASE_URL (or PRODUCTION_URL) and E2E_ADMIN_PASSWORD to enable live page/API probes."
+      "id": "live-/admin/galleries",
+      "severity": "P1",
+      "category": "partial",
+      "title": "Live probe failed: /admin/galleries",
+      "detail": "HTTP 404 · 306ms",
+      "path": "/admin/galleries"
+    },
+    {
+      "id": "live-/admin/experience",
+      "severity": "P1",
+      "category": "partial",
+      "title": "Live probe failed: /admin/experience",
+      "detail": "HTTP 404 · 88ms",
+      "path": "/admin/experience"
+    },
+    {
+      "id": "perf-/api/admin/ai/daily-briefing",
+      "severity": "P2",
+      "category": "perf",
+      "title": "Slow response: /api/admin/ai/daily-briefing",
+      "detail": "25234ms",
+      "path": "/api/admin/ai/daily-briefing"
     }
   ],
-  "liveResults": [],
+  "liveResults": [
+    {
+      "path": "/admin",
+      "ok": true,
+      "status": 200,
+      "ms": 503
+    },
+    {
+      "path": "/admin/briefing",
+      "ok": true,
+      "status": 200,
+      "ms": 293
+    },
+    {
+      "path": "/admin/opportunities",
+      "ok": true,
+      "status": 200,
+      "ms": 456
+    },
+    {
+      "path": "/admin/risks",
+      "ok": true,
+      "status": 200,
+      "ms": 238
+    },
+    {
+      "path": "/admin/leaks",
+      "ok": true,
+      "status": 200,
+      "ms": 270
+    },
+    {
+      "path": "/admin/workboard",
+      "ok": true,
+      "status": 200,
+      "ms": 266
+    },
+    {
+      "path": "/admin/pipeline",
+      "ok": true,
+      "status": 200,
+      "ms": 408
+    },
+    {
+      "path": "/admin/submissions?type=booking",
+      "ok": true,
+      "status": 200,
+      "ms": 408
+    },
+    {
+      "path": "/admin/crm",
+      "ok": true,
+      "status": 200,
+      "ms": 254
+    },
+    {
+      "path": "/admin/submissions",
+      "ok": true,
+      "status": 200,
+      "ms": 100
+    },
+    {
+      "path": "/admin/sessions-hub",
+      "ok": true,
+      "status": 200,
+      "ms": 195
+    },
+    {
+      "path": "/admin/sessions",
+      "ok": true,
+      "status": 200,
+      "ms": 264
+    },
+    {
+      "path": "/admin/applications",
+      "ok": true,
+      "status": 200,
+      "ms": 236
+    },
+    {
+      "path": "/admin/portfolio",
+      "ok": true,
+      "status": 200,
+      "ms": 376
+    },
+    {
+      "path": "/admin/media",
+      "ok": true,
+      "status": 200,
+      "ms": 207
+    },
+    {
+      "path": "/admin/galleries",
+      "ok": false,
+      "status": 404,
+      "ms": 306
+    },
+    {
+      "path": "/admin/marketing",
+      "ok": true,
+      "status": 200,
+      "ms": 200
+    },
+    {
+      "path": "/admin/email",
+      "ok": true,
+      "status": 200,
+      "ms": 309
+    },
+    {
+      "path": "/admin/analytics",
+      "ok": true,
+      "status": 200,
+      "ms": 283
+    },
+    {
+      "path": "/admin/website",
+      "ok": true,
+      "status": 200,
+      "ms": 430
+    },
+    {
+      "path": "/admin/homepage",
+      "ok": true,
+      "status": 200,
+      "ms": 204
+    },
+    {
+      "path": "/admin/reports",
+      "ok": true,
+      "status": 200,
+      "ms": 263
+    },
+    {
+      "path": "/admin/memory",
+      "ok": true,
+      "status": 200,
+      "ms": 230
+    },
+    {
+      "path": "/admin/research",
+      "ok": true,
+      "status": 200,
+      "ms": 197
+    },
+    {
+      "path": "/admin/timeline",
+      "ok": true,
+      "status": 200,
+      "ms": 434
+    },
+    {
+      "path": "/admin/bookings-ai",
+      "ok": true,
+      "status": 200,
+      "ms": 221
+    },
+    {
+      "path": "/admin/qa",
+      "ok": true,
+      "status": 200,
+      "ms": 200
+    },
+    {
+      "path": "/admin/financial",
+      "ok": true,
+      "status": 200,
+      "ms": 275
+    },
+    {
+      "path": "/admin/automations",
+      "ok": true,
+      "status": 200,
+      "ms": 322
+    },
+    {
+      "path": "/admin/ai-operations",
+      "ok": true,
+      "status": 200,
+      "ms": 1330
+    },
+    {
+      "path": "/admin/notifications",
+      "ok": true,
+      "status": 200,
+      "ms": 305
+    },
+    {
+      "path": "/admin/settings",
+      "ok": true,
+      "status": 200,
+      "ms": 202
+    },
+    {
+      "path": "/admin/services",
+      "ok": true,
+      "status": 200,
+      "ms": 306
+    },
+    {
+      "path": "/admin/testimonials",
+      "ok": true,
+      "status": 200,
+      "ms": 308
+    },
+    {
+      "path": "/admin/content",
+      "ok": true,
+      "status": 200,
+      "ms": 200
+    },
+    {
+      "path": "/admin/about",
+      "ok": true,
+      "status": 200,
+      "ms": 306
+    },
+    {
+      "path": "/admin/experience",
+      "ok": false,
+      "status": 404,
+      "ms": 88
+    },
+    {
+      "path": "/admin/contact",
+      "ok": true,
+      "status": 200,
+      "ms": 186
+    },
+    {
+      "path": "/admin/booking",
+      "ok": true,
+      "status": 200,
+      "ms": 266
+    },
+    {
+      "path": "/admin/forms",
+      "ok": true,
+      "status": 200,
+      "ms": 223
+    },
+    {
+      "path": "/admin/sponsorship",
+      "ok": true,
+      "status": 200,
+      "ms": 360
+    },
+    {
+      "path": "/admin/referrals",
+      "ok": true,
+      "status": 200,
+      "ms": 514
+    },
+    {
+      "path": "/admin/content-hub",
+      "ok": true,
+      "status": 200,
+      "ms": 409
+    },
+    {
+      "path": "/admin/payments",
+      "ok": true,
+      "status": 200,
+      "ms": 235
+    },
+    {
+      "path": "/admin/ai-health",
+      "ok": true,
+      "status": 200,
+      "ms": 272
+    },
+    {
+      "path": "/api/admin/os/dashboard",
+      "ok": true,
+      "status": 200,
+      "ms": 6554
+    },
+    {
+      "path": "/api/admin/ai/executive-context",
+      "ok": true,
+      "status": 200,
+      "ms": 614
+    },
+    {
+      "path": "/api/admin/ai/daily-briefing",
+      "ok": true,
+      "status": 200,
+      "ms": 25234
+    },
+    {
+      "path": "/api/admin/ai/leaks",
+      "ok": true,
+      "status": 200,
+      "ms": 356
+    },
+    {
+      "path": "/api/admin/os/pipeline",
+      "ok": true,
+      "status": 200,
+      "ms": 219
+    },
+    {
+      "path": "/api/admin/submissions",
+      "ok": true,
+      "status": 200,
+      "ms": 301
+    },
+    {
+      "path": "/api/admin/os/crm",
+      "ok": true,
+      "status": 200,
+      "ms": 193
+    },
+    {
+      "path": "/api/admin/applications/stats",
+      "ok": true,
+      "status": 200,
+      "ms": 184
+    },
+    {
+      "path": "/api/admin/session-volumes",
+      "ok": true,
+      "status": 200,
+      "ms": 202
+    },
+    {
+      "path": "/api/admin/ai/operator",
+      "ok": true,
+      "status": 200,
+      "ms": 203
+    },
+    {
+      "path": "/api/admin/ai/sessions/rank",
+      "ok": true,
+      "status": 200,
+      "ms": 1576
+    },
+    {
+      "path": "/api/admin/portfolio",
+      "ok": true,
+      "status": 200,
+      "ms": 267
+    },
+    {
+      "path": "/api/admin/media",
+      "ok": true,
+      "status": 200,
+      "ms": 244
+    },
+    {
+      "path": "/api/admin/ai/marketing/intelligence",
+      "ok": true,
+      "status": 200,
+      "ms": 614
+    },
+    {
+      "path": "/api/admin/email/send",
+      "ok": true,
+      "status": 200,
+      "ms": 193
+    },
+    {
+      "path": "/api/admin/analytics",
+      "ok": true,
+      "status": 200,
+      "ms": 319
+    },
+    {
+      "path": "/api/admin/ai/website-intelligence",
+      "ok": true,
+      "status": 200,
+      "ms": 226
+    },
+    {
+      "path": "/api/admin/content",
+      "ok": true,
+      "status": 200,
+      "ms": 286
+    },
+    {
+      "path": "/api/admin/ai/memory",
+      "ok": true,
+      "status": 200,
+      "ms": 224
+    },
+    {
+      "path": "/api/admin/ai/research",
+      "ok": true,
+      "status": 200,
+      "ms": 257
+    },
+    {
+      "path": "/api/admin/ai/timeline",
+      "ok": true,
+      "status": 200,
+      "ms": 258
+    },
+    {
+      "path": "/api/admin/ai/bookings",
+      "ok": true,
+      "status": 200,
+      "ms": 206
+    },
+    {
+      "path": "/api/admin/ai/qa",
+      "ok": true,
+      "status": 200,
+      "ms": 1512
+    },
+    {
+      "path": "/api/admin/payments",
+      "ok": true,
+      "status": 200,
+      "ms": 190
+    },
+    {
+      "path": "/api/admin/ai/automations",
+      "ok": true,
+      "status": 200,
+      "ms": 190
+    },
+    {
+      "path": "/api/admin/ai/health",
+      "ok": true,
+      "status": 200,
+      "ms": 208
+    },
+    {
+      "path": "/api/admin/notifications/health",
+      "ok": true,
+      "status": 200,
+      "ms": 206
+    },
+    {
+      "path": "/api/admin/ai/notifications",
+      "ok": true,
+      "status": 200,
+      "ms": 213
+    }
+  ],
   "inventory": {
-    "osPages": 31,
+    "osPages": 45,
     "adminApiRoutes": 108,
     "metricOwners": 8,
     "aiTasks": 14

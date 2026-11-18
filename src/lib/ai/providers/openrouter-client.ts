@@ -266,10 +266,6 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
         }
 
         const data = await res.json();
-        // Raw provider response is written before content extraction/validation.
-        console.info(
-          `[openrouter] Raw response | request=${requestId} | model=${model.id} | status=${res.status}\n${JSON.stringify(data)}`
-        );
         const toolCalls = parseToolCalls(data);
         const choice = data.choices?.[0];
         const content = extractContent(choice?.message?.content);
@@ -278,6 +274,12 @@ export async function openRouterComplete(request: AICompletionRequest): Promise<
         const usage = data.usage as
           | { prompt_tokens?: number; completion_tokens?: number }
           | undefined;
+
+        // Keep production logs useful without persisting generated content,
+        // provider metadata, or user-linked identifiers from the raw payload.
+        console.info(
+          `[openrouter] request=${requestId} model=${model.id} status=${res.status} finish=${nativeFinishReason} chars=${content.length} tools=${toolCalls?.length ?? 0}`
+        );
 
         if (!content && !toolCalls?.length) {
           lastError = `Empty completion (finish_reason=${nativeFinishReason}) from ${model.id}`;

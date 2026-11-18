@@ -120,6 +120,12 @@ export interface MarketingExperiment {
   confidence: number;
   recommendation: string;
   createdAt: string;
+  source?: string;
+  evidenceState?: "proposed" | "running" | "measured";
+  metric?: string;
+  decisionThreshold?: string;
+  costBand?: string;
+  riskControls?: string[];
 }
 
 export interface MarketingPrediction {

@@ -551,16 +551,36 @@ function LearningPanel({ cmo }: { cmo: CMOIntelligence | null }) {
         </ul>
       </AdminPanel>
 
-      <AdminPanel title="A/B test recommendations" subtitle="Declare winners after enough data">
+      <AdminPanel title="Evidence-gated experiments" subtitle="Proposals are not public claims; declare winners only after measured data">
         <ul className="space-y-3">
           {cmo.experiments.map((e) => (
             <li key={e.id} className="rounded-lg border border-stone/15 p-3">
-              <p className="text-sm text-cream">{e.title}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-cream">{e.title}</p>
+                {e.evidenceState && (
+                  <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.08em] text-amber-300">
+                    {e.evidenceState} · not proven
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-xs text-fog">{e.hypothesis}</p>
               <div className="mt-2 grid gap-1 text-[0.65rem] text-muted">
                 <p>A: {e.variantA}</p>
                 <p>B: {e.variantB}</p>
               </div>
+              {(e.metric || e.decisionThreshold || e.costBand) && (
+                <div className="mt-2 space-y-1 border-t border-stone/15 pt-2 text-[0.65rem] text-fog">
+                  {e.metric && <p><span className="text-muted">Metric:</span> {e.metric}</p>}
+                  {e.decisionThreshold && <p><span className="text-muted">Decision gate:</span> {e.decisionThreshold}</p>}
+                  {e.costBand && <p><span className="text-muted">Cost:</span> {e.costBand}</p>}
+                  {e.source && <p><span className="text-muted">Source:</span> {e.source}</p>}
+                </div>
+              )}
+              {e.riskControls && e.riskControls.length > 0 && (
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-[0.65rem] text-muted">
+                  {e.riskControls.map((control) => <li key={control}>{control}</li>)}
+                </ul>
+              )}
               {e.status === "winner_declared" && e.winner && (
                 <p className="mt-2 text-xs text-emerald-400">Winner: Variant {e.winner}</p>
               )}

@@ -1,26 +1,26 @@
 # ÉLEVÉ Admin OS — Audit Report
 
-Generated: 2026-07-20T21:06:10.715Z
+Generated: 2026-11-18T05:17:05.247Z
 
 ## Summary
 
 | Metric | Value |
 | --- | --- |
-| OS pages | 31 |
-| Working | 31 |
-| Partial | 0 |
+| OS pages | 45 |
+| Working | 43 |
+| Partial | 2 |
 | Broken | 0 |
 | Findings P0 | 0 |
-| Findings P1 | 0 |
-| Findings total | 1 |
+| Findings P1 | 2 |
+| Findings total | 3 |
 | Admin APIs without requireAdmin | 0 |
-| Live probes | skipped |
+| Live probes | 71/73 ok |
 | Metric owners | 8 |
 | AI tasks registered | 14 |
 
 ## Gate
 
-**PASS** — no blocking P0/P1 (excluding skipped live probes).
+**FAIL** — resolve P0 then P1 before Phase 12 sign-off.
 
 ## Pages
 
@@ -41,6 +41,7 @@ Generated: 2026-07-20T21:06:10.715Z
 | create | Applications | `/admin/applications` | working | — |
 | create | Portfolio | `/admin/portfolio` | working | — |
 | create | Media | `/admin/media` | working | — |
+| create | Galleries | `/admin/galleries` | partial | — |
 | grow | Marketing | `/admin/marketing` | working | — |
 | grow | Email | `/admin/email` | working | — |
 | grow | Analytics | `/admin/analytics` | working | — |
@@ -57,13 +58,39 @@ Generated: 2026-07-20T21:06:10.715Z
 | trust | AI Operations | `/admin/ai-operations` | working | — |
 | trust | Notifications | `/admin/notifications` | working | — |
 | trust | Settings | `/admin/settings` | working | — |
+| create | Services | `/admin/services` | working | — |
+| create | Testimonials | `/admin/testimonials` | working | — |
+| create | Page Copy | `/admin/content` | working | — |
+| create | About | `/admin/about` | working | — |
+| create | Experience | `/admin/experience` | partial | — |
+| create | Contact | `/admin/contact` | working | — |
+| create | Booking form | `/admin/booking` | working | — |
+| work | Forms hub | `/admin/forms` | working | — |
+| grow | Sponsorship | `/admin/sponsorship` | working | — |
+| grow | Lead sources | `/admin/referrals` | working | — |
+| grow | Content studio | `/admin/content-hub` | working | — |
+| trust | Payments (legacy) | `/admin/payments` | working | — |
+| trust | AI Health (legacy) | `/admin/ai-health` | working | — |
 
 ## Findings
 
-### [P3] Live HTTP probes skipped
+### [P1] Live probe failed: /admin/galleries
 
-- Category: missing
-- Set AUDIT_BASE_URL (or PRODUCTION_URL) and E2E_ADMIN_PASSWORD to enable live page/API probes.
+- Category: partial
+- Path: `/admin/galleries`
+- HTTP 404 · 306ms
+
+### [P1] Live probe failed: /admin/experience
+
+- Category: partial
+- Path: `/admin/experience`
+- HTTP 404 · 88ms
+
+### [P2] Slow response: /api/admin/ai/daily-briefing
+
+- Category: perf
+- Path: `/api/admin/ai/daily-briefing`
+- 25234ms
 
 ## Principles
 
