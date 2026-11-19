@@ -36,9 +36,9 @@ DATABASE_URL="postgresql://eleve:eleve@localhost:5432/eleve?schema=public"
 1. Create a Postgres database in [Neon](https://neon.tech) or Vercel Storage.
 2. Set `DATABASE_URL` to Neon's **pooled** connection string and `DIRECT_URL`
    to the direct connection string used by Prisma migrations.
-3. Run `npm run db:migrate:deploy` as an explicit release/CI step, then deploy.
-   Web builds do not run migrations, so a sleeping or unavailable direct
-   endpoint cannot block an otherwise healthy application deployment.
+3. Preview builds do not run migrations, so they cannot mutate production data
+   or fail because the direct database endpoint is unavailable. Production
+   Vercel builds run `npm run db:migrate:deploy` before the Next.js build.
 
 **Production builds never seed the database.** Run `npm run db:seed` manually only for fresh dev/staging setups.
 
@@ -132,7 +132,8 @@ The upload API already sets `access: "public"` on each file (`src/app/api/admin/
 
 ```bash
 npm run dev              # Development server
-npm run build            # Production build (migrate deploy + next build)
+npm run build            # Generate Prisma Client + build Next.js
+npm run vercel-build     # Preview build; production also applies migrations
 npm run db:migrate       # Create/apply migrations (dev)
 npm run db:migrate:deploy # Apply migrations (CI/production)
 npm run db:seed          # Seed default content (manual, dev only)
