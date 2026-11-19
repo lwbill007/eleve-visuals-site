@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import type { HeroContent } from "@/lib/types";
 import { trackEngagement, trackFunnel } from "@/lib/analytics-client";
+import { SERVICE_STARTING_PRICE_TEXT } from "@/lib/pricing-config";
 
 export function HomeHero({
   hero,
@@ -126,6 +128,20 @@ export function HomeHero({
               {secondaryLabel}
             </Button>
             </div>
+            <Link
+              href="/pricing"
+              onClick={() =>
+                trackEngagement({ event: "cta_click", path: "/", label: "hero_pricing" })
+              }
+              className="mt-5 block border-l border-accent/60 pl-4 text-sm leading-relaxed text-cream-dim transition-colors hover:text-cream sm:mt-6"
+            >
+              <span className="block font-medium text-cream">See packages and exact deliverables</span>
+              <span className="mt-1 block text-fog">
+                {SERVICE_STARTING_PRICE_TEXT.photography} · {SERVICE_STARTING_PRICE_TEXT.videography}
+                {" · "}
+                {SERVICE_STARTING_PRICE_TEXT["monthly-partnerships"]}
+              </span>
+            </Link>
           </div>
         </div>
       </div>
