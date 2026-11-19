@@ -332,7 +332,11 @@ export async function getAboutContent(): Promise<AboutContent> {
 }
 
 export async function getExperienceContent(): Promise<ExperienceContent> {
-  return getJsonContent(CONTENT_KEYS.experience, DEFAULT_EXPERIENCE);
+  const stored = await getJsonContent<Partial<ExperienceContent>>(
+    CONTENT_KEYS.experience,
+    DEFAULT_EXPERIENCE
+  );
+  return mergeExperienceContent(stored);
 }
 
 export async function getSessionsContent(): Promise<SessionsContent> {
@@ -396,7 +400,54 @@ export async function getBookingTerms(): Promise<BookingTermsContent> {
 }
 
 export async function getPageCopy(): Promise<PageCopy> {
-  return getJsonContent(CONTENT_KEYS.pageCopy, DEFAULT_PAGE_COPY);
+  const stored = await getJsonContent<Partial<PageCopy>>(
+    CONTENT_KEYS.pageCopy,
+    DEFAULT_PAGE_COPY
+  );
+  return mergePageCopy(stored);
+}
+
+export function mergeExperienceContent(
+  stored: Partial<ExperienceContent>
+): ExperienceContent {
+  return {
+    ...DEFAULT_EXPERIENCE,
+    ...stored,
+    stages: stored.stages?.length ? stored.stages : DEFAULT_EXPERIENCE.stages,
+  };
+}
+
+export function mergePageCopy(stored: Partial<PageCopy>): PageCopy {
+  return {
+    ...DEFAULT_PAGE_COPY,
+    ...stored,
+    homeCta: { ...DEFAULT_PAGE_COPY.homeCta, ...stored.homeCta },
+    portfolioHero: {
+      ...DEFAULT_PAGE_COPY.portfolioHero,
+      ...stored.portfolioHero,
+    },
+    portfolioCta: {
+      ...DEFAULT_PAGE_COPY.portfolioCta,
+      ...stored.portfolioCta,
+    },
+    servicesCta: { ...DEFAULT_PAGE_COPY.servicesCta, ...stored.servicesCta },
+    aboutCta: { ...DEFAULT_PAGE_COPY.aboutCta, ...stored.aboutCta },
+    sessionsCta: { ...DEFAULT_PAGE_COPY.sessionsCta, ...stored.sessionsCta },
+    experienceCta: {
+      ...DEFAULT_PAGE_COPY.experienceCta,
+      ...stored.experienceCta,
+    },
+    bookPage: {
+      ...DEFAULT_PAGE_COPY.bookPage,
+      ...stored.bookPage,
+      notes: stored.bookPage?.notes?.length
+        ? stored.bookPage.notes
+        : DEFAULT_PAGE_COPY.bookPage.notes,
+      nextSteps: stored.bookPage?.nextSteps?.length
+        ? stored.bookPage.nextSteps
+        : DEFAULT_PAGE_COPY.bookPage.nextSteps,
+    },
+  };
 }
 
 export async function getNotificationSettings(): Promise<NotificationSettings> {
