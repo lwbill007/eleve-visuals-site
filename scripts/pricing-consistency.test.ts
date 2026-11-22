@@ -16,7 +16,7 @@ const expectedPrices: Record<string, number> = {
   "photo-signature": 450,
   "photo-premium": 1350,
   "video-entry": 450,
-  "video-signature": 950,
+  "video-signature": 975,
   "video-premium": 3500,
   "monthly-entry": 650,
   "monthly-signature": 1350,

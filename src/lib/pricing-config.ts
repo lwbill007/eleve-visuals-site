@@ -22,7 +22,7 @@ export interface ApprovedPricingPackage {
   videoPreviewHint?: string;
 }
 
-export const PRICING_VERSION = "v0.2-test-2026-11-18";
+export const PRICING_VERSION = "v0.2.1-validation-2026-11-22";
 export const PRICING_STATUS = "approved_for_90_day_validation" as const;
 
 export const PRICING_FAMILY_LABELS: Record<PricingFamily, string> = {
@@ -216,7 +216,7 @@ export const APPROVED_PRICING_PACKAGES: ApprovedPricingPackage[] = [
     family: "motion",
     level: "signature",
     name: "Motion Signature",
-    price: 950,
+    price: 975,
     billing: "project",
     description: "A stronger brand or artist moment with planning and two distinct motion assets.",
     perfectFor: ["Artists", "Founders", "Personal brands", "Launch moments"],
