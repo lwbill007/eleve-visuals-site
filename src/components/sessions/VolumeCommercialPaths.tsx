@@ -13,7 +13,7 @@ export function VolumeCommercialPaths({
 }: {
   slug: string;
   volumeLabel: string;
-  /** Link to The Experience when this volume offers VOL. tiers. */
+  /** Link to Portrait Experiences when this volume offers VOL. tiers. */
   tiersEnabled?: boolean;
 }) {
   return (
@@ -33,9 +33,9 @@ export function VolumeCommercialPaths({
         {tiersEnabled ? (
           <p className="mt-6 max-w-xl text-sm leading-relaxed text-fog">
             Selected participants can choose how much of the production they take home, from free to the complete
-            editorial experience. Paid only after acceptance.{" "}
+            editorial experience. Paid only after selection.{" "}
             <Link href="/sessions/experience" className="text-cream underline underline-offset-4">
-              See The Experience
+              See Portrait Experiences and prices
             </Link>
           </p>
         ) : null}

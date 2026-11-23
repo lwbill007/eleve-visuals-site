@@ -8,7 +8,7 @@ import {
   VOL_ALWAYS_INCLUDED,
   VOL_FINISHING_LEVELS,
   VOL_NEVER_INCLUDED,
-  VOL_POLICIES,
+  volPolicies,
   VOL_TIERS,
   formatVolPrice,
   offeredVolTiers,
@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const [volume, base] = await Promise.all([
     getTierVolume(),
     buildPageMetadata({
-      title: "The ÉLEVÉ VOL. Experience",
+      title: "ÉLEVÉ VOL. Portrait Experiences",
       description:
         "Ways to take part in an ÉLEVÉ VOL. production, from free creative participation to the complete editorial experience. Selection always comes first.",
       path: "/sessions/experience",
@@ -54,7 +54,7 @@ export default async function VolExperiencePage() {
     <>
       <PageHero
         eyebrow={`ÉLEVÉ VOL. · Vol. ${volume.volumeNumber} — ${volume.title}`}
-        headline="The Experience"
+        headline="Portrait Experiences"
         subheadline="Everyone applies free and is cast on the concept alone. If you're selected, choose how much of the production you take home."
         compact
       />
@@ -184,7 +184,7 @@ export default async function VolExperiencePage() {
             How it works
           </h2>
           <dl className="mt-8 space-y-6">
-            {VOL_POLICIES.map((policy) => (
+            {volPolicies(volume.applicationSettings.paymentDeadlineHours).map((policy) => (
               <div key={policy.title}>
                 <dt className="text-xs tracking-[0.2em] text-cream uppercase">{policy.title}</dt>
                 <dd className="mt-2 text-sm leading-relaxed text-fog">{policy.body}</dd>

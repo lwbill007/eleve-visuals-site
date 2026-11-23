@@ -824,6 +824,8 @@ export interface SessionApplicationSettings {
   tiersEnabled: boolean;
   /** Tier ids offered (vol-tiers.ts). Empty = all. Free is always offered. */
   tiersOffered: string[];
+  /** Hours to pay after the payment link or invoice is sent. Default 48 (12–168). */
+  paymentDeadlineHours: number;
   customConfirmationMessage: string;
   questions: SessionApplicationQuestion[];
   emailTemplates: SessionApplicationEmailTemplates;

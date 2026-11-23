@@ -3,7 +3,11 @@ import {
   VOL_TIERS,
   cleanExperiencePreference,
   offeredVolTiers,
-  rolesCanChooseTier,
+  formatDeadline,
+  normalizePaymentDeadlineHours,
+  volApplyRules,
+  volPolicies,
+  volTierSummary,
   volComparisonRows,
 } from "../src/lib/vol-tiers";
 import { APPROVED_PRICING_PACKAGES } from "../src/lib/pricing-config";
@@ -57,19 +61,45 @@ test("free is always offered; empty list = all", () => {
   assert.deepEqual(offeredVolTiers(["bogus"]).map((t) => t.id), VOL_TIERS.map((t) => t.id));
 });
 
-test("only models choose a tier", () => {
-  assert.equal(rolesCanChooseTier(["Model"]), true);
-  assert.equal(rolesCanChooseTier(["Photographer", "Stylist"]), false);
+test("preference kept only when enabled and offered (any individual applicant)", () => {
+  const on = { tiersEnabled: true, tiersOffered: ["entry", "featured"] };
+  assert.equal(cleanExperiencePreference("featured", on), "featured");
+  assert.equal(cleanExperiencePreference("signature", on), "");
+  assert.equal(cleanExperiencePreference("featured", { tiersEnabled: false, tiersOffered: [] }), "");
+  assert.equal(cleanExperiencePreference("free", on), "free");
+  assert.equal(cleanExperiencePreference(42, on), "");
 });
 
-test("preference kept only when enabled, offered and role qualifies", () => {
-  const on = { tiersEnabled: true, tiersOffered: ["entry", "featured"] };
-  assert.equal(cleanExperiencePreference("featured", ["Model"], on), "featured");
-  assert.equal(cleanExperiencePreference("signature", ["Model"], on), "");
-  assert.equal(cleanExperiencePreference("featured", ["Photographer"], on), "");
-  assert.equal(cleanExperiencePreference("featured", ["Model"], { tiersEnabled: false, tiersOffered: [] }), "");
-  assert.equal(cleanExperiencePreference("free", ["Model"], on), "free");
-  assert.equal(cleanExperiencePreference(42, ["Model"], on), "");
+test("payment deadline: 48 h default, clamped 12–168", () => {
+  assert.equal(parseApplicationSettings("{}").paymentDeadlineHours, 48);
+  assert.equal(normalizePaymentDeadlineHours(undefined), 48);
+  assert.equal(normalizePaymentDeadlineHours("abc"), 48);
+  assert.equal(normalizePaymentDeadlineHours(2), 12);
+  assert.equal(normalizePaymentDeadlineHours(1000), 168);
+  assert.equal(parseApplicationSettings(JSON.stringify({ paymentDeadlineHours: 72 })).paymentDeadlineHours, 72);
+  assert.equal(formatDeadline(48), "48 hours");
+  assert.equal(formatDeadline(72), "3 days");
+});
+
+test("the four approved rules are shown with prices", () => {
+  const rules = volApplyRules(48).join(" ");
+  assert.match(rules, /Applying is free/);
+  assert.match(rules, /never a casting factor/);
+  assert.match(rules, /only after you're selected.*48 hours/);
+  assert.match(rules, /Collaborators and businesses don't choose/);
+});
+
+test("no public policy text still says 5 days", () => {
+  const text = JSON.stringify(volPolicies(48)) + volApplyRules(48).join(" ");
+  assert.doesNotMatch(text, /5 days|five days/i);
+  assert.match(text, /48 hours/);
+});
+
+test("tier summary lists what's included", () => {
+  const sig = volTierSummary(VOL_TIERS.find((t) => t.id === "signature")!);
+  assert.ok(sig.includes("12 edited photos"));
+  assert.ok(sig.includes("8×10 print"));
+  assert.ok(volTierSummary(VOL_TIERS[0]).includes("10-business-day delivery"));
 });
 
 test("tiers are off by default for every volume", () => {

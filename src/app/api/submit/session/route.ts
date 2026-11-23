@@ -124,7 +124,7 @@ export async function POST(request: Request) {
     ...parsed.data,
     roleDetails: cleanRoleDetails(parsed.data.roleDetails, parsed.data.roles, settings).details,
     // Non-binding; kept only when this volume offers that tier to this role.
-    experiencePreference: cleanExperiencePreference(parsed.data.experiencePreference, parsed.data.roles, settings),
+    experiencePreference: cleanExperiencePreference(parsed.data.experiencePreference, settings),
     // Volume identity always comes from the server record, never the client.
     sessionVolumeId: volume.id,
     portfolioImages: cleanPortfolioImages,

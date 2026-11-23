@@ -1,3 +1,4 @@
+import { DEFAULT_VOL_PAYMENT_DEADLINE_HOURS, normalizePaymentDeadlineHours } from "./vol-tiers";
 import type {
   SessionApplicationData,
   SessionApplicationQuestion,
@@ -70,6 +71,7 @@ export const DEFAULT_SESSION_APPLICATION_SETTINGS: SessionApplicationSettings = 
   collaborationTerms: DEFAULT_COLLABORATION_TERMS,
   tiersEnabled: false,
   tiersOffered: [],
+  paymentDeadlineHours: DEFAULT_VOL_PAYMENT_DEADLINE_HOURS,
   customConfirmationMessage: "",
   questions: DEFAULT_APPLICATION_QUESTIONS,
   emailTemplates: {
@@ -143,6 +145,7 @@ export function parseApplicationSettings(raw: string | null | undefined): Sessio
       tiersOffered: Array.isArray(parsed.tiersOffered)
         ? parsed.tiersOffered.filter((id): id is string => typeof id === "string")
         : [],
+      paymentDeadlineHours: normalizePaymentDeadlineHours(parsed.paymentDeadlineHours),
       collaborationTerms:
         typeof parsed.collaborationTerms === "string" && parsed.collaborationTerms.trim()
           ? parsed.collaborationTerms

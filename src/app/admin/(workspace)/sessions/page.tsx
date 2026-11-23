@@ -1,6 +1,13 @@
 "use client";
 
-import { VOL_TIERS, formatVolPrice, offeredVolTiers } from "@/lib/vol-tiers";
+import {
+  DEFAULT_VOL_PAYMENT_DEADLINE_HOURS,
+  MAX_VOL_PAYMENT_DEADLINE_HOURS,
+  MIN_VOL_PAYMENT_DEADLINE_HOURS,
+  VOL_TIERS,
+  formatVolPrice,
+  offeredVolTiers,
+} from "@/lib/vol-tiers";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -1123,8 +1130,9 @@ export default function AdminSessionsPage() {
                   Offer ÉLEVÉ VOL. experience tiers for this volume
                 </label>
                 <p className="mt-2 text-xs text-muted">
-                  Off by default. When on, models can mark a non-binding preference on the application and the
-                  volume page links to The Experience. Payment happens only after acceptance. Free is always offered.
+                  Off by default. When on, every applicant sees the prices and the rules while applying, can mark a
+                  non-binding preference, and the volume page links to Portrait Experiences. Payment happens only after
+                  selection. Free is always offered. Turning this on for a live volume publishes prices: confirm first.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-4">
                   {VOL_TIERS.map((tier) => {
@@ -1152,6 +1160,22 @@ export default function AdminSessionsPage() {
                     );
                   })}
                 </div>
+                <label className="mt-3 flex items-center gap-3 text-sm text-fog">
+                  Payment deadline after the link or invoice is sent (hours)
+                  <input
+                    type="number"
+                    min={MIN_VOL_PAYMENT_DEADLINE_HOURS}
+                    max={MAX_VOL_PAYMENT_DEADLINE_HOURS}
+                    className="w-24 border border-stone/40 bg-transparent px-2 py-1 text-cream"
+                    value={editing.applicationSettings?.paymentDeadlineHours ?? DEFAULT_VOL_PAYMENT_DEADLINE_HOURS}
+                    onChange={(e) =>
+                      update("applicationSettings", {
+                        ...(editing.applicationSettings || DEFAULT_SESSION_APPLICATION_SETTINGS),
+                        paymentDeadlineHours: Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
               </div>
               <div className="mt-4">
                 <AdminField label="Collaboration terms shown before submit (one point per line)">

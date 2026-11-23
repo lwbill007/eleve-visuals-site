@@ -164,29 +164,65 @@ export const VOL_NEVER_INCLUDED = [
   "Special wardrobe, makeup, or travel to other locations",
 ] as const;
 
-/** How payment works. Wording follows proposal D-3 / D-4 (2026-11-23). */
-export const VOL_POLICIES = [
-  {
-    title: "Selection comes first",
-    body: "Everyone applies free. Your preferred experience is not considered when we cast. Paying never secures a place, a cover or publication.",
-  },
-  {
-    title: "Pay only after acceptance",
-    body: "If you're selected, we confirm your experience and send a payment link or invoice. Payment is due within 5 days of confirming.",
-  },
-  {
-    title: "No payment, still cast",
-    body: "If you choose not to pay, or miss the deadline, you keep your place on the Free experience.",
-  },
-  {
-    title: "Refunds",
-    body: "Full refund if we cancel or reschedule the production and you can't attend. Experiences are not refundable after the shoot.",
-  },
-  {
-    title: "Looks and timing",
-    body: "Additional looks and solo time depend on the production's schedule and are offered when it allows.",
-  },
-] as const;
+/** Approved default (directive §8, V-decisions 2026-11-23). Configurable per volume. */
+export const DEFAULT_VOL_PAYMENT_DEADLINE_HOURS = 48;
+export const MIN_VOL_PAYMENT_DEADLINE_HOURS = 12;
+export const MAX_VOL_PAYMENT_DEADLINE_HOURS = 168;
+
+/** Clamp a stored deadline to the allowed range; anything invalid → 48 h. */
+export function normalizePaymentDeadlineHours(value: unknown): number {
+  const n = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+  if (!Number.isFinite(n)) return DEFAULT_VOL_PAYMENT_DEADLINE_HOURS;
+  return Math.min(MAX_VOL_PAYMENT_DEADLINE_HOURS, Math.max(MIN_VOL_PAYMENT_DEADLINE_HOURS, Math.round(n)));
+}
+
+/** "48 hours", "3 days" (whole days only when exact). */
+export function formatDeadline(hours: number): string {
+  if (hours >= 48 && hours % 24 === 0 && hours !== 48) return `${hours / 24} days`;
+  return `${hours} hours`;
+}
+
+/**
+ * The four rules shown next to prices wherever an applicant sees them
+ * (application form, Portrait Experiences page).
+ */
+export function volApplyRules(deadlineHours: number = DEFAULT_VOL_PAYMENT_DEADLINE_HOURS): readonly string[] {
+  return [
+    "Applying is free.",
+    "Price is never a casting factor. Your preference is not used when we select.",
+    `You pay only after you're selected and confirm, within ${formatDeadline(deadlineHours)} of receiving the payment link or invoice.`,
+    "Collaborators and businesses don't choose individual experiences. Creative roles never require payment.",
+  ];
+}
+
+/** How payment works. Wording follows the approved V-decisions (2026-11-23). */
+export function volPolicies(deadlineHours: number = DEFAULT_VOL_PAYMENT_DEADLINE_HOURS) {
+  return [
+    {
+      title: "Selection comes first",
+      body: "Everyone applies free. Your preferred experience is not considered when we cast. Paying never secures a place, a cover or publication.",
+    },
+    {
+      title: "Pay only after selection",
+      body: `If you're selected, we confirm your experience and send a secure payment link or invoice. Payment is due within ${formatDeadline(deadlineHours)}. Nothing is charged on this website.`,
+    },
+    {
+      title: "If payment isn't received",
+      body: "Your place normally continues on the Free experience. For some productions, an unconfirmed paid place may be offered to the waitlist; we'll tell you before that happens.",
+    },
+    {
+      title: "Refunds",
+      body: "Full refund if we cancel or reschedule the production and you can't attend. Experiences are not refundable after the shoot.",
+    },
+    {
+      title: "Looks and timing",
+      body: "Additional looks and solo time depend on the production's schedule and are offered when it allows.",
+    },
+  ] as const;
+}
+
+/** Default-deadline policies (kept for existing imports). */
+export const VOL_POLICIES = volPolicies();
 
 export function getVolTier(id: string | null | undefined): VolTier | undefined {
   return VOL_TIERS.find((tier) => tier.id === id);
@@ -204,13 +240,6 @@ export function offeredVolTiers(ids: readonly string[] | null | undefined): VolT
   // Free is always available: nobody has to pay to take part.
   set.add("free");
   return VOL_TIERS.filter((tier) => set.has(tier.id));
-}
-
-/** Applicant roles that receive portraits and can choose a tier. Collaborators get agreements instead. */
-export const VOL_TIER_PARTICIPANT_ROLES = ["Model"] as const;
-
-export function rolesCanChooseTier(roles: readonly string[]): boolean {
-  return roles.some((role) => (VOL_TIER_PARTICIPANT_ROLES as readonly string[]).includes(role));
 }
 
 export function formatVolPrice(price: number): string {
@@ -235,14 +264,28 @@ export function volComparisonRows(tiers: readonly VolTier[]): { label: string; v
 }
 
 /**
- * Server-side: keep a tier preference only if the volume offers tiers, the
- * applicant's roles can choose one, and the tier is offered. Otherwise "".
+ * Server-side: keep a tier preference only if the volume offers tiers and the
+ * tier is offered. Otherwise "". Open to every individual applicant: it is
+ * optional, and collaborators simply leave it empty (they never need to pay).
+ * Businesses don't apply through the individual form, so never reach this.
  */
 export function cleanExperiencePreference(
   value: unknown,
-  roles: readonly string[],
   settings: { tiersEnabled?: boolean; tiersOffered?: readonly string[] }
 ): string {
-  if (!settings.tiersEnabled || !rolesCanChooseTier(roles) || !isVolTierId(value)) return "";
+  if (!settings.tiersEnabled || !isVolTierId(value)) return "";
   return offeredVolTiers(settings.tiersOffered).some((tier) => tier.id === value) ? value : "";
+}
+
+/** Short "what's included" line for a tier card. */
+export function volTierSummary(tier: VolTier): string[] {
+  const parts = [`${tier.finalPhotos} edited photos`];
+  if (tier.cleanRetouches) parts.push(`${tier.cleanRetouches} clean retouch${tier.cleanRetouches > 1 ? "es" : ""}`);
+  if (tier.signatureRetouches) parts.push(`${tier.signatureRetouches} signature retouch${tier.signatureRetouches > 1 ? "es" : ""}`);
+  parts.push(tier.onSet);
+  if (tier.layouts) parts.push(`${tier.layouts} editorial layout${tier.layouts > 1 ? "s" : ""}`);
+  if (tier.prints) parts.push("8×10 print");
+  if (tier.correctionRequests) parts.push("1 correction request");
+  parts.push(`${tier.deliveryBusinessDays}-business-day delivery`);
+  return parts;
 }
