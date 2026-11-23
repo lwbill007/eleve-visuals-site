@@ -2,6 +2,20 @@ import { prisma } from "./db";
 import { Prisma } from "@prisma/client";
 
 const WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const TRANSACTION_MAX_WAIT_MS = 10_000;
+const TRANSACTION_TIMEOUT_MS = 10_000;
+
+/**
+ * Safe to retry: a serialization conflict (P2034) or a transaction that could
+ * not start in time, e.g. while the database wakes from idle (P2028).
+ * Anything else still fails closed.
+ */
+export function isRetryableRateLimitError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2034" || error.code === "P2028")
+  );
+}
 
 const LIMITS: Record<string, number> = {
   // Successful booking inquiries — raised so testing/retries don't lock you out
@@ -92,14 +106,17 @@ export async function checkRateLimit(
           await tx.rateLimitEntry.create({ data: { ip, route } });
           return { ok: true as const };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          // Neon scales to zero; the first query after idle can take several
+          // seconds. Prisma's 2s default made logins fail while it woke up.
+          maxWait: TRANSACTION_MAX_WAIT_MS,
+          timeout: TRANSACTION_TIMEOUT_MS,
+        }
       );
     } catch (error) {
-      if (
-        attempt < 2 &&
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2034"
-      ) {
+      if (attempt < 2 && isRetryableRateLimitError(error)) {
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
         continue;
       }
       throw error;
