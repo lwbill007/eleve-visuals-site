@@ -72,19 +72,17 @@ export default async function VolExperiencePage() {
                 </p>
                 <h3 className="mt-4 font-display text-3xl text-cream">{tier.name}</h3>
                 <p className="mt-2 text-2xl text-cream">{formatVolPrice(tier.price)}</p>
-                <dl className="mt-6 grid grid-cols-3 gap-3 border-t border-stone/30 pt-4 text-center">
-                  <div>
-                    <dt className="text-[0.55rem] tracking-[0.16em] text-muted uppercase">Photos</dt>
-                    <dd className="mt-1 text-lg text-cream">{tier.finalPhotos}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[0.55rem] tracking-[0.16em] text-muted uppercase">Retouched</dt>
-                    <dd className="mt-1 text-lg text-cream">{tier.cleanRetouches + tier.signatureRetouches}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[0.55rem] tracking-[0.16em] text-muted uppercase">Days</dt>
-                    <dd className="mt-1 text-lg text-cream">{tier.deliveryBusinessDays}</dd>
-                  </div>
+                <dl className="mt-6 space-y-1.5 border-t border-stone/30 pt-4 text-sm">
+                  {[
+                    ["Edited photos", tier.finalPhotos],
+                    ["Retouched", tier.cleanRetouches + tier.signatureRetouches],
+                    ["Delivery (business days)", tier.deliveryBusinessDays],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-baseline justify-between gap-3">
+                      <dt className="text-[0.6rem] tracking-[0.16em] text-muted uppercase">{label}</dt>
+                      <dd className="text-cream">{value}</dd>
+                    </div>
+                  ))}
                 </dl>
                 <ul className="mt-6 flex-1 space-y-2 text-sm leading-relaxed text-fog">
                   <li>{tier.onSet}</li>
