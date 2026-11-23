@@ -16,6 +16,7 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
         { label: "Contact", href: "/contact" },
         { label: "Book Your Experience", href: "/book" },
         { label: "Booking Terms", href: "/booking-terms" },
+        { label: "Privacy", href: "/privacy" },
       ];
   const footerText = navigation?.footerText || siteConfig.tagline;
   const copyright =
@@ -111,6 +112,9 @@ export function Footer({ siteConfig, navigation }: FooterProps) {
             <div className="flex flex-wrap gap-4 text-xs text-muted">
               <Link href="/booking-terms" className="hover:text-cream">
                 Booking Terms
+              </Link>
+              <Link href="/privacy" className="hover:text-cream">
+                Privacy
               </Link>
               <span>Photography & film by {siteConfig.creator}</span>
             </div>

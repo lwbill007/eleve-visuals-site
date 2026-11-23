@@ -17,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/book`, changeFrequency: "monthly", priority: 0.95 },
     { url: `${base}/alumni`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/booking-terms`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   const [portfolioResult, volumeResult, castResult] = await Promise.allSettled([
