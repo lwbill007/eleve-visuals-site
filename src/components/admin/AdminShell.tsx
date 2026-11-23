@@ -87,7 +87,8 @@ function AdminShellInner({
   const [navOpen, setNavOpen] = useState(false);
   const [desktopNav, setDesktopNav] = useState(false);
   const [openSystems, setOpenSystems] = useState<Set<string>>(
-    () => new Set(["Command", "Work"])
+    // Create is open by default so Seasonal Campaigns (first item) is one tap away.
+    () => new Set(["Command", "Work", "Create"])
   );
   const [recentWorkspaces, setRecentWorkspaces] = useState<{ label: string; href: string }[]>([]);
   const navRef = useRef<HTMLElement>(null);

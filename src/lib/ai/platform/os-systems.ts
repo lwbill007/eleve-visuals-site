@@ -120,6 +120,14 @@ export const OS_PAGES: OsPageSpec[] = [
   },
   // Create
   {
+    id: "seasonal",
+    system: "create",
+    label: "Seasonal Campaigns",
+    href: "/admin/seasonal",
+    question: "Which edition is the site wearing?",
+    purpose: "Switch, schedule, preview and roll back seasonal campaigns. No deploy needed.",
+  },
+  {
     id: "sessions",
     system: "create",
     label: "Sessions",

@@ -67,6 +67,15 @@ const optionalInstagram = z
     "Enter a valid Instagram handle or URL"
   );
 
+/** Optional seasonal campaign tag (e.g. holiday-2026); absent on normal inquiries. */
+const campaignTag = z
+  .string()
+  .trim()
+  .max(48)
+  .regex(/^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/)
+  .optional()
+  .or(z.literal(""));
+
 export function createBookingSchema(options: BookingOptions) {
   const categoryIds = [
     "Portrait",
@@ -125,6 +134,8 @@ export function createBookingSchema(options: BookingOptions) {
       errorMap: () => ({ message: "You must agree to the booking terms" }),
     }),
     welcomeAccepted: z.boolean().optional(),
+    campaign: campaignTag,
+    campaignInterest: campaignTag,
   });
 }
 
@@ -142,6 +153,8 @@ export const contactSchema = z.object({
   email,
   subject: z.string().trim().min(1).max(200),
   message: z.string().trim().min(10).max(5000),
+  campaign: campaignTag,
+  campaignInterest: campaignTag,
 });
 
 export const sessionSchema = z.object({

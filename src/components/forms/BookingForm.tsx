@@ -17,6 +17,7 @@ import { BookingSuccess } from "@/components/booking/BookingSuccess";
 import { PackageShowcase } from "@/components/booking/PackageShowcase";
 import { BookingScopeSummary } from "@/components/booking/BookingScopeSummary";
 import { trackConversion, trackEngagement, trackFunnel } from "@/lib/analytics-client";
+import { readCampaignTag, type CampaignTag } from "@/lib/seasonal/inquiry-tag";
 import {
   BOOKING_AUTOSAVE_KEY,
   BOOKING_STEPS,
@@ -96,6 +97,11 @@ export function BookingForm({
   const [minDate, setMinDate] = useState("");
   const idempotencyKeyRef = useRef("");
   const initialSelectionHandledRef = useRef(false);
+  const campaignTagRef = useRef<CampaignTag | null>(null);
+
+  useEffect(() => {
+    campaignTagRef.current = readCampaignTag();
+  }, []);
 
   const selectedPackage = useMemo(() => getPackageById(data.packageId), [data.packageId]);
 
@@ -287,7 +293,11 @@ export function BookingForm({
           : step === 3
             ? "booking_step_3"
             : "booking_step_4";
-    trackFunnel(funnelLabel, { path: "/book", step });
+    trackFunnel(funnelLabel, {
+      path: "/book",
+      step,
+      ...(campaignTagRef.current ? { metadata: { ...campaignTagRef.current } } : {}),
+    });
     setStep((s) => Math.min(s + 1, BOOKING_STEPS.length));
     window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
   };
@@ -334,6 +344,7 @@ export function BookingForm({
       const payload = {
         ...normalizeBookingPayload(composed as unknown as Record<string, unknown>, bookingOptions),
         idempotencyKey: idempotencyKeyRef.current || crypto.randomUUID(),
+        ...(campaignTagRef.current ?? {}),
         ...spam.spamPayload(),
       };
 
@@ -373,7 +384,10 @@ export function BookingForm({
         /* ignore */
       }
       trackConversion("booking");
-      trackFunnel("submission_completed", { path: "/book" });
+      trackFunnel("submission_completed", {
+        path: "/book",
+        ...(campaignTagRef.current ? { metadata: { ...campaignTagRef.current } } : {}),
+      });
       setInquiryId(json.inquiryId);
       setSubmitted(true);
     } catch {

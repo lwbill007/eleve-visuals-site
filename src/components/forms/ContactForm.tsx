@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/Form";
 import { SubmitButton } from "@/components/ui/Button";
 import { FormSpamFields, useFormSpam } from "@/components/forms/FormSpamFields";
-import { trackConversion } from "@/lib/analytics-client";
+import { trackConversion, trackEngagement } from "@/lib/analytics-client";
+import { readCampaignTag, type CampaignTag } from "@/lib/seasonal/inquiry-tag";
 import { isValidEmail, mapApiErrorsToForm, type FormErrors } from "@/lib/utils";
 
 interface ContactFormData {
@@ -36,8 +37,15 @@ export function ContactForm({ responseTime }: { responseTime?: string }) {
   const spam = useFormSpam();
   const reply = responseTime?.trim() || "Within 24–48 hours on business days";
 
+  const campaignTagRef = useRef<CampaignTag | null>(null);
+
   useEffect(() => {
     idempotencyKeyRef.current = crypto.randomUUID();
+    const tag = readCampaignTag();
+    campaignTagRef.current = tag;
+    if (tag?.campaignInterest === "gift") {
+      setData((prev) => (prev.subject ? prev : { ...prev, subject: "Gift experience inquiry" }));
+    }
   }, []);
 
   const update = (key: keyof ContactFormData, value: string) => {
@@ -75,6 +83,7 @@ export function ContactForm({ responseTime }: { responseTime?: string }) {
         body: JSON.stringify({
           ...data,
           idempotencyKey: idempotencyKeyRef.current || crypto.randomUUID(),
+          ...(campaignTagRef.current ?? {}),
           ...spam.spamPayload(),
         }),
       });
@@ -91,6 +100,13 @@ export function ContactForm({ responseTime }: { responseTime?: string }) {
         return;
       }
       trackConversion("contact");
+      if (campaignTagRef.current) {
+        trackEngagement({
+          event: "funnel",
+          label: "seasonal_inquiry_submitted",
+          metadata: { ...campaignTagRef.current, form: "contact" },
+        });
+      }
       setSubmitted(true);
     } catch {
       setFormError("Network error. Check your connection and try again.");

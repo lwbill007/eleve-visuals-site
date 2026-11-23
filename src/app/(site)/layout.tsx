@@ -10,6 +10,10 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { getSiteConfig, getNavigationConfig, getHomepageContent } from "@/lib/content";
 import { buildOrganizationSchema, buildWebsiteSchema } from "@/lib/seo/structured-data";
 import { unstable_cache } from "next/cache";
+import { getPublicSeasonalState } from "@/lib/seasonal/server";
+import { seasonalNavLink } from "@/lib/seasonal/links";
+import { SeasonalPreviewBar } from "@/components/seasonal/SeasonalPreviewBar";
+import { SeasonalBoundaryGuard } from "@/components/seasonal/SeasonalBoundaryGuard";
 import {
   DEFAULT_HOMEPAGE,
   DEFAULT_NAVIGATION,
@@ -77,11 +81,17 @@ export async function generateMetadata() {
 }
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [siteConfig, navigation, homepage] = await Promise.all([
+  const [siteConfig, navigation, homepage, seasonal] = await Promise.all([
     getCachedSiteConfig(),
     getCachedNavigation(),
     getCachedHomepage(),
+    getPublicSeasonalState(),
   ]);
+  // Seasonal nav item is added at render time only; stored navigation is never modified.
+  const seasonalLink = seasonal.campaign ? seasonalNavLink(seasonal.campaign) : null;
+  const navLinks = seasonalLink
+    ? [seasonalLink, ...navigation.navLinks.filter((l) => l.href !== seasonalLink.href)]
+    : navigation.navLinks;
 
   return (
     <>
@@ -91,10 +101,14 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <ScrollDepthTracker />
       <FunnelAnalyticsTracker experimentVariant={homepage?.experiment?.variant} />
       <SkipToContent />
-      <Header siteConfig={siteConfig} navLinks={navigation.navLinks} />
+      <Header siteConfig={siteConfig} navLinks={navLinks} />
       <main id="main-content">{children}</main>
       <Footer siteConfig={siteConfig} navigation={navigation} />
       <StickyMobileBookCta />
+      {seasonal.nextBoundary ? <SeasonalBoundaryGuard at={seasonal.nextBoundary} /> : null}
+      {seasonal.preview ? (
+        <SeasonalPreviewBar mode={seasonal.preview} name={seasonal.campaign?.name ?? null} />
+      ) : null}
     </>
   );
 }

@@ -319,3 +319,66 @@ input[type="file"] {
 ::-webkit-scrollbar-thumb {
   @apply bg-stone rounded-full;
 }
+
+/* ── Seasonal Campaigns ──────────────────────────────────────────────
+   Scoped to [data-season]; colours come from the campaign's admin accent
+   tokens (--season-*), so the permanent brand palette is never changed. */
+[data-season] {
+  --season-onyx: #111111;
+  --season-cream: #f4ebdd;
+  --season-gold: #c6a66b;
+  --season-burgundy: #571e2b;
+}
+
+.season-rise {
+  animation: season-rise 1.1s var(--ease-out-expo) both;
+}
+
+.season-glow {
+  background:
+    radial-gradient(60% 45% at 78% 18%, color-mix(in srgb, var(--season-gold) 16%, transparent) 0%, transparent 70%),
+    radial-gradient(50% 50% at 8% 100%, color-mix(in srgb, var(--season-burgundy) 55%, transparent) 0%, transparent 72%);
+  animation: season-breathe 14s ease-in-out infinite alternate;
+}
+
+.season-rule {
+  background: linear-gradient(90deg, transparent, var(--season-gold), transparent);
+  background-size: 200% 100%;
+  animation: season-sheen 6s ease-in-out infinite;
+}
+
+.season-card-media img {
+  transition: transform 1.2s var(--ease-out-expo), filter 1.2s var(--ease-out-expo);
+}
+
+.season-card:hover .season-card-media img,
+.season-card:focus-within .season-card-media img {
+  transform: scale(1.035);
+  filter: saturate(1);
+}
+
+@keyframes season-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes season-breathe {
+  from { opacity: 0.75; }
+  to { opacity: 1; }
+}
+
+@keyframes season-sheen {
+  0%, 100% { background-position: 100% 0; }
+  50% { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .season-rise,
+  .season-glow,
+  .season-rule {
+    animation: none;
+  }
+  .season-card-media img {
+    transition: none;
+  }
+}

@@ -1,5 +1,11 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
+import { readPublishedConfig } from "@/lib/seasonal/server";
+import { resolveSeasonal } from "@/lib/seasonal/resolve";
+import { landingPath } from "@/lib/seasonal/links";
+
+// Refresh hourly so seasonal landing pages enter and leave on schedule.
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base =
@@ -58,8 +64,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (!existing || row.updatedAt > existing) cast.set(row.slug, row.updatedAt);
   }
 
+  // Active seasonal landing page only; it leaves the sitemap when the campaign ends.
+  const seasonal = resolveSeasonal((await readPublishedConfig()).config).campaign;
+  const seasonalRoutes: MetadataRoute.Sitemap =
+    seasonal?.sections.landingPage
+      ? [{ url: `${base}${landingPath(seasonal)}`, changeFrequency: "weekly", priority: 0.85 }]
+      : [];
+
   return [
     ...staticRoutes,
+    ...seasonalRoutes,
     ...portfolio.map((p) => ({
         url: `${base}/portfolio/${p.slug}`,
         lastModified: p.updatedAt,

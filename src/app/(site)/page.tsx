@@ -26,6 +26,9 @@ import { HomeFinalCta } from "@/components/home/HomeFinalCta";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { buildReviewSchemas } from "@/lib/seo/structured-data";
 import { siteResponseTime } from "@/lib/seo/page-metadata";
+import { getPublicSeasonalState } from "@/lib/seasonal/server";
+import { SeasonalHero } from "@/components/seasonal/SeasonalHero";
+import { SeasonalExperience } from "@/components/seasonal/SeasonalExperience";
 
 export const revalidate = 60;
 
@@ -67,7 +70,7 @@ function orderedSections(sections: { id: string; enabled: boolean }[]) {
 }
 
 export default async function HomePage() {
-  const [hero, homepage, featured, services, brandStory, testimonials, site, about] =
+  const [hero, homepage, featured, services, brandStory, testimonials, site, about, seasonal] =
     await Promise.all([
       getHeroContent(),
       getHomepageContent(),
@@ -77,7 +80,17 @@ export default async function HomePage() {
       getFeaturedTestimonials(),
       getSiteConfig(),
       getAboutContent(),
+      getPublicSeasonalState(),
     ]);
+  // Seasonal overlay: null in Default ÉLEVÉ, so the original homepage renders unchanged.
+  const campaign = seasonal.campaign;
+  // With the campaign hero, the announcement renders inside the hero (clear of the
+  // fixed header) and the default banner is hidden; otherwise use the banner slot.
+  const banner = campaign?.sections.hero
+    ? null
+    : campaign?.announcement.enabled && campaign.announcement.text.trim()
+      ? { enabled: true, text: campaign.announcement.text, href: campaign.announcement.href, image: null }
+      : homepage.banner;
 
   let featuredWork = featured;
   if (homepage.featuredPortfolioItemId) {
@@ -160,8 +173,15 @@ export default async function HomePage() {
   return (
     <>
       {reviews ? <JsonLd data={reviews} /> : null}
-      <HomeAnnouncementBanner banner={homepage.banner} />
-      <HomeHero hero={hero} experimentId={homepage.experiment?.id} />
+      <HomeAnnouncementBanner banner={banner} />
+      {campaign?.sections.hero ? (
+        <SeasonalHero campaign={campaign} placement="home" showAnnouncement />
+      ) : (
+        <HomeHero hero={hero} experimentId={homepage.experiment?.id} />
+      )}
+      {campaign?.sections.experience ? (
+        <SeasonalExperience campaign={campaign} placement="home" />
+      ) : null}
       <HomeTrustBar
         testimonials={testimonials}
         content={homepage.trustBar}

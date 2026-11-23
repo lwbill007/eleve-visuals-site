@@ -616,6 +616,17 @@ export default function AdminSubmissionsClient({ forcedType }: { forcedType?: "b
                   {item.type === "booking" && (
                     <span className="text-xs text-muted">#{formatInquiryId(item.id)}</span>
                   )}
+                  {typeof item.data.campaign === "string" && item.data.campaign && (
+                    <span
+                      className="rounded border border-accent/50 px-2 py-0.5 text-[0.65rem] text-accent"
+                      title="Arrived through a seasonal campaign link"
+                    >
+                      {item.data.campaign}
+                      {typeof item.data.campaignInterest === "string" && item.data.campaignInterest
+                        ? ` · ${item.data.campaignInterest}`
+                        : ""}
+                    </span>
+                  )}
                   {item.returningContact && (
                     <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[0.65rem] text-amber-300">
                       Returning{item.contactSubmissionCount ? ` ×${item.contactSubmissionCount}` : ""}
