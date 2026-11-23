@@ -1,3 +1,4 @@
+import { VolumeCommercialPaths } from "@/components/sessions/VolumeCommercialPaths";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSessionVolumeBySlug, getAllSessionVolumes } from "@/lib/session-volumes";
@@ -110,6 +111,9 @@ export default async function SessionVolumePage({
         recommended={recommended}
         comingSoon={comingSoon}
       />
+      {volume.status !== "completed" && volume.status !== "archived" ? (
+        <VolumeCommercialPaths slug={volume.slug} volumeLabel={`Vol. ${volume.volumeNumber} — ${volume.title}`} />
+      ) : null}
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { VolumeCommercialPaths } from "@/components/sessions/VolumeCommercialPaths";
 import { notFound, redirect } from "next/navigation";
 import { getSessionVolumeBySlug } from "@/lib/session-volumes";
 import { getSessionsApplicationContent } from "@/lib/content";
@@ -47,6 +48,7 @@ export default async function SessionApplyPage({
           />
         </div>
       </section>
+      <VolumeCommercialPaths slug={volume.slug} volumeLabel={`Vol. ${volume.volumeNumber} — ${volume.title}`} />
     </>
   );
 }

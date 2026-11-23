@@ -1,3 +1,4 @@
+import { concreteVolumeId, volumeFilterWhere } from "@/lib/application-cycles";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
@@ -21,11 +22,12 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const volumeId = searchParams.get("volumeId");
+  const volumeParam = searchParams.get("volumeId");
+  const volumeId = concreteVolumeId(volumeParam);
 
   const where = {
     type: "session",
-    ...(volumeId ? { sessionVolumeId: volumeId } : {}),
+    ...volumeFilterWhere(volumeParam),
   };
 
   const submissions = await prisma.submission.findMany({

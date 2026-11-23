@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SESSION_APPLICATION_ROLES } from "./types";
+import { cleanRoleDetails } from "./session-role-details";
 
 const optionalUrl = z
   .string()
@@ -9,11 +10,13 @@ const optionalUrl = z
   .or(z.literal(""))
   .refine((v) => !v || /^https?:\/\/.+/i.test(v), "Enter a valid URL");
 
+/** Optional: not every collaborator is on Instagram. Validated when given. */
 const instagram = z
   .string()
   .max(31)
   .trim()
-  .refine((v) => v.length >= 1 && /^@?[a-zA-Z0-9._]{1,30}$/.test(v), "Invalid Instagram handle");
+  .refine((v) => v.length === 0 || /^@?[a-zA-Z0-9._]{1,30}$/.test(v), "Invalid Instagram handle")
+  .default("");
 
 const email = z.string().trim().email().max(200);
 const phone = z
@@ -56,6 +59,10 @@ export const sessionApplicationSchema = z.object({
   agreementNoGuarantee: z.literal(true),
   agreementGuidelines: z.literal(true),
   agreementAccurate: z.literal(true),
+  agreementTerms: z.literal(true),
+  /** Cleaned against the selected roles in the submit route (cleanRoleDetails). */
+  roleDetails: z.record(z.string().max(60), z.string().max(1000)).default({}),
+  availabilityNotes: z.string().trim().max(500).optional(),
   sessionVolumeId: z.string().min(1),
   sessionVolumeSlug: z.string().optional(),
   sessionVolumeTitle: z.string().optional(),
@@ -66,6 +73,8 @@ export type SessionApplicationInput = z.infer<typeof sessionApplicationSchema>;
 export function createSessionApplicationSchema(options: {
   requirePortfolioUpload: boolean;
   requireRoleSelection: boolean;
+  requirePortfolio?: boolean;
+  askFaceCoveringComfort?: boolean;
   questions: { id: string; required: boolean; maxLength: number }[];
 }) {
   const base = options.requireRoleSelection
@@ -86,11 +95,22 @@ export function createSessionApplicationSchema(options: {
         message: "Upload at least one portfolio image",
         path: ["portfolioImages"],
       });
-    } else if (!hasPortfolio) {
+    } else if (options.requirePortfolio !== false && !hasPortfolio) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Provide portfolio images or a portfolio URL",
         path: ["portfolioLink"],
+      });
+    }
+
+    const roleCheck = cleanRoleDetails(data.roleDetails, data.roles, {
+      askFaceCoveringComfort: options.askFaceCoveringComfort,
+    });
+    for (const id of [...roleCheck.missing, ...roleCheck.invalid]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: roleCheck.missing.includes(id) ? "Required for your role" : "Invalid answer",
+        path: ["roleDetails", id],
       });
     }
 

@@ -12,6 +12,7 @@ import {
   maybeAutoCloseVolume,
 } from "@/lib/session-application-server";
 import { parseApplicationSettings, toLegacyApplicationFields } from "@/lib/session-application";
+import { cleanRoleDetails } from "@/lib/session-role-details";
 import { sendEmail, applicantConfirmationEmail } from "@/lib/email";
 import { notifyNewSubmission } from "@/lib/notifications";
 import { getSiteConfig } from "@/lib/content";
@@ -74,6 +75,8 @@ export async function POST(request: Request) {
   const schema = createSessionApplicationSchema({
     requirePortfolioUpload: settings.requirePortfolioUpload,
     requireRoleSelection: settings.requireRoleSelection,
+    requirePortfolio: settings.requirePortfolio,
+    askFaceCoveringComfort: settings.askFaceCoveringComfort,
     questions: settings.questions,
   });
 
@@ -118,6 +121,9 @@ export async function POST(request: Request) {
   const legacy = toLegacyApplicationFields(parsed.data);
   const payload = {
     ...parsed.data,
+    roleDetails: cleanRoleDetails(parsed.data.roleDetails, parsed.data.roles, settings).details,
+    // Volume identity always comes from the server record, never the client.
+    sessionVolumeId: volume.id,
     portfolioImages: cleanPortfolioImages,
     ...legacy,
     sessionVolumeNumber: volume.volumeNumber,

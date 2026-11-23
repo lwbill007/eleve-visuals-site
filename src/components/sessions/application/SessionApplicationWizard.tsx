@@ -12,6 +12,7 @@ import {
   applicationStorageKey,
   initialApplicationData,
 } from "@/lib/session-application";
+import { roleDetailFieldsFor } from "@/lib/session-role-details";
 import { SessionApplicationProgress } from "./SessionApplicationProgress";
 import { SessionApplicationSuccess } from "./SessionApplicationSuccess";
 import {
@@ -87,6 +88,7 @@ export function SessionApplicationWizard({
           | "agreementNoGuarantee"
           | "agreementGuidelines"
           | "agreementAccurate"
+          | "agreementTerms"
         >;
       };
       if (!parsed.savedAt || Date.now() - parsed.savedAt > APPLICATION_DRAFT_TTL_MS) {
@@ -129,6 +131,7 @@ export function SessionApplicationWizard({
           agreementNoGuarantee: data.agreementNoGuarantee,
           agreementGuidelines: data.agreementGuidelines,
           agreementAccurate: data.agreementAccurate,
+          agreementTerms: data.agreementTerms,
         };
         sessionStorage.setItem(
           storageKey,
@@ -164,6 +167,13 @@ export function SessionApplicationWizard({
     update("roles", next);
   };
 
+  const roleFields = roleDetailFieldsFor(data.roles, settings);
+  const portfolioRequired = settings.requirePortfolio !== false || settings.requirePortfolioUpload;
+
+  const updateRoleDetail = (id: string, value: string) => {
+    update("roleDetails", { ...data.roleDetails, [id]: value });
+  };
+
   const updateQuestionAnswer = (id: string, answer: string) => {
     update(
       "questionAnswers",
@@ -181,8 +191,9 @@ export function SessionApplicationWizard({
       if (!data.phone.trim()) next.phone = "Phone is required";
       else if (data.phone.replace(/\D/g, "").length < 10) next.phone = "Enter a valid phone number";
       if (!data.cityState.trim()) next.cityState = "City & state is required";
-      if (!data.instagram.trim()) next.instagram = "Instagram is required";
-      else if (!isValidInstagram(data.instagram)) next.instagram = "Enter a valid handle";
+      if (data.instagram.trim() && !isValidInstagram(data.instagram)) {
+        next.instagram = "Enter a valid handle";
+      }
       if (data.portfolioWebsite && !isValidOptionalUrl(data.portfolioWebsite)) {
         next.portfolioWebsite = "Enter a valid URL";
       }
@@ -192,6 +203,12 @@ export function SessionApplicationWizard({
       if (settings.requireRoleSelection && data.roles.length === 0) {
         next.roles = "Select at least one role";
       }
+      const missing = roleFields.filter(
+        (field) => field.required && !(data.roleDetails[field.id] ?? "").trim()
+      );
+      if (missing.length > 0) {
+        next.roleDetails = `Please complete: ${missing.map((field) => field.label).join(", ")}`;
+      }
     }
 
     if (current === 3) {
@@ -199,7 +216,7 @@ export function SessionApplicationWizard({
       const hasUrl = !!data.portfolioLink?.trim() || !!data.portfolioWebsite?.trim();
       if (settings.requirePortfolioUpload && !hasImages) {
         next.portfolioImages = "Upload at least one image";
-      } else if (!hasImages && !hasUrl) {
+      } else if (portfolioRequired && !hasImages && !hasUrl) {
         next.portfolioLink = "Upload images or provide a portfolio URL";
       }
       for (const field of ["portfolioLink", "demoReel", "youtube", "vimeo", "behance", "driveLink"] as const) {
@@ -233,6 +250,7 @@ export function SessionApplicationWizard({
       if (!data.agreementNoGuarantee) next.agreementNoGuarantee = "Required";
       if (!data.agreementGuidelines) next.agreementGuidelines = "Required";
       if (!data.agreementAccurate) next.agreementAccurate = "Required";
+      if (!data.agreementTerms) next.agreementTerms = "Required";
     }
 
     return next;
@@ -326,6 +344,10 @@ export function SessionApplicationWizard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
+          // Only send answers for the roles still selected.
+          roleDetails: Object.fromEntries(
+            roleFields.map((field) => [field.id, data.roleDetails[field.id] ?? ""])
+          ),
           uploadToken,
           idempotencyKey: idempotencyKeyRef.current || crypto.randomUUID(),
           ...spam.spamPayload(),
@@ -423,7 +445,7 @@ export function SessionApplicationWizard({
                 <FormField name="cityState" label="City & State" required error={errors.cityState}>
                   <TextInput value={data.cityState} onChange={(e) => update("cityState", e.target.value)} error={!!errors.cityState} />
                 </FormField>
-                <FormField name="instagram" label="Instagram Username" required error={errors.instagram}>
+                <FormField name="instagram" label="Instagram Username" hint="Optional" error={errors.instagram}>
                   <TextInput value={data.instagram} onChange={(e) => update("instagram", e.target.value)} placeholder="@yourhandle" error={!!errors.instagram} />
                 </FormField>
                 <FormField name="portfolioWebsite" label="Portfolio or Website" hint="Optional" error={errors.portfolioWebsite}>
@@ -445,6 +467,56 @@ export function SessionApplicationWizard({
                 columns="sm:grid-cols-2 lg:grid-cols-3"
               />
               {errors.roles && <p className="field-error">{errors.roles}</p>}
+              {roleFields.length > 0 && (
+                <div className="space-y-6 border-t border-stone/30 pt-8">
+                  <h3 className="text-xs tracking-[0.2em] text-fog uppercase">About your role</h3>
+                  {roleFields.map((field) => {
+                    const value = data.roleDetails[field.id] ?? "";
+                    const showError = Boolean(errors.roleDetails) && field.required && !value.trim();
+                    return (
+                      <FormField
+                        key={field.id}
+                        name={`role-${field.id}`}
+                        label={field.label}
+                        required={field.required}
+                        hint={field.required ? undefined : "Optional"}
+                        error={showError ? "Required for your role" : undefined}
+                      >
+                        {field.options ? (
+                          <select
+                            id={`role-${field.id}`}
+                            name={`role-${field.id}`}
+                            aria-required={field.required}
+                            aria-invalid={showError}
+                            value={value}
+                            onChange={(e) => updateRoleDetail(field.id, e.target.value)}
+                            className={showError ? "error" : undefined}
+                          >
+                            <option value="" disabled>
+                              Choose one
+                            </option>
+                            {field.options.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <TextArea
+                            value={value}
+                            onChange={(e) => updateRoleDetail(field.id, e.target.value)}
+                            placeholder={field.placeholder}
+                            rows={field.maxLength > 400 ? 3 : 2}
+                            maxLength={field.maxLength}
+                            error={showError}
+                          />
+                        )}
+                      </FormField>
+                    );
+                  })}
+                  {errors.roleDetails && <p className="field-error">{errors.roleDetails}</p>}
+                </div>
+              )}
               <FormField name="experience" label="Experience" hint="Optional — years, notable projects, representation">
                 <TextArea value={data.experience || ""} onChange={(e) => update("experience", e.target.value)} rows={4} />
               </FormField>
@@ -456,7 +528,9 @@ export function SessionApplicationWizard({
               <h2 className="headline-md">Portfolio</h2>
               <div>
                 <p className="mb-4 text-sm text-fog">
-                  Upload up to {MAX_PORTFOLIO_UPLOADS} images or provide a portfolio URL.
+                  {portfolioRequired
+                    ? `Upload up to ${MAX_PORTFOLIO_UPLOADS} images or provide a portfolio URL.`
+                    : `Optional for this volume. New faces are welcome. Upload up to ${MAX_PORTFOLIO_UPLOADS} images or share a link if you have one.`}
                 </p>
                 <label className="inline-flex min-h-11 cursor-pointer items-center border border-stone/50 px-5 py-3 text-xs tracking-wide text-fog uppercase hover:border-cream/40">
                   {uploading ? "Uploading..." : "Upload images"}
@@ -493,7 +567,7 @@ export function SessionApplicationWizard({
                   </div>
                 )}
               </div>
-              <FormField name="portfolioLink" label="Portfolio URL" error={errors.portfolioLink}>
+              <FormField name="portfolioLink" label="Portfolio URL" hint={portfolioRequired ? undefined : "Optional"} error={errors.portfolioLink}>
                 <TextInput type="url" value={data.portfolioLink || ""} onChange={(e) => update("portfolioLink", e.target.value)} placeholder="https://" error={!!errors.portfolioLink} />
               </FormField>
               <div className="grid gap-4 md:grid-cols-2">
@@ -552,6 +626,18 @@ export function SessionApplicationWizard({
                 onChange={(e) => update("creativeDirectionConfirm", e.target.checked)}
                 label="I am willing to follow wardrobe, styling, and creative direction for this production."
               />
+              <FormField
+                name="availabilityNotes"
+                label="Availability for the production"
+                hint={volume.sessionDate ? `Production: ${volume.sessionDate}. Optional` : "Optional"}
+              >
+                <TextInput
+                  value={data.availabilityNotes || ""}
+                  onChange={(e) => update("availabilityNotes", e.target.value)}
+                  placeholder="Dates or times you can't make"
+                  maxLength={500}
+                />
+              </FormField>
               <FormField name="emergencyContact" label="Emergency contact" hint="Optional">
                 <TextInput value={data.emergencyContact || ""} onChange={(e) => update("emergencyContact", e.target.value)} />
               </FormField>
@@ -564,6 +650,39 @@ export function SessionApplicationWizard({
           {step === 6 && (
             <div className="space-y-6">
               <h2 className="headline-md">Agreements</h2>
+              <section
+                aria-labelledby="collaboration-terms-title"
+                className="space-y-3 border border-stone/40 p-5 md:p-6"
+              >
+                <h3 id="collaboration-terms-title" className="text-xs tracking-[0.2em] text-fog uppercase">
+                  Collaboration terms · {volume.title}
+                </h3>
+                <ul className="space-y-2 text-sm leading-relaxed text-cream/85">
+                  {settings.collaborationTerms
+                    .split("\n")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .map((line) => (
+                      <li key={line} className="flex gap-3">
+                        <span className="mt-2 h-1 w-1 shrink-0 bg-fog" aria-hidden />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                </ul>
+                <p className="text-xs leading-relaxed text-fog">
+                  Your details are used only to review this application and contact you about it. See the{" "}
+                  <a href="/privacy" target="_blank" rel="noopener" className="underline underline-offset-4 hover:text-cream">
+                    privacy policy
+                  </a>
+                  .
+                </p>
+              </section>
+              <CheckboxField
+                name="agreementTerms"
+                checked={data.agreementTerms}
+                onChange={(e) => update("agreementTerms", e.target.checked)}
+                label="I have read the collaboration terms and privacy policy. Commercial image use needs a separate release."
+              />
               <CheckboxField
                 name="agreementCurated"
                 checked={data.agreementCurated}
@@ -591,7 +710,8 @@ export function SessionApplicationWizard({
               {(errors.agreementCurated ||
                 errors.agreementNoGuarantee ||
                 errors.agreementGuidelines ||
-                errors.agreementAccurate) && (
+                errors.agreementAccurate ||
+                errors.agreementTerms) && (
                 <p className="field-error">Please accept all required agreements.</p>
               )}
               <FormSpamFields

@@ -1085,7 +1085,9 @@ export default function AdminSessionsPage() {
                     ["waitlistEnabled", "Waitlist enabled"],
                     ["autoCloseOnDeadline", "Auto-close on deadline"],
                     ["autoCloseOnCapacity", "Auto-close at capacity"],
+                    ["requirePortfolio", "Require a portfolio (images or link)"],
                     ["requirePortfolioUpload", "Require portfolio uploads"],
+                    ["askFaceCoveringComfort", "Ask models about masks / face coverings"],
                     ["notifyAdminOnSubmission", "Notify admin on submission"],
                     ["notifyApplicantOnSubmission", "Email applicant confirmation"],
                   ] as const
@@ -1104,6 +1106,26 @@ export default function AdminSessionsPage() {
                     {label}
                   </label>
                 ))}
+              </div>
+              <div className="mt-4">
+                <AdminField label="Collaboration terms shown before submit (one point per line)">
+                  <AdminTextarea
+                    rows={5}
+                    value={
+                      editing.applicationSettings?.collaborationTerms ??
+                      DEFAULT_SESSION_APPLICATION_SETTINGS.collaborationTerms
+                    }
+                    onChange={(e) =>
+                      update("applicationSettings", {
+                        ...(editing.applicationSettings || DEFAULT_SESSION_APPLICATION_SETTINGS),
+                        collaborationTerms: e.target.value,
+                      })
+                    }
+                  />
+                </AdminField>
+                <p className="mt-2 text-xs text-muted">
+                  State compensation, credits and image use plainly. Leave empty to use the default terms. Commercial use always needs a separate signed release.
+                </p>
               </div>
               <div className="mt-4">
                 <AdminField label="Custom questions (label|required|maxChars per line)">

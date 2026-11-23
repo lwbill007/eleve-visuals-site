@@ -47,6 +47,17 @@ export const DEFAULT_APPLICATION_QUESTIONS: SessionApplicationQuestion[] = [
   },
 ];
 
+/**
+ * Shown before submission when a volume has no terms of its own. Deliberately
+ * promises nothing: specifics are confirmed in writing with each collaborator.
+ */
+export const DEFAULT_COLLABORATION_TERMS = [
+  "Applying is free. ÉLEVÉ never charges collaborators to apply or to take part.",
+  "Compensation, if any, is stated for this volume or confirmed in writing before the shoot. Nothing is owed unless it is agreed in writing.",
+  "Selected collaborators are credited by name or handle when the work is published.",
+  "Work from this volume may appear in the ÉLEVÉ editorial, portfolio and social channels. Any commercial use — paid publications, advertising or brand partners — needs a separate written release, which you can decline.",
+].join("\n");
+
 export const DEFAULT_SESSION_APPLICATION_SETTINGS: SessionApplicationSettings = {
   maxCapacity: null,
   waitlistEnabled: true,
@@ -54,6 +65,9 @@ export const DEFAULT_SESSION_APPLICATION_SETTINGS: SessionApplicationSettings = 
   autoCloseOnCapacity: true,
   requirePortfolioUpload: false,
   requireRoleSelection: true,
+  requirePortfolio: true,
+  askFaceCoveringComfort: false,
+  collaborationTerms: DEFAULT_COLLABORATION_TERMS,
   customConfirmationMessage: "",
   questions: DEFAULT_APPLICATION_QUESTIONS,
   emailTemplates: {
@@ -106,6 +120,9 @@ export function initialApplicationData(
     agreementNoGuarantee: false,
     agreementGuidelines: false,
     agreementAccurate: false,
+    agreementTerms: false,
+    roleDetails: {},
+    availabilityNotes: "",
     sessionVolumeId: volume?.id,
     sessionVolumeSlug: volume?.slug,
     sessionVolumeTitle: volume?.title,
@@ -119,6 +136,10 @@ export function parseApplicationSettings(raw: string | null | undefined): Sessio
     return {
       ...DEFAULT_SESSION_APPLICATION_SETTINGS,
       ...parsed,
+      collaborationTerms:
+        typeof parsed.collaborationTerms === "string" && parsed.collaborationTerms.trim()
+          ? parsed.collaborationTerms
+          : DEFAULT_COLLABORATION_TERMS,
       questions:
         parsed.questions && parsed.questions.length > 0
           ? parsed.questions

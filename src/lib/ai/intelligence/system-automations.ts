@@ -132,7 +132,7 @@ export async function runSystemAutomation(id: string): Promise<SystemAutomationR
       const count = await prisma.submission.count({
         where: {
           type: "session",
-          status: { in: ["pending_review", "shortlisted", "interview"] },
+          status: { in: ["pending_review", "under_review", "shortlisted", "interview"] },
         },
       });
       if (count === 0) {

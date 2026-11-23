@@ -417,6 +417,7 @@ export type { ProductionStatus, ProjectCategory } from "./booking-pipeline";
 
 export const APPLICATION_STATUSES = [
   "pending_review",
+  "under_review",
   "shortlisted",
   "interview",
   "accepted",
@@ -427,7 +428,8 @@ export const APPLICATION_STATUSES = [
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
-  pending_review: "Pending Review",
+  pending_review: "New",
+  under_review: "Under Review",
   shortlisted: "Shortlisted",
   interview: "Interview",
   accepted: "Accepted",
@@ -438,6 +440,7 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
 
 export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, string> = {
   pending_review: "text-amber-400 border-amber-400/40",
+  under_review: "text-orange-300 border-orange-300/40",
   shortlisted: "text-sky-400 border-sky-400/40",
   interview: "text-cyan-400 border-cyan-400/40",
   accepted: "text-emerald-400 border-emerald-400/40",
@@ -811,6 +814,12 @@ export interface SessionApplicationSettings {
   autoCloseOnCapacity: boolean;
   requirePortfolioUpload: boolean;
   requireRoleSelection: boolean;
+  /** When false, portfolio images/links are optional (e.g. new models). */
+  requirePortfolio: boolean;
+  /** Ask models how comfortable they are with masks and face coverings. */
+  askFaceCoveringComfort: boolean;
+  /** Volume-specific collaboration terms: compensation, credits, image use. Shown before submit. */
+  collaborationTerms: string;
   customConfirmationMessage: string;
   questions: SessionApplicationQuestion[];
   emailTemplates: SessionApplicationEmailTemplates;
@@ -843,6 +852,11 @@ export interface SessionApplicationData {
   agreementNoGuarantee: boolean;
   agreementGuidelines: boolean;
   agreementAccurate: boolean;
+  agreementTerms: boolean;
+  /** Role-specific answers keyed by ROLE_DETAIL_FIELDS id. */
+  roleDetails: Record<string, string>;
+  /** Free-text availability for the production date(s). */
+  availabilityNotes?: string;
   sessionVolumeId?: string;
   sessionVolumeSlug?: string;
   sessionVolumeTitle?: string;

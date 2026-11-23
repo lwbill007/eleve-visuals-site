@@ -1,3 +1,4 @@
+import { volumeFilterWhere } from "@/lib/application-cycles";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin, requireMinimumRole } from "@/lib/auth";
@@ -84,7 +85,7 @@ export async function GET(request: Request) {
   let submissions = await prisma.submission.findMany({
     where: {
       ...(type ? { type } : {}),
-      ...(volumeId ? { sessionVolumeId: volumeId } : {}),
+      ...volumeFilterWhere(volumeId),
       ...(status && (isInquiryStatus(status) || isApplicationStatus(status))
         ? { status }
         : {}),

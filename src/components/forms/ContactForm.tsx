@@ -1,5 +1,6 @@
 "use client";
 
+import { subjectForInterest } from "@/lib/volume-inquiries";
 import { useEffect, useRef, useState } from "react";
 import {
   FormField,
@@ -43,8 +44,14 @@ export function ContactForm({ responseTime }: { responseTime?: string }) {
     idempotencyKeyRef.current = crypto.randomUUID();
     const tag = readCampaignTag();
     campaignTagRef.current = tag;
-    if (tag?.campaignInterest === "gift") {
-      setData((prev) => (prev.subject ? prev : { ...prev, subject: "Gift experience inquiry" }));
+    const subject = subjectForInterest(
+      tag?.campaignInterest,
+      tag && tag.campaign !== "sessions" && !tag.campaign.startsWith("holiday")
+        ? tag.campaign.replace(/-/g, " ").toUpperCase()
+        : undefined
+    );
+    if (subject) {
+      setData((prev) => (prev.subject ? prev : { ...prev, subject }));
     }
   }, []);
 

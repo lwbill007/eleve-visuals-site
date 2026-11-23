@@ -1,5 +1,13 @@
 "use client";
 
+import { describeRoleDetails } from "@/lib/session-role-details";
+import {
+  ALL_VOLUMES,
+  UNASSIGNED_VOLUME,
+  concreteVolumeId,
+  pickDefaultVolumeId,
+} from "@/lib/application-cycles";
+import { SESSION_STATUS_LABELS } from "@/lib/session-volume";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -126,6 +134,46 @@ function ProbabilityBar({ value }: { value: number }) {
   );
 }
 
+/** What the applicant actually wrote: role details, availability, terms. */
+function ApplicationAnswers({ data }: { data: Record<string, unknown> | undefined }) {
+  if (!data) return null;
+  const roleDetails = describeRoleDetails(data.roleDetails);
+  const availability = typeof data.availabilityNotes === "string" ? data.availabilityNotes.trim() : "";
+  const instagram = typeof data.instagram === "string" ? data.instagram.trim() : "";
+  if (roleDetails.length === 0 && !availability && !instagram && data.agreementTerms !== true) return null;
+  return (
+    <section className="mt-6 rounded-xl border border-stone/20 bg-charcoal/15 p-4">
+      <p className="text-[0.58rem] tracking-wider text-accent uppercase">Application answers</p>
+      <dl className="mt-3 space-y-3 text-sm">
+        {roleDetails.map((item) => (
+          <div key={item.label}>
+            <dt className="text-[0.6rem] tracking-wider text-muted uppercase">{item.label}</dt>
+            <dd className="mt-0.5 whitespace-pre-line text-fog">{item.value}</dd>
+          </div>
+        ))}
+        {availability && (
+          <div>
+            <dt className="text-[0.6rem] tracking-wider text-muted uppercase">Availability</dt>
+            <dd className="mt-0.5 text-fog">{availability}</dd>
+          </div>
+        )}
+        <div>
+          <dt className="text-[0.6rem] tracking-wider text-muted uppercase">Instagram</dt>
+          <dd className="mt-0.5 text-fog">{instagram || "Not provided"}</dd>
+        </div>
+        <div>
+          <dt className="text-[0.6rem] tracking-wider text-muted uppercase">Collaboration terms</dt>
+          <dd className="mt-0.5 text-fog">
+            {data.agreementTerms === true
+              ? "Accepted at submission. Commercial use still needs a signed release."
+              : "Submitted before terms were shown."}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
 export default function ApplicationsIntelligenceClient() {
   const searchParams = useSearchParams();
   const { toast } = useAdminToast();
@@ -138,7 +186,8 @@ export default function ApplicationsIntelligenceClient() {
   const [listLoadError, setListLoadError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [volume, setVolume] = useState(searchParams.get("volumeId") || "");
+  // null until the default cycle is resolved, so the list never flashes every volume.
+  const [volume, setVolume] = useState<string | null>(searchParams.get("volumeId") || null);
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
   const [role, setRole] = useState("");
   const [tier, setTier] = useState("");
@@ -157,12 +206,18 @@ export default function ApplicationsIntelligenceClient() {
   const focusId = searchParams.get("focus");
 
   const load = useCallback(async (quiet = false) => {
+    if (volume === null) return;
     if (!quiet) setLoading(true);
     else setRefreshing(true);
-    const suffix = volume ? `?volumeId=${encodeURIComponent(volume)}` : "";
+    const rankVolume = concreteVolumeId(volume);
+    const suffix = rankVolume ? `?volumeId=${encodeURIComponent(rankVolume)}` : "";
+    const listFilter = volume === ALL_VOLUMES ? "" : `&volumeId=${encodeURIComponent(volume)}`;
     const [itemsResponse, rankResponse] = await Promise.all([
-      adminFetch(`/api/admin/submissions?type=session${volume ? `&volumeId=${encodeURIComponent(volume)}` : ""}`),
-      adminFetch(`/api/admin/ai/sessions/rank${suffix}`),
+      adminFetch(`/api/admin/submissions?type=session${listFilter}`),
+      // Unassigned applications have no cohort to rank against.
+      volume === UNASSIGNED_VOLUME
+        ? Promise.resolve(new Response(JSON.stringify({ ranked: [] }), { status: 200 }))
+        : adminFetch(`/api/admin/ai/sessions/rank${suffix}`),
     ]);
     if (itemsResponse.ok) {
       setListLoadError("");
@@ -195,7 +250,8 @@ export default function ApplicationsIntelligenceClient() {
   const rerank = useCallback(async () => {
     setRefreshing(true);
     try {
-      const suffix = volume ? `?volumeId=${encodeURIComponent(volume)}` : "";
+      const rankVolume = concreteVolumeId(volume);
+      const suffix = rankVolume ? `?volumeId=${encodeURIComponent(rankVolume)}` : "";
       const response = await adminFetch(`/api/admin/ai/sessions/rank${suffix}`, {
         method: "POST",
         signal: AbortSignal.timeout(120_000),
@@ -236,8 +292,18 @@ export default function ApplicationsIntelligenceClient() {
   useEffect(() => {
     adminFetch("/api/admin/session-volumes")
       .then((response) => (response.ok ? response.json() : []))
-      .then(setVolumes);
+      .then((list: SessionVolumeDTO[]) => {
+        setVolumes(list);
+        setVolume((current) => current ?? pickDefaultVolumeId(list));
+      })
+      .catch(() => setVolume((current) => current ?? ALL_VOLUMES));
   }, []);
+
+  const unassignedCount = useMemo(
+    () => (volume === UNASSIGNED_VOLUME ? items.length : null),
+    [items.length, volume]
+  );
+  const activeCycle = volumes.find((item) => item.id === volume) ?? null;
 
   useEffect(() => {
     void load();
@@ -432,20 +498,30 @@ export default function ApplicationsIntelligenceClient() {
         extra={
           <div className="flex flex-wrap items-center gap-2">
             <select
-              value={volume}
-              onChange={(event) => setVolume(event.target.value)}
-              className="min-h-10 w-auto rounded-lg border-stone/30 bg-charcoal/70 px-3 py-2 text-xs"
+              value={volume ?? ""}
+              onChange={(event) => {
+                setSelected(new Set());
+                setVolume(event.target.value);
+              }}
+              className="min-h-10 w-auto max-w-full rounded-lg border-stone/30 bg-charcoal/70 px-3 py-2 text-xs"
               aria-label="Application cycle"
             >
-              <option value="">All application cycles</option>
-              {volumes.map((item) => (
-                <option key={item.id} value={item.id}>Vol. {item.volumeNumber} — {item.title}</option>
-              ))}
+              {volume === null ? <option value="">Loading cycles…</option> : null}
+              {[...volumes]
+                .sort((a, b) => b.volumeNumber - a.volumeNumber)
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    Vol. {item.volumeNumber} — {item.title}
+                    {item.status === "applications_open" ? " · Open now" : ` · ${SESSION_STATUS_LABELS[item.status] ?? item.status}`}
+                  </option>
+                ))}
+              <option value={UNASSIGNED_VOLUME}>No volume — needs review</option>
+              <option value={ALL_VOLUMES}>All cycles (history)</option>
             </select>
             <button
               type="button"
               onClick={() => void rerank()}
-              disabled={refreshing}
+              disabled={refreshing || volume === UNASSIGNED_VOLUME}
               className="min-h-10 rounded-lg border border-stone/30 px-3 text-xs text-fog transition-colors hover:border-accent/40 hover:text-cream disabled:opacity-50"
             >
               {refreshing ? "Evaluating cohort…" : "✦ Re-Rank applicants"}
@@ -456,6 +532,22 @@ export default function ApplicationsIntelligenceClient() {
       <main className="relative min-h-0 overflow-hidden">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(circle_at_35%_0%,rgba(184,168,138,.11),transparent_58%)]" />
         <div className="relative mx-auto max-w-[1600px]">
+          {volume !== null && (
+            <p className="mb-4 text-[0.65rem] tracking-[0.18em] text-fog uppercase" aria-live="polite">
+              Showing:{" "}
+              <span className="text-cream">
+                {activeCycle
+                  ? `Vol. ${activeCycle.volumeNumber} — ${activeCycle.title}`
+                  : volume === UNASSIGNED_VOLUME
+                    ? "Applications with no volume"
+                    : "All cycles"}
+              </span>
+              {activeCycle ? ` · ${SESSION_STATUS_LABELS[activeCycle.status] ?? activeCycle.status}` : ""}
+              {unassignedCount !== null
+                ? ` · ${unassignedCount} to review. Run the volume audit before assigning any.`
+                : ""}
+            </p>
+          )}
           {ranked[0] && (
             <div className="mb-4 text-right text-[0.58rem] leading-relaxed text-muted">
               <p>Last evaluated {new Date(ranked[0].evaluatedAt).toLocaleString()}</p>
@@ -479,7 +571,8 @@ export default function ApplicationsIntelligenceClient() {
                 <p className="text-[0.6rem] tracking-[0.18em] text-accent uppercase">Awaiting AI evaluation</p>
                 <p className="mt-3 font-display text-3xl text-cream">
                   {Math.max(rankMeta.applicationCount, items.length)} application
-                  {Math.max(rankMeta.applicationCount, items.length) === 1 ? "" : "s"} ready to rank
+                  {Math.max(rankMeta.applicationCount, items.length) === 1 ? "" : "s"}{" "}
+                  {volume === UNASSIGNED_VOLUME ? "without a volume" : "ready to rank"}
                 </p>
                 <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-fog">
                   Rankings are created by the AI evaluation engine, not by profile completeness. Run
@@ -487,6 +580,11 @@ export default function ApplicationsIntelligenceClient() {
                   the results.
                 </p>
                 {rankWarning && <p className="mx-auto mt-3 max-w-xl text-xs text-amber-300">{rankWarning}</p>}
+                {volume === UNASSIGNED_VOLUME ? (
+                  <p className="mx-auto mt-6 max-w-xl text-xs text-fog">
+                    Ranking needs a volume. Run the volume audit, then review these from their volume.
+                  </p>
+                ) : (
                 <button
                   type="button"
                   onClick={() => void rerank()}
@@ -495,6 +593,7 @@ export default function ApplicationsIntelligenceClient() {
                 >
                   {refreshing ? "Evaluating cohort…" : "✦ Run first AI ranking"}
                 </button>
+                )}
               </div>
               {items.length > 0 && (
                 <section aria-label="Applications awaiting evaluation" className="space-y-2">
@@ -521,6 +620,12 @@ export default function ApplicationsIntelligenceClient() {
                         <span className="rounded-full border border-stone/30 px-2.5 py-1 text-[0.6rem] tracking-[0.12em] text-fog uppercase">
                           {APPLICATION_STATUS_LABELS[row.status] ?? row.status}
                         </span>
+                        <details className="w-full text-xs">
+                          <summary className="cursor-pointer text-[0.6rem] tracking-[0.14em] text-muted uppercase hover:text-cream">
+                            View answers
+                          </summary>
+                          <ApplicationAnswers data={data} />
+                        </details>
                       </div>
                     );
                   })}
@@ -788,6 +893,8 @@ export default function ApplicationsIntelligenceClient() {
               <div><p className="text-[0.6rem] tracking-[0.18em] text-accent uppercase">Candidate intelligence report</p><h2 className="mt-1 text-3xl text-cream">{detail.name}</h2><p className="mt-1 text-sm text-fog">{detail.roles.join(" · ")}</p></div>
               <button type="button" onClick={() => setDetailId(null)} className="grid h-10 w-10 place-items-center rounded-full border border-stone/30 text-fog">×</button>
             </div>
+
+            <ApplicationAnswers data={itemById.get(detail.id)?.data} />
 
             <section className="mt-6 grid gap-3 rounded-2xl border border-accent/25 bg-accent/[0.05] p-4 sm:grid-cols-[auto_1fr]">
               <ScoreRing score={detail.score} />
