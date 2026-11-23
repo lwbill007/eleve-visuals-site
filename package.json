@@ -18,7 +18,7 @@
     "verify:audit": "tsx scripts/stabilization-audit.ts",
     "audit:enterprise": "tsx scripts/enterprise-audit.ts",
     "audit:os": "tsx scripts/admin-os-audit.ts",
-    "verify": "tsc --noEmit && next lint && tsx scripts/verify-truth-layer.ts && tsx scripts/ai-regression-smoke.ts && tsx scripts/gallery-security.test.ts && tsx scripts/booking-lifecycle.test.ts && tsx scripts/pricing-consistency.test.ts && tsx scripts/content-backward-compat.test.ts && tsx scripts/seasonal-campaigns.test.ts && tsx scripts/volume-applications.test.ts && tsx scripts/rate-limit-retry.test.ts",
+    "verify": "tsc --noEmit && next lint && tsx scripts/verify-truth-layer.ts && tsx scripts/ai-regression-smoke.ts && tsx scripts/gallery-security.test.ts && tsx scripts/booking-lifecycle.test.ts && tsx scripts/pricing-consistency.test.ts && tsx scripts/content-backward-compat.test.ts && tsx scripts/seasonal-campaigns.test.ts && tsx scripts/volume-applications.test.ts && tsx scripts/rate-limit-retry.test.ts && tsx scripts/vol-tiers.test.ts",
     "test:ai": "tsx scripts/ai-regression-smoke.ts",
     "test:ai:live": "tsx scripts/ai-live-smoke.ts",
     "test:admin-truth-security": "tsx scripts/admin-truth-security.test.ts",
@@ -32,7 +32,7 @@
     "test:pricing": "tsx scripts/pricing-consistency.test.ts",
     "test:content-compat": "tsx scripts/content-backward-compat.test.ts",
     "test:seasonal": "tsx scripts/seasonal-campaigns.test.ts",
-    "test:applications": "tsx scripts/volume-applications.test.ts",
+    "test:applications": "tsx scripts/volume-applications.test.ts && tsx scripts/vol-tiers.test.ts",
     "test:rate-limit": "tsx scripts/rate-limit-retry.test.ts",
     "audit:applications": "tsx scripts/applications-volume-audit.ts"
   },

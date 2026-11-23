@@ -820,6 +820,10 @@ export interface SessionApplicationSettings {
   askFaceCoveringComfort: boolean;
   /** Volume-specific collaboration terms: compensation, credits, image use. Shown before submit. */
   collaborationTerms: string;
+  /** ÉLEVÉ VOL. experience tiers: off until the owner switches them on per volume. */
+  tiersEnabled: boolean;
+  /** Tier ids offered (vol-tiers.ts). Empty = all. Free is always offered. */
+  tiersOffered: string[];
   customConfirmationMessage: string;
   questions: SessionApplicationQuestion[];
   emailTemplates: SessionApplicationEmailTemplates;
@@ -857,6 +861,8 @@ export interface SessionApplicationData {
   roleDetails: Record<string, string>;
   /** Free-text availability for the production date(s). */
   availabilityNotes?: string;
+  /** Non-binding tier interest (vol-tiers.ts id). Only when the volume offers tiers. */
+  experiencePreference?: string;
   sessionVolumeId?: string;
   sessionVolumeSlug?: string;
   sessionVolumeTitle?: string;

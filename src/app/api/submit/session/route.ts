@@ -1,3 +1,4 @@
+import { cleanExperiencePreference } from "@/lib/vol-tiers";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -122,6 +123,8 @@ export async function POST(request: Request) {
   const payload = {
     ...parsed.data,
     roleDetails: cleanRoleDetails(parsed.data.roleDetails, parsed.data.roles, settings).details,
+    // Non-binding; kept only when this volume offers that tier to this role.
+    experiencePreference: cleanExperiencePreference(parsed.data.experiencePreference, parsed.data.roles, settings),
     // Volume identity always comes from the server record, never the client.
     sessionVolumeId: volume.id,
     portfolioImages: cleanPortfolioImages,

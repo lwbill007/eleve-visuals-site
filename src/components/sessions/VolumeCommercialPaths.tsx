@@ -9,9 +9,12 @@ import { VOLUME_INQUIRY_PATHS, volumeInquiryHref } from "@/lib/volume-inquiries"
 export function VolumeCommercialPaths({
   slug,
   volumeLabel,
+  tiersEnabled = false,
 }: {
   slug: string;
   volumeLabel: string;
+  /** Link to The Experience when this volume offers VOL. tiers. */
+  tiersEnabled?: boolean;
 }) {
   return (
     <section
@@ -27,6 +30,15 @@ export function VolumeCommercialPaths({
           Applying as a creative is always free. Partnerships, advertising and paid sessions are handled
           separately, so a collaboration is never confused with a booking.
         </p>
+        {tiersEnabled ? (
+          <p className="mt-6 max-w-xl text-sm leading-relaxed text-fog">
+            Selected participants can choose how much of the production they take home, from free to the complete
+            editorial experience. Paid only after acceptance.{" "}
+            <Link href="/sessions/experience" className="text-cream underline underline-offset-4">
+              See The Experience
+            </Link>
+          </p>
+        ) : null}
         <ul className="mt-10 grid gap-px border border-stone/30 bg-stone/30 md:grid-cols-3">
           {VOLUME_INQUIRY_PATHS.map((path) => (
             <li key={path.interest} className="flex flex-col bg-ink p-6">

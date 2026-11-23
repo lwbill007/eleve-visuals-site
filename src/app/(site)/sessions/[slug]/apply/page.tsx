@@ -48,7 +48,7 @@ export default async function SessionApplyPage({
           />
         </div>
       </section>
-      <VolumeCommercialPaths slug={volume.slug} volumeLabel={`Vol. ${volume.volumeNumber} — ${volume.title}`} />
+      <VolumeCommercialPaths slug={volume.slug} volumeLabel={`Vol. ${volume.volumeNumber} — ${volume.title}`} tiersEnabled={volume.applicationSettings.tiersEnabled} />
     </>
   );
 }

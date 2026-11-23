@@ -1,5 +1,6 @@
 "use client";
 
+import { VOL_TIERS, formatVolPrice, offeredVolTiers } from "@/lib/vol-tiers";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -1106,6 +1107,51 @@ export default function AdminSessionsPage() {
                     {label}
                   </label>
                 ))}
+              </div>
+              <div className="mt-6 rounded-lg border border-stone/30 p-4">
+                <label className="flex items-center gap-2 text-sm text-cream">
+                  <input
+                    type="checkbox"
+                    checked={!!editing.applicationSettings?.tiersEnabled}
+                    onChange={(e) =>
+                      update("applicationSettings", {
+                        ...(editing.applicationSettings || DEFAULT_SESSION_APPLICATION_SETTINGS),
+                        tiersEnabled: e.target.checked,
+                      })
+                    }
+                  />
+                  Offer ÉLEVÉ VOL. experience tiers for this volume
+                </label>
+                <p className="mt-2 text-xs text-muted">
+                  Off by default. When on, models can mark a non-binding preference on the application and the
+                  volume page links to The Experience. Payment happens only after acceptance. Free is always offered.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-4">
+                  {VOL_TIERS.map((tier) => {
+                    const offered = editing.applicationSettings?.tiersOffered ?? [];
+                    const checked = tier.id === "free" || offered.length === 0 || offered.includes(tier.id);
+                    return (
+                      <label key={tier.id} className="flex items-center gap-2 text-sm text-fog">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={tier.id === "free" || !editing.applicationSettings?.tiersEnabled}
+                          onChange={(e) => {
+                            const current = offeredVolTiers(offered).map((t) => t.id as string);
+                            const next = e.target.checked
+                              ? [...new Set([...current, tier.id])]
+                              : current.filter((id) => id !== tier.id);
+                            update("applicationSettings", {
+                              ...(editing.applicationSettings || DEFAULT_SESSION_APPLICATION_SETTINGS),
+                              tiersOffered: next,
+                            });
+                          }}
+                        />
+                        {tier.name} · {formatVolPrice(tier.price)}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div className="mt-4">
                 <AdminField label="Collaboration terms shown before submit (one point per line)">

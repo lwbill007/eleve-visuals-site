@@ -112,7 +112,7 @@ export default async function SessionVolumePage({
         comingSoon={comingSoon}
       />
       {volume.status !== "completed" && volume.status !== "archived" ? (
-        <VolumeCommercialPaths slug={volume.slug} volumeLabel={`Vol. ${volume.volumeNumber} — ${volume.title}`} />
+        <VolumeCommercialPaths slug={volume.slug} volumeLabel={`Vol. ${volume.volumeNumber} — ${volume.title}`} tiersEnabled={volume.applicationSettings.tiersEnabled} />
       ) : null}
     </>
   );

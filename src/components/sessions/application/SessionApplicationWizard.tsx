@@ -12,6 +12,7 @@ import {
   applicationStorageKey,
   initialApplicationData,
 } from "@/lib/session-application";
+import { formatVolPrice, offeredVolTiers, rolesCanChooseTier } from "@/lib/vol-tiers";
 import { roleDetailFieldsFor } from "@/lib/session-role-details";
 import { SessionApplicationProgress } from "./SessionApplicationProgress";
 import { SessionApplicationSuccess } from "./SessionApplicationSuccess";
@@ -168,6 +169,8 @@ export function SessionApplicationWizard({
   };
 
   const roleFields = roleDetailFieldsFor(data.roles, settings);
+  const showTiers = settings.tiersEnabled === true && rolesCanChooseTier(data.roles);
+  const tierOptions = showTiers ? offeredVolTiers(settings.tiersOffered) : [];
   const portfolioRequired = settings.requirePortfolio !== false || settings.requirePortfolioUpload;
 
   const updateRoleDetail = (id: string, value: string) => {
@@ -344,6 +347,7 @@ export function SessionApplicationWizard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
+          experiencePreference: showTiers ? data.experiencePreference || "" : "",
           // Only send answers for the roles still selected.
           roleDetails: Object.fromEntries(
             roleFields.map((field) => [field.id, data.roleDetails[field.id] ?? ""])
@@ -516,6 +520,48 @@ export function SessionApplicationWizard({
                   })}
                   {errors.roleDetails && <p className="field-error">{errors.roleDetails}</p>}
                 </div>
+              )}
+              {showTiers && (
+                <fieldset className="space-y-4 border-t border-stone/30 pt-8">
+                  <legend className="text-xs tracking-[0.2em] text-fog uppercase">Experience preference · optional</legend>
+                  <p className="text-sm leading-relaxed text-fog">
+                    Not used for casting. If you&apos;re selected, we&apos;ll confirm your experience and only then send
+                    payment details. You can change your mind or stay on Free.{" "}
+                    <a href="/sessions/experience" target="_blank" rel="noopener" className="underline underline-offset-4 hover:text-cream">
+                      Compare experiences
+                    </a>
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {[{ id: "", label: "No preference yet", detail: "Decide after selection" }, ...tierOptions.map((tier) => ({
+                      id: tier.id,
+                      label: `${tier.name} · ${formatVolPrice(tier.price)}`,
+                      detail: `${tier.finalPhotos} edited photos · ${tier.deliveryBusinessDays}-day delivery`,
+                    }))].map((option) => {
+                      const selected = (data.experiencePreference || "") === option.id;
+                      return (
+                        <label
+                          key={option.id || "none"}
+                          className={`flex min-h-14 cursor-pointer items-start gap-3 border px-4 py-3 text-sm transition-colors ${
+                            selected ? "border-cream/70 text-cream" : "border-stone/40 text-fog hover:border-stone"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="experiencePreference"
+                            value={option.id}
+                            checked={selected}
+                            onChange={() => update("experiencePreference", option.id)}
+                            className="mt-1"
+                          />
+                          <span>
+                            <span className="block">{option.label}</span>
+                            <span className="block text-xs text-muted">{option.detail}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
               )}
               <FormField name="experience" label="Experience" hint="Optional — years, notable projects, representation">
                 <TextArea value={data.experience || ""} onChange={(e) => update("experience", e.target.value)} rows={4} />

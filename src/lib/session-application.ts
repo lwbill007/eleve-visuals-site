@@ -68,6 +68,8 @@ export const DEFAULT_SESSION_APPLICATION_SETTINGS: SessionApplicationSettings = 
   requirePortfolio: true,
   askFaceCoveringComfort: false,
   collaborationTerms: DEFAULT_COLLABORATION_TERMS,
+  tiersEnabled: false,
+  tiersOffered: [],
   customConfirmationMessage: "",
   questions: DEFAULT_APPLICATION_QUESTIONS,
   emailTemplates: {
@@ -123,6 +125,7 @@ export function initialApplicationData(
     agreementTerms: false,
     roleDetails: {},
     availabilityNotes: "",
+    experiencePreference: "",
     sessionVolumeId: volume?.id,
     sessionVolumeSlug: volume?.slug,
     sessionVolumeTitle: volume?.title,
@@ -136,6 +139,10 @@ export function parseApplicationSettings(raw: string | null | undefined): Sessio
     return {
       ...DEFAULT_SESSION_APPLICATION_SETTINGS,
       ...parsed,
+      tiersEnabled: parsed.tiersEnabled === true,
+      tiersOffered: Array.isArray(parsed.tiersOffered)
+        ? parsed.tiersOffered.filter((id): id is string => typeof id === "string")
+        : [],
       collaborationTerms:
         typeof parsed.collaborationTerms === "string" && parsed.collaborationTerms.trim()
           ? parsed.collaborationTerms

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatVolPrice, getVolTier } from "@/lib/vol-tiers";
 import { describeRoleDetails } from "@/lib/session-role-details";
 import {
   ALL_VOLUMES,
@@ -140,7 +141,8 @@ function ApplicationAnswers({ data }: { data: Record<string, unknown> | undefine
   const roleDetails = describeRoleDetails(data.roleDetails);
   const availability = typeof data.availabilityNotes === "string" ? data.availabilityNotes.trim() : "";
   const instagram = typeof data.instagram === "string" ? data.instagram.trim() : "";
-  if (roleDetails.length === 0 && !availability && !instagram && data.agreementTerms !== true) return null;
+  const preferredTier = getVolTier(typeof data.experiencePreference === "string" ? data.experiencePreference : "");
+  if (roleDetails.length === 0 && !preferredTier && !availability && !instagram && data.agreementTerms !== true) return null;
   return (
     <section className="mt-6 rounded-xl border border-stone/20 bg-charcoal/15 p-4">
       <p className="text-[0.58rem] tracking-wider text-accent uppercase">Application answers</p>
@@ -151,6 +153,14 @@ function ApplicationAnswers({ data }: { data: Record<string, unknown> | undefine
             <dd className="mt-0.5 whitespace-pre-line text-fog">{item.value}</dd>
           </div>
         ))}
+        {preferredTier && (
+          <div>
+            <dt className="text-[0.6rem] tracking-wider text-muted uppercase">Experience preference (non-binding)</dt>
+            <dd className="mt-0.5 text-fog">
+              {preferredTier.name} · {formatVolPrice(preferredTier.price)}. Not a casting factor; confirm only after acceptance.
+            </dd>
+          </div>
+        )}
         {availability && (
           <div>
             <dt className="text-[0.6rem] tracking-wider text-muted uppercase">Availability</dt>

@@ -63,6 +63,7 @@ export const sessionApplicationSchema = z.object({
   /** Cleaned against the selected roles in the submit route (cleanRoleDetails). */
   roleDetails: z.record(z.string().max(60), z.string().max(1000)).default({}),
   availabilityNotes: z.string().trim().max(500).optional(),
+  experiencePreference: z.string().trim().max(20).optional(),
   sessionVolumeId: z.string().min(1),
   sessionVolumeSlug: z.string().optional(),
   sessionVolumeTitle: z.string().optional(),
