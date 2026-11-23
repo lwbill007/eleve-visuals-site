@@ -30,14 +30,6 @@ export const FACE_COVERING_OPTIONS = [
 
 export const ROLE_DETAIL_FIELDS: readonly RoleDetailField[] = [
   {
-    id: "model-sizes",
-    label: "Clothing sizes",
-    roles: ["Model"],
-    placeholder: "Height, top, bottom / waist, dress and shoe size",
-    required: true,
-    maxLength: 300,
-  },
-  {
     id: "model-styling",
     label: "Preferred styling",
     roles: ["Model"],
@@ -78,6 +70,15 @@ export const ROLE_DETAIL_FIELDS: readonly RoleDetailField[] = [
     required: false,
     maxLength: 1000,
   },
+];
+
+/**
+ * Questions no longer asked. Older applications may still hold answers, so
+ * admin keeps showing them. Never accepted from new submissions.
+ */
+export const RETIRED_ROLE_DETAIL_FIELDS: readonly { id: string; label: string }[] = [
+  // Removed 2026-11-23 at Bill's request; answers from earlier applications stay readable.
+  { id: "model-sizes", label: "Clothing sizes (no longer asked)" },
 ];
 
 export type RoleDetailSettings = { askFaceCoveringComfort?: boolean };
@@ -130,7 +131,7 @@ export function cleanRoleDetails(
 export function describeRoleDetails(details: unknown): { label: string; value: string }[] {
   if (!details || typeof details !== "object") return [];
   const record = details as Record<string, unknown>;
-  return ROLE_DETAIL_FIELDS.flatMap((field) =>
+  return [...ROLE_DETAIL_FIELDS, ...RETIRED_ROLE_DETAIL_FIELDS].flatMap((field) =>
     typeof record[field.id] === "string" && record[field.id]
       ? [{ label: field.label, value: record[field.id] as string }]
       : []

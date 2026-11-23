@@ -7,7 +7,7 @@ import {
   pickDefaultVolumeId,
   volumeFilterWhere,
 } from "../src/lib/application-cycles";
-import { cleanRoleDetails, roleDetailFieldsFor } from "../src/lib/session-role-details";
+import { cleanRoleDetails, describeRoleDetails, roleDetailFieldsFor } from "../src/lib/session-role-details";
 import { createSessionApplicationSchema } from "../src/lib/session-application-validation";
 import { DEFAULT_COLLABORATION_TERMS, parseApplicationSettings } from "../src/lib/session-application";
 import { subjectForInterest, volumeInquiryHref } from "../src/lib/volume-inquiries";
@@ -70,9 +70,9 @@ test("unknown id → no evidence", () =>
   assert.equal(classifyUnassignedApplication({ sessionVolumeId: "deleted" }, refs).kind, "no_evidence"));
 
 // ── Role questions ────────────────────────────────────────────────────────
-test("model sees sizes + styling, not mask unless enabled", () => {
+test("model sees styling only (no clothing sizes), not mask unless enabled", () => {
   const ids = roleDetailFieldsFor(["Model"], {}).map((f) => f.id);
-  assert.deepEqual(ids, ["model-sizes", "model-styling"]);
+  assert.deepEqual(ids, ["model-styling"]);
   const withMask = roleDetailFieldsFor(["Model"], { askFaceCoveringComfort: true }).map((f) => f.id);
   assert.ok(withMask.includes("model-face-covering"));
 });
@@ -82,15 +82,22 @@ test("photographer + stylist see their own fields", () => {
 });
 test("clean drops answers for roles not selected and enforces options", () => {
   const r = cleanRoleDetails(
-    { "model-sizes": "S / 28 / 9", "camera-equipment": "R5", "model-face-covering": "whatever" },
+    { "model-styling": "Monochrome", "camera-equipment": "R5", "model-face-covering": "whatever" },
     ["Model"],
     { askFaceCoveringComfort: true }
   );
-  assert.deepEqual(r.details, { "model-sizes": "S / 28 / 9" });
+  assert.deepEqual(r.details, { "model-styling": "Monochrome" });
   assert.deepEqual(r.invalid, ["model-face-covering"]);
 });
-test("missing required model sizes reported", () =>
-  assert.deepEqual(cleanRoleDetails({}, ["Model"], {}).missing, ["model-sizes"]));
+test("clothing sizes are no longer asked, required or stored", () => {
+  assert.deepEqual(cleanRoleDetails({}, ["Model"], {}).missing, []);
+  assert.deepEqual(cleanRoleDetails({ "model-sizes": "S / 28 / 9" }, ["Model"], {}).details, {});
+});
+test("older clothing-size answers stay readable in admin", () =>
+  assert.deepEqual(describeRoleDetails({ "model-sizes": "S / 28 / 9", "model-styling": "Monochrome" }), [
+    { label: "Preferred styling", value: "Monochrome" },
+    { label: "Clothing sizes (no longer asked)", value: "S / 28 / 9" },
+  ]));
 
 // ── Server schema ─────────────────────────────────────────────────────────
 const base = {
@@ -110,7 +117,7 @@ const base = {
   agreementGuidelines: true,
   agreementAccurate: true,
   agreementTerms: true,
-  roleDetails: { "model-sizes": "5'9, S, 27, 8" },
+  roleDetails: {},
   sessionVolumeId: "v3",
 };
 const schemaFor = (extra: Partial<Parameters<typeof createSessionApplicationSchema>[0]> = {}) =>
@@ -128,8 +135,8 @@ test("portfolio still required where the volume asks", () =>
   assert.equal(schemaFor({ requirePortfolio: true }).safeParse(base).success, false));
 test("terms must be accepted", () =>
   assert.equal(schemaFor().safeParse({ ...base, agreementTerms: false }).success, false));
-test("model sizes required server-side", () =>
-  assert.equal(schemaFor().safeParse({ ...base, roleDetails: {} }).success, false));
+test("model application valid without clothing sizes", () =>
+  assert.equal(schemaFor().safeParse({ ...base, roleDetails: {} }).success, true));
 test("face-covering answer required only when the volume asks", () => {
   assert.equal(schemaFor({ askFaceCoveringComfort: true }).safeParse(base).success, false);
   assert.equal(
