@@ -1,4 +1,5 @@
 export type ApplicationEvaluationFailureKind =
+  | "billing"
   | "capacity"
   | "timeout"
   | "provider";
@@ -12,6 +13,15 @@ export function publicApplicationEvaluationFailure(
   error: unknown
 ): PublicApplicationEvaluationFailure {
   const detail = error instanceof Error ? error.message : String(error);
+
+  // Checked first: an out-of-credit account (HTTP 402) will not recover on retry.
+  if (/\b402\b|insufficient credits|purchase(d)? (more )?credits|payment required/i.test(detail)) {
+    return {
+      kind: "billing",
+      message:
+        "The AI provider account has no credits, so nothing was scored. Add credits to the OpenRouter account used by this site, then run the ranking again. Previous rankings were not changed.",
+    };
+  }
 
   if (/\b429\b|rate limit|quota|capacity/i.test(detail)) {
     return {

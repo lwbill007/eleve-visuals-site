@@ -14,6 +14,17 @@ test("classifies rate limits without exposing provider payloads", () => {
   assert.doesNotMatch(failure.message, /429|user_id|private-id/);
 });
 
+test("classifies an out-of-credit provider account as billing", () => {
+  const failure = publicApplicationEvaluationFailure(
+    new Error(
+      'AI provider returned no usable completion (provider=openrouter, finishReason=error, error=HTTP 402: {"error":{"message":"Insufficient credits. This account never purchased credits.","code":402}})'
+    )
+  );
+  assert.equal(failure.kind, "billing");
+  assert.match(failure.message, /no credits/i);
+  assert.doesNotMatch(failure.message, /402|never purchased/);
+});
+
 test("classifies timeouts and generic provider failures", () => {
   assert.equal(
     publicApplicationEvaluationFailure(new Error("Request timed out")).kind,

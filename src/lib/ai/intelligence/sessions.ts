@@ -676,7 +676,8 @@ async function evaluateApplicantSafely(submission: SubmissionRecord): Promise<Ev
       console.error(
         `[ai-rank] Evaluation attempt ${attempt}/2 failed | application=${submission.id} | error=${message}\n${stack}`
       );
-      if (publicApplicationEvaluationFailure(error).kind === "capacity") break;
+      const kind = publicApplicationEvaluationFailure(error).kind;
+      if (kind === "capacity" || kind === "billing") break;
     }
   }
   return failedEvaluation(submission, lastError);
